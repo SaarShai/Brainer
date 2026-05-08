@@ -5,7 +5,7 @@ description: Use when the user asks to relay, hand off, summarize, continue in a
 
 # Relay Sessions
 
-Use the repo-local `relay_session` package to create compact handoffs and launch fresh Codex successor sessions.
+Use the framework's `./te context` relay surface to create compact handoffs and launch fresh Codex successor sessions. (The standalone `relay_session` Python package under `projects/relay-session/` exists for users who want the same behavior outside Token Economy; ignore it inside a TE-installed repo.)
 
 ## Rules
 
@@ -24,40 +24,35 @@ Use the repo-local `relay_session` package to create compact handoffs and launch
 Create a handoff only:
 
 ```bash
-python3 -m relay_session.cli --repo "$PWD" checkpoint \
+./te context checkpoint \
   --goal "<current task and critical facts>" \
-  --plan "<next step>"
+  --plan "<next step>" \
+  --print-packet > session_handoff.md
 ```
 
 Launch a fresh successor:
 
 ```bash
-python3 -m relay_session.cli --repo "$PWD" relay \
+./te context relay \
   --goal "<current task and critical facts>" \
   --name "<session name>" \
   --version 01 \
   --execute
 ```
 
-Visibility or handoff-quality tests should stop after verification:
+Auto-launch a relay only when the context threshold is crossed:
 
 ```bash
-python3 -m relay_session.cli --repo "$PWD" relay \
-  --goal "<test goal>" \
-  --name "<session name>" \
-  --version 01 \
-  --execute \
-  --stop-after-verify
+./te context auto-relay --execute
 ```
 
-Ask the old session:
+Ask the old session a narrow follow-up:
 
 ```bash
-python3 -m relay_session.cli --repo "$PWD" ask-old \
+./te context ask-old \
   --handoff <handoff-file> \
   --question "<specific missing fact>" \
   --execute
 ```
 
-Omit `--execute` to dry-run routing and confirm which old thread/transcript would be queried.
-Add `--execute` to actually ask the old session.
+Omit `--execute` on `relay` / `auto-relay` / `ask-old` to dry-run routing and confirm what would be launched/queried. Add `--execute` to actually do it. Use `--ephemeral` on `relay` only for throwaway smoke tests.
