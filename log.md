@@ -1,5 +1,9 @@
 # Log
 
+## [2026-05-08] fix | unblock te CLI and lean baseline
+
+Removed orphan `cleanup` import, handler, and argparse subparser in `token_economy/cli.py` (introduced by `397b00e` without the `cleanup.py` module ever being committed; broke `./te doctor` for fresh clones). Trimmed `start.md` to 1479 tokens (was 1540) so `tests/test_universal_framework.py::test_start_and_adapters_stay_lean` passes again, while preserving the `no softening` and `Default target project comes from the user prompt` substring guards. Made `scripts/run_all_tests.sh` skip semdiff tests when `tree_sitter_languages` is absent and pull deps from `.token-economy/deps` when present, so the canonical baseline runs cleanly with or without the stable bundle installed. Verified: `./INSTALL.sh --dry-run`, `./te doctor`, `./te hooks doctor`, `./te wiki lint --strict --fail-on-error`, `./te bench run --suite framework-smoke`, `bash scripts/run_all_tests.sh` (29 framework tests + 6 semdiff tests, all passing).
+
 ## [2026-04-26] policy | reasoning high, reply ultra
 
 Made the model policy explicit in `token-economy.yaml`, `token_economy/config.py`, and `token_economy/profile.py`: reasoning effort is `high`, surfaced reply style is `ultra`. Also narrowed wiki stale-index lint to the tool-owned catalog and suppressed legacy migration warnings in strict lint so the current corpus validates cleanly while preserving the underlying evidence arrays.

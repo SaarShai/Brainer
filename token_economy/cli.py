@@ -12,7 +12,6 @@ from typing import Any
 from .config import detect_agent, load_config
 from .bench import run_framework_smoke
 from .code_map import code_map
-from .cleanup import apply_cleanup, cleanup_expectations, cleanup_plan
 from .codex_app_server import codex_compact_thread_plan, codex_fresh_thread_plan, run_codex_ask_old_thread, run_codex_compact_thread, run_codex_fresh_thread
 from .context import ask_old_session_plan, checkpoint, current_codex_transcript, fresh_launch_commands, host_context_controls, lint_handoff, meter, should_auto_relay, status_for_files, write_pending_relay
 from .delegate import delegation_plan, documentation_lifecycle_packet, dumps, load_models, classify, personal_assistant_directive, personal_assistant_packet
@@ -192,33 +191,6 @@ def cmd_code(args: argparse.Namespace) -> int:
     cfg = load_config(args.repo)
     if args.code_cmd == "map":
         print_json(code_map(cfg.repo_root, query=args.query or "", max_files=args.max_files, max_symbols=args.max_symbols))
-    return 0
-
-
-def cmd_cleanup(args: argparse.Namespace) -> int:
-    cfg = load_config(args.repo)
-    if args.cleanup_cmd == "scan":
-        result = cleanup_plan(cfg.repo_root, surface=args.surface, min_age_days=args.older_than_days, min_size=args.min_size, keep_recent=args.keep_recent)
-        print_json(result)
-    elif args.cleanup_cmd == "expectations":
-        result = cleanup_expectations(cfg.repo_root)
-        print_json(result)
-        return 0 if result["ok"] else 1
-    elif args.cleanup_cmd == "apply":
-        try:
-            result = apply_cleanup(
-                cfg.repo_root,
-                surface=args.surface,
-                older_than_days=args.older_than_days,
-                min_size=args.min_size,
-                keep_recent=args.keep_recent,
-                confirm=args.confirm,
-            )
-        except ValueError as exc:
-            print_json({"ok": False, "error": str(exc)})
-            return 2
-        print_json(result)
-        return 0 if result["ok"] else 1
     return 0
 
 
@@ -532,25 +504,6 @@ def build_parser() -> argparse.ArgumentParser:
     cdm.add_argument("--max-files", type=int, default=20)
     cdm.add_argument("--max-symbols", type=int, default=200)
     cdm.set_defaults(func=cmd_code)
-
-    clean = sub.add_parser("cleanup", help="Scan and safely clean generated state, artifacts, docs, wiki, and context residue")
-    cleansub = clean.add_subparsers(dest="cleanup_cmd", required=True)
-    cs = cleansub.add_parser("scan")
-    cs.add_argument("--surface", choices=["all", "sessions", "db", "filesystem", "docs", "wiki", "context"], default="all")
-    cs.add_argument("--older-than-days", type=int, default=14)
-    cs.add_argument("--min-size", type=int, default=1024 * 1024)
-    cs.add_argument("--keep-recent", type=int, default=5)
-    cs.add_argument("--json", action="store_true", help="Accepted for explicit machine-readable use; output is always JSON")
-    cs.set_defaults(func=cmd_cleanup)
-    ca = cleansub.add_parser("apply")
-    ca.add_argument("--surface", choices=["sessions", "db", "filesystem"], required=True)
-    ca.add_argument("--older-than-days", type=int, default=14)
-    ca.add_argument("--min-size", type=int, default=1024 * 1024)
-    ca.add_argument("--keep-recent", type=int, default=5)
-    ca.add_argument("--confirm", action="store_true")
-    ca.set_defaults(func=cmd_cleanup)
-    ce = cleansub.add_parser("expectations")
-    ce.set_defaults(func=cmd_cleanup)
 
     ctx = sub.add_parser("context")
     csub = ctx.add_subparsers(dest="context_cmd", required=True)

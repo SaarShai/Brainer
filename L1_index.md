@@ -10,3 +10,4 @@ Compact pointers. Fetch details on demand.
 - wiki catalog -> `index.md`
 - log -> `log.md`
 - raw sources -> `raw/` (search only; fetch after relevance)
+- projects/relay-session/README (page) -> `projects/relay-session/README.md`

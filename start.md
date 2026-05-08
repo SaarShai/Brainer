@@ -1,13 +1,13 @@
 # Token Economy Start
 
 Startup glue. Goal: excellent work, minimal context.
-Work only inside the current working folder for the active project. If this framework is being bootstrapped into a new folder, that new folder becomes the working root. Use the repo-local markdown wiki in that folder as source of truth.
+Work only inside the current working folder for the active project. If bootstrapped into a new folder, that folder is the working root. The repo-local markdown wiki is the source of truth.
 
-Default target project comes from the user prompt, handoff, imported summary, or project wiki. Use Token Economy as the local operating framework for that project.
+Default target project comes from the user prompt, handoff, imported summary, or project wiki. Token Economy is the local operating framework for it.
 
 ## Prime Directive
 
-Use **Caveman Ultra** for surfaced output: terse, exact, high-signal. No filler/praise padding, no softening, no conversational lead-ins. Code and quoted errors stay unchanged. This is output style only; reasoning budget stays task-dependent, and `high` is the right setting for hard synthesis when the task needs it.
+**Caveman Ultra** for surfaced output: terse, exact, high-signal. No filler, no softening, no lead-ins. Code/errors verbatim. Output style only — reasoning budget stays task-dependent (`high` for hard synthesis).
 
 Start non-trivial tasks in plan mode: short plan, inspect reality, execute.
 Smallest reversible action. Prune steps not tied to risk, implementation, verification, learning.
@@ -54,8 +54,7 @@ Load only when triggered:
 - Fetch all relevant information, and only relevant information.
 - Prefer pointers first: index, search hits, timelines, then full pages.
 - At `20%` estimated context used: `./te context status`, `./te context meter --transcript <file>`, `./te context checkpoint --handoff-template`.
-- For `summ`, use host-native clear/compact when available; then continue only in fresh context.
-- If the host cannot clear context, open a fresh session with only `./te context fresh-start` output + `start.md`.
+- For `summ`: use host-native clear/compact when available, then continue in fresh context. If the host cannot clear, open a fresh session with `./te context fresh-start` output + `start.md`.
 
 ## Wiki Rules
 
@@ -72,7 +71,7 @@ The LLM wiki is long-term memory for the current target project.
 - `L3_sops/`: solved-task playbooks.
 - `L4_archive/`: cold session archives.
 
-Do not use external note-taking apps, home-directory agent settings, machine-wide config, global MCP config, or external wikis unless the user explicitly asks outside this framework.
+Do not use external note apps, home-directory or machine-wide agent/MCP config, or external wikis unless the user explicitly asks.
 
 Use progressive retrieval:
 
