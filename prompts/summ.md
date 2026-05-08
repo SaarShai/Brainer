@@ -6,8 +6,6 @@ Goal: preserve continuity with the smallest useful fresh context. The required p
 
 For manual copy-paste operation, use `prompts/manual-summ-document-and-handoff.md` in the old session and `prompts/manual-fresh-session-from-handoff.md` in the new session.
 
-For older Codex installs where the project-local `./te` lacks the Codex App Server subcommands, use `prompts/summ-codex-manual.md`. It uses one reliable path: a self-contained persistent fresh-successor App Server launcher. Do not attempt same-thread compaction in those older installs; inherited host config can make it fail.
-
 ## Protocol
 
 1. Split session information into two buckets:

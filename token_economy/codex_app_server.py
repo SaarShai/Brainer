@@ -39,20 +39,6 @@ def build_successor_prompt(repo_root: Path, handoff: Path, session_name: str | N
     )
 
 
-def build_compact_prompt(repo_root: Path, handoff: Path | None = None) -> str:
-    handoff_text = f" Use this handoff as the source of truth: {handoff}." if handoff else ""
-    return (
-        "Compact this Codex thread for Token Economy continuation. Preserve only the lean continuation state: "
-        "current goal, exact repo root, exact files touched, commands run, errors/blockers, decisions and rationale, "
-        "commits/push state, active subagents that are not completed, and next actions. "
-        "Exclude transcript noise, raw logs, broad wiki pages, and docs-only discoveries. "
-        "Mention durable wiki/log pages by path instead of loading their contents. "
-        f"After compaction, continue with only {repo_root}/start.md plus the compacted handoff-worthy summary; "
-        "retrieve more only when relevance is proven."
-        f"{handoff_text}"
-    )
-
-
 def codex_fresh_thread_plan(
     repo_root: Path,
     handoff: Path,
@@ -86,31 +72,6 @@ def codex_fresh_thread_plan(
             "For persistent mode, thread/list can find the new thread by exact cwd.",
         ],
         "note": "This creates a fresh successor Codex thread in the same project. It does not erase the old host transcript.",
-    }
-
-
-def codex_compact_thread_plan(repo_root: Path, thread_id: str | None = None, handoff: Path | None = None, model: str | None = None) -> dict[str, Any]:
-    target_thread = thread_id or os.environ.get("CODEX_THREAD_ID")
-    compact_prompt = build_compact_prompt(repo_root, handoff)
-    model_name = model or default_codex_fresh_model()
-    return {
-        "agent": "codex",
-        "mode": "app-server-thread-compact",
-        "status": "experimental-current-thread-clear-unsolved",
-        "model": model_name,
-        "repo_root": str(repo_root),
-        "thread_id": target_thread,
-        "handoff": str(handoff) if handoff else None,
-        "compact_prompt": compact_prompt,
-        "command": "./te context codex-compact-thread --current --execute"
-        if thread_id is None
-        else f'./te context codex-compact-thread --thread-id "{thread_id}" --execute',
-        "success_test": [
-            "App Server resumes the target thread with the custom compact_prompt override.",
-            "thread/compact/start is accepted for that thread.",
-            "App Server emits thread/compacted for the same thread id.",
-        ],
-        "note": "Experimental only. Codex current-thread clear/compact is unsolved in the tested Desktop/App Server environment; prefer codex-fresh-thread for clean continuation.",
     }
 
 
@@ -454,99 +415,3 @@ def run_codex_fresh_thread(
     return summary
 
 
-def run_codex_compact_thread(
-    repo_root: Path,
-    thread_id: str | None = None,
-    handoff: Path | None = None,
-    model: str | None = None,
-    timeout: int = 120,
-) -> dict[str, Any]:
-    plan = codex_compact_thread_plan(repo_root, thread_id=thread_id, handoff=handoff, model=model)
-    target_thread = plan["thread_id"]
-    outdir = repo_root / ".token-economy" / "checkpoints" / "codex-app-server-compact" / datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    outdir.mkdir(parents=True, exist_ok=True)
-    proc = subprocess.Popen(
-        ["codex", "app-server", "--listen", "stdio://"],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        bufsize=1,
-    )
-    all_events: list[dict[str, Any]] = []
-    stderr_text = ""
-    try:
-        if not target_thread:
-            raise RuntimeError("No thread id supplied and CODEX_THREAD_ID is not set.")
-        _send(
-            proc,
-            {
-                "id": 1,
-                "method": "initialize",
-                "params": {
-                    "clientInfo": {"name": "token-economy", "title": "Token Economy Compact Thread", "version": "0.1.0"},
-                    "capabilities": {"experimentalApi": True},
-                },
-            },
-        )
-        all_events.extend(_read_events_until(proc, 5, lambda events, event: event.get("id") == 1))
-        _send(proc, {"method": "initialized", "params": {}})
-        _send(
-            proc,
-            {
-                "id": 2,
-                "method": "thread/resume",
-                "params": {
-                    "threadId": target_thread,
-                    "cwd": str(repo_root),
-                    "approvalPolicy": "never",
-                    "sandbox": "workspace-write",
-                    "model": plan["model"],
-                    "config": {"compact_prompt": plan["compact_prompt"]},
-                },
-            },
-        )
-        all_events.extend(_read_events_until(proc, 15, lambda events, event: event.get("id") == 2 or event.get("method") == "thread/started"))
-        _send(proc, {"id": 3, "method": "thread/compact/start", "params": {"threadId": target_thread}})
-        all_events.extend(
-            _read_events_until(
-                proc,
-                timeout,
-                lambda events, event: bool(
-                    event.get("method") == "thread/compacted"
-                    and (event.get("params") or {}).get("threadId") == target_thread
-                )
-                or bool(event.get("method") == "error" and not event.get("willRetry")),
-            )
-        )
-    finally:
-        proc.terminate()
-        try:
-            proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-        if proc.stderr is not None:
-            stderr_text = proc.stderr.read()
-
-    events_path = outdir / "events.jsonl"
-    events_path.write_text("\n".join(json.dumps(event, sort_keys=True) for event in all_events) + "\n", encoding="utf-8")
-    stderr_path = outdir / "stderr.txt"
-    stderr_path.write_text(stderr_text, encoding="utf-8")
-    resume_ok = _find_response(all_events, 2) is not None
-    compact_start_ok = _find_response(all_events, 3) is not None
-    compacted = any(
-        event.get("method") == "thread/compacted" and (event.get("params") or {}).get("threadId") == target_thread
-        for event in all_events
-    )
-    summary = {
-        **plan,
-        "thread_id": target_thread,
-        "resume_ok": resume_ok,
-        "compact_start_ok": compact_start_ok,
-        "compacted": compacted,
-        "ok": bool(resume_ok and compact_start_ok and compacted),
-        "events": str(events_path),
-        "stderr": str(stderr_path),
-    }
-    (outdir / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
-    return summary

@@ -12,7 +12,7 @@ from typing import Any
 from .config import detect_agent, load_config
 from .bench import run_framework_smoke
 from .code_map import code_map
-from .codex_app_server import codex_compact_thread_plan, codex_fresh_thread_plan, run_codex_ask_old_thread, run_codex_compact_thread, run_codex_fresh_thread
+from .codex_app_server import codex_fresh_thread_plan, run_codex_ask_old_thread, run_codex_fresh_thread
 from .context import ask_old_session_plan, checkpoint, current_codex_transcript, fresh_launch_commands, host_context_controls, lint_handoff, meter, should_auto_relay, status_for_files, write_pending_relay
 from .delegate import delegation_plan, documentation_lifecycle_packet, dumps, load_models, classify, personal_assistant_directive, personal_assistant_packet
 from .docs import audit as docs_audit, split_plan
@@ -347,15 +347,6 @@ def cmd_context(args: argparse.Namespace) -> int:
         else:
             result["ok"] = True
         print_json(result)
-    elif args.context_cmd == "codex-compact-thread":
-        handoff = Path(args.handoff).expanduser() if args.handoff else None
-        if handoff and not handoff.is_absolute():
-            handoff = cfg.repo_root / handoff
-        thread_id = None if args.current else args.thread_id
-        if args.execute:
-            print_json(run_codex_compact_thread(cfg.repo_root, thread_id=thread_id, handoff=handoff, model=args.model, timeout=args.timeout))
-        else:
-            print_json(codex_compact_thread_plan(cfg.repo_root, thread_id=thread_id, handoff=handoff, model=args.model))
     return 0
 
 
@@ -556,14 +547,6 @@ def build_parser() -> argparse.ArgumentParser:
     cft.add_argument("--ephemeral", action="store_true", help="Use an in-memory throwaway thread instead of the default persistent project thread")
     cft.add_argument("--timeout", type=int, default=120)
     cft.set_defaults(func=cmd_context)
-    cct = csub.add_parser("codex-compact-thread", help="EXPERIMENTAL: Codex current-thread compact; current-thread clear is unsolved in tested Desktop/App Server")
-    cct.add_argument("--thread-id")
-    cct.add_argument("--current", action="store_true", help="Use CODEX_THREAD_ID from the current Codex session")
-    cct.add_argument("--handoff")
-    cct.add_argument("--model")
-    cct.add_argument("--execute", action="store_true", help="Actually ask Codex App Server to compact the target thread")
-    cct.add_argument("--timeout", type=int, default=120)
-    cct.set_defaults(func=cmd_context)
     cr = csub.add_parser("relay", help="Write a handoff and launch or plan a fresh Codex relay successor")
     cr.add_argument("--transcript")
     cr.add_argument("--goal")

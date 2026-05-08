@@ -52,8 +52,7 @@ Live tracker. Directions, status, next steps. Update after every experiment.
 8. Tiny-model router (needs Ollama setup verified).
 
 ### Carry-overs from archived HANDOFF_NEXT_AGENT
-9. **Codex context-refresh docs.** Reword so current-thread clear and fresh-successor continuation are clearly distinct. Claude `/clear` is the explicit manual-clear path; Codex current-thread clear remains unsolved in the tested environment.
-10. **`./te context codex-compact-thread` fate.** Decide: remove, hide, or label experimental. Current-thread compact failed in the tested Codex App Server environment; the active workaround is the persistent fresh successor.
+9. **Codex context-refresh docs.** Reword so current-thread clear and fresh-successor continuation are clearly distinct. Claude `/clear` is the explicit manual-clear path; Codex current-thread clear remains unsolved in the tested environment. *(Partially addressed 2026-05-08: archived `summ-codex-manual.md`, removed `codex-compact-thread`. Remaining: any operational doc still implying same-thread clear is solved.)*
 
 ## Open questions
 - Does llmlingua-2 output degrade model accuracy more than the token savings are worth? Need eval.

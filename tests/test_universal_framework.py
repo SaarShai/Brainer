@@ -14,7 +14,7 @@ from pathlib import Path
 from token_economy.cli import main
 from token_economy.code_map import code_map
 from token_economy.config import detect_agent
-from token_economy.codex_app_server import codex_compact_thread_plan, codex_fresh_thread_plan, default_codex_fresh_model
+from token_economy.codex_app_server import codex_fresh_thread_plan, default_codex_fresh_model
 from token_economy.context import checkpoint, fresh_launch_commands, host_context_controls, lint_handoff, meter
 from token_economy.docs import audit as docs_audit
 from token_economy.delegate import classify, documentation_lifecycle_packet, personal_assistant_packet, strip_pa_prefix
@@ -887,8 +887,10 @@ Source provenance may mention the original wiki and absolute paths here.
         self.assertTrue((REPO / "prompts/subagents/repo-maintainer.prompt.md").exists())
         self.assertTrue((REPO / "prompts/subagents/lifecycle.prompt.md").exists())
         self.assertTrue((REPO / "prompts/summ.md").exists())
-        self.assertTrue((REPO / "prompts/summ-codex-manual.md").exists())
         self.assertTrue((REPO / "prompts/summ-experiments.md").exists())
+        self.assertFalse((REPO / "prompts/summ-codex-manual.md").exists(),
+            "summ-codex-manual.md should be archived under L4_archive/")
+        self.assertTrue((REPO / "L4_archive/2026-04-24-summ-codex-manual.md").exists())
         self.assertTrue((REPO / "prompts/manual-summ-document-and-handoff.md").exists())
         self.assertTrue((REPO / "prompts/manual-fresh-session-from-handoff.md").exists())
         self.assertTrue((REPO / "prompts/complete-migrate-export.md").exists())
@@ -1005,12 +1007,6 @@ Source provenance may mention the original wiki and absolute paths here.
         self.assertIn("Run `rg` checks for the old project root and old source-wiki root", import_prompt)
         self.assertIn("remaining old-path hits are provenance-only", import_prompt)
         self.assertIn("copied/adapted instructions point to the new working folder", import_prompt)
-        manual_summ = (REPO / "prompts/summ-codex-manual.md").read_text(encoding="utf-8")
-        self.assertIn("persistent fresh Codex successor thread", manual_summ)
-        self.assertIn("thread/start", manual_summ)
-        self.assertIn("turn/start", manual_summ)
-        self.assertIn("Do not attempt same-thread compaction", manual_summ)
-        self.assertIn("FRESH SUCCESSOR LAUNCHED - STOP HERE", manual_summ)
         self.assertEqual(host_context_controls("codex")["clear"], "/clear")
         self.assertEqual(host_context_controls("codex")["strategy"], "fresh-successor-workaround-current-clear-unsolved")
         self.assertIn("experimental", " ".join(host_context_controls("codex")["notes"]))
@@ -1040,16 +1036,7 @@ Source provenance may mention the original wiki and absolute paths here.
             self.assertEqual(main(["context", "codex-fresh-thread", "--handoff", "handoff.md", "--model", "gpt-5.3-codex-spark"]), 0)
         self.assertEqual(json.loads(buf.getvalue())["mode"], "app-server-fresh-thread")
         self.assertIn("thread_persistent", (REPO / "prompts/summ.md").read_text(encoding="utf-8"))
-        compact_plan = codex_compact_thread_plan(REPO, thread_id="thread-test", handoff=REPO / "handoff.md")
-        self.assertEqual(compact_plan["mode"], "app-server-thread-compact")
-        self.assertEqual(compact_plan["status"], "experimental-current-thread-clear-unsolved")
-        self.assertIn("compact_prompt", compact_plan)
-        self.assertIn("thread/compact/start", " ".join(compact_plan["success_test"]))
-        self.assertIn("experimental", (REPO / "README.md").read_text(encoding="utf-8"))
         self.assertIn("clean continuation", (REPO / "README.md").read_text(encoding="utf-8"))
-        with contextlib.redirect_stdout(buf):
-            self.assertEqual(main(["context", "codex-compact-thread", "--thread-id", "thread-test", "--handoff", "handoff.md"]), 0)
-        self.assertIn("app-server-thread-compact", buf.getvalue())
 
     def test_agent_detection_ignores_provider_api_keys(self):
         original = os.environ.copy()
