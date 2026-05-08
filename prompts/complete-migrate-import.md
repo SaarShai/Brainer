@@ -46,17 +46,20 @@ Use `prompts/subagents/lifecycle.prompt.md` when supervising workers. Close a su
    ```bash
    git clone --depth 1 --filter=blob:none --sparse https://github.com/SaarShai/token-economy.git .
    git sparse-checkout set --no-cone \
-     '/.gitignore' '/AGENTS.md' '/CLAUDE.md' '/GEMINI.md' '/INSTALL.sh' \
-     '/L0_rules.md' '/L1_index.md' '/LICENSE' '/index.md' '/models.yaml' \
-     '/schema.md' '/stable/INSTALL.sh' '/start.md' '/te' '/token-economy.yaml' \
-     '/token_economy/*' '/adapters/*' '/hooks/*' '/hooks/output-filter/*' \
-     '/projects/compound-compression-pipeline/*' \
-     '/projects/context-keeper/*' '/projects/semdiff/*' \
+     '/.gitignore' '/AGENTS.md' '/CLAUDE.md' '/GEMINI.md' \
+     '/INSTALL.md' '/INSTALL.sh' '/LICENSE' \
+     '/L0_rules.md' '/L1_index.md' '/index.md' '/models.yaml' '/schema.md' \
+     '/start.md' '/te' '/token-economy.yaml' \
+     '/token_economy/*' '/adapters/*' '/hooks/*' '/hooks/output-filter/*' '/templates/*' \
      '/prompts/*.md' '/prompts/subagents/*' \
+     '/projects/agents-triage/*' '/projects/compound-compression-pipeline/*' \
+     '/projects/context-keeper/*' '/projects/semdiff/*' \
      '/skills/caveman-ultra/*' '/skills/context-refresh/*' \
-     '/skills/lean-execution/*' '/skills/personal-assistant/*' '/skills/plan-first-execute/*' \
+     '/skills/lean-execution/*' '/skills/personal-assistant/*' \
+     '/skills/plan-first-execute/*' '/skills/relay-sessions/*' \
      '/skills/subagent-orchestrator/*' '/skills/verification-before-completion/*' \
-     '/skills/wiki-retrieve/*' '/skills/wiki-write/*' '/templates/*'
+     '/skills/wiki-retrieve/*' '/skills/wiki-write/*' \
+     '/stable/INSTALL.sh' '/stable/*'
    rm -rf .git
    git init
    ```

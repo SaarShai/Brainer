@@ -2,11 +2,14 @@
 type: handoff
 from-session: codex
 created: 2026-04-24
+archived: 2026-05-08
 context-pct-at-refresh: unknown
 next-mode: plan-first
+status: archived
+supersession: stale machine paths (`/Users/saar/...`); open items 4–6 carried into ROADMAP.md as items 9–10 ("Codex context-refresh docs", "codex-compact-thread fate"); current contract lives in HANDOFF.md
 ---
 
-# HANDOFF - token-economy-migration
+# HANDOFF - token-economy-migration (archived)
 
 ## 1. Current task
 

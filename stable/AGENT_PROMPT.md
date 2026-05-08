@@ -1,54 +1,52 @@
 # Agent Prompt
 
-Set up the Token Economy runtime in this folder only, then use it for the user's target project.
+Set up the Token Economy runtime in this folder, then use it for the user's target project. Canonical source: `https://github.com/SaarShai/token-economy.git`. Retrieve only downstream runtime/framework files via sparse checkout.
 
-Canonical source:
-- Use `https://github.com/SaarShai/token-economy.git`.
-- Retrieve only downstream runtime/framework files with sparse checkout.
-
-Start in plan mode. Before any commands, write a short step-by-step plan in chat only. Do not create scratch plan files unless asked. Then execute the plan.
+Start in plan mode. Write a short step-by-step plan in chat (no scratch files), then execute.
 
 Rules:
-- The current folder is the active workspace for the target project.
-- This prompt gives explicit permission to clear the current folder for a fresh install. Delete existing contents in this folder only, including hidden files and `.git`.
-- Do not delete anything outside the current folder.
-- Determine the active target project only from the user's prompt, uploaded summary, handoff, or project-specific wiki pages created for that target project.
+- The current folder is the active workspace. This prompt gives explicit permission to clear the current folder for a fresh install, including hidden files and `.git`. Do not delete anything outside the current folder.
+- Determine the active target project only from the user's prompt, uploaded summary, handoff, or project-specific wiki pages.
 - Ignore stale external memory or global wiki entries that conflict with this prompt.
 - Do not edit `MEMORY.md`, home-directory agent settings, machine-wide config, global MCP config, or any external wiki.
-- Use the repo-local markdown wiki as the source of truth.
-- Use interlinked markdown pages with real wiki IDs such as `[[start]]` or `[[projects/example/README]]`.
-- Retrieve before reasoning: `./te wiki search`, then `./te wiki timeline <id>`, then `./te wiki fetch <id>` only for relevant hits.
-- Document only after verified work, and only in the repo-local markdown wiki/log.
-- Use `/pa` routing for context-light assistant prompts.
-- Checkpoint/fresh-start near 20% context; use `summ` for manual refresh.
-- For `summ`, create a lean handoff, route durable docs to a lightweight wiki-documenter, then fresh context loads only handoff + `start.md`.
-- Normal prompts should not receive hook chatter; `/pa` and `/btw` are the explicit context-light bypasses.
-- If this target project has a GitHub remote, use the lightweight repo-maintainer worker at verified save-points; otherwise skip repo maintenance.
 
-Run:
+After install, `start.md` carries the operating contract (retrieval, /pa routing, summ refresh, delegation). Load it first.
+
+## Bootstrap
+
 ```bash
 find . -mindepth 1 -maxdepth 1 -exec rm -rf {} +
 git clone --depth 1 --filter=blob:none --sparse https://github.com/SaarShai/token-economy.git .
 git sparse-checkout set --no-cone \
-  '/.gitignore' '/AGENTS.md' '/CLAUDE.md' '/GEMINI.md' '/INSTALL.sh' \
-  '/L0_rules.md' '/L1_index.md' '/LICENSE' '/index.md' '/models.yaml' \
-  '/schema.md' '/start.md' '/te' '/token-economy.yaml' \
-  '/token_economy/*' '/adapters/*' '/hooks/*' '/hooks/output-filter/*' \
+  '/.gitignore' '/AGENTS.md' '/CLAUDE.md' '/GEMINI.md' \
+  '/INSTALL.md' '/INSTALL.sh' '/LICENSE' \
+  '/L0_rules.md' '/L1_index.md' '/index.md' '/models.yaml' '/schema.md' \
+  '/start.md' '/te' '/token-economy.yaml' \
+  '/token_economy/*' '/adapters/*' '/hooks/*' '/hooks/output-filter/*' '/templates/*' \
   '/prompts/*.md' '/prompts/subagents/*' \
+  '/projects/agents-triage/*' '/projects/compound-compression-pipeline/*' \
+  '/projects/context-keeper/*' '/projects/semdiff/*' \
   '/skills/caveman-ultra/*' '/skills/context-refresh/*' \
-  '/skills/personal-assistant/*' '/skills/plan-first-execute/*' \
+  '/skills/lean-execution/*' '/skills/personal-assistant/*' \
+  '/skills/plan-first-execute/*' '/skills/relay-sessions/*' \
   '/skills/subagent-orchestrator/*' '/skills/verification-before-completion/*' \
-  '/skills/wiki-retrieve/*' '/skills/wiki-write/*' '/templates/*'
+  '/skills/wiki-retrieve/*' '/skills/wiki-write/*' \
+  '/stable/INSTALL.sh' '/stable/*'
 rm -rf .git
 git init
+
 ./INSTALL.sh --dry-run
 ./INSTALL.sh --scope project --agent auto
-./te doctor
-./te hooks doctor
-./te wiki search "start"
-./te context status
+
+if command -v claude >/dev/null 2>&1; then
+  ./stable/INSTALL.sh
+else
+  echo "Skipping stable/INSTALL.sh: 'claude' CLI not on PATH. Run ./stable/INSTALL.sh later to register ComCom + semdiff MCP servers."
+fi
+
+./te doctor && ./te hooks doctor && ./te wiki lint --strict --fail-on-error && ./te bench run --suite framework-smoke
 ```
 
-After setup, drop setup-only details from context. Keep only the repo map, command surface, scope rule, and file locations needed for future tasks.
+`./INSTALL.sh` wires project-local hooks (`agents-triage`, `context-keeper`, `semdiff`) and the agent adapter. `./stable/INSTALL.sh` adds ComCom and semdiff MCP servers (needs `claude` CLI). See `stable/README.md` for measured savings per tool.
 
-Report changed files, verification results, and any remaining risk.
+Drop setup-only details from context after install.

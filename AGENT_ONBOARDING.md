@@ -10,15 +10,20 @@ For a fresh target folder, clear the current folder only, including hidden files
 find . -mindepth 1 -maxdepth 1 -exec rm -rf {} +
 git clone --depth 1 --filter=blob:none --sparse https://github.com/SaarShai/token-economy.git .
 git sparse-checkout set --no-cone \
-  '/.gitignore' '/AGENTS.md' '/CLAUDE.md' '/GEMINI.md' '/INSTALL.sh' \
-  '/L0_rules.md' '/L1_index.md' '/LICENSE' '/index.md' '/models.yaml' \
-  '/schema.md' '/start.md' '/te' '/token-economy.yaml' \
-  '/token_economy/*' '/adapters/*' '/hooks/*' '/hooks/output-filter/*' \
+  '/.gitignore' '/AGENTS.md' '/CLAUDE.md' '/GEMINI.md' \
+  '/INSTALL.md' '/INSTALL.sh' '/LICENSE' \
+  '/L0_rules.md' '/L1_index.md' '/index.md' '/models.yaml' '/schema.md' \
+  '/start.md' '/te' '/token-economy.yaml' \
+  '/token_economy/*' '/adapters/*' '/hooks/*' '/hooks/output-filter/*' '/templates/*' \
   '/prompts/*.md' '/prompts/subagents/*' \
+  '/projects/agents-triage/*' '/projects/compound-compression-pipeline/*' \
+  '/projects/context-keeper/*' '/projects/semdiff/*' \
   '/skills/caveman-ultra/*' '/skills/context-refresh/*' \
-  '/skills/personal-assistant/*' '/skills/plan-first-execute/*' \
+  '/skills/lean-execution/*' '/skills/personal-assistant/*' \
+  '/skills/plan-first-execute/*' '/skills/relay-sessions/*' \
   '/skills/subagent-orchestrator/*' '/skills/verification-before-completion/*' \
-  '/skills/wiki-retrieve/*' '/skills/wiki-write/*' '/templates/*'
+  '/skills/wiki-retrieve/*' '/skills/wiki-write/*' \
+  '/stable/INSTALL.sh' '/stable/*'
 rm -rf .git
 git init
 ```
@@ -31,44 +36,20 @@ Then run:
 ```bash
 ./INSTALL.sh --dry-run
 ./INSTALL.sh --scope project --agent auto
+command -v claude >/dev/null && ./stable/INSTALL.sh   # registers ComCom + semdiff MCP servers
 ./te doctor
 ./te hooks doctor
+./te wiki lint --strict --fail-on-error
 ./te wiki search "start"
 ./te context status
 ```
 
 ## Rules
 
-- Work only inside the current working folder for the active project. If this framework is being bootstrapped into a new folder, that folder is the workspace.
+- Work only inside the current working folder.
 - Do not edit home-directory agent settings, machine-wide config, global MCP config, or external wikis.
-- Use the repo-local markdown wiki: `raw/`, `concepts/`, `patterns/`, `projects/`, `people/`, `queries/`, `L0_rules.md`, `L1_index.md`, `L2_facts/`, `L3_sops/`, `L4_archive/`.
-- Use interlinked markdown pages with real wiki IDs such as `[[start]]` or `[[projects/example/README]]`.
-- Retrieve before reasoning with `./te wiki search`, then `./te wiki timeline <id>`, then `./te wiki fetch <id>`.
-- Document only after verified work, and only in repo-local wiki pages and `log.md`.
-- Use `/pa` for context-light prompts.
-- Keep normal prompt hooks quiet unless `TOKEN_ECONOMY_CLASSIFY_ALL=1` is explicitly set.
-- Checkpoint near 20% context. Use `summ` for manual refresh: lean handoff, durable memory to a lightweight wiki-documenter, then host-specific clear/fresh continuation. Claude can use native `/clear`. Codex current-thread clear is not solved in the tested environment; fresh successor is `./te context codex-fresh-thread --handoff <handoff-file> --execute`.
-- If the task workspace has a GitHub remote, use the lightweight repo-maintainer worker at verified save-points; otherwise skip repo maintenance.
-
-## Project-Local Adapters
-
-Install adapter files only in this repo:
-
-```bash
-./te start --agent auto --scope project
-```
-
-This may create repo-local files such as `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, or `.cursor/rules/token-economy.mdc`. These are small pointers to `start.md` and the universal adapter.
+- After install, `start.md` is the operating contract — load it for retrieval, /pa routing, summ refresh, and delegation.
 
 ## After Setup
 
-Drop setup-only details from context. Keep only:
-
-- repo root path
-- `start.md`
-- `token-economy.yaml`
-- `./te` command surface
-- wiki retrieval commands
-- repo-local-only scope rule
-
-Report changed files, verification results, and remaining risk.
+Drop setup-only details from context. Keep only the repo root, `start.md`, `token-economy.yaml`, and the `./te` command surface. Report changed files, verification results, and remaining risk.

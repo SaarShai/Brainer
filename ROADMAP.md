@@ -51,6 +51,10 @@ Live tracker. Directions, status, next steps. Update after every experiment.
 7. Brevity eval benchmark (standalone publishable).
 8. Tiny-model router (needs Ollama setup verified).
 
+### Carry-overs from archived HANDOFF_NEXT_AGENT
+9. **Codex context-refresh docs.** Reword so current-thread clear and fresh-successor continuation are clearly distinct. Claude `/clear` is the explicit manual-clear path; Codex current-thread clear remains unsolved in the tested environment.
+10. **`./te context codex-compact-thread` fate.** Decide: remove, hide, or label experimental. Current-thread compact failed in the tested Codex App Server environment; the active workaround is the persistent fresh successor.
+
 ## Open questions
 - Does llmlingua-2 output degrade model accuracy more than the token savings are worth? Need eval.
 - Can we cascade: caveman → llmlingua → caveman again? Does second pass compound or noop?
