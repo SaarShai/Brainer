@@ -2,6 +2,8 @@
 
 /plan think carefully, step by step, to create a plan to set up this empty folder as a Token Economy-enabled managing-director workspace. Treat this folder as the active managing-director workspace, not the Token Economy source repository and not any other project folder.
 
+Token Economy is a framework of tools, skills, and operating rules that a project uses to optimize token consumption. The framework is **scaffolding** — the managing-director project that lives in this folder is **not part of Token Economy**.
+
 Set up the Token Economy runtime in this folder only. Then create the local wiki, role documentation, and operating rules needed for a managing director that can coordinate with multiple other project folders by explicit user permission.
 
 This is a fresh setup prompt, not a migration/import prompt. Do not import another project's codebase, wiki, docs, or memory into this folder. Other project folders remain their own workspaces and sources of truth for their own facts.
@@ -61,9 +63,16 @@ Use `prompts/subagents/lifecycle.prompt dot md` when supervising workers. Close 
 
 ## Bootstrap Token Economy runtime files in the current folder
 
-1. Clear only the current folder, including hidden files and `.git`.
+1. Refuse to install if this folder already contains the Token Economy framework itself:
+   ```bash
+   if [ -f "token-economy.yaml" ] || git remote get-url origin 2>/dev/null | grep -q "SaarShai/token-economy"; then
+     echo "ABORT: folder already contains the Token Economy framework. Use a different folder."
+     exit 1
+   fi
+   ```
+2. Clear only the current folder, including hidden files and `.git`.
    `find . -mindepth 1 -maxdepth 1 -exec rm -rf {} +`
-2. Retrieve only the downstream runtime/framework files:
+3. Retrieve only the downstream runtime/framework files:
    ```bash
    git clone --depth 1 --filter=blob:none --sparse https://github.com/SaarShai/token-economy.git .
    git sparse-checkout set --no-cone \
@@ -84,11 +93,11 @@ Use `prompts/subagents/lifecycle.prompt dot md` when supervising workers. Close 
    rm -rf .git
    git init
    ```
-3. Do not delete anything outside the current folder.
-4. Run:
+4. Do not delete anything outside the current folder.
+5. Run:
    `./INSTALL.sh --dry-run`
    `./INSTALL.sh --scope project --agent auto`
-   `./stable/INSTALL.sh` when present
+   `command -v claude >/dev/null && ./stable/INSTALL.sh   # registers ComCom + semdiff MCP servers`
    `./te doctor`
    `./te hooks doctor`
 

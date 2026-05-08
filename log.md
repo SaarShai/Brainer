@@ -1,5 +1,17 @@
 # Log
 
+## [2026-05-08] harden | setup prompt: framing, pre-flight guard, no-target handling
+
+After observing a real run of the setup prompt by a fresh agent, the agent invented an unsupported option ("use this folder for Token Economy framework dev") because the prompt didn't address the case where the user names no target project. Per user clarification: Token Economy is **scaffolding** that downstream projects use; the project itself is **never part of Token Economy**, and "framework dev" is done by cloning the framework repo directly, not by running the setup prompt. Updated the canonical prompt and four mirrors with five fixes:
+
+1. Added a framing sentence at the top of `stable/AGENT_PROMPT.md`, `INSTALL.md`, `AGENT_ONBOARDING.md`, `prompts/managing-director-setup.md`, and `prompts/complete-migrate-import.md` making the scaffolding-vs-project distinction explicit.
+2. Added a pre-flight `git remote get-url origin | grep SaarShai/token-economy || -f token-economy.yaml` abort guard so the destructive `find . -mindepth 1 -maxdepth 1 -exec rm -rf {} +` never runs against an existing Token Economy checkout. Smoke-tested against the live framework folder — abort fires correctly.
+3. Added a Python version check that warns when <3.10 (because `./stable/INSTALL.sh` needs it for the ComCom + semdiff MCP deps).
+4. Added a canonical "Final report" section to `stable/AGENT_PROMPT.md` so the post-install report shape is deterministic across agents (install status / MCP wired vs pending / Python warning / target project — and explicit guidance to NOT offer "framework dev" as an option when no target was named).
+5. Tweaked the "skip stable/INSTALL.sh" echo wording to mention "add claude to PATH" rather than just "run later".
+
+Verified: `bash scripts/run_all_tests.sh` (29+6=35, all green), `./te wiki lint --strict --fail-on-error`, pre-flight bash syntax check, pre-flight smoke test (correctly aborts in this folder).
+
 ## [2026-05-08] harden+prune | structural test, extensions consolidation, triage measurement note
 
 After investigating the 6 remaining open framework items, applied the three with clear evidence:

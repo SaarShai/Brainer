@@ -2,6 +2,8 @@
 
 /plan think carefully, step by step, to create a plan to import a complete-migrate export into a new target working folder that will use Token Economy as local scaffolding. Treat this folder as the active workspace, not the Token Economy source repository.
 
+Token Economy is a framework of tools, skills, and operating rules that a project uses to optimize token consumption. The framework is **scaffolding** — the imported project that will live in this folder is **not part of Token Economy**.
+
 Import a complete-migrate export into the current new working folder. The result must be self-contained: after import, all operational project files, local wiki pages, instructions, skills/adapters, config templates, and runbooks needed to continue the project must live in this folder, except external tools/services/models/APIs that intentionally remain outside the project folder.
 
 Inputs:
@@ -40,9 +42,16 @@ Use `prompts/subagents/lifecycle.prompt.md` when supervising workers. Close a su
 
 ## Bootstrap Token Economy runtime files in the current folder
 
-1. Clear only the current folder, including hidden files and `.git`.
+1. Refuse to install if this folder already contains the Token Economy framework itself:
+   ```bash
+   if [ -f "token-economy.yaml" ] || git remote get-url origin 2>/dev/null | grep -q "SaarShai/token-economy"; then
+     echo "ABORT: folder already contains the Token Economy framework. Use a different folder."
+     exit 1
+   fi
+   ```
+2. Clear only the current folder, including hidden files and `.git`.
    `find . -mindepth 1 -maxdepth 1 -exec rm -rf {} +`
-2. Retrieve only the downstream runtime/framework files:
+3. Retrieve only the downstream runtime/framework files:
    ```bash
    git clone --depth 1 --filter=blob:none --sparse https://github.com/SaarShai/token-economy.git .
    git sparse-checkout set --no-cone \
@@ -63,8 +72,8 @@ Use `prompts/subagents/lifecycle.prompt.md` when supervising workers. Close a su
    rm -rf .git
    git init
    ```
-3. Do not delete anything outside the current folder.
-4. Run:
+4. Do not delete anything outside the current folder.
+5. Run:
    `./INSTALL.sh --dry-run`
    `./INSTALL.sh --scope project --agent auto`
    `./stable/INSTALL.sh`
