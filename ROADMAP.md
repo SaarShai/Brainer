@@ -54,6 +54,9 @@ Live tracker. Directions, status, next steps. Update after every experiment.
 ### Carry-overs from archived HANDOFF_NEXT_AGENT
 9. **Codex context-refresh docs.** Reword so current-thread clear and fresh-successor continuation are clearly distinct. Claude `/clear` is the explicit manual-clear path; Codex current-thread clear remains unsolved in the tested environment. *(Partially addressed 2026-05-08: archived `summ-codex-manual.md`, removed `codex-compact-thread`. Remaining: any operational doc still implying same-thread clear is solved.)*
 
+### Open measurements
+10. **Measure `agents-triage` net token savings.** SKILL.md claims "~70-90% token cost reduction on simple tasks, per our informal estimate. Verification pending." The hook is default-on for every UserPromptSubmit. Run a real session benchmark: same task list, with vs without the hook, measure (a) end-to-end token cost and (b) classification false-positive rate. If net savings <30% on a representative session mix, demote the hook to opt-in (`./INSTALL.sh --with-triage` or env flag). If net savings ≥30%, keep default-on and document the measured number in `stable/README.md`.
+
 ## Open questions
 - Does llmlingua-2 output degrade model accuracy more than the token savings are worth? Need eval.
 - Can we cascade: caveman → llmlingua → caveman again? Does second pass compound or noop?

@@ -1,5 +1,22 @@
 # Log
 
+## [2026-05-08] harden+prune | structural test, extensions consolidation, triage measurement note
+
+After investigating the 6 remaining open framework items, applied the three with clear evidence:
+
+- **Item 7 (test brittleness):** Replaced the five `assertIn("'/path/*'", import_prompt)` literals in `test_docs_audit_targets_startup_surface_only` (lines 975-979) with one structural check that parses the sparse-checkout block out of the prompt and asserts each required component (`token_economy`, `projects/compound-compression-pipeline`, `projects/context-keeper`, `projects/semdiff`, `stable`) appears as a substring of any pattern. Captures the regression class without enforcing glob form (`/path/*`, `/path/**`, `/path/` all pass). Other literal-substring assertions (recipe contract, forbidden-words, semantic-content checks) preserved — they catch real bugs cheaply.
+
+- **Item 9 (extensions decay):** `raw/*.md` left alone — schema.md defines it as "immutable sources, never rewrite", and 8 of 9 raw files are linked from `concepts/` via wikilinks (load-bearing provenance). `extensions/` was a different story: 10 short files (150-750 chars each), zero external references, all functioning as orphan adopt/skip notes. Consolidated into one rolling `extensions/README.md` with three sections: in-repo tools (don't re-vendor), adopted natively (informed our own implementation), still external (use only when built-in is insufficient). Net: 11 files → 1, all content preserved.
+
+- **Item 8 (agents-triage measurement):** Added ROADMAP item 10 capturing the measurement gap. SKILL.md claims "70-90% token cost reduction on simple tasks, per our informal estimate. Verification pending." The hook fires on every UserPromptSubmit; cost is regex-time (genuinely tiny) but the savings claim is informal. Decision rule recorded: if measured net savings <30% on a representative session, demote to opt-in; if ≥30%, keep default-on and document the number in `stable/README.md`. No code change yet — pending the benchmark.
+
+Items closed as no-action after deeper read:
+- **Item 5 (skill overlap):** False positive on my part. `lean-execution` is the pruning rule applied inside `plan-first-execute` step 4; `personal-assistant` is the user-side `/pa` entry while `subagent-orchestrator` is the internal delegation contract. Different roles, light cross-reference, well-factored.
+- **Item 6 (stable/):** Keep separate. `stable/INSTALL.sh` has a different prerequisite (`claude` CLI required for `claude mcp add`) and the "trusted measured subset" concept is a real product surface, not just curation. Folding into a flag would obscure both.
+- **Item 1 (mirror prompts):** Tests intentionally enforce self-containedness via literal substring assertions on `prompts/complete-migrate-import.md`. The recipe is genuinely embedded in five docs that have *different jobs* — not a drift-prone duplication, just shared reference material. Future option: extract recipe to `stable/bootstrap.sh` and have prompts say "run `bash stable/bootstrap.sh`"; not worth doing until the recipe needs editing again.
+
+Verified: `bash scripts/run_all_tests.sh` (29 framework + 6 semdiff = 35, all green), `./te doctor`, `./te wiki lint --strict --fail-on-error`, `./te bench run --suite framework-smoke`.
+
 ## [2026-05-08] fix | relay-sessions skill points to te CLI
 
 `skills/relay-sessions/SKILL.md` documented `python3 -m relay_session.cli ...` — the standalone Python package under `projects/relay-session/`, which is not in the default sparse-checkout and not installed by `./INSTALL.sh`. So a downstream agent triggering the skill on a TE-installed repo would hit `No module named relay_session`. Repointed all command examples to the framework-bundled `./te context checkpoint`/`relay`/`auto-relay`/`ask-old` (1:1 equivalents already in `token_economy/cli.py`). The standalone package stays in `projects/relay-session/` for users who want it independent of TE; the skill no longer relies on it. No test changes needed (no test asserts on SKILL.md content). Verified with the full baseline.
