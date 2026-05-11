@@ -27,6 +27,30 @@ from .wiki import WikiStore
 VERSIONED_SESSION_RE = re.compile(r"^(?P<base>.*?)(?:[\s_-]+v(?P<version>\d+))$", re.IGNORECASE)
 
 
+def prompt_like_session_title(value: str | None) -> bool:
+    if not value:
+        return True
+    lowered = value.lower()
+    prompt_markers = (
+        "recent output:",
+        "pretooluse",
+        "read /",
+        "continue from that handoff",
+        "ran python",
+        "listed files",
+    )
+    return len(value) > 96 or "\n" in value or any(marker in lowered for marker in prompt_markers)
+
+
+def fallback_session_name(goal: str | None = None) -> str:
+    source = goal or "relay session"
+    slug = re.sub(r"[^A-Za-z0-9]+", " ", source).strip().lower()
+    words = slug.split()
+    if not words:
+        return "relay session"
+    return " ".join(words[:6])
+
+
 def relay_session_name(name: str | None = None, version: str = "2") -> str:
     session = (name or "auto-context-refresh").strip()
     match = VERSIONED_SESSION_RE.match(session)
@@ -39,8 +63,9 @@ def relay_session_name(name: str | None = None, version: str = "2") -> str:
     return f"{session} v{initial_version}"
 
 
-def next_relay_session_name(previous: str | None = None, fallback: str | None = None, version: str = "2") -> str:
-    source = (previous or fallback or "auto-context-refresh").strip()
+def next_relay_session_name(previous: str | None = None, fallback: str | None = None, version: str = "2", goal: str | None = None) -> str:
+    source = previous if previous and not prompt_like_session_title(previous) else None
+    source = source or fallback or fallback_session_name(goal)
     return relay_session_name(source, version)
 
 
@@ -277,7 +302,7 @@ def cmd_context(args: argparse.Namespace) -> int:
         transcript = Path(args.transcript).expanduser() if args.transcript else current_codex_transcript()
         status = meter(transcript=transcript, model=args.model, max_tokens=cfg.context_max_tokens, threshold=cfg.refresh_threshold)
         old_title = codex_previous_thread_title(transcript)
-        relay_name = next_relay_session_name(old_title, fallback=args.name, version=args.version)
+        relay_name = next_relay_session_name(old_title, fallback=args.name, version=args.version, goal=args.goal)
         packet = checkpoint(
             cfg.repo_root,
             goal=args.goal or f"Automatic context relay for {relay_name}",
@@ -336,7 +361,7 @@ def cmd_context(args: argparse.Namespace) -> int:
             result["state"] = state
             if args.execute:
                 old_title = codex_previous_thread_title(transcript)
-                relay_name = next_relay_session_name(old_title, fallback=args.name, version=args.version)
+                relay_name = next_relay_session_name(old_title, fallback=args.name, version=args.version, goal=args.goal)
                 packet = checkpoint(
                     cfg.repo_root,
                     goal=args.goal or f"Automatic context relay for {relay_name}",

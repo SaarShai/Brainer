@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from token_economy.cli import main, next_relay_session_name, relay_session_name
+from token_economy.cli import main, next_relay_session_name, prompt_like_session_title, relay_session_name
 from token_economy.code_map import code_map
 from token_economy.config import detect_agent
 from token_economy.codex_app_server import codex_fresh_thread_plan, default_codex_fresh_model
@@ -90,6 +90,18 @@ class UniversalFrameworkTests(unittest.TestCase):
         self.assertEqual(relay_session_name("screenery relay_v9"), "screenery relay v10")
         self.assertEqual(next_relay_session_name(previous="farey-g3-h1-relay v7", fallback="ignored"), "farey-g3-h1-relay v8")
         self.assertEqual(next_relay_session_name(previous=None, fallback="fallback relay"), "fallback relay v2")
+        prompt_title = 'there is another session in this project recent output: Read design_book.go PreToolUse'
+        self.assertTrue(prompt_like_session_title(prompt_title))
+        self.assertEqual(next_relay_session_name(previous=prompt_title, fallback="clean relay"), "clean relay v2")
+        self.assertEqual(next_relay_session_name(previous=prompt_title, goal="Continue Screenery relay task"), "continue screenery relay task v2")
+
+    def test_continue_work_prompt_does_not_prefix_session_name(self):
+        plan = codex_fresh_thread_plan(REPO, REPO / ".token-economy/checkpoints/smoke.md", session_name="clean relay v2", continue_work=True)
+        self.assertTrue(plan["prompt"].startswith(f"Read {REPO / 'start.md'}"))
+        self.assertNotIn("clean relay v2\n\nRead", plan["prompt"])
+        self.assertIn("immediately execute the next concrete task", plan["prompt"])
+        self.assertIn("--name 'clean relay v2'", plan["command"])
+        self.assertIn("--continue-work", plan["command"])
 
     def test_wiki_progressive_retrieval(self):
         with tempfile.TemporaryDirectory() as td:

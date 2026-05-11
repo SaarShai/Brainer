@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import select
+import shlex
 import subprocess
 import time
 from datetime import datetime, timezone
@@ -24,22 +25,21 @@ def codex_fresh_model_name(model: str | None = None) -> str:
 
 
 def build_successor_prompt(repo_root: Path, handoff: Path, session_name: str | None = None, continue_work: bool = False) -> str:
-    title = f"{session_name}\n\n" if session_name else ""
-    name_text = f'This relay session is named "{session_name}". ' if session_name else ""
     start_path = startup_doc(repo_root)
     te = te_command(repo_root)
-    ending = (
-        "First report that this is a fresh successor context, verify the handoff, then continue from where the older session left off."
-        if continue_work
-        else "First report that this is a fresh successor context, then verify the handoff and stop."
-    )
+    if continue_work:
+        ending = (
+            "Verify the handoff briefly, then immediately execute the next concrete task from it in this same turn. "
+            "Do not stop after an acknowledgement, status report, or plan unless the handoff is genuinely blocked. "
+            "Use tools and continue the work where the old session left off."
+        )
+    else:
+        ending = "Verify the handoff and stop."
     return (
-        f"{title}"
         f"Read {start_path} and {handoff} only. Continue from that handoff. "
-        f"{name_text}"
         "Do not load broad wiki/raw archives until retrieval proves relevance. "
         f"If a needed fact is absent and repo/wiki retrieval is insufficient, use `{te} context ask-old --handoff <handoff-file> --question \"<specific missing fact>\"`. "
-        f"Start in plan mode. {ending}"
+        f"{ending}"
     )
 
 
@@ -55,9 +55,9 @@ def codex_fresh_thread_plan(
     prompt = build_successor_prompt(repo_root, handoff, session_name=session_name, continue_work=continue_work)
     persistence = "ephemeral" if ephemeral else "persistent"
     te = te_command(repo_root)
-    command = f'{te} context codex-fresh-thread --handoff "{handoff}" --model "{model_name}" --execute'
+    command = f"{te} context codex-fresh-thread --handoff {shlex.quote(str(handoff))} --model {shlex.quote(model_name)} --execute"
     if session_name:
-        command += f' --name "{session_name}"'
+        command += f" --name {shlex.quote(session_name)}"
     if continue_work:
         command += " --continue-work"
     if ephemeral:
