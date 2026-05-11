@@ -13,7 +13,7 @@ from .config import detect_agent, load_config
 from .bench import run_framework_smoke
 from .code_map import code_map
 from .codex_app_server import codex_fresh_thread_plan, run_codex_ask_old_thread, run_codex_fresh_thread
-from .context import ask_old_session_plan, checkpoint, current_codex_transcript, fresh_launch_commands, host_context_controls, lint_handoff, meter, should_auto_relay, status_for_files, write_pending_relay
+from .context import ask_old_from_transcript, ask_old_session_plan, checkpoint, current_codex_transcript, fresh_launch_commands, host_context_controls, l0_rules_path, l1_index_path, lint_handoff, meter, should_auto_relay, startup_doc, status_for_files, write_pending_relay
 from .delegate import delegation_plan, documentation_lifecycle_packet, dumps, load_models, classify, personal_assistant_directive, personal_assistant_packet
 from .docs import audit as docs_audit, split_plan
 from .hooks import doctor as hooks_doctor
@@ -24,24 +24,23 @@ from .tokens import estimate_tokens
 from .wiki import WikiStore
 
 
-RELAY_NAME_RE = re.compile(r"^Relay\[(?P<version>\d+)\]:\s*(?P<name>.+)$")
+VERSIONED_SESSION_RE = re.compile(r"^(?P<base>.*?)(?:[\s_-]+v(?P<version>\d+))$", re.IGNORECASE)
 
 
-def relay_session_name(name: str | None = None, version: str = "01") -> str:
-    session = name or "auto-context-refresh"
-    if session.startswith("Relay["):
-        return session
-    return f"Relay[{version}]: {session}"
-
-
-def next_relay_session_name(previous: str | None = None, fallback: str | None = None, version: str = "01") -> str:
-    source = (previous or fallback or "auto-context-refresh").strip()
-    match = RELAY_NAME_RE.match(source)
+def relay_session_name(name: str | None = None, version: str = "2") -> str:
+    session = (name or "auto-context-refresh").strip()
+    match = VERSIONED_SESSION_RE.match(session)
     if match:
-        next_version = int(match.group("version")) + 1
-        return f"Relay[{next_version:02d}]: {match.group('name')}"
-    if fallback and fallback != source:
-        return relay_session_name(fallback, version)
+        return f"{match.group('base').rstrip()} v{int(match.group('version')) + 1}"
+    try:
+        initial_version = int(version)
+    except ValueError:
+        initial_version = 2
+    return f"{session} v{initial_version}"
+
+
+def next_relay_session_name(previous: str | None = None, fallback: str | None = None, version: str = "2") -> str:
+    source = (previous or fallback or "auto-context-refresh").strip()
     return relay_session_name(source, version)
 
 
@@ -75,17 +74,31 @@ def print_json(obj: Any) -> None:
     print(json.dumps(obj, indent=2, sort_keys=True))
 
 
+def old_transcript_fallback(repo_root: Path, plan: dict[str, Any], question: str) -> dict[str, Any] | None:
+    raw = plan.get("old_transcript")
+    if not isinstance(raw, str) or not raw or raw == "none":
+        return None
+    transcript = Path(raw).expanduser()
+    if not transcript.is_absolute():
+        transcript = repo_root / transcript
+    return ask_old_from_transcript(transcript, question)
+
+
 def cmd_doctor(args: argparse.Namespace) -> int:
     cfg = load_config(args.repo)
+    start_path = startup_doc(cfg.repo_root)
     required = {
         "config",
-        "start_md",
+        "startup_doc_exists",
         "wiki_root_exists",
     }
     checks = {
         "repo_root": str(cfg.repo_root),
-        "config": (cfg.repo_root / "token-economy.yaml").exists(),
-        "start_md": (cfg.repo_root / "start.md").exists(),
+        "config": bool(cfg.config_path and cfg.config_path.exists()),
+        "config_path": str(cfg.config_path) if cfg.config_path else None,
+        "start_md": start_path.exists(),
+        "startup_doc": str(start_path),
+        "startup_doc_exists": start_path.exists(),
         "wiki_root": str(cfg.wiki_root),
         "wiki_root_exists": cfg.wiki_root.exists(),
         "refresh_threshold": cfg.refresh_threshold,
@@ -197,9 +210,7 @@ def cmd_code(args: argparse.Namespace) -> int:
 def cmd_context(args: argparse.Namespace) -> int:
     cfg = load_config(args.repo)
     if args.context_cmd == "status":
-        files = [cfg.repo_root / "start.md"]
-        for rel in ("L0_rules.md", "L1_index.md"):
-            files.append(cfg.wiki_root / rel)
+        files = [startup_doc(cfg.repo_root), l0_rules_path(cfg.repo_root), l1_index_path(cfg.repo_root)]
         result = status_for_files(files, cfg.context_max_tokens, cfg.refresh_threshold)
         print_json(result)
     elif args.context_cmd == "meter":
@@ -234,7 +245,14 @@ def cmd_context(args: argparse.Namespace) -> int:
             handoff = cfg.repo_root / handoff
         plan = ask_old_session_plan(cfg.repo_root, handoff, args.question, execute=args.execute)
         if args.execute and plan.get("mode") == "codex-old-thread":
-            print_json(run_codex_ask_old_thread(cfg.repo_root, str(plan["thread_id"]), args.question, model=args.model if args.model != "auto" else None, timeout=args.timeout))
+            result = run_codex_ask_old_thread(cfg.repo_root, str(plan["thread_id"]), args.question, model=args.model if args.model != "auto" else None, timeout=args.timeout)
+            fallback = None if result.get("ok") else old_transcript_fallback(cfg.repo_root, plan, args.question)
+            if fallback is not None:
+                result["fallback_mode"] = "old-transcript"
+                result["fallback"] = fallback
+                if fallback.get("ok"):
+                    result["ok"] = True
+            print_json(result)
         else:
             print_json(plan)
     elif args.context_cmd == "host-controls":
@@ -263,7 +281,7 @@ def cmd_context(args: argparse.Namespace) -> int:
         packet = checkpoint(
             cfg.repo_root,
             goal=args.goal or f"Automatic context relay for {relay_name}",
-            plan="Fresh successor should continue from this handoff with start.md only.",
+            plan="Fresh successor should continue from this handoff with the startup doc named in the handoff only.",
             transcript=transcript,
             max_packet_tokens=args.max_tokens,
             context_pct=status["pct"],
@@ -322,7 +340,7 @@ def cmd_context(args: argparse.Namespace) -> int:
                 packet = checkpoint(
                     cfg.repo_root,
                     goal=args.goal or f"Automatic context relay for {relay_name}",
-                    plan="Fresh successor should continue from this handoff with start.md only.",
+                    plan="Fresh successor should continue from this handoff with the startup doc named in the handoff only.",
                     transcript=transcript,
                     max_packet_tokens=args.max_tokens,
                     context_pct=status["pct"],
@@ -540,8 +558,8 @@ def build_parser() -> argparse.ArgumentParser:
     cft = csub.add_parser("codex-fresh-thread")
     cft.add_argument("--handoff", required=True)
     cft.add_argument("--model")
-    cft.add_argument("--name", default=None, help='Name/label for the fresh successor, e.g. "Relay[01]: sessions-relay"')
-    cft.add_argument("--version", default="01", help='Relay version used when --name is a suffix, e.g. Relay[01]: sessions-relay')
+    cft.add_argument("--name", default=None, help='Old session name used to derive the fresh successor label, e.g. "sessions-relay" -> "sessions-relay v2"')
+    cft.add_argument("--version", default="2", help='Initial v-version used when --name has no suffix, e.g. "2" -> "name v2"')
     cft.add_argument("--continue-work", action="store_true", help="Tell the successor to verify the handoff and continue instead of stopping")
     cft.add_argument("--execute", action="store_true", help="Actually launch Codex App Server and start a fresh successor thread")
     cft.add_argument("--ephemeral", action="store_true", help="Use an in-memory throwaway thread instead of the default persistent project thread")
@@ -550,8 +568,8 @@ def build_parser() -> argparse.ArgumentParser:
     cr = csub.add_parser("relay", help="Write a handoff and launch or plan a fresh Codex relay successor")
     cr.add_argument("--transcript")
     cr.add_argument("--goal")
-    cr.add_argument("--name", default=None, help='Relay session label suffix; defaults to "auto-context-refresh"')
-    cr.add_argument("--version", default="01", help='Relay version used in the generated name, e.g. Relay[01]: auto-context-refresh')
+    cr.add_argument("--name", default=None, help='Fallback old-session name when the current Codex thread title is unavailable')
+    cr.add_argument("--version", default="2", help='Initial v-version used when the old session name has no suffix, e.g. "2" -> "name v2"')
     cr.add_argument("--model", default="auto")
     cr.add_argument("--max-tokens", type=int, default=2000)
     cr.add_argument("--execute", action="store_true")
@@ -562,7 +580,7 @@ def build_parser() -> argparse.ArgumentParser:
     car.add_argument("--transcript")
     car.add_argument("--goal")
     car.add_argument("--name", default=None)
-    car.add_argument("--version", default="01")
+    car.add_argument("--version", default="2")
     car.add_argument("--model", default="auto")
     car.add_argument("--threshold", type=float)
     car.add_argument("--cooldown", type=int, default=1800)

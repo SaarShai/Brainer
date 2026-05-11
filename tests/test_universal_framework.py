@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from token_economy.cli import main
+from token_economy.cli import main, next_relay_session_name, relay_session_name
 from token_economy.code_map import code_map
 from token_economy.config import detect_agent
 from token_economy.codex_app_server import codex_fresh_thread_plan, default_codex_fresh_model
@@ -83,6 +83,13 @@ class UniversalFrameworkTests(unittest.TestCase):
         ]:
             combined = start + "\n" + adapter.read_text(encoding="utf-8")
             self.assertLessEqual(estimate_tokens(combined), 2500)
+
+    def test_relay_successor_names_version_old_session_title(self):
+        self.assertEqual(relay_session_name("screenery relay"), "screenery relay v2")
+        self.assertEqual(relay_session_name("screenery relay v2"), "screenery relay v3")
+        self.assertEqual(relay_session_name("screenery relay_v9"), "screenery relay v10")
+        self.assertEqual(next_relay_session_name(previous="farey-g3-h1-relay v7", fallback="ignored"), "farey-g3-h1-relay v8")
+        self.assertEqual(next_relay_session_name(previous=None, fallback="fallback relay"), "fallback relay v2")
 
     def test_wiki_progressive_retrieval(self):
         with tempfile.TemporaryDirectory() as td:

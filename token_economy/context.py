@@ -26,7 +26,7 @@ HOST_CONTEXT_CONTROLS: dict[str, dict[str, Any]] = {
         "strategy": "native-clear-or-compact",
         "compact": "/compact",
         "clear": "/clear",
-        "fresh": "/clear, then paste only the handoff packet plus start.md",
+        "fresh": "/clear, then paste only the handoff packet plus the startup doc",
         "status": "/context or /cost when available",
         "notes": [
             "Interactive Claude Code supports /clear and /compact.",
@@ -54,7 +54,7 @@ HOST_CONTEXT_CONTROLS: dict[str, dict[str, Any]] = {
         "strategy": "native-compress-or-new-session",
         "compact": "/compress",
         "clear": "/clear",
-        "fresh": "Use /compress for summary, or start a new chat/session with only the handoff packet plus start.md",
+        "fresh": "Use /compress for summary, or start a new chat/session with only the handoff packet plus the startup doc",
         "status": "/stats when available",
         "notes": [
             "Gemini CLI documents /compress as replacing chat context with a summary.",
@@ -66,7 +66,7 @@ HOST_CONTEXT_CONTROLS: dict[str, dict[str, Any]] = {
         "strategy": "new-chat-with-handoff",
         "compact": "host-specific compact/new chat command",
         "clear": "new chat/session",
-        "fresh": "start a new chat with only the handoff packet plus start.md",
+        "fresh": "start a new chat with only the handoff packet plus the startup doc",
         "status": "host-specific context/status view",
         "notes": [
             "Cursor behavior depends on product version and enabled agent mode.",
@@ -77,7 +77,7 @@ HOST_CONTEXT_CONTROLS: dict[str, dict[str, Any]] = {
         "strategy": "manual-fresh-session",
         "compact": "host-specific compact/compress command if available",
         "clear": "host-specific clear/new-chat command if available",
-        "fresh": "start a new session with only the handoff packet plus start.md",
+        "fresh": "start a new session with only the handoff packet plus the startup doc",
         "status": "host-specific token/context meter if available",
         "notes": [
             "The framework can prepare the packet; the host must perform the actual context reset.",
@@ -118,7 +118,7 @@ def host_context_controls(agent: str = "auto") -> dict[str, Any]:
     return {
         "agent": key,
         **controls,
-        "universal_protocol": "summarize current work, document durable memory with a lightweight wiki-documenter, write a lean handoff, clear or bypass old context, then use the selected host strategy to continue with only start.md plus the handoff.",
+        "universal_protocol": "summarize current work, document durable memory with a lightweight wiki-documenter, write a lean handoff, clear or bypass old context, then use the selected host strategy to continue with only the startup doc plus the handoff.",
         "summ_rule": "After writing the handoff, choose the platform strategy from this profile; do not assume all hosts can clear context the same way.",
         "completion_test": "Refresh is complete only after the host-reported active context drops or a fresh conversation starts.",
     }
@@ -135,19 +135,74 @@ def current_codex_transcript(thread_id: str | None = None, sessions_root: Path |
     return matches[0] if matches else None
 
 
+def _relative_or_abs(path: Path, root: Path) -> str:
+    try:
+        return str(path.relative_to(root))
+    except ValueError:
+        return str(path)
+
+
+def startup_doc(repo_root: Path) -> Path:
+    """Return the startup contract path for root or embedded installs."""
+    root_doc = repo_root / "start.md"
+    if root_doc.exists():
+        return root_doc
+    embedded_doc = repo_root / "framework" / "start.md"
+    if embedded_doc.exists():
+        return embedded_doc
+    return root_doc
+
+
+def startup_doc_label(repo_root: Path) -> str:
+    return _relative_or_abs(startup_doc(repo_root), repo_root)
+
+
+def l1_index_path(repo_root: Path) -> Path:
+    root_l1 = repo_root / "L1_index.md"
+    if root_l1.exists():
+        return root_l1
+    embedded_l1 = repo_root / "framework" / "L1_index.md"
+    if embedded_l1.exists():
+        return embedded_l1
+    return root_l1
+
+
+def l0_rules_path(repo_root: Path) -> Path:
+    root_l0 = repo_root / "L0_rules.md"
+    if root_l0.exists():
+        return root_l0
+    embedded_l0 = repo_root / "framework" / "L0_rules.md"
+    if embedded_l0.exists():
+        return embedded_l0
+    return root_l0
+
+
+def te_command(repo_root: Path) -> str:
+    """Return the command agents should run from repo_root."""
+    root_te = repo_root / "te"
+    if root_te.exists():
+        return "./te"
+    embedded_te = repo_root / "framework" / "te"
+    if embedded_te.exists():
+        return "./framework/te"
+    return "python -m token_economy.cli"
+
+
 def fresh_launch_commands(agent: str, repo_root: Path, handoff: Path | None = None) -> dict[str, Any]:
     key = (agent or "generic").lower()
     if key == "auto":
         key = "generic"
     repo = str(repo_root)
     handoff_path = str(handoff) if handoff else ".token-economy/checkpoints/<handoff>.md"
+    start_path = str(startup_doc(repo_root))
+    te = te_command(repo_root)
     prompt = (
-        f"Read {repo}/start.md and {handoff_path} only. Continue from that handoff. "
+        f"Read {start_path} and {handoff_path} only. Continue from that handoff. "
         "Do not load anything else until retrieval proves relevance. Start in plan mode."
     )
     commands = {
         "codex": [
-            f'./te context codex-fresh-thread --handoff "{handoff_path}" --execute',
+            f'{te} context codex-fresh-thread --handoff "{handoff_path}" --execute',
             f'codex fork --last -C "{repo}" "{prompt}"',
             f'codex -C "{repo}" "{prompt}"',
             f'codex exec -C "{repo}" "{prompt}"',
@@ -170,6 +225,8 @@ def fresh_launch_commands(agent: str, repo_root: Path, handoff: Path | None = No
     return {
         "agent": key,
         "handoff": handoff_path,
+        "startup_doc": start_path,
+        "te_command": te,
         "preferred": commands.get(key, commands["generic"])[0],
         "alternatives": commands.get(key, commands["generic"])[1:],
         "note": "This starts a fresh successor session/thread instead of clearing the current host transcript.",
@@ -308,8 +365,12 @@ def checkpoint(
     facts = extract_transcript_facts(transcript_text)
     old_thread_id = os.environ.get("CODEX_THREAD_ID") or "none"
     old_transcript = str(transcript) if transcript else "none"
-    l1 = repo_root / "L1_index.md"
-    l1_pointer = f"- L1 index: `{l1}`" if l1.exists() else "- L1 index: missing; run `./te wiki index`."
+    start_label = startup_doc_label(repo_root)
+    te = te_command(repo_root)
+    l0 = l0_rules_path(repo_root)
+    l1 = l1_index_path(repo_root)
+    l0_pointer = f"- L0 rules: `{_relative_or_abs(l0, repo_root)}`" if l0.exists() else f"- L0 rules: missing; run `{te} wiki index`."
+    l1_pointer = f"- L1 index: `{_relative_or_abs(l1, repo_root)}`" if l1.exists() else f"- L1 index: missing; run `{te} wiki index`."
     task_slug = re.sub(r"[^a-zA-Z0-9]+", "-", (goal or "token-economy-task").lower()).strip("-") or "token-economy-task"
     iso = datetime.now(timezone.utc).isoformat()
     packet = f"""---
@@ -335,7 +396,7 @@ old-session-query-policy: explicit-only
 - {plan or "Inspect repo state, retrieve relevant wiki/context on demand, then execute verified steps."}
 
 ## 4. What next (priority order)
-- Read this handoff and `start.md` only.
+- Read this handoff and `{start_label}` only.
 - Load L0/L1 pointers.
 - Verify this is the fresh successor, then continue from where the old session stopped.
 - Build plan before execution.
@@ -356,19 +417,22 @@ old-session-query-policy: explicit-only
 
 ## 9. Instructions for next agent
 - Start in plan mode. Think step-by-step. Create a robust plan before executing.
-- Read this handoff + `start.md` only. Do not load full wiki.
+- Read this handoff + `{start_label}` only. Do not load full wiki.
 - Do not load docs-only wiki memory; retrieve linked pages only when relevant.
 - Build plan. Get user approval if host process requires approval. Then execute.
 - If a needed fact is absent and repo/wiki retrieval is insufficient, ask the old session explicitly:
-  `./te context ask-old --handoff <handoff-file> --question "<specific missing fact>"`
+  `{te} context ask-old --handoff <handoff-file> --question "<specific missing fact>"`
 - Record old-session answers only if they change ongoing work or the next handoff.
 - On complete: update wiki, log entry, create fresh handoff if context >= 20%.
 - If old host could not clear context, continue implementation only in this fresh session.
 
 ## Memory Pointers
+{l0_pointer}
 {l1_pointer}
-- Wiki search: `./te wiki search "<query>"`
-- Recent context: `./te context status`
+- Startup contract: `{start_label}`
+- Token Economy CLI: `{te}`
+- Wiki search: `{te} wiki search "<query>"`
+- Recent context: `{te} context status`
 - L2 facts: `L2_facts/`
 - L3 SOPs: `L3_sops/`
 - L4 archive: `L4_archive/`
@@ -448,6 +512,7 @@ def ask_old_session_plan(repo_root: Path, handoff: Path, question: str, execute:
             "mode": "codex-old-thread",
             "execute": execute,
             "thread_id": old_thread_id,
+            "old_transcript": old_transcript,
             "handoff": str(handoff),
             "question": question,
             "prompt": (
@@ -455,7 +520,7 @@ def ask_old_session_plan(repo_root: Path, handoff: Path, question: str, execute:
                 "Cite the source from old context when possible. Do not continue implementation. "
                 f"Question: {question}"
             ),
-            "command": f'./te context ask-old --handoff "{handoff}" --question "{question}" --execute',
+            "command": f'{te_command(repo_root)} context ask-old --handoff "{handoff}" --question "{question}" --execute',
         }
     if old_transcript and old_transcript != "none":
         transcript = Path(old_transcript).expanduser()

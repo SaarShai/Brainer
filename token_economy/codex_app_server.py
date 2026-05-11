@@ -9,6 +9,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+from .context import startup_doc, te_command
+
 
 DEFAULT_CODEX_FRESH_MODEL = "gpt-5.5"
 
@@ -24,6 +26,8 @@ def codex_fresh_model_name(model: str | None = None) -> str:
 def build_successor_prompt(repo_root: Path, handoff: Path, session_name: str | None = None, continue_work: bool = False) -> str:
     title = f"{session_name}\n\n" if session_name else ""
     name_text = f'This relay session is named "{session_name}". ' if session_name else ""
+    start_path = startup_doc(repo_root)
+    te = te_command(repo_root)
     ending = (
         "First report that this is a fresh successor context, verify the handoff, then continue from where the older session left off."
         if continue_work
@@ -31,10 +35,10 @@ def build_successor_prompt(repo_root: Path, handoff: Path, session_name: str | N
     )
     return (
         f"{title}"
-        f"Read {repo_root}/start.md and {handoff} only. Continue from that handoff. "
+        f"Read {start_path} and {handoff} only. Continue from that handoff. "
         f"{name_text}"
         "Do not load broad wiki/raw archives until retrieval proves relevance. "
-        "If a needed fact is absent and repo/wiki retrieval is insufficient, use `./te context ask-old --handoff <handoff-file> --question \"<specific missing fact>\"`. "
+        f"If a needed fact is absent and repo/wiki retrieval is insufficient, use `{te} context ask-old --handoff <handoff-file> --question \"<specific missing fact>\"`. "
         f"Start in plan mode. {ending}"
     )
 
@@ -50,6 +54,14 @@ def codex_fresh_thread_plan(
     model_name = codex_fresh_model_name(model)
     prompt = build_successor_prompt(repo_root, handoff, session_name=session_name, continue_work=continue_work)
     persistence = "ephemeral" if ephemeral else "persistent"
+    te = te_command(repo_root)
+    command = f'{te} context codex-fresh-thread --handoff "{handoff}" --model "{model_name}" --execute'
+    if session_name:
+        command += f' --name "{session_name}"'
+    if continue_work:
+        command += " --continue-work"
+    if ephemeral:
+        command += " --ephemeral"
     return {
         "agent": "codex",
         "mode": "app-server-fresh-thread",
@@ -63,7 +75,7 @@ def codex_fresh_thread_plan(
         "repo_root": str(repo_root),
         "handoff": str(handoff),
         "prompt": prompt,
-        "command": f'./te context codex-fresh-thread --handoff "{handoff}" --model "{model_name}" --execute' + (" --ephemeral" if ephemeral else ""),
+        "command": command,
         "success_test": [
             f"App Server emits thread/started with turns: [] and {persistence} state in the requested cwd.",
             "The thread is created with the requested model before the first turn starts.",
@@ -238,6 +250,7 @@ def run_codex_ask_old_thread(repo_root: Path, thread_id: str, question: str, mod
     )
     all_events: list[dict[str, Any]] = []
     stderr_text = ""
+    pipe_error: str | None = None
     try:
         _send(proc, {"id": 1, "method": "initialize", "params": {"clientInfo": {"name": "token-economy", "title": "Token Economy Ask Old", "version": "0.1.0"}, "capabilities": {"experimentalApi": True}}})
         all_events.extend(_read_events_until(proc, 5, lambda events, event: event.get("id") == 1))
@@ -246,6 +259,8 @@ def run_codex_ask_old_thread(repo_root: Path, thread_id: str, question: str, mod
         all_events.extend(_read_events_until(proc, 15, lambda events, event: event.get("id") == 2 or event.get("method") == "thread/started"))
         _send(proc, {"id": 3, "method": "turn/start", "params": {"threadId": thread_id, "input": [{"type": "text", "text": prompt}], "approvalPolicy": "never", "model": model_name}})
         all_events.extend(_read_events_until(proc, timeout, lambda events, event: bool(_assistant_responded(events) and _thread_idle(events, thread_id)) or bool(event.get("method") == "error" and not event.get("willRetry"))))
+    except (BrokenPipeError, OSError) as exc:
+        pipe_error = f"{type(exc).__name__}: {exc}"
     finally:
         proc.terminate()
         try:
@@ -263,8 +278,9 @@ def run_codex_ask_old_thread(repo_root: Path, thread_id: str, question: str, mod
         for event in all_events
         if ((event.get("params") or {}).get("item") or {}).get("type") == "agentMessage"
     ]
-    return {
-        "ok": bool(_assistant_responded(all_events) and _thread_idle(all_events, thread_id)),
+    ok = bool(pipe_error is None and _assistant_responded(all_events) and _thread_idle(all_events, thread_id))
+    result = {
+        "ok": ok,
         "mode": "codex-old-thread",
         "thread_id": thread_id,
         "question": question,
@@ -272,6 +288,10 @@ def run_codex_ask_old_thread(repo_root: Path, thread_id: str, question: str, mod
         "events": str(events_path),
         "stderr": str(stderr_path),
     }
+    if pipe_error:
+        result["error"] = pipe_error
+        result["next"] = "Use the old-transcript fallback from the handoff or a narrower repo/wiki retrieval."
+    return result
 
 
 def run_codex_fresh_thread(
@@ -397,14 +417,22 @@ def run_codex_fresh_thread(
     stderr_path.write_text(stderr_text, encoding="utf-8")
     started_info = _thread_started_info(all_events, thread_id)
     listed_info = _listed_info(all_events, list_request_id or 4, thread_id)
-    base_ok = bool(thread_id and _assistant_responded(all_events) and _thread_idle(all_events, thread_id) and started_info["thread_turns_empty"])
+    assistant_responded = _assistant_responded(all_events)
+    thread_idle = _thread_idle(all_events, thread_id)
+    turn_completed = _turn_completed(all_events, thread_id)
+    launch_ok = bool(thread_id and assistant_responded and started_info["thread_turns_empty"])
+    completion_ok = bool(thread_idle or turn_completed)
+    base_ok = bool(launch_ok and (completion_ok or continue_work))
     persistence_ok = bool(started_info["thread_ephemeral"]) if ephemeral else bool(started_info["thread_persistent"] and listed_info["listed_after_start"])
     summary = {
         **plan,
         "thread_id": thread_id,
         **started_info,
-        "assistant_responded": _assistant_responded(all_events),
-        "thread_idle": _thread_idle(all_events, thread_id),
+        "assistant_responded": assistant_responded,
+        "thread_idle": thread_idle,
+        "turn_completed": turn_completed,
+        "launch_ok": launch_ok,
+        "completion_ok": completion_ok,
         **listed_info,
         **_latest_token_usage(all_events, thread_id),
         "ok": bool(base_ok and persistence_ok),
@@ -413,5 +441,3 @@ def run_codex_fresh_thread(
     }
     (outdir / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
     return summary
-
-

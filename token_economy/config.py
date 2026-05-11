@@ -12,6 +12,7 @@ CONFIG_NAME = "token-economy.yaml"
 class Config:
     repo_root: Path
     wiki_root: Path
+    config_path: Path | None = None
     agent_adapter: str = "auto"
     context_max_tokens: int | str = "auto"
     refresh_threshold: float = 0.20
@@ -34,6 +35,27 @@ def find_repo_root(start: str | Path | None = None) -> Path:
         if (candidate / CONFIG_NAME).exists() or (candidate / ".git").exists():
             return candidate
     return cur
+
+
+def find_config_path(repo_root: Path) -> Path | None:
+    root_config = repo_root / CONFIG_NAME
+    if root_config.exists():
+        return root_config
+    embedded_config = repo_root / "framework" / CONFIG_NAME
+    if embedded_config.exists():
+        return embedded_config
+    return None
+
+
+def resolve_config_path(value: str, repo_root: Path, config_dir: Path) -> Path:
+    path = Path(value).expanduser()
+    if path.is_absolute():
+        return path
+    root_path = repo_root / path
+    config_path = config_dir / path
+    if config_path.exists() and not root_path.exists():
+        return config_path
+    return root_path
 
 
 def parse_scalar(value: str) -> Any:
@@ -83,23 +105,19 @@ def load_simple_yaml(path: Path) -> dict[str, Any]:
 
 def load_config(repo_root: str | Path | None = None) -> Config:
     root = find_repo_root(repo_root)
-    path = root / CONFIG_NAME
-    raw = load_simple_yaml(path) if path.exists() else {}
+    path = find_config_path(root)
+    raw = load_simple_yaml(path) if path else {}
+    config_dir = path.parent if path else root
     wiki_root_raw = raw.get("wiki_root", ".")
-    wiki_root = Path(str(wiki_root_raw)).expanduser()
-    if not wiki_root.is_absolute():
-        wiki_root = root / wiki_root
+    wiki_root = resolve_config_path(str(wiki_root_raw), root, config_dir)
     model_registry_raw = raw.get("model_registry", "./models.yaml")
-    model_registry = Path(str(model_registry_raw)).expanduser()
-    if not model_registry.is_absolute():
-        model_registry = root / model_registry
+    model_registry = resolve_config_path(str(model_registry_raw), root, config_dir)
     output_filter_rules_raw = raw.get("output_filter_rules", ".token-economy/output-filter-rules.txt")
-    output_filter_rules = Path(str(output_filter_rules_raw)).expanduser()
-    if not output_filter_rules.is_absolute():
-        output_filter_rules = root / output_filter_rules
+    output_filter_rules = resolve_config_path(str(output_filter_rules_raw), root, config_dir)
     return Config(
         repo_root=root,
         wiki_root=wiki_root.resolve(),
+        config_path=path,
         agent_adapter=str(raw.get("agent_adapter", "auto")),
         context_max_tokens=raw.get("context_max_tokens", "auto"),
         refresh_threshold=float(raw.get("refresh_threshold", 0.20)),
