@@ -17,7 +17,7 @@ Use the framework's `te context` relay surface to create compact handoffs and la
 - If the old session identifies an even older relay handoff as the source, repeat `ask-old` with that older handoff and the same narrow question.
 - Launch normal relay successors as persistent, named, continue-work sessions. The successor must verify the handoff, then continue executing the next tasks instead of stopping at a status report.
 - Name the successor from the old session name. If the old name has no version suffix, append `v2`; if it already ends with `vN`, replace that with `v<N+1>`.
-- Do not put the session name or old prompt title at the top of the successor prompt. Keep UI naming separate from the first message. If Codex reports a prompt-shaped title instead of a clean session name, use the explicit fallback name or a short goal-derived label.
+- Do not put the session name or old prompt title at the top of the successor prompt. Keep UI naming separate from the first message: the app-server launcher must apply the visible title with `thread/name/set` after thread creation and again after `turn/start`. If Codex reports a prompt-shaped title instead of a clean session name, use the explicit fallback name or a short goal-derived label.
 - Treat UI visibility as user-confirmed; backend `listed_after_start: true` proves app-server listing, not immediate sidebar rendering.
 - Use the handoff's progressive disclosure order: Layer 1 startup doc plus handoff, Layer 2 narrow repo retrieval, Layer 3 `ask-old`, Layer 4 repeat `ask-old` on an older handoff if pointed there.
 - If `ask-old --execute` returns an app-server/pipe error with a transcript fallback, use the fallback snippets as bounded old-context retrieval and continue.

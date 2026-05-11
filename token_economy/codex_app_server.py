@@ -78,6 +78,7 @@ def codex_fresh_thread_plan(
         "command": command,
         "success_test": [
             f"App Server emits thread/started with turns: [] and {persistence} state in the requested cwd.",
+            "If a session name is supplied, thread/name/set applies the visible UI title after creation and after first turn start.",
             "The thread is created with the requested model before the first turn starts.",
             "A turn/start succeeds in that new thread.",
             "The assistant responds from the new thread and the thread returns to idle.",
@@ -231,6 +232,27 @@ def _listed_info(events: list[dict[str, Any]], request_id: int, thread_id: str |
     return {"listed_after_start": bool(thread_id and thread_id in ids), "listed_count": len(data)}
 
 
+def _thread_name_set_info(events: list[dict[str, Any]], request_ids: list[int], expected_name: str | None) -> dict[str, Any]:
+    if not expected_name:
+        return {"thread_name_requested": None, "thread_name_set": None, "thread_name_errors": []}
+    ok = False
+    errors: list[str] = []
+    for request_id in request_ids:
+        response = _find_response(events, request_id)
+        if not response:
+            continue
+        if response.get("error"):
+            error = response["error"]
+            if isinstance(error, dict):
+                errors.append(str(error.get("message") or error))
+            else:
+                errors.append(str(error))
+            continue
+        if "result" in response:
+            ok = True
+    return {"thread_name_requested": expected_name, "thread_name_set": ok, "thread_name_errors": errors}
+
+
 def run_codex_ask_old_thread(repo_root: Path, thread_id: str, question: str, model: str | None = None, timeout: int = 120) -> dict[str, Any]:
     model_name = model or default_codex_fresh_model()
     prompt = (
@@ -318,6 +340,8 @@ def run_codex_fresh_thread(
     stderr_text = ""
     thread_id: str | None = None
     list_request_id: int | None = None
+    name_request_ids: list[int] = []
+    post_turn_name_request_id: int | None = None
     try:
         _send(
             proc,
@@ -334,8 +358,10 @@ def run_codex_fresh_thread(
         _send(proc, {"method": "initialized", "params": {}})
         turn_model = plan["turn_model"]
         thread_request_id = 2
-        turn_request_id = 3
-        list_request_id = 4
+        pre_turn_name_request_id = 3
+        turn_request_id = 4
+        post_turn_name_request_id = 5
+        list_request_id = 6
         thread_start_params = {
             "cwd": str(repo_root),
             "approvalPolicy": "never",
@@ -361,6 +387,17 @@ def run_codex_fresh_thread(
         except (KeyError, TypeError):
             thread_id = None
         if thread_id:
+            if session_name:
+                name_request_ids.append(pre_turn_name_request_id)
+                _send(
+                    proc,
+                    {
+                        "id": pre_turn_name_request_id,
+                        "method": "thread/name/set",
+                        "params": {"threadId": thread_id, "name": session_name},
+                    },
+                )
+                all_events.extend(_read_events_until(proc, 8, lambda events, event: event.get("id") == pre_turn_name_request_id))
             _send(
                 proc,
                 {
@@ -374,13 +411,28 @@ def run_codex_fresh_thread(
                     },
                 },
             )
+            if session_name:
+                name_request_ids.append(post_turn_name_request_id)
+                _send(
+                    proc,
+                    {
+                        "id": post_turn_name_request_id,
+                        "method": "thread/name/set",
+                        "params": {"threadId": thread_id, "name": session_name},
+                    },
+                )
             all_events.extend(
                 _read_events_until(
                     proc,
                     timeout,
-                    lambda events, event: bool(_assistant_responded(events) and _thread_idle(events, thread_id))
-                    or bool(_turn_completed(events, thread_id))
-                    or bool(event.get("method") == "error" and not event.get("willRetry")),
+                    lambda events, event: bool(
+                        (
+                            bool(_assistant_responded(events) and _thread_idle(events, thread_id))
+                            or bool(_turn_completed(events, thread_id))
+                            or bool(event.get("method") == "error" and not event.get("willRetry"))
+                        )
+                        and (not session_name or _find_response(events, post_turn_name_request_id) is not None)
+                    ),
                 )
             )
             if _assistant_responded(all_events) and _thread_idle(all_events, thread_id):
@@ -417,17 +469,27 @@ def run_codex_fresh_thread(
     stderr_path.write_text(stderr_text, encoding="utf-8")
     started_info = _thread_started_info(all_events, thread_id)
     listed_info = _listed_info(all_events, list_request_id or 4, thread_id)
+    thread_name_info = _thread_name_set_info(all_events, name_request_ids, session_name)
+    post_turn_name_response = _find_response(all_events, post_turn_name_request_id) if post_turn_name_request_id else None
+    thread_name_set_after_turn_start = (
+        bool(post_turn_name_response and "result" in post_turn_name_response and not post_turn_name_response.get("error"))
+        if session_name
+        else None
+    )
     assistant_responded = _assistant_responded(all_events)
     thread_idle = _thread_idle(all_events, thread_id)
     turn_completed = _turn_completed(all_events, thread_id)
     launch_ok = bool(thread_id and assistant_responded and started_info["thread_turns_empty"])
     completion_ok = bool(thread_idle or turn_completed)
     base_ok = bool(launch_ok and (completion_ok or continue_work))
+    naming_ok = bool(thread_name_set_after_turn_start) if session_name else True
     persistence_ok = bool(started_info["thread_ephemeral"]) if ephemeral else bool(started_info["thread_persistent"] and listed_info["listed_after_start"])
     summary = {
         **plan,
         "thread_id": thread_id,
         **started_info,
+        **thread_name_info,
+        "thread_name_set_after_turn_start": thread_name_set_after_turn_start,
         "assistant_responded": assistant_responded,
         "thread_idle": thread_idle,
         "turn_completed": turn_completed,
@@ -435,7 +497,7 @@ def run_codex_fresh_thread(
         "completion_ok": completion_ok,
         **listed_info,
         **_latest_token_usage(all_events, thread_id),
-        "ok": bool(base_ok and persistence_ok),
+        "ok": bool(base_ok and persistence_ok and naming_ok),
         "events": str(events_path),
         "stderr": str(stderr_path),
     }

@@ -102,6 +102,7 @@ class UniversalFrameworkTests(unittest.TestCase):
         self.assertIn("immediately execute the next concrete task", plan["prompt"])
         self.assertIn("--name 'clean relay v2'", plan["command"])
         self.assertIn("--continue-work", plan["command"])
+        self.assertIn("thread/name/set", " ".join(plan["success_test"]))
 
     def test_wiki_progressive_retrieval(self):
         with tempfile.TemporaryDirectory() as td:
