@@ -14,7 +14,8 @@ from .bench import run_framework_smoke
 from .code_map import code_map
 from .codex_app_server import codex_fresh_thread_plan, run_codex_ask_old_thread, run_codex_fresh_thread
 from .context import ask_old_from_transcript, ask_old_session_plan, checkpoint, current_codex_transcript, fresh_launch_commands, host_context_controls, l0_rules_path, l1_index_path, lint_handoff, meter, should_auto_relay, startup_doc, status_for_files, write_pending_relay
-from .delegate import delegation_plan, documentation_lifecycle_packet, dumps, load_models, classify, personal_assistant_directive, personal_assistant_packet
+from .cost import preflight as cost_preflight, profile as cost_profile, report as cost_report
+from .delegate import cost_control_packet, delegation_plan, documentation_lifecycle_packet, dumps, load_models, classify, personal_assistant_directive, personal_assistant_packet
 from .docs import audit as docs_audit, split_plan
 from .hooks import doctor as hooks_doctor
 from .output_filter import rewind as output_filter_rewind, stats as output_filter_stats
@@ -404,6 +405,8 @@ def cmd_delegate(args: argparse.Namespace) -> int:
         print_json(delegation_plan(args.task, registry))
     elif args.delegate_cmd == "document":
         print_json(documentation_lifecycle_packet(args.task, args.evidence, args.verified, registry))
+    elif args.delegate_cmd == "cost-check":
+        print_json(cost_control_packet(args.task, registry))
     return 0
 
 
@@ -418,6 +421,19 @@ def cmd_pa(args: argparse.Namespace) -> int:
         print(personal_assistant_directive(packet))
     else:
         print_json(packet)
+    return 0
+
+
+def cmd_cost(args: argparse.Namespace) -> int:
+    cfg = load_config(args.repo)
+    if args.cost_cmd == "preflight":
+        print_json(cost_preflight(args.task))
+    elif args.cost_cmd == "profile":
+        transcript = Path(args.transcript).expanduser() if args.transcript else None
+        print_json(cost_profile(transcript, max_tokens=cfg.context_max_tokens, refresh_threshold=cfg.refresh_threshold))
+    elif args.cost_cmd == "report":
+        transcript = Path(args.transcript).expanduser() if args.transcript else None
+        print_json(cost_report(cfg.repo_root, transcript, max_tokens=cfg.context_max_tokens, refresh_threshold=cfg.refresh_threshold))
     return 0
 
 
@@ -629,11 +645,26 @@ def build_parser() -> argparse.ArgumentParser:
     dd.add_argument("--evidence", required=True)
     dd.add_argument("--verified", action="store_true")
     dd.set_defaults(func=cmd_delegate)
+    dcc = desub.add_parser("cost-check", help="Compatibility alias for `te cost preflight`")
+    dcc.add_argument("task")
+    dcc.set_defaults(func=cmd_delegate)
 
     pa = sub.add_parser("pa", help="Route /pa or /btw prompts through the personal-assistant router")
     pa.add_argument("--directive", action="store_true", help="Print hook-friendly routing instructions")
     pa.add_argument("prompt", nargs=argparse.REMAINDER)
     pa.set_defaults(func=cmd_pa)
+
+    cost = sub.add_parser("cost", help="Local context/tool/session cost discipline")
+    costsub = cost.add_subparsers(dest="cost_cmd", required=True)
+    cpf = costsub.add_parser("preflight", help="Emit provider-free context discipline guidance for a task")
+    cpf.add_argument("task")
+    cpf.set_defaults(func=cmd_cost)
+    cprof = costsub.add_parser("profile", help="Profile a transcript for local token-waste patterns")
+    cprof.add_argument("--transcript")
+    cprof.set_defaults(func=cmd_cost)
+    crep = costsub.add_parser("report", help="Combine transcript profile and output-filter stats")
+    crep.add_argument("--transcript")
+    crep.set_defaults(func=cmd_cost)
 
     hk = sub.add_parser("hooks")
     hksub = hk.add_subparsers(dest="hooks_cmd", required=True)

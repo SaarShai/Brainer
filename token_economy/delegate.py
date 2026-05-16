@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .cost import preflight as cost_preflight
+
 
 DEFAULT_MODELS = {
     "reasoning_top": ["opus", "gpt-frontier", "gemini-pro", "local:deepseek-r1:32b"],
@@ -31,6 +33,7 @@ FILE_CONTEXT_RE = re.compile(r"\b(file|path|code|test|bug|diff|function|class|mo
 WEB_CONTEXT_RE = re.compile(r"\b(web|online|latest|current|url|http|research|survey|compare|source)\b", re.IGNORECASE)
 PATH_RE = re.compile(r"(?<![\w.-])(?:\.{0,2}/|/|[A-Za-z0-9_.-]+/)[^\s,;:]+")
 DOCUMENTATION_RE = re.compile(r"\b(durable|verified|wiki-documenter|documenter|document important|document (?:the )?result|document results|record memory|write memory|l3 sop|sop)\b", re.IGNORECASE)
+CODING_WORK_RE = re.compile(r"\b(implement|build feature|crud|debug|bug|refactor|review|code review|write tests?|fix failing|stack trace|endpoint|api|component)\b", re.IGNORECASE)
 
 
 @dataclass
@@ -76,6 +79,7 @@ def classify(task: str, registry: dict[str, list[str]] | None = None) -> Route:
     hard = bool(re.search(r"\b(architect|design|framework|multi[- ]?file|migration|novel|ambiguous|strategy|system)\b", text))
     research = bool(re.search(r"\b(research|survey|compare|find repos?|literature|web)\b", text))
     simple = bool(re.search(r"\b(typo|one[- ]?line|summari[sz]e|classify|extract|lint|format|small fix)\b", text))
+    coding_work = bool(CODING_WORK_RE.search(task))
     repo_maintenance = bool(re.search(r"\b(commit|push|checkpoint|save progress|save-point|github|git status)\b", text))
     wiki = bool(re.search(r"\b(wiki|markdown|note|memory|document|ingest|l[0-4])\b", text))
     parallel = bool(re.search(r"\b(parallel|independent|separate|each of|split)\b", text)) or task.count("\n- ") >= 2
@@ -84,6 +88,8 @@ def classify(task: str, registry: dict[str, list[str]] | None = None) -> Route:
         return Route("simple", "lightweight", models["lightweight"][0], "wiki-documenter", 0.88, False, "use compact verified evidence only; update wiki/log/index after retrieval", "durable wiki documentation task")
     if high_risk or hard:
         return Route("hard", "reasoning_top", models["reasoning_top"][0], "main-orchestrator", 0.86, parallel, "retrieve exact relevant context first", "high-risk or architectural task")
+    if coding_work:
+        return Route("medium", "coding_top", models["coding_top"][0], "coding-worker", 0.80, parallel, "map/search first; load only touched files and nearby tests", "serious coding task")
     if research:
         return Route("medium", "medium", models["medium"][0], "research-worker", 0.78, parallel, "search first, fetch cited sources only", "bounded research task")
     if repo_maintenance:
@@ -134,6 +140,11 @@ def delegation_plan(task: str, registry: dict[str, list[str]] | None = None) -> 
         "brief": brief,
         "steps": steps,
     }
+
+
+def cost_control_packet(task: str, registry: dict[str, list[str]] | None = None) -> dict[str, Any]:
+    """Compatibility alias for the provider-free cost preflight."""
+    return cost_preflight(task)
 
 
 def documentation_lifecycle_packet(task: str, evidence: str, verified: bool, registry: dict[str, list[str]] | None = None) -> dict[str, Any]:

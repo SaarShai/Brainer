@@ -1,5 +1,9 @@
 # Log
 
+## [2026-05-16] adopt | AI coding cost-control article
+
+Converted the user-provided AI coding bill reduction article into repo-local Token Economy controls without hard-coding unverified prices, vendor claims, or API-agent routing. Added provider-free `token_economy/cost.py` with `./te cost preflight "<task>"`, `./te cost profile --transcript <path>`, and `./te cost report`; kept `./te delegate cost-check "<task>"` as a compatibility alias. Updated `hooks/user-prompt-submit.sh` so broad implementation/review/debug prompts get a short preflight nudge, small prompts stay quiet, and `NO COST PREFLIGHT` / `TOKEN_ECONOMY_COST_PREFLIGHT=0` bypass the nudge. Updated `projects/delegate-router/README.md`, `concepts/prefix-caching.md`, `index.md`, `L1_index.md`, and `raw/2026-05-16-ai-coding-bill-reduction-article.md`. Verified: `python3 -m unittest tests.test_universal_framework` (33 tests), `bash scripts/run_all_tests.sh`, `./te cost preflight "implement auth fix"`, `./te delegate cost-check "implement auth fix"`, `./te cost report`, `./te wiki lint --strict --fail-on-error`, `./te doctor`, and `git diff --check`.
+
 ## [2026-05-08] harden | setup prompt: framing, pre-flight guard, no-target handling
 
 After observing a real run of the setup prompt by a fresh agent, the agent invented an unsupported option ("use this folder for Token Economy framework dev") because the prompt didn't address the case where the user names no target project. Per user clarification: Token Economy is **scaffolding** that downstream projects use; the project itself is **never part of Token Economy**, and "framework dev" is done by cloning the framework repo directly, not by running the setup prompt. Updated the canonical prompt and four mirrors with five fixes:

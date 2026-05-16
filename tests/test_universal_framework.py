@@ -16,8 +16,9 @@ from token_economy.code_map import code_map
 from token_economy.config import detect_agent
 from token_economy.codex_app_server import codex_fresh_thread_plan, default_codex_fresh_model
 from token_economy.context import checkpoint, fresh_launch_commands, host_context_controls, lint_handoff, meter
+from token_economy.cost import preflight as cost_preflight, preflight_nudge, profile as cost_profile
 from token_economy.docs import audit as docs_audit
-from token_economy.delegate import classify, documentation_lifecycle_packet, personal_assistant_packet, strip_pa_prefix
+from token_economy.delegate import classify, cost_control_packet, documentation_lifecycle_packet, personal_assistant_packet, strip_pa_prefix
 from token_economy.output_filter import filter_text, load_rules
 from token_economy.tokens import estimate_tokens
 from token_economy.wiki import WikiStore
@@ -372,6 +373,59 @@ export function renderPanel() {
         self.assertEqual(repo_route.model_class, "lightweight")
         self.assertEqual(repo_route.worker, "repo-maintainer")
 
+        coding_route = classify("implement a CRUD endpoint and write tests")
+        self.assertEqual(coding_route.model_class, "coding_top")
+        self.assertEqual(coding_route.worker, "coding-worker")
+
+        premium_route = classify("architecture plan for secure auth migration")
+        self.assertEqual(premium_route.model_class, "reasoning_top")
+
+    def test_cost_preflight_provider_free_and_bypassable(self):
+        packet = cost_preflight("debug stack trace in token_economy/delegate.py")
+        self.assertEqual(packet["mode"], "cost_preflight")
+        self.assertEqual(packet["task_kind"], "broad_code")
+        self.assertFalse(packet["bypass"]["active"])
+        self.assertIn("use `rg` for exact symbols/errors before opening files", packet["context_plan"])
+        forbidden = json.dumps(packet).lower()
+        for needle in ("kimi", "sonnet", "opus", "haiku", "gpt", "$"):
+            self.assertNotIn(needle, forbidden)
+
+        trivial = cost_preflight("fix typo")
+        self.assertEqual(trivial["task_kind"], "trivial")
+        self.assertTrue(trivial["bypass"]["active"])
+        self.assertEqual(preflight_nudge("fix typo"), "")
+
+        bypassed = cost_preflight("implement auth fix NO COST PREFLIGHT")
+        self.assertTrue(bypassed["bypass"]["active"])
+        self.assertEqual(bypassed["context_plan"], [])
+
+        alias = cost_control_packet("implement auth fix")
+        self.assertEqual(alias["mode"], "cost_preflight")
+
+    def test_cost_profile_flags_transcript_waste(self):
+        with tempfile.TemporaryDirectory() as td:
+            transcript = Path(td) / "transcript.txt"
+            transcript.write_text(
+                "\n".join(
+                    [
+                        "cmd sed -n '1,220p' token_economy/delegate.py",
+                        "cmd sed -n '1,220p' token_economy/delegate.py",
+                        "tool output: " + ("x" * 9000),
+                        "cmd rg cost_preflight token_economy",
+                        "apply_patch updated token_economy/cost.py",
+                        "python3 -m unittest tests.test_universal_framework passed OK",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            prof = cost_profile(transcript, max_tokens=500)
+            kinds = {finding["kind"] for finding in prof["findings"]}
+            self.assertIn("oversized_tool_output", kinds)
+            self.assertIn("repeated_file_read", kinds)
+            self.assertIn("read_before_search", kinds)
+            self.assertIn("long_session_refresh", kinds)
+            self.assertIn("workflow_candidate", kinds)
+
     def test_documentation_lifecycle_routes_only_verified_evidence(self):
         routed = documentation_lifecycle_packet(
             "document important wiki results",
@@ -435,6 +489,30 @@ export function renderPanel() {
         )
         self.assertEqual(quiet.stdout, "")
 
+        broad = subprocess.run(
+            ["bash", str(REPO / "hooks/user-prompt-submit.sh")],
+            input=json.dumps({"prompt": "implement api endpoint"}),
+            text=True,
+            cwd=REPO,
+            capture_output=True,
+            check=True,
+        )
+        self.assertIn("[token-economy:cost]", broad.stdout)
+        self.assertIn("NO COST PREFLIGHT", broad.stdout)
+
+        disabled_env = os.environ.copy()
+        disabled_env["TOKEN_ECONOMY_COST_PREFLIGHT"] = "0"
+        disabled = subprocess.run(
+            ["bash", str(REPO / "hooks/user-prompt-submit.sh")],
+            input=json.dumps({"prompt": "implement api endpoint"}),
+            text=True,
+            cwd=REPO,
+            env=disabled_env,
+            capture_output=True,
+            check=True,
+        )
+        self.assertEqual(disabled.stdout, "")
+
     def test_context_keeper_v2_memory_api(self):
         memory_dir = REPO / "projects" / "context-keeper-v2"
         sys.path.insert(0, str(memory_dir))
@@ -495,6 +573,29 @@ export function renderPanel() {
                 self.assertEqual(main(["--repo", str(root), "delegate", "classify", "one-line typo fix"]), 0)
             route = json.loads(buf.getvalue())
             self.assertEqual(route["tier"], "simple")
+
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                self.assertEqual(main(["--repo", str(root), "delegate", "cost-check", "implement api endpoint"]), 0)
+            packet = json.loads(buf.getvalue())
+            self.assertEqual(packet["mode"], "cost_preflight")
+
+            transcript = root / "transcript.txt"
+            transcript.write_text("cmd cat token_economy/cli.py\n" + ("x" * 9000), encoding="utf-8")
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                self.assertEqual(main(["--repo", str(root), "cost", "preflight", "implement auth fix"]), 0)
+            self.assertEqual(json.loads(buf.getvalue())["mode"], "cost_preflight")
+
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                self.assertEqual(main(["--repo", str(root), "cost", "profile", "--transcript", str(transcript)]), 0)
+            self.assertEqual(json.loads(buf.getvalue())["mode"], "cost_profile")
+
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                self.assertEqual(main(["--repo", str(root), "cost", "report", "--transcript", str(transcript)]), 0)
+            self.assertEqual(json.loads(buf.getvalue())["mode"], "cost_report")
 
     def test_wiki_new_v2_page_and_strict_lint(self):
         with tempfile.TemporaryDirectory() as td:

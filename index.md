@@ -18,7 +18,10 @@ Catalog for a target project that uses Token Economy locally. Load only matched 
 - `./te wiki lint --strict` — validate wiki pages
 - `./te context status` — inspect context budget
 - `./te context checkpoint --handoff-template` — create a lean continuation packet
+- `./te cost preflight "task"` — emit provider-free context/tool/session guidance before broad work
+- `./te cost profile --transcript <path>` — flag repeated reads, oversized outputs, search-order leaks, refresh pressure
 - `./te delegate classify "task"` — classify work for delegation
+- `./te delegate cost-check "task"` — compatibility alias for `./te cost preflight`
 - `./te delegate document --verified ...` — route verified durable evidence to wiki-documenter
 - `./te pa --directive "/pa <prompt>"` — route context-light personal-assistant prompts
 
@@ -41,6 +44,9 @@ Catalog for a target project that uses Token Economy locally. Load only matched 
 - `token_economy/code_map.py` — compact structural code-map provider
 - [[concepts/framework-hardening-adoption]] — ranked adoption matrix and current hardening learnings
 - [[concepts/lean-execution]] — plan/context/delegation pruning rules and source synthesis
+- [[projects/delegate-router/README]] — model-agnostic routing plus local cost preflight/profile
+- [[concepts/prefix-caching]] — stable-prefix rules for prompt cache friendliness
+- [[raw/2026-05-16-ai-coding-bill-reduction-article]] — source-summary for the user-provided cost-reduction article
 - [[raw/2026-04-25-agent-memory-framework-research-rerun]] — Gemini and local Gemma research outputs
 - [[concepts/local-model-setup]] — current M1/M1B/M2 local model policy
 - [[templates/page.template]] — wiki page template
