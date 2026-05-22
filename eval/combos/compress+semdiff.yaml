@@ -1,0 +1,23 @@
+id: compress+semdiff
+skills: [compress-context, semantic-diff]
+description: |
+  Heavy-context combo. Compress shrinks long prompts; semantic-diff returns only
+  changed AST nodes on file re-reads. Expect compounded savings on prompts that
+  include large file contexts + re-read patterns. Useful in code-review and
+  long-doc-grounded QA workflows.
+prompts:
+  - "Re-read this 2000-line file we already loaded. Tell me what changed since last read."
+  - "Given this 4K-token research paper context, answer: what's the headline result?"
+  - "Summarize the changes in the diff below in two sentences, focusing on the public API surface."
+  - "Walk through this 3K-line module and identify the three slowest functions to optimize."
+  - "Compare two versions of the same file (v1, v2) and tell me which symbols were renamed."
+rubric: |
+  Rate 0-5 on whether the response uses the compressed/diffed context faithfully
+  (no hallucinated content, no reaching for the full original).
+  5 = correct, grounded only in given context
+  4 = correct, mild over-reach
+  3 = mostly correct, some hallucination
+  2 = mixed accuracy
+  1 = wrong / hallucinated
+  0 = blank
+  Reply: digit, then one-line reason.

@@ -1,123 +1,109 @@
 # Token Economy
 
-A repo-local framework for reducing LLM token/compute consumption while preserving capability.
+A token- and context-efficient skill catalog for AI coding agents — Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot.
 
-## Universal agent start
+**Skills, not a framework.** Drop the catalog into any [agentskills.io](https://agentskills.io)-compatible host. Each skill is a single folder with a `SKILL.md`, optional bundled tools, and measured evaluation numbers.
 
-Give any AI agent [`start.md`](start.md). It provides the lean operating contract: Caveman Ultra, repo-local markdown wiki memory, progressive retrieval, 20% context refresh, and model-aware delegation.
+## The catalog (15 skills)
 
-Important: downstream agents use Token Economy for their own target project. They are not working on this framework unless the user explicitly asks them to maintain Token Economy itself. Bundled framework docs, roadmap items, handoffs, and `projects/` pages are not downstream project goals.
+| Skill | Trigger | Desc tokens | Notes |
+|---|---|---:|---|
+| [caveman-ultra](skills/caveman-ultra/SKILL.md) | session-start, "be terse" | 81 | Terse output style. ~65% output reduction reported (juliusbrussee/caveman lineage). |
+| [plan-first-execute](skills/plan-first-execute/SKILL.md) | task > 3 steps | 70 | Plan-mode gate. |
+| [lean-execution](skills/lean-execution/SKILL.md) | "simplify / lean / prune" | 63 | Pruning rule. |
+| [verify-before-completion](skills/verify-before-completion/SKILL.md) | before any "done" claim | 49 | Evidence-first. |
+| [wiki-memory](skills/wiki-memory/SKILL.md) | retrieve OR write durable | 108 | Tier-aware (L0–L4) repo-local markdown wiki. |
+| [context-refresh](skills/context-refresh/SKILL.md) | 20% fill, `/refresh`, `summ` | 89 | Lean handoff + persistent fresh successor. |
+| [prompt-triage](skills/prompt-triage/SKILL.md) | UserPromptSubmit hook | 89 | Pre-model regex+Ollama classifier; routes simple tasks to cheap models. |
+| [personal-assistant](skills/personal-assistant/SKILL.md) | `/pa`, `/btw` | 57 | Explicit context-light routing. |
+| [delegate](skills/delegate/SKILL.md) | independent subtasks, research | 97 | Subagent orchestration + cost preflight + model registry. |
+| [context-keeper](skills/context-keeper/SKILL.md) | PreCompact hook | 80 | Structured memory before compaction. |
+| [memory-api](skills/memory-api/SKILL.md) | optional MCP | 82 | Tier-aware memory MCP server. |
+| [compress-context](skills/compress-context/SKILL.md) | opt-in long-context | 127 | LLMLingua-based compound compression. 44.9% savings, Δscore −0.12 measured on SQuAD v2 (n=8). |
+| [semantic-diff](skills/semantic-diff/SKILL.md) | file re-read | 99 | AST-node diff. 95.5% measured savings on argparse.py re-reads. |
+| [output-filter](skills/output-filter/SKILL.md) | terminal output hook | 99 | Strip ANSI/progress/dup noise; preserves errors. |
+| [skill-creator](skills/skill-creator/SKILL.md) | "add / edit a skill" | 138 | Authoring helper + linter + overlap detector. |
 
-Core commands:
+**Always-resident context tax (all 15 descriptions): 1,328 tokens.** Roughly 0.66% of a 200K context window.
+
+Full body cost (worst case, all loaded at once): 7,838 tokens. In practice, only the triggered skill's body loads.
+
+See [eval/results/static_cost.json](eval/results/static_cost.json) for the full measurement.
+
+## Install
 
 ```bash
-./te doctor
-./te wiki search "topic"
-./te context status
-./te context codex-fresh-thread --handoff <handoff-file>
-./te delegate classify "task"
-./te pa --directive "/pa quick context-light request"
-./te output-filter stats
-./te output-filter rewind
+git clone https://github.com/saarshai/token-economy.git
+cd token-economy
+./install.sh                            # wires skills into all detected hosts
+./install.sh --host claude-code         # one host
+./install.sh --dry-run                  # see what would happen
 ```
 
-Config lives in [`token-economy.yaml`](token-economy.yaml). Agent-specific adapters live in [`adapters/`](adapters/).
-
-Supplemental productization:
-
-```bash
-./te wiki new --template page --title "New Memory"
-./te wiki lint --strict
-./te context meter --transcript session.jsonl
-./te hooks doctor
-./te profile show
-./te bench run --suite framework-smoke
-```
-
-Skills, prompts, hooks, configs, templates, and extension recipes live in their matching top-level folders.
-
-For manual context refresh, use [`prompts/summ dot md`](prompts/summ.md). Copy-paste prompts are available for the old session ([`prompts/manual-summ-document-and-handoff dot md`](prompts/manual-summ-document-and-handoff.md)) and fresh session ([`prompts/manual-fresh-session-from-handoff dot md`](prompts/manual-fresh-session-from-handoff.md)). For complete project migration, use [`prompts/complete-migrate-export dot md`](prompts/complete-migrate-export.md) in the old project and [`prompts/complete-migrate-import dot md`](prompts/complete-migrate-import.md) in the fresh Token Economy-enabled target project folder. In Codex, current-thread clear/compact is unsolved in the tested Desktop/App Server environment; use `./te context codex-fresh-thread --handoff <handoff-file> --execute` for a persistent fresh successor thread with only `start.md` plus the handoff. This is clean continuation, not clearing the old visible thread.
-
-**Framework development projects, not downstream goals:**
-
-| project | what | status |
+| Host | Target | Mechanism |
 |---|---|---|
-| [ComCom](projects/compound-compression-pipeline/) | Compound compression pipeline (caveman + LLMLingua + self-verify escalation) | **v3 eval passed**: 44.9% savings, Δquality −0.12 (CI touches 0) on SQuAD |
-| [semdiff](projects/semdiff/) | AST-node-level diff for LLM file re-reads. MCP server + CC plugin. | **Working**: 95.5% savings on argparse.py re-read; Py/JS/TS/Rust tested |
-| [context-keeper](projects/context-keeper/) | PreCompact hook that extracts structured state (files/commands/errors/decisions) to preserve facts across compaction | **Working**: project-local hook recipe |
-| [output-filter](hooks/output-filter/) | Terminal-output filtering with raw-output recovery, savings stats, custom rules, and session-aware suppression | **Working**: native hook + CLI |
-| [bench/](bench/) | Benchmark registry + Kaggle/HF fetchers + uniform eval schema | **Working**: 7 datasets registered, 2 downloaded |
+| Claude Code | `.claude/skills/` + `.claude-plugin/marketplace.json` | symlinks + plugin manifest |
+| Codex | `.codex/skills/` | symlinks |
+| Cursor | `.cursor/skills/` + `.cursor/rules/*.mdc` | symlinks + MDC rule shims |
+| Gemini CLI | `.gemini/skills/` + `.gemini/settings.json` | symlinks + settings extension |
+| Copilot / VS Code | root `AGENTS.md` | shared shim, auto-discovered |
 
-See [ROADMAP.md](ROADMAP.md) for all directions, progress, next steps.
+Single canonical source — `skills/` at repo root. Installer fans out to per-host loaders. Pattern lifted from `amtiYo/agents`.
 
----
-
-## TL;DR — key measured results
-
-- **ComCom**: 44.9% input-token cut, quality preserved (Δ score −0.12 with 95% CI touching 0). Works via 3-stage escalation: compressed → verify → retry or fall back.
-- **semdiff**: 19,280 → 859 tokens on argparse.py after 2 method edits (95.5%). 99.5% on stable re-read.
-- **context-keeper**: extracts 68 files, 21 commands, 21 errors from a 100-turn transcript into a grep-able markdown page before `/compact`.
-- **output-filter**: strips ANSI/progress noise, deduplicates adjacent lines, preserves errors, stores raw output under `.token-economy/output-filter/`, and exposes `stats`/`rewind`.
-
-## Quick start (per tool)
-
-### ComCom (compound compression)
-
-```python
-from pipeline_v2 import compress
-from verify import escalate_gen
-
-# Adaptive mode — recommended for personal use
-def my_gen(ctx):
-    # your model-call wrapper; returns answer string
-    return call_model(prompt=build_prompt(ctx, question))
-
-answer, meta = escalate_gen(question, context, my_gen,
-                             rates=(0.5, 0.7, None))
-# meta: {rate_used, attempts, total_verify_tokens, grounded}
-```
-
-### semdiff (AST-diff file reads)
-
-MCP server, works with Claude Code, Cursor, Cline, Zed, any MCP client. See [projects/semdiff/INSTALL.md](projects/semdiff/INSTALL.md).
+### Plugin install (Claude Code)
 
 ```bash
-# Example MCP client
-claude mcp add semdiff -- python /path/to/semdiff/semdiff_mcp/server.py
+claude plugin install ./.claude-plugin/marketplace.json
 ```
 
-### context-keeper (PreCompact memory)
+Installs all 15 skills as one named plugin (`token-economy`) with optional `UserPromptSubmit` and `PreCompact` hooks (off by default; toggle in plugin config).
 
-Context-keeper writes session memory under repo-local `.token-economy/` paths by default. Do not configure global agent settings unless a human explicitly requests machine-wide behavior outside this framework.
+## What changed (vs the old framework)
 
-### output-filter (terminal noise)
+This used to be framed as a framework with a `te` CLI, layered docs (`start.md`, `L0_rules.md`, `L1_index.md`, `token-economy.yaml`), and project-style research under `projects/`. All of that is gone.
 
-The hook at `hooks/output-filter/filter.sh` keeps filtered terminal output short while preserving raw output locally for debugging:
+- `te` CLI → deleted. Each skill owns its scripts in `skills/<name>/tools/`.
+- `start.md`, `L0_rules.md`, `L1_index.md`, `token-economy.yaml`, `models.yaml` → deleted. Replaced by `skills/SKILLS_INDEX.md`.
+- `adapters/`, `prompts/`, `hooks/` → deleted. Folded into per-skill `tools/`.
+- 11 old skills → consolidated into 15 new ones via the audit (merges, renames, one new `skill-creator` skill).
+- Working Python projects (ComCom, semdiff, context-keeper, agents-triage, output-filter) → bundled into their matching skills' `tools/` folders.
+- Wiki content (`raw/`, `concepts/`, `patterns/`, `projects/`, `people/`, `queries/`, `L2_facts/`, `L3_sops/`, `L4_archive/`, `index.md`, `log.md`, `schema.md`, `templates/`) → moved under `wiki/`. The `wiki-memory` skill reads it.
+- `bench/` → kept at root for eval datasets.
+- 8 stale agent worktrees → cleaned via `git worktree remove`.
+
+Result: ~50 framework files removed; the catalog is 800K of skill folders plus a small installer.
+
+## Measurement
+
+The repo ships a measurement harness at `eval/`:
 
 ```bash
-some noisy command | TOKEN_ECONOMY_ROOT="$PWD" hooks/output-filter/filter.sh
-./te output-filter stats
-./te output-filter rewind
-./te output-filter rules --init
+python3 eval/static_cost.py                              # static description/body/tools cost
+python3 eval/runner.py --task eval/tasks/<skill>.yaml    # A/B per skill (needs Ollama or Anthropic API)
+python3 eval/judge.py eval/results/<skill>.json          # LLM-as-judge quality scoring
 ```
 
-Custom rules live at `.token-economy/output-filter-rules.txt` by default. Use `keep:<regex>`, `drop:<regex>`, and `collapse:<regex>`. Session-aware suppression is available with `--session-aware` or `output_filter_session_aware: true`, but stays disabled by default because repeated lines can be meaningful during debugging.
+Per-skill `EVAL.md` files carry static numbers today; live A/B numbers fill in once a backend is wired. See [eval/README.md](eval/README.md) for the full methodology including Kaggle T4 batching and Xiaomi MiMo judging via HuggingFace Inference.
 
-## Wiki
+## Lineage
 
-The `Token Economy` folder doubles as a repo-local markdown LLM wiki. See [index.md](index.md), [schema.md](schema.md).
+Built on prior work:
 
-Folders:
-- `concepts/` — atomic technique pages
-- `patterns/` — reusable workflows
-- `projects/` — target-project pages and framework component docs
-- `raw/` — immutable source material (research notes, surveys)
-- `people/` — referenced humans
-- `queries/` — durable Q&A
-- `sessions/` — auto-generated by context-keeper
+- [agentskills.io](https://agentskills.io) — open standard, 35+ hosts.
+- [anthropics/skills](https://github.com/anthropics/skills) — canonical SKILL.md and `skill-creator` patterns.
+- [amtiYo/agents](https://github.com/amtiYo/agents) — canonical-source-of-truth + symlink-fanout pattern.
+- [shinpr/sub-agents-skills](https://github.com/shinpr/sub-agents-skills) — `run-agent: codex|claude|cursor-agent|gemini` cross-LLM dispatch.
+- [muratcankoylan/Agent-Skills-for-Context-Engineering](https://github.com/muratcankoylan/Agent-Skills-for-Context-Engineering) — 15-skill catalog precedent.
+- [coleam00/claude-memory-compiler](https://github.com/coleam00/claude-memory-compiler) — SessionEnd → wiki distillation.
+- [cocoindex-io/cocoindex-code](https://github.com/cocoindex-io/cocoindex-code) — AST MCP code search.
+- [microsoft/LLMLingua](https://github.com/microsoft/LLMLingua) — neural prompt compression (LLMLingua-2 powers `compress-context`).
+- [lm-sys/RouteLLM](https://github.com/lm-sys/RouteLLM) — model routing reference for `prompt-triage` and `delegate`.
 
 ## Status
 
-This is active research. Interfaces may change. Evals are small-N; see each project's RESULTS for limitations.
+- 15 skills written and lint-clean.
+- 4 hosts wired and verified (Claude Code, Codex, Cursor, Gemini CLI).
+- Static-cost measurements published.
+- Live A/B harness ready; needs a healthy Ollama / explicit `ANTHROPIC_API_KEY` / `HF_TOKEN` to run.
 
-Author: Saar Shai.
+Author: Saar Shai. MIT.

@@ -1,0 +1,34 @@
+# EVAL — `<skill-name>`
+
+## Task suite
+
+- `<task-id>`: <one-line>
+- ...
+
+## Protocol
+
+- Host: <Claude Code | Codex | Cursor | Gemini>
+- Model under test: <model>
+- Judge: Xiaomi MiMo-7B (HF inference)
+- N=<n>
+
+```bash
+python eval/runner.py --task <skill-name> --n <n> --judge mimo
+```
+
+## Results
+
+| Metric | Without skill | With skill | Δ | 95% CI |
+|---|---|---|---|---|
+| input tokens |  |  |  |  |
+| output tokens |  |  |  |  |
+| latency (ms) |  |  |  |  |
+| judge score (0-5) |  |  |  |  |
+
+## Failure modes
+
+- ...
+
+## Notes
+
+- ...

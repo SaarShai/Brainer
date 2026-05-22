@@ -1,0 +1,18 @@
+id: caveman-ultra
+skill: caveman-ultra
+description: Measure output-token reduction when the terse-style skill is loaded.
+prompts:
+  - "Explain what a binary search tree is and when to use one."
+  - "Summarize the difference between SQL and NoSQL databases in 3 sentences."
+  - "What's the safest way to delete a file in a shell script? Show one example."
+  - "How does prompt caching work in modern LLM APIs? Why does it help?"
+  - "What does `git rebase -i` do? Give a short, practical example."
+rubric: |
+  Rate 0-5 on whether the candidate answer is correct AND concise.
+  5 = correct and tight (no filler)
+  4 = correct, slight verbosity OK
+  3 = correct but rambly
+  2 = partial / inaccurate
+  1 = mostly wrong
+  0 = blank or refused
+  Reply: digit on first line, brief reason on second.

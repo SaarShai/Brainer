@@ -1,9 +1,0 @@
-{
-  "token_economy": {
-    "root_env": "TOKEN_ECONOMY_ROOT",
-    "startup": "read start.md, L0_rules.md, L1_index.md",
-    "context_check": "bash ${TOKEN_ECONOMY_ROOT}/hooks/context-check.sh",
-    "output_filter": "bash ${TOKEN_ECONOMY_ROOT}/hooks/output-filter/filter.sh"
-  }
-}
-

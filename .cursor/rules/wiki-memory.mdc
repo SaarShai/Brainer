@@ -1,0 +1,7 @@
+---
+description: Repo-local markdown wiki with progressive retrieval (search → timeline → fetch) and gated writes (verified facts only). Use when the task references past work, decisions, memory, "have we done X", project facts, or when you need to record a durable finding. Tiered: L0 rules · L1 pointer index · L2 facts · L3 SOPs · L4 archive. Replaces note-app sprawl; no global agent config.
+globs: ["**/*"]
+alwaysApply: false
+---
+
+@skills/wiki-memory/SKILL.md

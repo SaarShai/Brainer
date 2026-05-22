@@ -1,72 +1,156 @@
 #!/usr/bin/env bash
+# Token Economy skill-set installer.
+# Symlinks skills/ into the per-host loader path. Idempotent.
+# Usage:
+#   ./install.sh                           # all detected hosts
+#   ./install.sh --host claude-code        # one host
+#   ./install.sh --host claude-code,codex  # comma-separated
+#   ./install.sh --dry-run                 # show what would happen
+#   SKILLS_DIR=skills.new ./install.sh     # alternate canonical dir (Phase A/B)
+
 set -euo pipefail
+REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
+SKILLS_DIR="${SKILLS_DIR:-skills}"
+SRC="$REPO_ROOT/$SKILLS_DIR"
 
-ROOT="$(cd "$(dirname "$0")" && pwd)"
-SCOPE="project"
+HOSTS_REQUESTED=""
 DRY_RUN=0
-AGENT="auto"
 
-while [ "$#" -gt 0 ]; do
+while (( "$#" )); do
   case "$1" in
-    --scope) SCOPE="$2"; shift 2 ;;
-    --agent) AGENT="$2"; shift 2 ;;
+    --host) HOSTS_REQUESTED="$2"; shift 2 ;;
     --dry-run) DRY_RUN=1; shift ;;
+    -h|--help)
+      grep -E '^# ' "$0" | sed 's/^# //'
+      exit 0 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
 
-if [ "$SCOPE" != "project" ]; then
-  echo "Token Economy installs project-locally only. Use --scope project." >&2
+if [ ! -d "$SRC" ]; then
+  echo "skills dir not found: $SRC" >&2
+  echo "set SKILLS_DIR or run from repo root." >&2
   exit 2
 fi
 
-export TOKEN_ECONOMY_ROOT="$ROOT"
+[ -z "$HOSTS_REQUESTED" ] && HOSTS_REQUESTED="claude-code,codex,cursor,gemini"
 
-echo "[1/7] doctor"
-"$ROOT/te" doctor
+run() {
+  if [ "$DRY_RUN" = "1" ]; then echo "DRY: $*"; else eval "$@"; fi
+}
 
-echo "[2/7] hooks"
-"$ROOT/te" hooks doctor
+link() {
+  local target="$1" linkname="$2"
+  if [ -L "$linkname" ] && [ "$(readlink "$linkname")" = "$target" ]; then
+    echo "    [skip] $linkname (already linked)"
+    return 0
+  fi
+  if [ -e "$linkname" ] && [ ! -L "$linkname" ]; then
+    echo "    [warn] $linkname exists and is not a symlink — leaving it" >&2
+    return 0
+  fi
+  run "ln -sfn '$target' '$linkname'"
+  echo "    [link] $linkname → $target"
+}
 
-echo "[3/7] wiki index"
-if [ "$DRY_RUN" = "1" ]; then
-  echo "dry-run: would run ./te wiki index"
-else
-  "$ROOT/te" wiki index
-fi
+install_claude_code() {
+  echo "[claude-code]"
+  run "mkdir -p '$REPO_ROOT/.claude/skills'"
+  for skill in "$SRC"/*/; do
+    name=$(basename "$skill")
+    [ "$name" = "_shared" ] && continue
+    link "$skill" "$REPO_ROOT/.claude/skills/$name"
+  done
+}
 
-echo "[4/7] adapter"
-if [ "$DRY_RUN" = "1" ]; then
-  echo "dry-run: would run ./te start --agent $AGENT --scope $SCOPE"
-else
-  "$ROOT/te" start --agent "$AGENT" --scope "$SCOPE"
-fi
+install_codex() {
+  echo "[codex]"
+  run "mkdir -p '$REPO_ROOT/.codex/skills'"
+  for skill in "$SRC"/*/; do
+    name=$(basename "$skill")
+    [ "$name" = "_shared" ] && continue
+    link "$skill" "$REPO_ROOT/.codex/skills/$name"
+  done
+}
 
-echo "[5/7] agents-triage"
-if [ ! -f "$ROOT/projects/agents-triage/install.sh" ]; then
-  echo "skip: agents-triage files not present"
-elif [ "$DRY_RUN" = "1" ]; then
-  echo "dry-run: would run bash projects/agents-triage/install.sh --project"
-else
-  bash "$ROOT/projects/agents-triage/install.sh" --project
-fi
+install_cursor() {
+  echo "[cursor]"
+  run "mkdir -p '$REPO_ROOT/.cursor/skills' '$REPO_ROOT/.cursor/rules'"
+  for skill in "$SRC"/*/; do
+    name=$(basename "$skill")
+    [ "$name" = "_shared" ] && continue
+    link "$skill" "$REPO_ROOT/.cursor/skills/$name"
+    local mdc="$REPO_ROOT/.cursor/rules/${name}.mdc"
+    if [ "$DRY_RUN" = "1" ]; then
+      echo "DRY: write $mdc"
+    else
+      local desc
+      desc=$(grep -m1 '^description:' "$skill/SKILL.md" | sed 's/^description: *//')
+      cat > "$mdc" <<MDC
+---
+description: $desc
+globs: ["**/*"]
+alwaysApply: false
+---
 
-echo "[6/7] context-keeper"
-if [ ! -f "$ROOT/projects/context-keeper/install.sh" ]; then
-  echo "skip: context-keeper files not present"
-elif [ "$DRY_RUN" = "1" ]; then
-  echo "dry-run: would run bash projects/context-keeper/install.sh --project"
-else
-  bash "$ROOT/projects/context-keeper/install.sh" --project
-fi
+@$SKILLS_DIR/$name/SKILL.md
+MDC
+      echo "    [write] $mdc"
+    fi
+  done
+}
 
-echo "[7/7] semdiff"
-if [ ! -f "$ROOT/projects/semdiff/install.sh" ]; then
-  echo "skip: semdiff files not present"
-elif [ "$DRY_RUN" = "1" ]; then
-  echo "dry-run: would run bash projects/semdiff/install.sh --project"
-else
-  bash "$ROOT/projects/semdiff/install.sh" --project
-fi
+install_gemini() {
+  echo "[gemini]"
+  run "mkdir -p '$REPO_ROOT/.gemini/skills'"
+  for skill in "$SRC"/*/; do
+    name=$(basename "$skill")
+    [ "$name" = "_shared" ] && continue
+    link "$skill" "$REPO_ROOT/.gemini/skills/$name"
+  done
+  local settings="$REPO_ROOT/.gemini/settings.json"
+  if [ "$DRY_RUN" = "1" ]; then
+    echo "DRY: ensure $settings has skills path"
+  elif [ ! -f "$settings" ]; then
+    cat > "$settings" <<'JSON'
+{
+  "skills": {
+    "dirs": [".gemini/skills"]
+  }
+}
+JSON
+    echo "    [write] $settings"
+  fi
+}
 
-echo "Install check complete."
+IFS=',' read -ra HOST_LIST <<< "$HOSTS_REQUESTED"
+for h in "${HOST_LIST[@]}"; do
+  case "$h" in
+    claude-code) install_claude_code ;;
+    codex)       install_codex ;;
+    cursor)      install_cursor ;;
+    gemini)      install_gemini ;;
+    *) echo "unknown host: $h (claude-code|codex|cursor|gemini)" >&2; exit 2 ;;
+  esac
+done
+
+for f in CLAUDE.md AGENTS.md GEMINI.md; do
+  shim="$REPO_ROOT/$f"
+  if [ ! -f "$shim" ] || ! grep -q 'SKILLS_INDEX' "$shim" 2>/dev/null; then
+    if [ "$DRY_RUN" = "1" ]; then
+      echo "DRY: write root shim $f"
+    else
+      cat > "$shim" <<EOF
+# Token Economy
+
+Skills catalog: see [\`$SKILLS_DIR/SKILLS_INDEX.md\`]($SKILLS_DIR/SKILLS_INDEX.md).
+
+Each skill loads on its own trigger; full bodies are not in the boot context. Run \`./install.sh\` to wire skills into the current host.
+EOF
+      echo "[root] wrote $shim"
+    fi
+  fi
+done
+
+echo
+echo "done. host(s): $HOSTS_REQUESTED"

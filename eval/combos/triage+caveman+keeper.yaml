@@ -1,0 +1,21 @@
+id: triage+caveman+keeper
+skills: [prompt-triage, caveman-ultra, context-keeper]
+description: |
+  Everyday-load combo. Triage routes simple work to cheap models, caveman keeps
+  output terse, context-keeper preserves structured state pre-compact. Expect:
+  shorter outputs + better-routed model picks + named files/cmds/errors in transcript.
+prompts:
+  - "Add a docstring to this function: `def square(n): return n*n`. Then run the tests."
+  - "Find the file in this repo that defines the `WikiStore` class, and tell me what its public methods are."
+  - "I hit `ModuleNotFoundError: No module named 'tiktoken'` while running my script. Fix it."
+  - "Search the wiki for prior notes on 'semantic diff', list the page IDs, and pick the most recent."
+  - "I'm about to compact this conversation. Summarize the durable facts I should preserve."
+rubric: |
+  Rate 0-5 on whether the response is (a) correct, (b) terse, (c) names exact paths/cmds/errors verbatim.
+  5 = all three
+  4 = two of three
+  3 = one of three
+  2 = correct but verbose AND no exact references
+  1 = incorrect
+  0 = blank
+  Reply: digit, then one-line reason.

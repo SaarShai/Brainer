@@ -1,0 +1,7 @@
+---
+description: Use when context is at 20% fill, on /refresh, on "summ", or when context feels stale. Splits work-in-progress into a lean handoff packet plus durable wiki memory, then launches a fresh successor session that starts from the handoff only. Successor can ask the old session targeted follow-up questions via ask-old.
+globs: ["**/*"]
+alwaysApply: false
+---
+
+@skills/context-refresh/SKILL.md

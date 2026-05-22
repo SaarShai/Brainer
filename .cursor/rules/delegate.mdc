@@ -1,0 +1,7 @@
+---
+description: Route work to subagents with cost preflight, model choice, and lifecycle management. Use when the task has independent subtasks, research, codegen, review, or anything reusable across a cheap model. Single contract: orchestration policy + cost preflight + model registry. Replaces the old subagent-orchestrator and delegate-router skills.
+globs: ["**/*"]
+alwaysApply: false
+---
+
+@skills/delegate/SKILL.md

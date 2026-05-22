@@ -1,0 +1,34 @@
+---
+name: <kebab-case-name>
+description: <≤1536 chars. Open with trigger keywords: "Use when...", "Trigger on...", or "Fires on...". Then 1-2 sentences on what the skill does. Then anti-triggers: "Do not use when...". Aim for ≤500 chars.>
+model: haiku|sonnet|opus|local|any
+effort: low|medium|high
+tools: [Read, Write, Bash]
+---
+
+# <skill-name>
+
+## Trigger
+
+- <bullet trigger phrases>
+
+## Protocol
+
+1. <step>
+2. <step>
+
+## Never
+
+- <anti-rule>
+
+## Files
+
+```
+tools/
+├── <script>.py
+└── INSTALL.md
+```
+
+## Lineage
+
+- <inspiration sources, papers, licensed code>

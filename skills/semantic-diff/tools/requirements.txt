@@ -1,0 +1,2 @@
+tree-sitter-languages>=1.10
+mcp>=0.4  # only for the MCP server entrypoint

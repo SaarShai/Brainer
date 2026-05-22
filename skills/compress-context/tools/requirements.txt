@@ -1,0 +1,3 @@
+requests>=2.31
+tiktoken>=0.5
+llmlingua>=0.2  # LLMLingua-2 prompt compression

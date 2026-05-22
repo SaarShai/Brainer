@@ -1,0 +1,7 @@
+---
+description: PreCompact hook that extracts structured state (files, commands, errors, numbers, decisions, failures) from the transcript before compaction. Preserves grep-able recovery memory so the summarizer can't silently drop facts. Use when the host supports project-local PreCompact hooks.
+globs: ["**/*"]
+alwaysApply: false
+---
+
+@skills/context-keeper/SKILL.md
