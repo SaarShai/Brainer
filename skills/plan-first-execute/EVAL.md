@@ -19,7 +19,7 @@ agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K conte
 | input tokens (mean)  | 37 | 178 | +377.0% | n/a |
 | output tokens (mean) | 1024 | 815 | -20.4% | n/a |
 | latency (ms)         | 11235 | 10967 | n/a | n/a |
-| judge score (0–5)    | —   |   |   |   |
+| judge score (0–5)    | +4.00 | +4.20 | +0.20 |   |
 
 
 Raw: [`eval/results/plan-first-execute.json`](../../eval/results/plan-first-execute.json)

@@ -17,9 +17,9 @@ Static columns are deterministic. Live columns require a live A/B run via `eval/
 | Rank | Skill | Eff | Gain | Reliab | Quality | desc tok | body tok | Δin% | Δout% | Δjudge | N |
 |---:|---|:-:|:-:|:-:|:-:|---:|---:|---:|---:|---:|---:|
 | 1 | [caveman-ultra](../skills/caveman-ultra/SKILL.md) | **A** | **A** | **B** | **A** | 81 | 235 | +560% | -85% | +0.13 | 3 |
-| 2 | [lean-execution](../skills/lean-execution/SKILL.md) | **B** | **B** | **B** | **?** | 63 | 409 | +722% | -56% | — | 3 |
-| 3 | [verify-before-completion](../skills/verify-before-completion/SKILL.md) | **B** | **B** | **B** | **?** | 49 | 260 | +539% | -45% | — | 3 |
-| 4 | [plan-first-execute](../skills/plan-first-execute/SKILL.md) | **C** | **C** | **C** | **?** | 70 | 176 | +377% | -20% | — | 3 |
+| 2 | [lean-execution](../skills/lean-execution/SKILL.md) | **B** | **B** | **B** | **A** | 63 | 409 | +722% | -56% | +0.00 | 3 |
+| 3 | [verify-before-completion](../skills/verify-before-completion/SKILL.md) | **B** | **B** | **B** | **C** | 49 | 260 | +539% | -45% | -0.40 | 3 |
+| 4 | [plan-first-execute](../skills/plan-first-execute/SKILL.md) | **C** | **C** | **C** | **A** | 70 | 176 | +377% | -20% | +0.20 | 3 |
 | 5 | [context-refresh](../skills/context-refresh/SKILL.md) | **?** | **?** | **A** | **?** | 89 | 1125 | — | — | — | — |
 | 6 | [prompt-triage](../skills/prompt-triage/SKILL.md) | **?** | **?** | **A** | **?** | 89 | 922 | — | — | — | — |
 | 7 | [delegate](../skills/delegate/SKILL.md) | **?** | **?** | **A** | **?** | 97 | 872 | — | — | — | — |

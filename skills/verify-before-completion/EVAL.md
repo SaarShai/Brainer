@@ -19,7 +19,7 @@ agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K conte
 | input tokens (mean)  | 39 | 247 | +538.9% | n/a |
 | output tokens (mean) | 426 | 233 | -45.2% | n/a |
 | latency (ms)         | 7080 | 4876 | n/a | n/a |
-| judge score (0–5)    | —   |   |   |   |
+| judge score (0–5)    | +4.07 | +3.67 | -0.40 |   |
 
 
 Raw: [`eval/results/verify-before-completion.json`](../../eval/results/verify-before-completion.json)

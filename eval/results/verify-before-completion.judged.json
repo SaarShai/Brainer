@@ -1,0 +1,193 @@
+{
+  "judge_model": "mimo-v2-flash",
+  "judge_backend": "mimo",
+  "scored_without_skill": [
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3 vague \"you should verify\" without specifics",
+      "latency_ms": 2201
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 verification commands provided, but missing explicit expected output and remaining-risk note",
+      "latency_ms": 5550
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 verification command, missing expected output detail",
+      "latency_ms": 6011
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 Explicit verification command with expected output and remaining-risk note.",
+      "latency_ms": 5220
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5 Explicit verification commands, expected output, and remaining-risk note provided.",
+      "latency_ms": 2175
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3 vague \"you should verify\" without specifics",
+      "latency_ms": 6807
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 verification command, missing expected output example",
+      "latency_ms": 1925
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 verification command, missing expected output",
+      "latency_ms": 3342
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4 verification command provided, but missing expected output and risk note",
+      "latency_ms": 2019
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5 Explicit verification commands with expected output and remaining-risk note.",
+      "latency_ms": 1957
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3 vague \"you should verify\" without specifics",
+      "latency_ms": 1810
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 verification command, missing expected output",
+      "latency_ms": 2005
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 verification command, missing expected output",
+      "latency_ms": 2283
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4 verification command, missing expected output",
+      "latency_ms": 2251
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5 Explicit verification commands with expected output and remaining-risk note.",
+      "latency_ms": 2318
+    }
+  ],
+  "scored_with_skill": [
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 verification command, missing expected output + risk note",
+      "latency_ms": 1913
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5: Demands fresh evidence with explicit command, expected output, and risk note.",
+      "latency_ms": 2469
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 verification command, missing one element",
+      "latency_ms": 2382
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3 vague \"you should verify\" without specifics",
+      "latency_ms": 2853
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 verification command provided, but missing expected output and risk note",
+      "latency_ms": 3567
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 verification command, missing expected output + risk note",
+      "latency_ms": 6964
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3 vague \"you should verify\" without specifics",
+      "latency_ms": 3003
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 verification command, missing expected output + risk note",
+      "latency_ms": 1975
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4 verification command provided, but missing expected output and risk note",
+      "latency_ms": 11635
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 vague \"you should verify\" without specifics",
+      "latency_ms": 2681
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 verification command, missing expected output + risk note",
+      "latency_ms": 4015
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3 vague \"you should verify\" without specifics",
+      "latency_ms": 2154
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 verification command, missing one element",
+      "latency_ms": 2555
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3 vague \"you should verify\" without specifics",
+      "latency_ms": 1990
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 vague \"you should verify\" without specifics",
+      "latency_ms": 3345
+    }
+  ],
+  "judge_summary": {
+    "without_mean": 4.066666666666666,
+    "with_mean": 3.6666666666666665,
+    "delta": -0.3999999999999999
+  }
+}

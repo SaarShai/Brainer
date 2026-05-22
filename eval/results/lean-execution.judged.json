@@ -1,0 +1,193 @@
+{
+  "judge_model": "mimo-v2-flash",
+  "judge_backend": "mimo",
+  "scored_without_skill": [
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5\nThe plan is correct, minimal, and covers the essentials without unnecessary fluff.",
+      "latency_ms": 2399
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 correct but includes optional steps and minor ceremony",
+      "latency_ms": 2214
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 slightly verbose with optional negative test and file summary",
+      "latency_ms": 2490
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4 correct but slightly long",
+      "latency_ms": 5249
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5: Covers essentials, minimal steps, no fluff.",
+      "latency_ms": 2122
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5\nCovers essentials with argparse and logging, minimal steps, no fluff.",
+      "latency_ms": 2792
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 correct but includes minor ceremony (e.g., explicit git commit before rename)",
+      "latency_ms": 8074
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5 Covers essentials, no fluff, smallest reversible action first",
+      "latency_ms": 2369
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4 Correct but slightly long",
+      "latency_ms": 2552
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5: Covers essentials, minimal, no fluff.",
+      "latency_ms": 4437
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5: Covers essentials with minimal, reversible steps and practical examples.",
+      "latency_ms": 2553
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5\nComprehensive yet concise, covering all essential steps without unnecessary fluff.",
+      "latency_ms": 6348
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5 covers essentials, no fluff, smallest reversible action",
+      "latency_ms": 2373
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4 Correct and thorough, but includes minor ceremony (e.g., UI updates) not always needed for a small app.",
+      "latency_ms": 2891
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 Correct and thorough, but includes minor ceremonial steps like manual QA and CI verification.",
+      "latency_ms": 2605
+    }
+  ],
+  "scored_with_skill": [
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5: Covers essentials, minimal, smallest reversible action first, no fluff.",
+      "latency_ms": 2814
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 covers essentials, minimal reversible steps, no fluff",
+      "latency_ms": 1974
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5: Covers essentials, no fluff, smallest reversible action first.",
+      "latency_ms": 9305
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5: Covers essentials, smallest reversible steps, no fluff.",
+      "latency_ms": 1826
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 correct but slightly long",
+      "latency_ms": 1974
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 Correct but slightly long",
+      "latency_ms": 2221
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 Correct and minimal, but includes a minor speculative step about deprecation.",
+      "latency_ms": 2459
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5: Covers essentials, no fluff, smallest reversible action.",
+      "latency_ms": 6173
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5: Covers essentials, minimal steps, no fluff, reversible first action.",
+      "latency_ms": 6578
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 correct but slightly long",
+      "latency_ms": 5535
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 Correct and minimal, but slightly verbose in explanation.",
+      "latency_ms": 2173
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 Correct but slightly long",
+      "latency_ms": 4867
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 Correct but slightly long",
+      "latency_ms": 2167
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 Covers essentials, minimal steps, no fluff, smallest reversible action.",
+      "latency_ms": 3086
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5: Covers essentials, minimal, no fluff, smallest reversible action first.",
+      "latency_ms": 3015
+    }
+  ],
+  "judge_summary": {
+    "without_mean": 4.533333333333333,
+    "with_mean": 4.533333333333333,
+    "delta": 0.0
+  }
+}

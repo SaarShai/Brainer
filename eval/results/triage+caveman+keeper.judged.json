@@ -1,0 +1,193 @@
+{
+  "judge_model": "mimo-v2-flash",
+  "judge_backend": "mimo",
+  "scored_without_skill": [
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5 Correct, terse, and includes exact test output.",
+      "latency_ms": 2887
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 correct, terse, but no exact path/command/error verbatim",
+      "latency_ms": 14009
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 correct and names exact paths/cmds/errors verbatim, but verbose",
+      "latency_ms": 2645
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3 correct but verbose AND no exact references",
+      "latency_ms": 2597
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 correct and terse, but no exact paths/cmds/errors",
+      "latency_ms": 4717
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5 Correct, terse, and includes exact test output verbatim.",
+      "latency_ms": 2098
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 correct and terse, but no exact file path or code references",
+      "latency_ms": 2741
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 correct and names exact paths/cmds/errors verbatim, but verbose",
+      "latency_ms": 2499
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3 correct but verbose AND no exact references",
+      "latency_ms": 4392
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4, correct and terse but lacks exact paths/cmds/errors",
+      "latency_ms": 2114
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5 Correct, terse, and includes exact test output.",
+      "latency_ms": 2137
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 correct and terse, but no exact path/command/error quoted",
+      "latency_ms": 1951
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 correct and names exact paths/cmds/errors verbatim, but verbose",
+      "latency_ms": 2823
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3 correct but verbose AND no exact references",
+      "latency_ms": 2062
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 correct and terse, but no exact paths/cmds/errors",
+      "latency_ms": 2526
+    }
+  ],
+  "scored_with_skill": [
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5 Correct, terse, and includes exact pytest command.",
+      "latency_ms": 2116
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 Correct, terse, and includes exact file path and method signatures.",
+      "latency_ms": 3018
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5 Correct, terse, and uses exact error and command verbatim.",
+      "latency_ms": 2584
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 Correct, terse, and lists exact paths with dates verbatim.",
+      "latency_ms": 2993
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5 Correct, terse, and includes exact paths/commands/errors verbatim.",
+      "latency_ms": 2332
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5 Correct, terse, and includes exact pytest command.",
+      "latency_ms": 1987
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 correct, terse, but missing exact command output",
+      "latency_ms": 2394
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 correct terse but not verbatim",
+      "latency_ms": 2596
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4 correct and terse, but paths are not exact (no page IDs listed)",
+      "latency_ms": 8635
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5 Correct, terse, and verbatim paths/commands/errors.",
+      "latency_ms": 2110
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5 Correct, terse, and includes exact pytest command.",
+      "latency_ms": 1982
+    },
+    {
+      "prompt_idx": 1,
+      "score": 0,
+      "raw": "0 The candidate failed to find the file or list any public methods; all commands returned no output.",
+      "latency_ms": 2220
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 correct and terse, but missing exact error reference",
+      "latency_ms": 2487
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4 correct and terse, but lacks exact error/verbatim references",
+      "latency_ms": 2354
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5, all three criteria met with exact paths, commands, and error modes listed.",
+      "latency_ms": 2819
+    }
+  ],
+  "judge_summary": {
+    "without_mean": 4,
+    "with_mean": 4.333333333333333,
+    "delta": 0.33333333333333304
+  }
+}

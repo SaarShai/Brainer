@@ -1,0 +1,193 @@
+{
+  "judge_model": "mimo-v2-flash",
+  "judge_backend": "mimo",
+  "scored_without_skill": [
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4, phases defined but verification gates are implicit rather than explicit.",
+      "latency_ms": 2239
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4\nPlan is structured with phases and verification gates, but lacks explicit unknowns and has a minor code snippet cut-off.",
+      "latency_ms": 3276
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 Explicit phases with verification gates, but Phase 4 is incomplete and lacks explicit unknowns.",
+      "latency_ms": 2054
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4\nPlan has phases and gates but includes premature implementation code.",
+      "latency_ms": 3276
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 phases and gates defined, but includes premature code snippet",
+      "latency_ms": 3572
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4\nThe response outlines explicit phases, includes verification steps (audit, structure definition), and stays scoped to planning, but the final code snippet is incomplete and lacks explicit unknowns.",
+      "latency_ms": 5334
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4\nPlan is phased and scoped, but verification gates are implied rather than explicit.",
+      "latency_ms": 5031
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 explicit phases with verification gates, but dual-write code example is premature implementation detail",
+      "latency_ms": 1842
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3 missing verification gates and incomplete code",
+      "latency_ms": 2296
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 phases with verification gates, scoped to local stack, but missing explicit unknowns list",
+      "latency_ms": 2470
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4\nCandidate provides a structured plan with phases, verification steps (audit, dependency checks), and scoped directory layout, but lacks explicit verification gates between phases.",
+      "latency_ms": 2387
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 plan includes phases and gates but lacks explicit verification steps in phases",
+      "latency_ms": 2029
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4\nPlan has phases and verification gates, but includes premature code snippets before full unknowns analysis.",
+      "latency_ms": 2125
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4 plan has phases and gates but includes code before full verification",
+      "latency_ms": 2352
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5 Explicit phases with verification gates, scoped to plan only, no premature implementation.",
+      "latency_ms": 2060
+    }
+  ],
+  "scored_with_skill": [
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 explicit phases with verification gates, scoped plan, no premature code",
+      "latency_ms": 6456
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 phases with gates but minor premature code",
+      "latency_ms": 2687
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 explicit phases with verification gates, but includes some premature implementation details",
+      "latency_ms": 2673
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4 explicit phases with gates, but skips environment discovery in favor of assumptions",
+      "latency_ms": 2345
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4: Phases and verification present, but verification gates are not explicit.",
+      "latency_ms": 4020
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 explicit phases with verification gates, but includes premature code snippets",
+      "latency_ms": 2148
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 phases with gates but minor premature code",
+      "latency_ms": 1848
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5 Explicit phases with verification gates, unknowns listed, scoped to plan without premature implementation.",
+      "latency_ms": 3139
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4 explicit phases with verification gates, scoped plan, no premature code",
+      "latency_ms": 2326
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 explicit phases with verification gates, but verification is only in Phase 4 rather than per phase",
+      "latency_ms": 5016
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5 Explicit phases with verification gates, scoped planning, and no premature code.",
+      "latency_ms": 3668
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 Explicit phases with verification gates, scoped planning, and no premature implementation.",
+      "latency_ms": 1871
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 explicit phases with verification gates, but includes premature implementation details",
+      "latency_ms": 1931
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4 explicit phases with verification gates, but lacks explicit verification gates in Phase 2",
+      "latency_ms": 2342
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 - Phases and verification present, but verification gates are weak and implementation is slightly premature.",
+      "latency_ms": 7284
+    }
+  ],
+  "judge_summary": {
+    "without_mean": 4,
+    "with_mean": 4.2,
+    "delta": 0.20000000000000018
+  }
+}
