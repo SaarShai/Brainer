@@ -61,13 +61,13 @@
   },
   {
     "name": "handoff",
-    "description_tokens": 100,
-    "description_chars": 351,
-    "body_tokens": 638,
-    "body_chars": 2232,
+    "description_tokens": 143,
+    "description_chars": 501,
+    "body_tokens": 881,
+    "body_chars": 3085,
     "tools_bytes": 0,
     "tools_kb": 0.0,
-    "has_eval_template": false,
+    "has_eval_template": true,
     "model_pin": "any",
     "effort_pin": "low"
   },

@@ -1,6 +1,6 @@
 ---
 name: handoff
-description: Use on the explicit `/handoff` slash command. Write a handoff document summarising the current conversation so a fresh agent can continue the work. Save to the OS temp dir, not the workspace. Suggest 1–3 skills the successor should invoke first. Reference existing artifacts; don't duplicate them. Redact secrets. Pure write-doc — no successor launch.
+description: Fires on the literal token "/handoff" in the user's message (with or without a focus argument after it; e.g. "/handoff" or "/handoff fixing the auth race"). Do NOT fire on any other input. Writes a handoff document summarising the current conversation so a fresh agent can continue the work. Saves to the OS temp dir, not the workspace. Suggests 1–3 skills the successor should invoke first. References existing artifacts; doesn't duplicate them. Redacts secrets. Pure write-doc — no successor launch.
 model: any
 effort: low
 tools: [Bash, Read, Write]
@@ -10,7 +10,21 @@ disable-model-invocation: true
 
 # handoff
 
-Write a handoff document summarising the current conversation so a fresh agent can continue the work. **Save it to the temporary directory of the user's OS — not the current workspace.**
+## Strict trigger gate
+
+This skill fires **only** when the user's most recent message starts with the literal token `/handoff` (case-insensitive), with or without text after it. Examples that DO fire:
+
+- `/handoff`
+- `/handoff fixing the auth race condition`
+- `/HANDOFF — continue the eval`
+
+If the message does not start with `/handoff`, **exit silently** — do not write any file, do not propose a handoff, do not mention this skill. Hand control back to whatever skill or default behaviour the host was going to run.
+
+This gate is necessary because hosts vary in how they route slash commands: Claude Code maps `/handoff` natively via the `name:` frontmatter, but Codex / Cursor / Gemini fall back to description-keyword matching, where a loose trigger would fire on arbitrary prose containing the word "handoff".
+
+## Body
+
+When the trigger matches, write a handoff document summarising the current conversation so a fresh agent can continue the work. **Save it to the temporary directory of the user's OS — not the current workspace.**
 
 Include a **suggested skills** section listing 1–3 skills the next session should invoke first (drawn from this catalog: caveman-ultra, plan-first-execute, lean-execution, verify-before-completion, wiki-memory, context-refresh, prompt-triage, delegate, context-keeper, compress-context, semantic-diff, output-filter).
 
