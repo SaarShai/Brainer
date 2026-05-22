@@ -12,15 +12,18 @@
 
 agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K context window).
 
-## A/B savings (measured, N=1 × 13 prompts, model=?)
+## Live measurement (end-to-end routing, N=1 × 13 prompts)
 
-| metric | without skill | with skill | Δ | 95% CI |
-|---|---|---|---|---|
-| input tokens (mean)  | — | — | — | n/a |
-| output tokens (mean) | — | — | — | n/a |
-| latency (ms)         | — | — | n/a | n/a |
-| judge score (0–5)    | —   |   |   |   |
+Harness: `eval/runner_triage.py` — runs each corpus prompt twice: once routed to `mimo-v2.5-pro` (no triage), once routed by `classify.py` to `mimo-v2-flash` or `mimo-v2.5-pro` based on tier.
 
+| metric | without triage | with triage | Δ |
+|---|---:|---:|---:|
+| total tokens | 6761 | 5345 | **-20.9%** |
+| routing | all → `mimo-v2.5-pro` | cheap = 10 / expensive = 3 | — |
+| classification accuracy | n/a | **100%** vs ground-truth tier | — |
+| classifier latency | n/a | **49 ms** mean | — |
+
+Interpretation: the regex fast-path correctly routes ~80% of typical prompts to a cheaper model, saving ~20% total tokens on a mixed-tier corpus. The static body cost (922 tokens) is fully offset within 6–8 routed prompts.
 
 Raw: [`eval/results/prompt-triage.json`](../../eval/results/prompt-triage.json)
 

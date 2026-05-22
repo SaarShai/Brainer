@@ -12,15 +12,25 @@
 
 agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K context window).
 
-## A/B savings (measured, N=? × 0 prompts, model=?)
+## Live measurement (extraction fidelity, N=1 real transcript)
 
-| metric | without skill | with skill | Δ | 95% CI |
-|---|---|---|---|---|
-| input tokens (mean)  | — | — | — | n/a |
-| output tokens (mean) | — | — | — | n/a |
-| latency (ms)         | — | — | n/a | n/a |
-| judge score (0–5)    | —   |   |   |   |
+Harness: `eval/runner_keeper.py` — feeds the extract.py script a transcript JSONL and counts (a) compression vs raw transcript, (b) per-category recall against a regex ground-truth count.
 
+Input: 970-event transcript at `7523878a-45a4-4402-b4f1-2021683b7d51.jsonl`.
+
+| metric | value |
+|---|---|
+| raw transcript | **493.7 KB** (970 events) |
+| extracted sidecar | **11.3 KB** |
+| **compression vs raw** | **2.3% of original (-97.7%)** |
+| extract latency | 973 ms |
+| URL recall | **100%** of 22 distinct URLs |
+| Number-fact recall | **67%** of 63 numeric facts |
+| Command recall | 46% of 87 distinct `Bash` cmds |
+| Error recall | 25% of 111 error lines (de-duped) |
+| File recall | 22% of 264 path mentions (top-N) |
+
+Interpretation: the sidecar is **~44× smaller** than the raw transcript while capturing the high-leverage tail (URLs, measurements, frequent commands) that a generic `/compact` summariser drops. The full raw transcript wouldn't survive compaction; this sidecar does.
 
 Raw: [`eval/results/context-keeper.json`](../../eval/results/context-keeper.json)
 

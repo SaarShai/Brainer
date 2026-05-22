@@ -17,7 +17,7 @@ agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K conte
 ```bash
 . .token-economy/secrets.env && export MIMO_API_KEY
 python3 eval/runner.py --task eval/tasks/output-filter.yaml --n 10 --backend mimo --model mimo-v2-flash
-python3 eval/judge.py eval/results/output-filter.json --model mimo-v2.5-pro --backend ollama
+python3 eval/judge.py eval/results/output-filter.json --model mimo-v2-flash --backend mimo
 ```
 
 | metric | without skill | with skill | Δ | 95% CI |
