@@ -24,10 +24,11 @@ Static columns are deterministic. Live columns require a live A/B run via `eval/
 | 6 | [prompt-triage](../skills/prompt-triage/SKILL.md) | **?** | **?** | **A** | **?** | 89 | 922 | — | — | — | — |
 | 7 | [delegate](../skills/delegate/SKILL.md) | **?** | **?** | **A** | **?** | 97 | 872 | — | — | — | — |
 | 8 | [wiki-memory](../skills/wiki-memory/SKILL.md) | **?** | **?** | **A** | **?** | 108 | 764 | — | — | — | — |
-| 9 | [compress-context](../skills/compress-context/SKILL.md) | **?** | **?** | **A** | **?** | 127 | 551 | — | — | — | — |
-| 10 | [semantic-diff](../skills/semantic-diff/SKILL.md) | **?** | **?** | **A** | **?** | 99 | 484 | — | — | — | — |
-| 11 | [output-filter](../skills/output-filter/SKILL.md) | **?** | **?** | **A** | **?** | 99 | 370 | — | — | — | — |
-| 12 | [context-keeper](../skills/context-keeper/SKILL.md) | **?** | **?** | **A** | **?** | 80 | 360 | — | — | — | — |
+| 9 | [handoff](../skills/handoff/SKILL.md) | **?** | **?** | **D** | **?** | 100 | 638 | — | — | — | — |
+| 10 | [compress-context](../skills/compress-context/SKILL.md) | **?** | **?** | **A** | **?** | 127 | 551 | — | — | — | — |
+| 11 | [semantic-diff](../skills/semantic-diff/SKILL.md) | **?** | **?** | **A** | **?** | 99 | 484 | — | — | — | — |
+| 12 | [output-filter](../skills/output-filter/SKILL.md) | **?** | **?** | **A** | **?** | 99 | 370 | — | — | — | — |
+| 13 | [context-keeper](../skills/context-keeper/SKILL.md) | **?** | **?** | **A** | **?** | 80 | 360 | — | — | — | — |
 
 ## What the columns mean
 

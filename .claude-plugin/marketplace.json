@@ -23,6 +23,7 @@
         "verify-before-completion",
         "wiki-memory",
         "context-refresh",
+        "handoff",
         "prompt-triage",
         "delegate",
         "context-keeper",

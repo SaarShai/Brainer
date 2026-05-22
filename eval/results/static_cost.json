@@ -60,6 +60,18 @@
     "effort_pin": "medium"
   },
   {
+    "name": "handoff",
+    "description_tokens": 100,
+    "description_chars": 351,
+    "body_tokens": 638,
+    "body_chars": 2232,
+    "tools_bytes": 0,
+    "tools_kb": 0.0,
+    "has_eval_template": false,
+    "model_pin": "any",
+    "effort_pin": "low"
+  },
+  {
     "name": "lean-execution",
     "description_tokens": 63,
     "description_chars": 222,

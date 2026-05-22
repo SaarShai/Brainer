@@ -14,6 +14,7 @@ A token- and context-efficient skill catalog for AI coding agents — Claude Cod
 | [verify-before-completion](skills/verify-before-completion/SKILL.md) | before any "done" claim | 49 | Evidence-first. |
 | [wiki-memory](skills/wiki-memory/SKILL.md) | retrieve OR write durable | 108 | Tier-aware (L0–L4) repo-local markdown wiki. |
 | [context-refresh](skills/context-refresh/SKILL.md) | 20% fill, `/refresh`, `summ` | 89 | Lean handoff + persistent fresh successor. |
+| [handoff](skills/handoff/SKILL.md) | explicit `/handoff [focus]` | ~120 | Pure write-doc handoff, slash-only, no successor launch (matt-style). |
 | [prompt-triage](skills/prompt-triage/SKILL.md) | UserPromptSubmit hook | 89 | Pre-model regex+Ollama classifier; routes simple tasks to cheap models. |
 | [delegate](skills/delegate/SKILL.md) | independent subtasks, research | 97 | Subagent orchestration + cost preflight + model registry. |
 | [context-keeper](skills/context-keeper/SKILL.md) | PreCompact hook | 80 | Structured memory before compaction. |
@@ -21,9 +22,9 @@ A token- and context-efficient skill catalog for AI coding agents — Claude Cod
 | [semantic-diff](skills/semantic-diff/SKILL.md) | file re-read | 99 | AST-node diff. 95.5% measured savings on argparse.py re-reads. |
 | [output-filter](skills/output-filter/SKILL.md) | terminal output hook | 99 | Strip ANSI/progress/dup noise; preserves errors. |
 
-**Always-resident context tax (12 descriptions): ~1,050 tokens.** Roughly 0.5% of a 200K context window.
+**Always-resident context tax (13 descriptions): ~1,170 tokens.** Roughly 0.6% of a 200K context window.
 
-Full body cost (worst case, all loaded at once): ~6,400 tokens. In practice, only the triggered skill's body loads.
+Full body cost (worst case, all loaded at once): ~7,000 tokens. In practice, only the triggered skill's body loads.
 
 See [eval/results/static_cost.json](eval/results/static_cost.json) for the full measurement.
 
