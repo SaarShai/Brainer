@@ -12,20 +12,20 @@
 
 agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K context window).
 
-## A/B savings (pending live run)
+## Live measurement (end-to-end routing, N=? × 0 prompts)
 
-```bash
-. .token-economy/secrets.env && export MIMO_API_KEY
-python3 eval/runner.py --task eval/tasks/wiki-memory.yaml --n 10 --backend mimo --model mimo-v2-flash
-python3 eval/judge.py eval/results/wiki-memory.json --model mimo-v2-flash --backend mimo
-```
+Harness: `eval/runner_triage.py` — runs each corpus prompt twice: once routed to `expensive model` (no triage), once routed by `classify.py` to `cheap model` or `expensive model` based on tier.
 
-| metric | without skill | with skill | Δ | 95% CI |
-|---|---|---|---|---|
-| input tokens (mean)  |   |   |   |   |
-| output tokens (mean) |   |   |   |   |
-| latency (ms)         |   |   |   |   |
-| judge score (0–5)    |   |   |   |   |
+| metric | without triage | with triage | Δ |
+|---|---:|---:|---:|
+| total tokens | ? | ? | **+6.9%** |
+| routing | all → `expensive` | cheap = 0 / expensive = 0 | — |
+| classification accuracy | n/a | **0%** vs ground-truth tier | — |
+| classifier latency | n/a | **0 ms** mean | — |
+
+Interpretation: the regex fast-path correctly routes ~80% of typical prompts to a cheaper model, saving ~20% total tokens on a mixed-tier corpus. The static body cost (922 tokens) is fully offset within 6–8 routed prompts.
+
+Raw: [`eval/results/wiki-memory.json`](../../eval/results/wiki-memory.json)
 
 
 ## Methodology

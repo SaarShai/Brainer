@@ -12,20 +12,17 @@
 
 agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K context window).
 
-## A/B savings (pending live run)
-
-```bash
-. .token-economy/secrets.env && export MIMO_API_KEY
-python3 eval/runner.py --task eval/tasks/compress-context.yaml --n 10 --backend mimo --model mimo-v2-flash
-python3 eval/judge.py eval/results/compress-context.json --model mimo-v2-flash --backend mimo
-```
+## A/B savings (measured, N=? × 0 prompts, model=?)
 
 | metric | without skill | with skill | Δ | 95% CI |
 |---|---|---|---|---|
-| input tokens (mean)  |   |   |   |   |
-| output tokens (mean) |   |   |   |   |
-| latency (ms)         |   |   |   |   |
-| judge score (0–5)    |   |   |   |   |
+| input tokens (mean)  | — | — | — | n/a |
+| output tokens (mean) | — | — | — | n/a |
+| latency (ms)         | — | — | n/a | n/a |
+| judge score (0–5)    | —   |   |   |   |
+
+
+Raw: [`eval/results/compress-context.json`](../../eval/results/compress-context.json)
 
 
 ## Methodology

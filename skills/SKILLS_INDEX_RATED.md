@@ -20,15 +20,15 @@ Static columns are deterministic. Live columns require a live A/B run via `eval/
 | 2 | [output-filter](../skills/output-filter/SKILL.md) | **A** | **A** | **A** | **?** | 99 | 370 | +0% | -89% | — | 4 |
 | 3 | [context-keeper](../skills/context-keeper/SKILL.md) | **A** | **A** | **A** | **?** | 80 | 360 | +0% | -98% | — | 1 |
 | 4 | [caveman-ultra](../skills/caveman-ultra/SKILL.md) | **A** | **A** | **B** | **A** | 81 | 235 | +560% | -85% | +0.13 | 3 |
-| 5 | [lean-execution](../skills/lean-execution/SKILL.md) | **B** | **B** | **B** | **A** | 63 | 409 | +722% | -56% | +0.00 | 3 |
-| 6 | [verify-before-completion](../skills/verify-before-completion/SKILL.md) | **B** | **B** | **B** | **C** | 49 | 260 | +539% | -45% | -0.40 | 3 |
-| 7 | [prompt-triage](../skills/prompt-triage/SKILL.md) | **C** | **C** | **A** | **?** | 89 | 922 | +0% | -21% | — | 1 |
-| 8 | [plan-first-execute](../skills/plan-first-execute/SKILL.md) | **C** | **C** | **C** | **A** | 70 | 176 | +377% | -20% | +0.20 | 3 |
-| 9 | [handoff](../skills/handoff/SKILL.md) | **?** | **?** | **A** | **?** | 143 | 1138 | — | — | — | 3 |
-| 10 | [context-refresh](../skills/context-refresh/SKILL.md) | **?** | **?** | **A** | **?** | 89 | 1125 | — | — | — | — |
-| 11 | [delegate](../skills/delegate/SKILL.md) | **?** | **?** | **A** | **?** | 97 | 872 | — | — | — | — |
-| 12 | [wiki-memory](../skills/wiki-memory/SKILL.md) | **?** | **?** | **A** | **?** | 108 | 764 | — | — | — | — |
-| 13 | [compress-context](../skills/compress-context/SKILL.md) | **?** | **?** | **A** | **?** | 127 | 551 | — | — | — | — |
+| 5 | [wiki-memory](../skills/wiki-memory/SKILL.md) | **B** | **A** | **A** | **?** | 108 | 764 | +412% | -65% | — | — |
+| 6 | [compress-context](../skills/compress-context/SKILL.md) | **B** | **B** | **A** | **?** | 127 | 551 | +0% | -36% | — | 3 |
+| 7 | [lean-execution](../skills/lean-execution/SKILL.md) | **B** | **B** | **B** | **A** | 63 | 409 | +722% | -56% | +0.00 | 3 |
+| 8 | [verify-before-completion](../skills/verify-before-completion/SKILL.md) | **B** | **B** | **B** | **C** | 49 | 260 | +539% | -45% | -0.40 | 3 |
+| 9 | [prompt-triage](../skills/prompt-triage/SKILL.md) | **C** | **C** | **A** | **?** | 89 | 922 | +0% | -21% | — | 1 |
+| 10 | [plan-first-execute](../skills/plan-first-execute/SKILL.md) | **C** | **C** | **C** | **A** | 70 | 176 | +377% | -20% | +0.20 | 3 |
+| 11 | [handoff](../skills/handoff/SKILL.md) | **?** | **?** | **A** | **?** | 143 | 1138 | — | — | — | 3 |
+| 12 | [context-refresh](../skills/context-refresh/SKILL.md) | **?** | **?** | **A** | **?** | 89 | 1125 | — | — | — | — |
+| 13 | [delegate](../skills/delegate/SKILL.md) | **?** | **?** | **A** | **?** | 97 | 872 | — | — | — | — |
 
 ## What the columns mean
 

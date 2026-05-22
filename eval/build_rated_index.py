@@ -114,6 +114,11 @@ def main() -> int:
                 out_delta = -summ["step4_two_edits_savings_pct_mean"]
                 in_delta = 0
                 sample_n = d.get("n_files", 1)
+            # runner_compress.py — mean token reduction over the corpus
+            if out_delta is None and "mean_token_reduction_pct" in summ:
+                out_delta = -summ["mean_token_reduction_pct"]
+                in_delta = 0
+                sample_n = d.get("n_samples", 1)
             # runner_handoff.py — integration test, not a savings test. Convert
             # pass_rate to a synthetic quality score so the rated index still
             # rates it; gain stays at 0 (no token savings to claim).

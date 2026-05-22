@@ -18,14 +18,16 @@ Headline numbers with the skill active. Different metrics per skill type — see
 
 | Skill | Headline | Judge | N | Harness |
 |---|---:|---:|---:|---|
+| **semantic-diff** | **97.5% / 96.5% / 86.0%** on unchanged / +fn / 2-edit re-reads | — | 3 source files | `runner_semdiff.py` |
+| **output-filter** | **−88.8%** bytes, 5/5 error lines preserved | — | 4 noisy samples | `runner_filter.py` |
+| **context-keeper** | **97.7%** transcript compression, 100% URL / 67% measurement recall | — | 1 transcript | `runner_keeper.py` |
 | caveman-ultra | **−85.2%** output | +0.13 | 3 × 5 | `runner.py` |
+| **wiki-memory** | **−64.6%** output, +411% input, +6.9% total, same judge | 0.00 | 1 × 8 | `runner_wiki.py` |
 | lean-execution | **−55.8%** output | +0.00 | 3 × 5 | `runner.py` |
 | verify-before-completion | **−45.2%** output | −0.40 ⚠ | 3 × 5 | `runner.py` |
-| plan-first-execute | −20.4% output | +0.20 | 3 × 5 | `runner.py` |
+| **compress-context** | **−35.6%** mean token reduction (n=3 long contexts) | — | 3 samples | `runner_compress.py` |
 | prompt-triage | **−20.9%** total tokens, 100% routing accuracy | — | 1 × 13 | `runner_triage.py` |
-| context-keeper | **97.7%** transcript compression, 100% URL / 67% measurement recall | — | 1 transcript | `runner_keeper.py` |
-| **output-filter** | **−88.8%** bytes, 5/5 error lines preserved | — | 4 noisy samples | `runner_filter.py` |
-| **semantic-diff** | **97.5% / 96.5% / 86.0%** on unchanged / +fn / 2-edit re-reads | — | 3 source files | `runner_semdiff.py` |
+| plan-first-execute | −20.4% output | +0.20 | 3 × 5 | `runner.py` |
 | **handoff** | 3/3 integration pass, 4/4 sections, 39 ms / call, ~2.5 KB doc | — | 3 focus arguments | `runner_handoff.py` |
 
 ⚠ The verify-before-completion `−0.40` is a rubric artifact — the test prompts ask "I just did X, is it done?" without execution access; the skill correctly demands fresh verification commands but can't run them, and the judge scores "demands evidence" lower than "affirms confidently". Re-test with executable prompts before downrating.
@@ -89,10 +91,10 @@ The takeaway isn't "the catalog saves tokens" or "the catalog costs tokens" — 
 
 | Skill | What to measure | Why |
 |---|---|---|
-| context-refresh | end-to-end relay round-trip | handoff size + successor continuity |
-| delegate | multi-subtask session with vs without delegation | cost preflight value |
-| wiki-memory | retrieval-vs-cold-research A/B | retrieve-before-reasoning value |
-| compress-context | Kaggle N≥50 re-run with mimo judge | tighten the 44.9% prior claim |
+| context-refresh | end-to-end relay round-trip with the (currently broken) successor launcher | the write-doc part is covered by handoff; the relay+ask-old chain is the remaining surface |
+| delegate | multi-subtask session with vs without delegation, measuring main-thread token cost | requires building a multi-subagent harness |
+| compress-context (Kaggle N≥50) | re-run with mimo judge on full SQuAD adapter | tighten the prior 44.9% with-quality claim |
+| skills × prompt caching at scale | explicit cache_control breakpoints in cache-aware hosts | the −94% effective Δtotal in Config B suggests per-host caching tuning has more room |
 
 ## Re-running these measurements
 

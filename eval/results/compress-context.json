@@ -1,0 +1,80 @@
+{
+  "harness": "runner_compress.py",
+  "target_rate": 0.5,
+  "n_samples": 3,
+  "results": [
+    {
+      "file": "wiki/raw/2026-04-17-research-brief.md",
+      "chars_in": 2789,
+      "chars_out": 2789,
+      "tokens_in": 878,
+      "tokens_out": 878,
+      "token_reduction_pct": 0.0,
+      "elapsed_s": 0.0,
+      "url_preservation": "0/0",
+      "path_preservation": "10/10",
+      "number_preservation": "35/35",
+      "meta": {
+        "orig_tok": 878,
+        "after_caveman": 878,
+        "after_critprotect": 878,
+        "after_llmlingua": 878,
+        "final": 878,
+        "critical_sentences": 0,
+        "rate": 1.0,
+        "savings": 0.0,
+        "skipped": true,
+        "skip_reason": "high-numeric-density"
+      }
+    },
+    {
+      "file": "wiki/raw/2026-04-17-semantic-diff-survey.md",
+      "chars_in": 2646,
+      "chars_out": 1222,
+      "tokens_in": 816,
+      "tokens_out": 351,
+      "token_reduction_pct": 57.0,
+      "elapsed_s": 149.2,
+      "url_preservation": "0/0",
+      "path_preservation": "5/18",
+      "number_preservation": "26/28",
+      "meta": {
+        "orig_tok": 816,
+        "after_caveman": 799,
+        "after_critprotect": 510,
+        "after_llmlingua": 238,
+        "final": 351,
+        "critical_sentences": 7,
+        "rate": 0.5,
+        "savings": 0.5698529411764706
+      }
+    },
+    {
+      "file": "wiki/raw/2026-04-18-karpathy-wiki-spinoffs.md",
+      "chars_in": 2988,
+      "chars_out": 1735,
+      "tokens_in": 799,
+      "tokens_out": 402,
+      "token_reduction_pct": 49.7,
+      "elapsed_s": 0.2,
+      "url_preservation": "0/0",
+      "path_preservation": "6/7",
+      "number_preservation": "9/9",
+      "meta": {
+        "orig_tok": 799,
+        "after_caveman": 797,
+        "after_critprotect": 757,
+        "after_llmlingua": 362,
+        "final": 402,
+        "critical_sentences": 1,
+        "rate": 0.5,
+        "savings": 0.49687108886107634
+      }
+    }
+  ],
+  "summary": {
+    "mean_token_reduction_pct": 35.6,
+    "total_tokens_in": 2493,
+    "total_tokens_out": 1631
+  }
+}

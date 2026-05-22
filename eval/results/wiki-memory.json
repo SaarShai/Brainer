@@ -1,0 +1,210 @@
+{
+  "summary": {
+    "harness": "runner_wiki.py",
+    "n": 1,
+    "n_questions": 8,
+    "model": "mimo-v2-flash",
+    "cold": {
+      "input_total": 317,
+      "output_total": 1794,
+      "total": 2111,
+      "input_mean": 39.6,
+      "output_mean": 224.2
+    },
+    "retrieved": {
+      "input_total": 1622,
+      "output_total": 635,
+      "total": 2257,
+      "input_mean": 202.8,
+      "output_mean": 79.4
+    },
+    "judge_cold_mean": 4,
+    "judge_retrieved_mean": 4,
+    "judge_delta": 0,
+    "delta_input_pct": 411.67,
+    "delta_output_pct": -64.6,
+    "delta_total_pct": 6.92
+  },
+  "questions": [
+    "What's semantic-diff and how much can it save on file re-reads?",
+    "What's our context-keeper extracting from a transcript before compaction?",
+    "How does the compound compression pipeline (ComCom) work?",
+    "What's the difference between context-keeper v1 and v2?",
+    "What does the delegate-router project do?",
+    "Summarize the relay-session feature and when to use it.",
+    "What's the wiki-governance approach in this repo?",
+    "What did our 2026-04-17 semantic-diff prior-art survey conclude about Difftastic?"
+  ],
+  "cold": [
+    {
+      "output": "**Semantic-diff** is a diff algorithm that compares files based on their *semantic meaning* rather than raw text. It's commonly used in build systems (like Bazel, Buck, or Pants) to determine if a file's *content* has meaningfully changed, not just its text.\n\n### How It Works\nInstead of line-by-line text comparison, semantic-diff:\n- Parses code into an AST (Abstract Syntax Tree)\n- Ignores formatting, whitespace, comments, and variable renaming\n- Compares the actual logic/structure\n\n### Impact on File Re-reads\n**Savings: 50-90% reduction** in unnecessary re-reads/rebuilds in typical codebases.\n\n**Example:**\n```\n// Before\nfunction add(a, b) { return a + b; }\n\n// After (semantic-same)\nfunction add(x, y) { return x + y; }\n```\nA text diff sees changes; semantic-diff sees **no change** \u2192 skips re-read/rebuild.\n\n**Real-world scenarios:**\n- **Refactoring**: Renaming variables/functions (100% savings on affected files)\n- **Formatting**: Auto-formatting, linting fixes (100% savings)\n- **Comments**: Adding documentation (100% savings)\n- **Minor edits**: Unused code removal, dead code elimination (partial savings)\n\n### Limitations\n- **Overhead**: Parsing ASTs is slower than text diff (but worth it for large builds)\n- **Language-specific**: Requires parsers for each language\n- **False positives**: May miss subtle semantic changes (rare)\n\n### Bottom Line\nIn active development with frequent refactoring, semantic-diff can **cut rebuild times by 30-70%** by eliminating unnecessary file re-reads and recompilations.",
+      "prompt_tokens": 42,
+      "completion_tokens": 375,
+      "latency_ms": 6431,
+      "trial": 0,
+      "question": "What's semantic-diff and how much can it save on file re-reads?"
+    },
+    {
+      "output": "A context-keeper typically extracts **key entities, relationships, and semantic anchors** before compaction, such as:\n\n- **Named entities** (people, organizations, locations, dates)\n- **Core topics/themes** (main subjects discussed)\n- **Action items & decisions** (tasks, commitments, outcomes)\n- **Sentiment & tone** (emotional valence, urgency)\n- **Temporal markers** (time references, deadlines)\n- **Conversational structure** (speaker turns, question-answer pairs)\n\nThis distilled information preserves meaning while reducing redundancy for efficient storage or processing.",
+      "prompt_tokens": 39,
+      "completion_tokens": 118,
+      "latency_ms": 3790,
+      "trial": 0,
+      "question": "What's our context-keeper extracting from a transcript before compaction?"
+    },
+    {
+      "output": "**ComCom (Compound Compression)** is a pipeline that compresses large language models (LLMs) by combining multiple compression techniques in a specific order to maximize efficiency and minimize performance loss.\n\nHere\u2019s how it works, step-by-step:\n\n### 1. **Pre-Training (Foundation)**\nStart with a dense, pre-trained LLM (e.g., LLaMA, GPT).\n\n### 2. **Knowledge Distillation (KD)**\n- Train a smaller **student model** to mimic the outputs of the larger **teacher model**.\n- This transfers general knowledge and reasoning capabilities to the compressed model.\n\n### 3. **Quantization (Q)**\n- Reduce the precision of model weights (e.g., from 32-bit to 4-bit or 8-bit).\n- Compresses memory footprint and speeds up inference with minimal accuracy loss.\n\n### 4. **Pruning (P)**\n- Remove less important weights or neurons (structured or unstructured pruning).\n- Further reduces model size and computational cost.\n\n### 5. **Compound Application Order**\nComCom typically applies these techniques **sequentially**, not simultaneously, to avoid compounding errors:\n1. **Distill** first (transfer knowledge).\n2. **Quantize** (reduce precision).\n3. **Prune** (remove redundancy).\n\n### 6. **Fine-Tuning (Optional but Common)**\nAfter compression, a lightweight fine-tuning step (e.g., LoRA) recovers accuracy lost during pruning/quantization.\n\n### Key Benefits\n- **Efficiency**: Smaller, faster models suitable for edge devices.\n- **Performance**: Maintains higher accuracy than single-method compression.\n- **Flexibility**: Can be tailored (e.g., quantization + pruning only).\n\n### Example Workflow\n```\nTeacher Model \u2192 Distill \u2192 Quantize \u2192 Prune \u2192 Fine-Tune \u2192 Compressed Model\n```\n\nThis pipeline is widely used in deploying LLMs on resource-constrained",
+      "prompt_tokens": 37,
+      "completion_tokens": 400,
+      "latency_ms": 6439,
+      "trial": 0,
+      "question": "How does the compound compression pipeline (ComCom) work?"
+    },
+    {
+      "output": "**Context-Keeper v1** is a simple, lightweight library for managing React context state with minimal boilerplate. It uses a straightforward `createContext` pattern with a custom hook.\n\n**Context-Keeper v2** introduces significant improvements:\n- **Immer integration** for immutable state updates\n- **Middleware support** for logging, persistence, etc.\n- **Better TypeScript inference** with stricter types\n- **Performance optimizations** with selective re-renders\n- **Simplified API** with fewer methods to learn\n- **Async action support** built-in\n\nThe main difference is that v2 is more powerful and extensible while maintaining the same core philosophy of keeping context simple. If you're starting fresh, use v2. If you have v1 code, there's a migration guide available.",
+      "prompt_tokens": 39,
+      "completion_tokens": 163,
+      "latency_ms": 3701,
+      "trial": 0,
+      "question": "What's the difference between context-keeper v1 and v2?"
+    },
+    {
+      "output": "The **delegate-router** project is a lightweight, flexible routing library for Node.js and the browser. It provides a simple way to handle URL routing with support for dynamic parameters, wildcards, and middleware. It's often used in small to medium-sized applications where a full framework like Express might be overkill.\n\nKey features include:\n- **Dynamic route parameters** (e.g., `/user/:id`)\n- **Wildcard matching** (e.g., `/files/*`)\n- **Middleware support** for pre-processing requests\n- **Lightweight** with minimal dependencies\n\nIt's particularly useful for building custom servers, APIs, or single-page applications where you need clean, declarative routing without the overhead of larger frameworks.",
+      "prompt_tokens": 33,
+      "completion_tokens": 144,
+      "latency_ms": 3648,
+      "trial": 0,
+      "question": "What does the delegate-router project do?"
+    },
+    {
+      "output": "**Relay-session** is a feature in **WireGuard** (and some VPN tools) that allows a client to **relay traffic through an intermediary peer** when a direct connection between two peers is blocked or unreachable (e.g., due to NAT/firewall restrictions).\n\n### How It Works\n- **Direct Connection Preferred**: WireGuard normally establishes a direct peer-to-peer tunnel.\n- **Relay Fallback**: If direct connection fails, traffic is routed through a **relay peer** (a third-party server) that forwards packets between the two endpoints.\n- **Manual Configuration**: Requires explicit setup of relay peers and allowed IPs in WireGuard configs.\n\n### When to Use It\n1. **Strict NAT/Firewall Environments**: When peers are behind symmetric NATs or restrictive firewalls that block direct UDP connections.\n2. **Mobile/Cellular Networks**: Where IP addresses change frequently or ports are heavily filtered.\n3. **Corporate Networks**: When direct P2P is blocked by IT policies.\n4. **Temporary Connectivity Issues**: As a fallback when direct WireGuard handshakes fail.\n\n### Limitations\n- **Not Native**: WireGuard doesn\u2019t have built-in relay support; it\u2019s implemented via third-party tools (e.g., `wg-relay`, `wg-dynamic`).\n- **Performance Overhead**: Adds latency and reduces throughput due to extra hops.\n- **Complex Setup**: Requires manual configuration and maintenance.\n\n### Alternatives\n- **Port Forwarding**: Simpler but not always possible.\n- **STUN/TURN Servers**: For dynamic NAT traversal (used in WebRTC).\n- **Commercial VPNs**: Often handle relaying automatically.\n\n**Bottom Line**: Use relay-session only when direct WireGuard connections are impossible and you need a fallback. For most users, port forwarding or a commercial VPN is simpler.",
+      "prompt_tokens": 38,
+      "completion_tokens": 370,
+      "latency_ms": 6346,
+      "trial": 0,
+      "question": "Summarize the relay-session feature and when to use it."
+    },
+    {
+      "output": "The repo uses a **wiki-based governance model** where documentation and decision-making are managed through the repository's wiki. This typically means:\n\n- **Open editing**: Contributors can propose changes via wiki edits or pull requests\n- **Transparent discussions**: Decisions are documented in wiki pages (e.g., governance, contribution guidelines)\n- **Community-driven**: Maintainers review wiki changes, but the wiki serves as the primary source of truth for project policies\n\nCheck the repo's wiki tab for specific governance documents like `CONTRIBUTING.md`, `GOVERNANCE.md`, or `CODE_OF_CONDUCT.md`.",
+      "prompt_tokens": 37,
+      "completion_tokens": 122,
+      "latency_ms": 3248,
+      "trial": 0,
+      "question": "What's the wiki-governance approach in this repo?"
+    },
+    {
+      "output": "The 2026-04-17 semantic-diff prior-art survey concluded that **Difftastic** is a **tree-based structural diff tool** that compares syntax trees rather than raw text. It supports over 40 languages and uses a custom tree-differencing algorithm to produce minimal, meaningful diffs. The survey noted it as a **direct prior art** for semantic diff tools, though it lacks the **multi-language, multi-AST** flexibility of the proposed system.",
+      "prompt_tokens": 52,
+      "completion_tokens": 102,
+      "latency_ms": 3169,
+      "trial": 0,
+      "question": "What did our 2026-04-17 semantic-diff prior-art survey conclude about Difftastic?"
+    }
+  ],
+  "retrieved": [
+    {
+      "output": "Semantic-diff is an AST-node-level diff technique that saves tokens when LLM agents re-read files. Instead of sending the full file each time, it sends only changed/added nodes plus a stub list of unchanged nodes. This can save significant tokens\u2014scaling with file size \u00d7 edit count\u2014by avoiding redundant transmission of unchanged code.",
+      "prompt_tokens": 202,
+      "completion_tokens": 68,
+      "latency_ms": 3928,
+      "trial": 0,
+      "question": "What's semantic-diff and how much can it save on file re-reads?",
+      "hits": [
+        "projects/semdiff",
+        "concepts/semantic-diff-edits",
+        "concepts/framework-hardening-adoption"
+      ]
+    },
+    {
+      "output": "Based on the wiki excerpts, **context-keeper v1** extracts **intra-session state** from the transcript before compaction. This includes:\n\n- **File paths and line numbers** (lost in generic prose)\n- **Exact error strings and commands run**\n- **Decisions + rationale**\n- **Failed-attempt history** (to prevent repeat mistakes)\n\nThis structured state preservation prevents the loss of critical debugging context that occurs when the default `/compact` runs an LLM summarizer.",
+      "prompt_tokens": 249,
+      "completion_tokens": 100,
+      "latency_ms": 6140,
+      "trial": 0,
+      "question": "What's our context-keeper extracting from a transcript before compaction?",
+      "hits": [
+        "projects/context-keeper",
+        "projects/context-keeper-v2",
+        "concepts/local-model-setup"
+      ]
+    },
+    {
+      "output": "The **Compound Compression Pipeline (ComCom)** stacks multiple complementary savings techniques to reduce token usage, but it requires evaluation to confirm additive wins. Key components include:\n\n- **Terse output constraints** (Caveman Output Compression): Drop filler, pleasantries, hedging, and hollow closings while preserving code, paths, numbers, math, and exact errors.\n- **Input compression**: Compress or summarize input before processing.\n- **Prompt caching**: Reuse cached prompts to avoid reprocessing.\n- **Structured outputs**: Use formats like JSON or YAML to reduce verbosity.\n- **Verification/fallback**: Add checks and fallback mechanisms to ensure correctness without excessive tokens.\n\nThe pipeline is designed to be modular, allowing each component to be tuned and evaluated independently. It\u2019s part of a broader framework hardening effort that separates shipped mechanics from open memory ideas.",
+      "prompt_tokens": 189,
+      "completion_tokens": 172,
+      "latency_ms": 3622,
+      "trial": 0,
+      "question": "How does the compound compression pipeline (ComCom) work?",
+      "hits": [
+        "patterns/compound-compression-pipeline",
+        "concepts/framework-hardening-adoption",
+        "concepts/caveman-output-compression"
+      ]
+    },
+    {
+      "output": "**context-keeper v1** extracts intra-session state pre-compact (structured preservation before compaction). **v2** adds true cross-session persistence and tiered retrieval (L0-L4 memory), borrowed from GenericAgent.",
+      "prompt_tokens": 236,
+      "completion_tokens": 47,
+      "latency_ms": 2982,
+      "trial": 0,
+      "question": "What's the difference between context-keeper v1 and v2?",
+      "hits": [
+        "projects/context-keeper-v2",
+        "projects/context-keeper",
+        "raw/m5-outputs-2026-04-18/B69_migration_v1_to_v2"
+      ]
+    },
+    {
+      "output": "The **delegate-router** project provides a model-agnostic routing policy for subagents and cheaper models, enabling flexible task delegation across different AI models.",
+      "prompt_tokens": 129,
+      "completion_tokens": 30,
+      "latency_ms": 2619,
+      "trial": 0,
+      "question": "What does the delegate-router project do?",
+      "hits": [
+        "concepts/framework-hardening-adoption",
+        "projects/delegate-router",
+        "templates/handoff.template"
+      ]
+    },
+    {
+      "output": "**Relay-session** is a middleware feature that enables **\"no execution, no memory\"** policy enforcement for persistent state writes. It acts as a shared policy library called by tools like context-keeper-v2 and skill-crystallizer.\n\n**When to use it:**\n- When writing persistent state that must adhere to shared policies across the system\n- For any tool that modifies persistent state and needs policy validation before execution\n- To enforce \"no execution, no memory\" constraints on state changes\n\n**Key benefit:** Centralizes policy enforcement for all state-writing operations, ensuring consistency across the 3-machine compute cluster.",
+      "prompt_tokens": 178,
+      "completion_tokens": 127,
+      "latency_ms": 3546,
+      "trial": 0,
+      "question": "Summarize the relay-session feature and when to use it.",
+      "hits": [
+        "concepts/devices-inventory",
+        "concepts/semantic-diff-edits",
+        "projects/write-gate"
+      ]
+    },
+    {
+      "output": "The wiki-governance approach in this repo is **repo-local wiki hardening**\u2014separating shipped mechanics from open memory ideas, while maintaining a stable, referenceable knowledge base for agents operating across the compute cluster.",
+      "prompt_tokens": 167,
+      "completion_tokens": 46,
+      "latency_ms": 2361,
+      "trial": 0,
+      "question": "What's the wiki-governance approach in this repo?",
+      "hits": [
+        "concepts/framework-hardening-adoption",
+        "concepts/prefix-caching",
+        "concepts/devices-inventory"
+      ]
+    },
+    {
+      "output": "The survey concluded that Difftastic was not directly relevant to the semantic-diff problem space, as it focuses on syntax-aware diffing for human review, not on optimizing token usage for LLM re-reads.",
+      "prompt_tokens": 272,
+      "completion_tokens": 45,
+      "latency_ms": 2823,
+      "trial": 0,
+      "question": "What did our 2026-04-17 semantic-diff prior-art survey conclude about Difftastic?",
+      "hits": [
+        "concepts/semantic-diff-edits",
+        "raw/2026-04-17-research-brief",
+        "projects/semdiff"
+      ]
+    }
+  ]
+}
