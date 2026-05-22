@@ -4,6 +4,8 @@ Lean, token/context-efficient skills for AI coding agents (Claude Code · Codex 
 
 This replaces the old `start.md` boot doc. Each skill is a self-contained folder under `skills/<name>/`. Skill descriptions are the only thing always resident in the agent's context; full bodies load on trigger.
 
+For ratings and measured deltas see [`SKILLS_INDEX_RATED.md`](SKILLS_INDEX_RATED.md).
+
 ## Catalog
 
 | Skill | One-line |

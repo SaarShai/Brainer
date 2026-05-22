@@ -66,8 +66,50 @@ def judge_ollama(model: str, task_prompt: str, candidate: str, rubric: str) -> d
     return {"score": score, "raw": out, "latency_ms": int((time.time() - t0) * 1000)}
 
 
+def judge_mimo(model: str, task_prompt: str, candidate: str, rubric: str) -> dict[str, Any]:
+    """Judge via the official Xiaomi MiMo API (OpenAI-compatible).
+
+    Prefer mimo-v2-flash for judging — it returns the rating directly without
+    spending tokens on reasoning_content. The v2.5* family burns all available
+    completion_tokens on reasoning_content for non-trivial inputs, leaving the
+    visible content field empty.
+    """
+    key = os.environ.get("MIMO_API_KEY")
+    if not key:
+        raise RuntimeError("MIMO_API_KEY not set (source .token-economy/secrets.env)")
+    base = os.environ.get("MIMO_BASE_URL", "https://api.xiaomimimo.com/v1").rstrip("/")
+    body = json.dumps({
+        "model": model,
+        "messages": [
+            {"role": "system", "content": "You are an evaluation judge. Be strict, fair, terse."},
+            {"role": "user", "content": f"TASK:\n{task_prompt}\n\nCANDIDATE:\n{candidate}\n\nRUBRIC:\n{rubric}"},
+        ],
+        "max_tokens": 200,
+        "temperature": 0.0,
+    }).encode()
+    req = urllib.request.Request(
+        f"{base}/chat/completions",
+        data=body,
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+    )
+    t0 = time.time()
+    with urllib.request.urlopen(req, timeout=120) as resp:
+        data = json.loads(resp.read())
+    out = data["choices"][0]["message"]["content"].strip()
+    score = None
+    for line in out.splitlines():
+        line = line.strip()
+        if line and line[0].isdigit():
+            try:
+                score = int(line[0])
+                break
+            except ValueError:
+                pass
+    return {"score": score, "raw": out, "latency_ms": int((time.time() - t0) * 1000)}
+
+
 def judge_hf(model: str, task_prompt: str, candidate: str, rubric: str) -> dict[str, Any]:
-    """Stub for Xiaomi MiMo via HF inference API. Requires HF_TOKEN env var."""
+    """Stub for HF Inference API. Requires HF_TOKEN env var."""
     token = os.environ.get("HF_TOKEN")
     if not token:
         raise RuntimeError("HF_TOKEN not set; cannot use HF backend.")
@@ -97,7 +139,12 @@ def judge_hf(model: str, task_prompt: str, candidate: str, rubric: str) -> dict[
 def judge_results(results_path: Path, model: str, backend: str) -> dict[str, Any]:
     results = json.loads(results_path.read_text())
     rubric = results.get("rubric", DEFAULT_RUBRIC)
-    judge_fn = judge_ollama if backend == "ollama" else judge_hf
+    if backend == "ollama":
+        judge_fn = judge_ollama
+    elif backend == "mimo":
+        judge_fn = judge_mimo
+    else:
+        judge_fn = judge_hf
 
     def score_set(items: list[dict], prompts: list[str]) -> list[dict]:
         scored = []
@@ -134,8 +181,8 @@ def judge_results(results_path: Path, model: str, backend: str) -> dict[str, Any
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("results")
-    p.add_argument("--model", default="gemma4:26b")
-    p.add_argument("--backend", default="ollama", choices=["ollama", "hf"])
+    p.add_argument("--model", default="mimo-v2-flash")
+    p.add_argument("--backend", default="mimo", choices=["ollama", "hf", "mimo"])
     args = p.parse_args()
 
     results_path = Path(args.results)

@@ -5,7 +5,7 @@
 | field | tokens / size |
 |---|---|
 | description (always resident) | **89 tokens** (313 chars) |
-| body (loaded on trigger)      | **876 tokens** (3066 chars) |
+| body (loaded on trigger)      | **1125 tokens** (3937 chars) |
 | tools/ payload                 | 43.8 KB |
 | model pin                      | `any` |
 | effort pin                     | `medium` |
@@ -14,14 +14,11 @@ agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K conte
 
 ## A/B savings (pending live run)
 
-Run:
-
 ```bash
-python3 eval/runner.py --task eval/tasks/context-refresh.yaml --n 10 --backend ollama
-python3 eval/judge.py eval/results/context-refresh.json
+. .token-economy/secrets.env && export MIMO_API_KEY
+python3 eval/runner.py --task eval/tasks/context-refresh.yaml --n 10 --backend mimo --model mimo-v2-flash
+python3 eval/judge.py eval/results/context-refresh.json --model mimo-v2.5-pro --backend ollama
 ```
-
-Once Ollama (or Anthropic API) is wired, fill this table:
 
 | metric | without skill | with skill | Δ | 95% CI |
 |---|---|---|---|---|
@@ -30,13 +27,15 @@ Once Ollama (or Anthropic API) is wired, fill this table:
 | latency (ms)         |   |   |   |   |
 | judge score (0–5)    |   |   |   |   |
 
+
 ## Methodology
 
-- Sample size: N=10 local smoke; N≥50 on Kaggle T4 for any >20% savings claim.
+- Sample size: N=3-10 local smoke; N≥50 on Kaggle T4 for any >20% savings claim.
 - Tasks: 3–5 representative prompts in `eval/tasks/context-refresh.yaml`.
-- Judge: Xiaomi MiMo-7B via HF inference (or local Gemma fallback).
+- Backends supported: `ollama`, `anthropic`, `mimo`, `mlx` (`--backend` arg).
+- Judge: Xiaomi MiMo via `https://api.xiaomimimo.com/v1` (preferred for quality) or local Ollama.
 - Rubric: per-task rubric embedded in the YAML.
 
 ## Failure modes
 
-To be filled in after live runs.
+To be filled in after analysis of result outputs (see raw JSON for individual trial outputs).

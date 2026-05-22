@@ -16,21 +16,21 @@ Static columns are deterministic. Live columns require a live A/B run via `eval/
 
 | Rank | Skill | Eff | Gain | Reliab | Quality | desc tok | body tok | Δin% | Δout% | Δjudge | N |
 |---:|---|:-:|:-:|:-:|:-:|---:|---:|---:|---:|---:|---:|
-| 1 | [caveman-ultra](../skills/caveman-ultra/SKILL.md) | **A** | **A** | **B** | **?** | 81 | 235 | +560% | -85% | — | 3 |
-| 2 | [prompt-triage](../skills/prompt-triage/SKILL.md) | **?** | **?** | **A** | **?** | 89 | 922 | — | — | — | — |
-| 3 | [skill-creator](../skills/skill-creator/SKILL.md) | **?** | **?** | **A** | **?** | 138 | 879 | — | — | — | — |
-| 4 | [context-refresh](../skills/context-refresh/SKILL.md) | **?** | **?** | **A** | **?** | 89 | 876 | — | — | — | — |
-| 5 | [delegate](../skills/delegate/SKILL.md) | **?** | **?** | **A** | **?** | 97 | 872 | — | — | — | — |
-| 6 | [wiki-memory](../skills/wiki-memory/SKILL.md) | **?** | **?** | **A** | **?** | 108 | 764 | — | — | — | — |
-| 7 | [compress-context](../skills/compress-context/SKILL.md) | **?** | **?** | **A** | **?** | 127 | 551 | — | — | — | — |
-| 8 | [semantic-diff](../skills/semantic-diff/SKILL.md) | **?** | **?** | **A** | **?** | 99 | 484 | — | — | — | — |
-| 9 | [memory-api](../skills/memory-api/SKILL.md) | **?** | **?** | **A** | **?** | 82 | 447 | — | — | — | — |
-| 10 | [lean-execution](../skills/lean-execution/SKILL.md) | **?** | **?** | **B** | **?** | 63 | 409 | — | — | — | — |
-| 11 | [output-filter](../skills/output-filter/SKILL.md) | **?** | **?** | **A** | **?** | 99 | 370 | — | — | — | — |
-| 12 | [context-keeper](../skills/context-keeper/SKILL.md) | **?** | **?** | **A** | **?** | 80 | 360 | — | — | — | — |
-| 13 | [personal-assistant](../skills/personal-assistant/SKILL.md) | **?** | **?** | **B** | **?** | 57 | 329 | — | — | — | — |
-| 14 | [plan-first-execute](../skills/plan-first-execute/SKILL.md) | **?** | **?** | **C** | **?** | 70 | 176 | — | — | — | — |
-| 15 | [verify-before-completion](../skills/verify-before-completion/SKILL.md) | **?** | **?** | **C** | **?** | 49 | 164 | — | — | — | — |
+| 1 | [caveman-ultra](../skills/caveman-ultra/SKILL.md) | **A** | **A** | **B** | **A** | 81 | 235 | +560% | -85% | +0.23 | 3 |
+| 2 | [lean-execution](../skills/lean-execution/SKILL.md) | **B** | **B** | **B** | **?** | 63 | 409 | +722% | -56% | — | 3 |
+| 3 | [verify-before-completion](../skills/verify-before-completion/SKILL.md) | **B** | **B** | **B** | **?** | 49 | 260 | +539% | -45% | — | 3 |
+| 4 | [plan-first-execute](../skills/plan-first-execute/SKILL.md) | **C** | **C** | **C** | **?** | 70 | 176 | +377% | -20% | — | 3 |
+| 5 | [context-refresh](../skills/context-refresh/SKILL.md) | **?** | **?** | **A** | **?** | 89 | 1125 | — | — | — | — |
+| 6 | [skill-creator](../skills/skill-creator/SKILL.md) | **?** | **?** | **A** | **?** | 138 | 1092 | — | — | — | — |
+| 7 | [prompt-triage](../skills/prompt-triage/SKILL.md) | **?** | **?** | **A** | **?** | 89 | 922 | — | — | — | — |
+| 8 | [delegate](../skills/delegate/SKILL.md) | **?** | **?** | **A** | **?** | 97 | 872 | — | — | — | — |
+| 9 | [wiki-memory](../skills/wiki-memory/SKILL.md) | **?** | **?** | **A** | **?** | 108 | 764 | — | — | — | — |
+| 10 | [compress-context](../skills/compress-context/SKILL.md) | **?** | **?** | **A** | **?** | 127 | 551 | — | — | — | — |
+| 11 | [semantic-diff](../skills/semantic-diff/SKILL.md) | **?** | **?** | **A** | **?** | 99 | 484 | — | — | — | — |
+| 12 | [memory-api](../skills/memory-api/SKILL.md) | **?** | **?** | **A** | **?** | 82 | 447 | — | — | — | — |
+| 13 | [output-filter](../skills/output-filter/SKILL.md) | **?** | **?** | **A** | **?** | 99 | 370 | — | — | — | — |
+| 14 | [context-keeper](../skills/context-keeper/SKILL.md) | **?** | **?** | **A** | **?** | 80 | 360 | — | — | — | — |
+| 15 | [personal-assistant](../skills/personal-assistant/SKILL.md) | **?** | **?** | **B** | **?** | 57 | 329 | — | — | — | — |
 
 ## What the columns mean
 

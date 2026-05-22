@@ -8,12 +8,14 @@ tools: [Bash, Read, Write]
 
 # context-refresh
 
-When context fills, the old session makes the leanest informative handoff, launches a fresh successor, and stays available as a targeted retrieval source.
+Write a handoff document summarising the current conversation so a fresh agent can continue the work — and, where the host supports it, launch that fresh agent against the handoff. The old session stays available as a targeted retrieval source via `ask-old`.
+
+If the user passed an argument to the trigger (e.g. `/refresh fixing the auth race condition` or `summ — implement the queue retry`), treat it as the focus for the next session and tailor the handoff accordingly.
 
 ## Trigger
 
 - `meter` action returns `refresh`
-- user says `summ` or `/refresh`
+- user says `summ` or `/refresh` (with or without a focus argument)
 - 20% context-fill checkpoint
 - host context feels stale/overloaded
 
@@ -39,11 +41,12 @@ This writes the handoff + starts a persistent successor with `SKILLS_INDEX.md` p
 ## Keep it lean
 
 Put in the handoff:
+- A one-sentence summary of the current conversation, tailored to the focus argument if one was given.
 - Task and desired outcome
 - Done / in progress / next
 - Files, commands, errors, decisions, blockers
 - Branch/dirty state if relevant
-- **Suggested skills for the successor to invoke first** (1–3 names from this catalog)
+- **Suggested skills** for the successor to invoke first (1–3 names from this catalog).
 
 Do not duplicate content already captured in other artifacts (PRDs, plans, ADRs, issues, commits, diffs). Reference them by path or URL instead.
 

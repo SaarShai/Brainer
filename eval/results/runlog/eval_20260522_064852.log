@@ -5,3 +5,45 @@
   latency (ms):  6885 → 3643
   results: eval/results/caveman-ultra.json
 [06:51:30] starting lean-execution
+=== lean-execution (n=3 × 5 prompts, model=mimo-v2-flash) ===
+  input tokens:  40 → 329 (+722.5%)
+  output tokens: 896 → 396 (-55.8%)
+  latency (ms):  9646 → 6499
+  results: eval/results/lean-execution.json
+[06:55:32] starting plan-first-execute
+=== plan-first-execute (n=3 × 5 prompts, model=mimo-v2-flash) ===
+  input tokens:  37 → 178 (+377.0%)
+  output tokens: 1024 → 815 (-20.4%)
+  latency (ms):  11235 → 10967
+  results: eval/results/plan-first-execute.json
+[07:01:05] starting verify-before-completion
+=== verify-before-completion (n=3 × 5 prompts, model=mimo-v2-flash) ===
+  input tokens:  39 → 247 (+538.9%)
+  output tokens: 426 → 233 (-45.2%)
+  latency (ms):  7080 → 4876
+  results: eval/results/verify-before-completion.json
+[07:04:05] starting combo caveman+lean
+=== caveman+lean (n=3 × 3 prompts, model=mimo-v2-flash) ===
+  input tokens:  39 → 533 (+1266.7%)
+  output tokens: 804 → 99 (-87.7%)
+  latency (ms):  8809 → 4054
+  results: eval/results/caveman+lean.json
+[07:06:00] starting combo triage+caveman+keeper
+=== triage+caveman+keeper (n=3 × 5 prompts, model=mimo-v2-flash) ===
+  input tokens:  42 → 1435 (+3332.5%)
+  output tokens: 265 → 226 (-14.6%)
+  latency (ms):  5351 → 4625
+  results: eval/results/triage+caveman+keeper.json
+[07:08:30] starting combo compress+semdiff
+=== compress+semdiff (n=3 × 5 prompts, model=mimo-v2-flash) ===
+  input tokens:  40 → 994 (+2385.0%)
+  output tokens: 315 → 401 (+27.5%)
+  latency (ms):  9291 → 6416
+  results: eval/results/compress+semdiff.json
+[07:12:26] starting combo delegate+wiki+verify
+=== delegate+wiki+verify (n=3 × 5 prompts, model=mimo-v2-flash) ===
+  input tokens:  45 → 1622 (+3504.4%)
+  output tokens: 591 → 724 (+22.5%)
+  latency (ms):  10957 → 8261
+  results: eval/results/delegate+wiki+verify.json
+[07:17:14] DONE
