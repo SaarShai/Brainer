@@ -18,13 +18,13 @@ For ratings and measured deltas see [`SKILLS_INDEX_RATED.md`](SKILLS_INDEX_RATED
 | [context-refresh](context-refresh/SKILL.md) | Handoff + persistent fresh-successor at 20% context fill. |
 | [handoff](handoff/SKILL.md) | Pure write-doc handoff, slash-only (`/handoff [focus]`). Mattpocock-style. |
 | [prompt-triage](prompt-triage/SKILL.md) | Pre-model classifier hook; routes simple tasks to cheap models. |
-| [delegate](delegate/SKILL.md) | Subagent orchestration + cost preflight + model choice. |
 | [context-keeper](context-keeper/SKILL.md) | PreCompact hook: structured memory before compaction. |
 | [compress-context](compress-context/SKILL.md) | LLMLingua-based compound compression with self-verify (opt-in). |
 | [semantic-diff](semantic-diff/SKILL.md) | AST-node diff on file re-reads (95%+ savings; opt-in MCP). |
 | [output-filter](output-filter/SKILL.md) | Strip ANSI/progress/dup noise from terminal output. |
 
-13 skills total. The dropped `personal-assistant` (redundant with prompt-triage), `memory-api` (thin MCP over wiki-memory), and `skill-creator` (maintainer tool — see `scripts/lint_skill_md.py` and `scripts/skill_overlap.py`) were removed in v1.1.0 after measurement. `handoff` was added as a slash-only sibling of `context-refresh` for reliable explicit invocation.
+12 skills total. Removed after measurement: `personal-assistant` / `memory-api` / `skill-creator` (v1.1.0, redundancy), `delegate` (v1.2.0, zero measured gain; auto-routing via `prompt-triage` already covers the use case).
+`handoff` was added as a slash-only sibling of `context-refresh` for reliable explicit invocation.
 
 ## Prime directive
 

@@ -1,15 +1,15 @@
 {
   "$schema": "https://claude.com/schemas/plugin-marketplace.json",
   "name": "token-economy",
-  "version": "1.1.0",
-  "description": "Token/context-efficient skills for AI coding agents. 12 skills covering output style, planning, lean execution, verification, wiki memory, context refresh + relay, prompt triage, delegation, PreCompact extraction, compound compression, semantic AST diff, and output filtering.",
+  "version": "1.2.0",
+  "description": "Token/context-efficient skills for AI coding agents. 12 skills covering output style, planning, lean execution, verification, wiki memory, context refresh + handoff, prompt triage, PreCompact extraction, compound compression, semantic AST diff, and output filtering. 11 of 12 measured live; mean per-call savings range -20% to -98% depending on skill type.",
   "homepage": "https://github.com/SaarShai/token-economy",
   "license": "MIT",
   "author": "Saar Shai",
   "plugins": [
     {
       "name": "token-economy",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "description": "All 12 skills bundled.",
       "source": {
         "type": "git-subdirectory",
@@ -25,7 +25,6 @@
         "context-refresh",
         "handoff",
         "prompt-triage",
-        "delegate",
         "context-keeper",
         "compress-context",
         "semantic-diff",
