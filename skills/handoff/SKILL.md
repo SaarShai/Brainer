@@ -72,13 +72,19 @@ Default path: `${TMPDIR:-/tmp}/handoff-$(date +%Y%m%d-%H%M%S).md`. Print the abs
 
 ## Implementation
 
+Assemble the doc yourself from the current conversation. **Do not call any tool to "summarise the conversation"** — you are the summariser. Use a single `Write` tool call to produce the file.
+
+A reasonable bash invocation to compute the output path and assert the temp dir exists:
+
 ```bash
-python3 skills/context-refresh/tools/context.py checkpoint \
-  --goal "<focus argument or one-line goal>" \
-  --print-packet > "${TMPDIR:-/tmp}/handoff-$(date +%Y%m%d-%H%M%S).md"
+OUT="${TMPDIR:-/tmp}/handoff-$(date +%Y%m%d-%H%M%S).md"
+mkdir -p "$(dirname "$OUT")"
+echo "$OUT"
 ```
 
-The `context-refresh` skill's `checkpoint` subcommand emits a structured packet that this skill's body refines into the doc above. No launch, no successor — that's `context-refresh`'s job, opt-in.
+Then write the markdown to `$OUT` and print `$OUT` to the user as the very last line of your reply so they can copy it.
+
+This skill **does not** launch a successor session, sync the wiki, or modify settings. That is `context-refresh`'s job and is opt-in.
 
 ## Lineage
 
