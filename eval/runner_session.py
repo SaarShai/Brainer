@@ -135,9 +135,11 @@ def call_mimo(model: str, system: str, prompt: str, retries: int = 3) -> dict:
                 data = json.loads(resp.read())
             msg = data["choices"][0]["message"]
             usage = data.get("usage", {})
+            cached = usage.get("prompt_tokens_details", {}).get("cached_tokens", 0)
             return {
                 "output": (msg.get("content") or "").strip(),
                 "prompt_tokens": usage.get("prompt_tokens", 0),
+                "cached_tokens": cached,
                 "completion_tokens": usage.get("completion_tokens", 0),
                 "latency_ms": int((time.time() - t0) * 1000),
             }
@@ -182,11 +184,20 @@ def main() -> int:
             print(f"  trial {trial+1}/{args.n} prompt {i+1}/{len(prompts)} with-catalog...", flush=True)
             with_catalog.append(call_mimo(args.model, catalog_sys, p_text))
 
+    CACHE_DISCOUNT = 0.1  # cached tokens billed at ~10% of base rate
+
     def summarize(rs):
+        cached = sum(r.get("cached_tokens", 0) for r in rs)
+        in_total = sum(r["prompt_tokens"] for r in rs)
+        uncached = in_total - cached
         return {
-            "input_total": sum(r["prompt_tokens"] for r in rs),
+            "input_total": in_total,
+            "input_cached": cached,
+            "input_uncached": uncached,
+            "input_effective": round(uncached + cached * CACHE_DISCOUNT, 1),  # billed-token equivalent
             "output_total": sum(r["completion_tokens"] for r in rs),
-            "total": sum(r["prompt_tokens"] + r["completion_tokens"] for r in rs),
+            "total": in_total + sum(r["completion_tokens"] for r in rs),
+            "total_effective": round(uncached + cached * CACHE_DISCOUNT + sum(r["completion_tokens"] for r in rs), 1),
             "latency_total_ms": sum(r["latency_ms"] for r in rs),
             "input_mean": round(statistics.mean(r["prompt_tokens"] for r in rs), 1),
             "output_mean": round(statistics.mean(r["completion_tokens"] for r in rs), 1),
@@ -206,6 +217,7 @@ def main() -> int:
         "delta_input_pct": round(100 * (s_b["input_total"] - s_a["input_total"]) / max(s_a["input_total"], 1), 2),
         "delta_output_pct": round(100 * (s_b["output_total"] - s_a["output_total"]) / max(s_a["output_total"], 1), 2),
         "delta_total_pct": round(100 * (s_b["total"] - s_a["total"]) / max(s_a["total"], 1), 2),
+        "delta_total_effective_pct": round(100 * (s_b["total_effective"] - s_a["total_effective"]) / max(s_a["total_effective"], 1), 2),
     }
     results = {
         "summary": summary,
@@ -225,6 +237,8 @@ def main() -> int:
     print(f"  Δinput:  {summary['delta_input_pct']:+.1f}%  (catalog adds context cost)")
     print(f"  Δoutput: {summary['delta_output_pct']:+.1f}%  (skill-style behavior)")
     print(f"  Δtotal:  {summary['delta_total_pct']:+.1f}%")
+    print(f"  Δtotal (effective, with prompt caching at 10%): {summary['delta_total_effective_pct']:+.1f}%")
+    print(f"  cache hit rate: no_catalog={s_a['input_cached']}/{s_a['input_total']} ({100*s_a['input_cached']/max(s_a['input_total'],1):.0f}%), with_catalog={s_b['input_cached']}/{s_b['input_total']} ({100*s_b['input_cached']/max(s_b['input_total'],1):.0f}%)")
     print(f"  results: {out_path}")
     return 0
 

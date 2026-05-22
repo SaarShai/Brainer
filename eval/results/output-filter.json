@@ -1,0 +1,64 @@
+{
+  "harness": "runner_filter.py",
+  "samples": [
+    {
+      "sample": "ansi_progress",
+      "rc": 0,
+      "raw_bytes": 645,
+      "filtered_bytes": 65,
+      "bytes_delta_pct": -89.9,
+      "raw_lines": 24,
+      "filtered_lines": 5,
+      "lines_delta_pct": -79.2,
+      "errors_in_raw": 0,
+      "errors_preserved": 0,
+      "error_preservation_pct": null
+    },
+    {
+      "sample": "ci_log",
+      "rc": 0,
+      "raw_bytes": 2034,
+      "filtered_bytes": 307,
+      "bytes_delta_pct": -84.9,
+      "raw_lines": 67,
+      "filtered_lines": 11,
+      "lines_delta_pct": -83.6,
+      "errors_in_raw": 2,
+      "errors_preserved": 2,
+      "error_preservation_pct": 100.0
+    },
+    {
+      "sample": "dup_stdout",
+      "rc": 0,
+      "raw_bytes": 1909,
+      "filtered_bytes": 56,
+      "bytes_delta_pct": -97.1,
+      "raw_lines": 101,
+      "filtered_lines": 3,
+      "lines_delta_pct": -97.0,
+      "errors_in_raw": 0,
+      "errors_preserved": 0,
+      "error_preservation_pct": null
+    },
+    {
+      "sample": "mixed_signal",
+      "rc": 0,
+      "raw_bytes": 1486,
+      "filtered_bytes": 251,
+      "bytes_delta_pct": -83.1,
+      "raw_lines": 88,
+      "filtered_lines": 12,
+      "lines_delta_pct": -86.4,
+      "errors_in_raw": 3,
+      "errors_preserved": 3,
+      "error_preservation_pct": 100.0
+    }
+  ],
+  "totals": {
+    "raw_bytes": 6074,
+    "filtered_bytes": 679,
+    "total_reduction_pct": -88.8,
+    "errors_in_raw_total": 5,
+    "errors_preserved_total": 5
+  }
+}

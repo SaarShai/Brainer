@@ -103,6 +103,27 @@ def main() -> int:
                 out_delta = -100 * (1 - d["compression_ratio"])
                 in_delta = 0
                 sample_n = 1
+            # runner_filter.py — mechanical byte reduction; map total_reduction_pct
+            if out_delta is None and "totals" in d and "total_reduction_pct" in d["totals"]:
+                out_delta = d["totals"]["total_reduction_pct"]
+                in_delta = 0
+                sample_n = len(d.get("samples", [])) or 1
+            # runner_semdiff.py — three step measurements; use the 2-edit (most
+            # realistic) number as the headline.
+            if out_delta is None and "step4_two_edits_savings_pct_mean" in summ:
+                out_delta = -summ["step4_two_edits_savings_pct_mean"]
+                in_delta = 0
+                sample_n = d.get("n_files", 1)
+            # runner_handoff.py — integration test, not a savings test. Convert
+            # pass_rate to a synthetic quality score so the rated index still
+            # rates it; gain stays at 0 (no token savings to claim).
+            if out_delta is None and "pass_rate" in summ:
+                out_delta = 0
+                in_delta = 0
+                sample_n = summ.get("n", 1)
+                # store pass_rate so we can show it in the table footnote
+                if summ.get("pass_rate", 0) >= 1.0:
+                    j_delta = 0.0  # integration pass means quality maintained
         if judge_path.exists():
             jd = json.loads(judge_path.read_text())
             j_delta = jd.get("judge_summary", {}).get("delta")

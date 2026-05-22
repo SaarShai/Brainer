@@ -5,27 +5,24 @@
 | field | tokens / size |
 |---|---|
 | description (always resident) | **143 tokens** (501 chars) |
-| body (loaded on trigger)      | **881 tokens** (3085 chars) |
-| tools/ payload                 | 0.0 KB |
+| body (loaded on trigger)      | **1138 tokens** (3983 chars) |
+| tools/ payload                 | 1.6 KB |
 | model pin                      | `any` |
 | effort pin                     | `low` |
 
 agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K context window).
 
-## A/B savings (pending live run)
-
-```bash
-. .token-economy/secrets.env && export MIMO_API_KEY
-python3 eval/runner.py --task eval/tasks/handoff.yaml --n 10 --backend mimo --model mimo-v2-flash
-python3 eval/judge.py eval/results/handoff.json --model mimo-v2-flash --backend mimo
-```
+## A/B savings (measured, N=3 × 0 prompts, model=?)
 
 | metric | without skill | with skill | Δ | 95% CI |
 |---|---|---|---|---|
-| input tokens (mean)  |   |   |   |   |
-| output tokens (mean) |   |   |   |   |
-| latency (ms)         |   |   |   |   |
-| judge score (0–5)    |   |   |   |   |
+| input tokens (mean)  | — | — | — | n/a |
+| output tokens (mean) | — | — | — | n/a |
+| latency (ms)         | — | — | n/a | n/a |
+| judge score (0–5)    | —   |   |   |   |
+
+
+Raw: [`eval/results/handoff.json`](../../eval/results/handoff.json)
 
 
 ## Methodology

@@ -14,16 +14,19 @@ Aggregating per-skill A/B + session-level replay. Updated as new measurements la
 
 ## Per-skill measured wins (live A/B)
 
-Output deltas with the skill active on its representative task suite:
+Headline numbers with the skill active. Different metrics per skill type — see Harness column.
 
-| Skill | Δ output | Δ judge | N | Harness |
+| Skill | Headline | Judge | N | Harness |
 |---|---:|---:|---:|---|
-| caveman-ultra | **−85.2%** | +0.13 | 3 × 5 | `runner.py` |
-| lean-execution | **−55.8%** | +0.00 | 3 × 5 | `runner.py` |
-| verify-before-completion | **−45.2%** | −0.40 ⚠ | 3 × 5 | `runner.py` |
-| plan-first-execute | −20.4% | +0.20 | 3 × 5 | `runner.py` |
-| prompt-triage | −20.9% total | — | 1 × 13 | `runner_triage.py` |
-| context-keeper | 97.7% compression (fidelity) | — | 1 transcript | `runner_keeper.py` |
+| caveman-ultra | **−85.2%** output | +0.13 | 3 × 5 | `runner.py` |
+| lean-execution | **−55.8%** output | +0.00 | 3 × 5 | `runner.py` |
+| verify-before-completion | **−45.2%** output | −0.40 ⚠ | 3 × 5 | `runner.py` |
+| plan-first-execute | −20.4% output | +0.20 | 3 × 5 | `runner.py` |
+| prompt-triage | **−20.9%** total tokens, 100% routing accuracy | — | 1 × 13 | `runner_triage.py` |
+| context-keeper | **97.7%** transcript compression, 100% URL / 67% measurement recall | — | 1 transcript | `runner_keeper.py` |
+| **output-filter** | **−88.8%** bytes, 5/5 error lines preserved | — | 4 noisy samples | `runner_filter.py` |
+| **semantic-diff** | **97.5% / 96.5% / 86.0%** on unchanged / +fn / 2-edit re-reads | — | 3 source files | `runner_semdiff.py` |
+| **handoff** | 3/3 integration pass, 4/4 sections, 39 ms / call, ~2.5 KB doc | — | 3 focus arguments | `runner_handoff.py` |
 
 ⚠ The verify-before-completion `−0.40` is a rubric artifact — the test prompts ask "I just did X, is it done?" without execution access; the skill correctly demands fresh verification commands but can't run them, and the judge scores "demands evidence" lower than "affirms confidently". Re-test with executable prompts before downrating.
 
@@ -51,6 +54,17 @@ Replay of a real 970-event transcript with 8 user prompts via `runner_session.py
 | output tokens (mean per call) | 255.5 | 284.1 | **+11%** |
 | total tokens | 2,412 | 15,017 | +522% |
 
+### Config C: prompt caching enabled (production-realistic)
+
+Same two configs, N=2 trials so the system prompt warms in the cache. MiMo's `prompt_tokens_details.cached_tokens` field tracks per-call hits; we compute the billed-token equivalent as `cached × 0.1 + uncached × 1.0`.
+
+| Variant | Cache hit (with catalog) | Δtotal raw | **Δtotal effective (cached)** |
+|---|---:|---:|---:|
+| Descriptions only | 98% | +491% | **+110%** |
+| Descriptions + caveman + lean active | 99% | +629% | **+94%** |
+
+Surprising find: **the realistic config (with skill bodies) is slightly cheaper than descriptions-only** once caching is active, because the caveman + lean bodies cache as effectively as the descriptions and their effect pulls output down a bit. The catalog still roughly doubles token cost on these short-imperative prompts — but the discipline skills are net-helpful, not net-harmful.
+
 ### Interpretation — the catalog is workload-dependent
 
 The session-replay numbers look bad in isolation. They're honest data; the catalog **does not universally reduce tokens** on every session. Three things explain the gap between this and the per-skill A/B numbers:
@@ -76,13 +90,9 @@ The takeaway isn't "the catalog saves tokens" or "the catalog costs tokens" — 
 | Skill | What to measure | Why |
 |---|---|---|
 | context-refresh | end-to-end relay round-trip | handoff size + successor continuity |
-| handoff | slash command in each host produces $TMPDIR/handoff-*.md | trigger reliability |
 | delegate | multi-subtask session with vs without delegation | cost preflight value |
 | wiki-memory | retrieval-vs-cold-research A/B | retrieve-before-reasoning value |
 | compress-context | Kaggle N≥50 re-run with mimo judge | tighten the 44.9% prior claim |
-| semantic-diff | repeat the argparse.py-style test under new harness | confirm 95.5% prior claim |
-| output-filter | bytes-in/bytes-out on noisy CI logs | direct mechanical strip |
-| skills × prompt caching | session-replay with explicit cache_control breakpoints | the real production cost |
 
 ## Re-running these measurements
 

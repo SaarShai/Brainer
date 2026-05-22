@@ -1,0 +1,61 @@
+{
+  "harness": "runner_handoff.py",
+  "n": 3,
+  "passed": 3,
+  "pass_rate": 1.0,
+  "mean_bytes": 2518.0,
+  "mean_latency_ms": 39.0,
+  "results": [
+    {
+      "focus": "fixing the auth race condition",
+      "ok": true,
+      "path": "/private/var/folders/0j/0fv2szdj15xg_wbgl96cbf_r0000gn/T/handoff-20260522-121825.md",
+      "bytes": 2507,
+      "lines": 69,
+      "sections_present": {
+        "current task": true,
+        "(?:what )?done": true,
+        "in[- ]progress|blockers?": true,
+        "(?:what )?next": true
+      },
+      "focus_reflected": true,
+      "in_tmpdir": true,
+      "latency_ms": 39,
+      "preview": "---\ntype: handoff\nfrom-session: local\ncreated: 2026-05-22T19:18:25.965110+00:00\ncontext-pct-at-refresh: unknown\nnext-mode: plan-first\nold-thread-id: none\nold-transcript: none\nold-session-query-policy: explicit-only\n---\n\n# HANDOFF - fixing-the-auth-race-condition\n\n## 1. Current task (1-liner)\nfixing the auth race condition\n\n## 2. What done\n- Handoff generated as a lean continuation packet.\n\n## 3. W"
+    },
+    {
+      "focus": "continue the eval and populate remaining EVAL.md files",
+      "ok": true,
+      "path": "/private/var/folders/0j/0fv2szdj15xg_wbgl96cbf_r0000gn/T/handoff-20260522-121827.md",
+      "bytes": 2555,
+      "lines": 69,
+      "sections_present": {
+        "current task": true,
+        "(?:what )?done": true,
+        "in[- ]progress|blockers?": true,
+        "(?:what )?next": true
+      },
+      "focus_reflected": true,
+      "in_tmpdir": true,
+      "latency_ms": 40,
+      "preview": "---\ntype: handoff\nfrom-session: local\ncreated: 2026-05-22T19:18:27.107206+00:00\ncontext-pct-at-refresh: unknown\nnext-mode: plan-first\nold-thread-id: none\nold-transcript: none\nold-session-query-policy: explicit-only\n---\n\n# HANDOFF - continue-the-eval-and-populate-remaining-eval-md-files\n\n## 1. Current task (1-liner)\ncontinue the eval and populate remaining EVAL.md files\n\n## 2. What done\n- Handoff g"
+    },
+    {
+      "focus": "wip \u2014 nothing specific",
+      "ok": true,
+      "path": "/private/var/folders/0j/0fv2szdj15xg_wbgl96cbf_r0000gn/T/handoff-20260522-121828.md",
+      "bytes": 2491,
+      "lines": 69,
+      "sections_present": {
+        "current task": true,
+        "(?:what )?done": true,
+        "in[- ]progress|blockers?": true,
+        "(?:what )?next": true
+      },
+      "focus_reflected": true,
+      "in_tmpdir": true,
+      "latency_ms": 37,
+      "preview": "---\ntype: handoff\nfrom-session: local\ncreated: 2026-05-22T19:18:28.249715+00:00\ncontext-pct-at-refresh: unknown\nnext-mode: plan-first\nold-thread-id: none\nold-transcript: none\nold-session-query-policy: explicit-only\n---\n\n# HANDOFF - wip-nothing-specific\n\n## 1. Current task (1-liner)\nwip \u2014 nothing specific\n\n## 2. What done\n- Handoff generated as a lean continuation packet.\n\n## 3. What in-progress (b"
+    }
+  ]
+}
