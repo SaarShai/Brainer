@@ -1,0 +1,23 @@
+id: prompt-triage-corpus
+description: |
+  Mixed-tier prompts for end-to-end triage measurement.
+  Each prompt is labelled with the expected tier so we can also score
+  classification accuracy. Cheap model handles simple/medium; expensive
+  handles hard/unknown.
+prompts:
+  # Simple: factual / one-liner / wiki / git mechanical
+  - { text: "What is a binary search tree?", expected_tier: simple }
+  - { text: "Fix the typo in this line: prnt('hello')", expected_tier: simple }
+  - { text: "Summarize this short paragraph: Foo. Bar. Baz.", expected_tier: simple }
+  - { text: "Commit the staged files with message 'wip'.", expected_tier: simple }
+  - { text: "Add a note to the wiki about my CSS findings today.", expected_tier: simple }
+  - { text: "Install the requests library via pip.", expected_tier: simple }
+  - { text: "Define 'idempotent'.", expected_tier: simple }
+  # Medium: research / investigate
+  - { text: "Research the current state of LLM prompt compression in 2026.", expected_tier: medium }
+  - { text: "Investigate why our CI build started failing yesterday.", expected_tier: medium }
+  - { text: "Survey GitHub for repos that implement RAG over markdown notes.", expected_tier: medium }
+  # Hard: architecture / multi-file refactor / design
+  - { text: "Refactor the auth subsystem to use OAuth instead of session cookies.", expected_tier: hard }
+  - { text: "Design a multi-tenant storage architecture for our SaaS.", expected_tier: hard }
+  - { text: "Implement a distributed lock service across three microservices.", expected_tier: hard }

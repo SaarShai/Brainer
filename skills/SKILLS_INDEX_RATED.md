@@ -1,6 +1,6 @@
 # Skills — Rated Index
 
-All 15 skills, rated on efficiency, gain, reliability, and quality loss.
+All 13 skills, rated on efficiency, gain, reliability, and quality loss.
 Static columns are deterministic. Live columns require a live A/B run via `eval/runner.py`.
 
 ### Rating scale
@@ -16,19 +16,19 @@ Static columns are deterministic. Live columns require a live A/B run via `eval/
 
 | Rank | Skill | Eff | Gain | Reliab | Quality | desc tok | body tok | Δin% | Δout% | Δjudge | N |
 |---:|---|:-:|:-:|:-:|:-:|---:|---:|---:|---:|---:|---:|
-| 1 | [caveman-ultra](../skills/caveman-ultra/SKILL.md) | **A** | **A** | **B** | **A** | 81 | 235 | +560% | -85% | +0.13 | 3 |
-| 2 | [lean-execution](../skills/lean-execution/SKILL.md) | **B** | **B** | **B** | **A** | 63 | 409 | +722% | -56% | +0.00 | 3 |
-| 3 | [verify-before-completion](../skills/verify-before-completion/SKILL.md) | **B** | **B** | **B** | **C** | 49 | 260 | +539% | -45% | -0.40 | 3 |
-| 4 | [plan-first-execute](../skills/plan-first-execute/SKILL.md) | **C** | **C** | **C** | **A** | 70 | 176 | +377% | -20% | +0.20 | 3 |
-| 5 | [context-refresh](../skills/context-refresh/SKILL.md) | **?** | **?** | **A** | **?** | 89 | 1125 | — | — | — | — |
-| 6 | [prompt-triage](../skills/prompt-triage/SKILL.md) | **?** | **?** | **A** | **?** | 89 | 922 | — | — | — | — |
-| 7 | [delegate](../skills/delegate/SKILL.md) | **?** | **?** | **A** | **?** | 97 | 872 | — | — | — | — |
-| 8 | [wiki-memory](../skills/wiki-memory/SKILL.md) | **?** | **?** | **A** | **?** | 108 | 764 | — | — | — | — |
-| 9 | [handoff](../skills/handoff/SKILL.md) | **?** | **?** | **D** | **?** | 100 | 638 | — | — | — | — |
-| 10 | [compress-context](../skills/compress-context/SKILL.md) | **?** | **?** | **A** | **?** | 127 | 551 | — | — | — | — |
-| 11 | [semantic-diff](../skills/semantic-diff/SKILL.md) | **?** | **?** | **A** | **?** | 99 | 484 | — | — | — | — |
-| 12 | [output-filter](../skills/output-filter/SKILL.md) | **?** | **?** | **A** | **?** | 99 | 370 | — | — | — | — |
-| 13 | [context-keeper](../skills/context-keeper/SKILL.md) | **?** | **?** | **A** | **?** | 80 | 360 | — | — | — | — |
+| 1 | [context-keeper](../skills/context-keeper/SKILL.md) | **A** | **A** | **A** | **?** | 80 | 360 | +0% | -98% | — | 1 |
+| 2 | [caveman-ultra](../skills/caveman-ultra/SKILL.md) | **A** | **A** | **B** | **A** | 81 | 235 | +560% | -85% | +0.13 | 3 |
+| 3 | [lean-execution](../skills/lean-execution/SKILL.md) | **B** | **B** | **B** | **A** | 63 | 409 | +722% | -56% | +0.00 | 3 |
+| 4 | [verify-before-completion](../skills/verify-before-completion/SKILL.md) | **B** | **B** | **B** | **C** | 49 | 260 | +539% | -45% | -0.40 | 3 |
+| 5 | [plan-first-execute](../skills/plan-first-execute/SKILL.md) | **C** | **C** | **C** | **A** | 70 | 176 | +377% | -20% | +0.20 | 3 |
+| 6 | [prompt-triage](../skills/prompt-triage/SKILL.md) | **D** | **D** | **A** | **?** | 89 | 922 | +0% | -4% | — | 1 |
+| 7 | [context-refresh](../skills/context-refresh/SKILL.md) | **?** | **?** | **A** | **?** | 89 | 1125 | — | — | — | — |
+| 8 | [handoff](../skills/handoff/SKILL.md) | **?** | **?** | **B** | **?** | 143 | 881 | — | — | — | — |
+| 9 | [delegate](../skills/delegate/SKILL.md) | **?** | **?** | **A** | **?** | 97 | 872 | — | — | — | — |
+| 10 | [wiki-memory](../skills/wiki-memory/SKILL.md) | **?** | **?** | **A** | **?** | 108 | 764 | — | — | — | — |
+| 11 | [compress-context](../skills/compress-context/SKILL.md) | **?** | **?** | **A** | **?** | 127 | 551 | — | — | — | — |
+| 12 | [semantic-diff](../skills/semantic-diff/SKILL.md) | **?** | **?** | **A** | **?** | 99 | 484 | — | — | — | — |
+| 13 | [output-filter](../skills/output-filter/SKILL.md) | **?** | **?** | **A** | **?** | 99 | 370 | — | — | — | — |
 
 ## What the columns mean
 
@@ -41,6 +41,9 @@ Static columns are deterministic. Live columns require a live A/B run via `eval/
 
 ## Notes
 
-- Hook skills (`prompt-triage`, `context-keeper`, `output-filter`) do NOT prepend to the system message; their cost is the hook script's transcript footprint, not in-context tokens. The in-context A/B harness understates their value.
-- Skills with high body cost (`prompt-triage`, `skill-creator`, `delegate`) are still cheap as long as they load on trigger — the body never enters context unless invoked.
+- **caveman-ultra, lean-execution, plan-first-execute, verify-before-completion**: in-context A/B (`eval/runner.py`). Δout% is output-token reduction per call.
+- **prompt-triage**: end-to-end routing A/B (`eval/runner_triage.py`). Δout% maps to **delta_total_pct** — total input+output tokens summed across the corpus when the cheap/expensive router is active.
+- **context-keeper**: fidelity test (`eval/runner_keeper.py`), not a per-call A/B. Δout% maps to **compression of the extracted sidecar vs. the raw transcript** — the sidecar at 2.3% of raw size IS the value, since it survives compaction and the raw transcript usually doesn't. See its `EVAL.md` for per-category recall (URLs 100%, numbers 67%, commands 46%, errors 25%).
+- **handoff, context-refresh, output-filter, wiki-memory, delegate, compress-context, semantic-diff**: live measurement pending. See each skill's `EVAL.md` for the methodology and any prior numbers.
+- Hook skills (`prompt-triage`, `context-keeper`, `output-filter`) do NOT prepend to the system message in normal use; their cost is the hook script's transcript footprint, not in-context tokens.
 - A `?` in any column means the live A/B hasn't been run for that skill yet; the static cost is always populated.

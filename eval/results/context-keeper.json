@@ -1,0 +1,25 @@
+{
+  "transcript": "/Users/za/.claude/projects/-Users-za-Documents-token-economy/7523878a-45a4-4402-b4f1-2021683b7d51.jsonl",
+  "extract_ms": 973,
+  "raw_chars": 505552,
+  "raw_chars_kb": 493.7,
+  "extracted_chars": 11594,
+  "extracted_chars_kb": 11.3,
+  "compression_ratio": 0.0229,
+  "events": 970,
+  "counts": {
+    "files": 264,
+    "cmds": 87,
+    "errors": 111,
+    "urls": 22,
+    "nums": 63
+  },
+  "recall": {
+    "files_recall": 0.22,
+    "cmds_recall": 0.46,
+    "errors_recall": 0.252,
+    "urls_recall": 1.0,
+    "nums_recall": 0.667
+  },
+  "extracted_preview": "---\ntype: session-memory\nsession_id: 7523878a-45a4-4402-b4f1-2021683b7d51\ntranscript: /Users/za/.claude/projects/-Users-za-Documents-token-economy/7523878a-45a4-4402-b4f1-2021683b7d51.jsonl\nsaved: 2026-05-22T07:52:30\ntags: [session, pre-compact]\n---\n\n# Session memory \u2014 7523878a\n\n## User goals\n- write-gate  `0.80`\n- install  `0.80`\n- Fix Codex relay session launch  `0.80`\n- Add subagent lifecycle cleanup  `0.80`\n- Install check complete  `0.80`\n- Test the classifier:  `0.80`\n- research-lite  `0.80`\n- Run the  `0.80`\n- INSTALL  `0.80`\n- Build prefix-cache architect as a read-only audit skill  `0.80`\n- Create the fresh handoff with `  `0.80`\n- write(json  `0.80`\n- Add `--execute` to  `0.80`\n- fix the credentials issue  `0.80`\n- Run this in your Claude Code terminal:  `0.80`\n- make sure this is the best way to connect claude code to github  `0.80`\n- Create a new issue for the bug we just found  `0.80`\n- Write a short step-by-step plan in chat (no scratch files), then execute  `0.80`\n- Run `stable/INSTALL  `0.80`\n- make sure this is reflected wherever relevant  `0.80`\n\n## Files created\n- /Users/za/Documents/token-economy/stable/AGENT_PROMPT.md\n- /Users/za/Documents/token-economy/extensions/README.md\n\n## Files touched\n- /Users/za/Documents/token-economy/CLAUDE.md  `0.70`\n- /Users/za/Documents/token-economy/start.md  `0.70`\n- /caveman-ultra/SKILL.md  `0.70`\n- /plan-first-execute/SKILL.md  `0.70`\n- /wiki-retrieve/SKILL.md  `0.70`\n- /wiki-write/SKILL.md  `0.70`\n- /context-refresh/SKIL"
+}
