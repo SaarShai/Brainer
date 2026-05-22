@@ -70,11 +70,18 @@ def user_prompts(jsonl_path: Path, max_prompts: int | None = None) -> list[str]:
     return out
 
 
-def load_catalog_system(repo_root: Path) -> str:
-    """Mimic 'catalog installed' by concatenating skill descriptions."""
+def load_catalog_system(repo_root: Path, triggered: list[str] | None = None) -> str:
+    """Mimic 'catalog installed' by concatenating skill descriptions.
+
+    If `triggered` is non-empty, ALSO prepend the full body of each named
+    skill (mimicking what happens at runtime when that skill fires and the
+    host prepends its protocol to the system message).
+    """
     skills_dir = repo_root / "skills"
     parts = []
     parts.append("You are a helpful coding assistant. The following skills are available; invoke them by name when their trigger matches the request.\n")
+    triggered_set = set(triggered or [])
+    bodies: list[str] = []
     for d in sorted(skills_dir.iterdir()):
         if not d.is_dir() or d.name.startswith("_"):
             continue
@@ -83,15 +90,23 @@ def load_catalog_system(repo_root: Path) -> str:
             continue
         text = md.read_text()
         # Pull description out of frontmatter
+        desc = ""
+        body = text
         if text.startswith("---"):
             end = text.find("\n---\n", 4)
             if end != -1:
                 fm = text[4:end]
+                body = text[end + 5:]
                 for line in fm.splitlines():
                     if line.startswith("description:"):
                         desc = line.split(":", 1)[1].strip()
-                        parts.append(f"- {d.name}: {desc}")
                         break
+        parts.append(f"- {d.name}: {desc}")
+        if d.name in triggered_set:
+            bodies.append(f"\n--- {d.name} body (active for this turn) ---\n{body.strip()}")
+    if bodies:
+        parts.append("\n## Active skill bodies\n")
+        parts.extend(bodies)
     return "\n".join(parts)
 
 
@@ -140,6 +155,7 @@ def main() -> int:
     p.add_argument("--max-prompts", type=int, default=10)
     p.add_argument("--n", type=int, default=1)
     p.add_argument("--out", default="eval/results/session-replay.json")
+    p.add_argument("--triggered", default="", help="comma-separated skill names whose BODIES are loaded into the catalog system prompt (mimic trigger fire). Empty = descriptions only (pessimistic baseline).")
     args = p.parse_args()
 
     transcript = Path(args.transcript)
@@ -152,8 +168,9 @@ def main() -> int:
     print(f"[1/3] {len(prompts)} user-prompts extracted from {transcript.name}")
 
     vanilla_sys = "You are a helpful coding assistant."
-    catalog_sys = load_catalog_system(repo_root)
-    print(f"[2/3] catalog system prompt: {len(catalog_sys)} chars")
+    triggered_list = [s.strip() for s in args.triggered.split(",") if s.strip()]
+    catalog_sys = load_catalog_system(repo_root, triggered=triggered_list)
+    print(f"[2/3] catalog system prompt: {len(catalog_sys)} chars (triggered bodies: {triggered_list or 'none'})")
 
     print(f"[3/3] running {args.n}x {len(prompts)} prompts × 2 conditions = {2 * args.n * len(prompts)} calls")
     no_catalog = []
@@ -182,6 +199,7 @@ def main() -> int:
         "model": args.model,
         "n_prompts": len(prompts),
         "n_trials": args.n,
+        "triggered_skills": triggered_list,
         "catalog_system_chars": len(catalog_sys),
         "no_catalog": s_a,
         "with_catalog": s_b,

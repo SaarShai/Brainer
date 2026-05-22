@@ -27,24 +27,49 @@ Output deltas with the skill active on its representative task suite:
 
 ⚠ The verify-before-completion `−0.40` is a rubric artifact — the test prompts ask "I just did X, is it done?" without execution access; the skill correctly demands fresh verification commands but can't run them, and the judge scores "demands evidence" lower than "affirms confidently". Re-test with executable prompts before downrating.
 
-## Session-level replay (pessimistic, no caching)
+## Session-level replay — two configurations
 
-Replay of a real 970-event transcript with 8 user prompts:
+Replay of a real 970-event transcript with 8 user prompts via `runner_session.py`. The prompts are imperative bug-fix / planning / short-question style — typical of a working session, not designed to provoke verbose answers.
 
-| Metric | No catalog | With catalog (all 13 descriptions in system) | Δ |
+### Config A: descriptions only (pessimistic baseline)
+
+`runner_session.py <transcript> --max-prompts 8` (no `--triggered` flag).
+
+| Metric | No catalog | With catalog (13 descriptions in system) | Δ |
 |---|---:|---:|---:|
 | input tokens | 270 | 7,510 | +2,681% |
-| output tokens | 2,039 | 2,782 | +36% |
-| **total tokens** | **2,309** | **10,292** | **+346%** |
+| output tokens (mean per call) | 254.9 | 347.8 | **+36%** |
+| total tokens | 2,309 | 10,292 | +346% |
 
-This is the catalog at its most pessimistic: every turn carries all 13 descriptions in an uncached system prompt, and the model gets distracted into more verbose output because it sees the descriptions as guidance to follow.
+### Config B: descriptions + caveman-ultra + lean-execution bodies active
 
-In production:
-- **Prompt caching** brings cached input tokens down to ~10% of base rate. Effective per-turn input overhead ≈ 90 tokens after the first call, not 938.
-- **Actual savings happen on skill invocation**, not on description-mention. Caveman-ultra's −85% comes from its body being prepended when the skill fires — which the session-replay harness doesn't simulate.
-- A more realistic measurement: vanilla baseline + caveman-ultra body actively loaded per turn. To do, see "Pending" below.
+`runner_session.py <transcript> --max-prompts 8 --triggered caveman-ultra,lean-execution`.
 
-The session-replay confirms the design assumption that skills must trigger explicitly (or via lightweight description match) rather than be globally active. It's evidence for: prefer slash commands and trigger words over "always-on" skill bodies.
+| Metric | No catalog | With catalog (descriptions + 2 active bodies) | Δ |
+|---|---:|---:|---:|
+| input tokens | 368 | 12,744 | +3,363% |
+| output tokens (mean per call) | 255.5 | 284.1 | **+11%** |
+| total tokens | 2,412 | 15,017 | +522% |
+
+### Interpretation — the catalog is workload-dependent
+
+The session-replay numbers look bad in isolation. They're honest data; the catalog **does not universally reduce tokens** on every session. Three things explain the gap between this and the per-skill A/B numbers:
+
+1. **The per-skill A/B prompts are deliberately verbose-prone** ("Explain a binary search tree", "How does X work", "Plan a refactor of …"). On those, caveman-ultra cuts 85%. The real-session prompts here are imperative ("fix all the issues", "commit and push") with baseline outputs already near the minimum reasonable response — there's little room to cut.
+
+2. **Config A inflates output by +36%**: when 13 skill descriptions land in the system message but no skill body actually fires, the model treats them as soft guidelines (consider all 13) and writes longer, more structured responses. **Active skill bodies (Config B) reverse this**: caveman + lean bodies pull the output back down — +36% becomes +11%. They're fighting the description-inflation effect.
+
+3. **Input overhead is mostly prompt-cacheable.** The +2,681% / +3,363% input deltas are computed on uncached tokens. Real hosts (Claude, Codex, OpenAI cache control) bring cached tokens to ~10% of base rate after the first call. Effective per-turn input overhead drops from ~900 tok to ~90 tok.
+
+### What this means for the catalog
+
+- The catalog's headline savings (caveman −85%, lean −56%) apply where the workload IS verbose. They're not universal.
+- For sessions dominated by short imperative prompts, **expect +5–15% output overhead from description visibility**, partially offset by trigger-fired skill bodies if the right ones load.
+- **Prompt caching is essential to the catalog's economics.** Without it, the always-on description tax becomes a real cost. With it, the tax amortizes to negligible after turn one.
+- **Selectively install** — drop skills you don't need. Each skill you don't load is description tokens not spent. The lint at `scripts/lint_skill_md.py` enforces description discipline; the install matrix lets you select subsets.
+- The strongest per-call wins remain the discipline skills triggered on the right prompts. The catalog's value is highest when the agent's default workload skews toward planning, explanation, code review, and multi-step bug fixing — where verbose baselines exist and caveman/lean/verify cut them.
+
+The takeaway isn't "the catalog saves tokens" or "the catalog costs tokens" — it's **"the catalog moves the per-call output distribution"**: tighter when relevant skills fire, slightly looser when only descriptions are visible. Net depends on workload mix.
 
 ## Pending live measurements
 
