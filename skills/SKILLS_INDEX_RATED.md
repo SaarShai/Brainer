@@ -20,8 +20,8 @@ Static columns are deterministic. Live columns require a live A/B run via `eval/
 | 2 | [caveman-ultra](../skills/caveman-ultra/SKILL.md) | **A** | **A** | **B** | **A** | 81 | 235 | +560% | -85% | +0.13 | 3 |
 | 3 | [lean-execution](../skills/lean-execution/SKILL.md) | **B** | **B** | **B** | **A** | 63 | 409 | +722% | -56% | +0.00 | 3 |
 | 4 | [verify-before-completion](../skills/verify-before-completion/SKILL.md) | **B** | **B** | **B** | **C** | 49 | 260 | +539% | -45% | -0.40 | 3 |
-| 5 | [plan-first-execute](../skills/plan-first-execute/SKILL.md) | **C** | **C** | **C** | **A** | 70 | 176 | +377% | -20% | +0.20 | 3 |
-| 6 | [prompt-triage](../skills/prompt-triage/SKILL.md) | **D** | **D** | **A** | **?** | 89 | 922 | +0% | -4% | — | 1 |
+| 5 | [prompt-triage](../skills/prompt-triage/SKILL.md) | **C** | **C** | **A** | **?** | 89 | 922 | +0% | -21% | — | 1 |
+| 6 | [plan-first-execute](../skills/plan-first-execute/SKILL.md) | **C** | **C** | **C** | **A** | 70 | 176 | +377% | -20% | +0.20 | 3 |
 | 7 | [context-refresh](../skills/context-refresh/SKILL.md) | **?** | **?** | **A** | **?** | 89 | 1125 | — | — | — | — |
 | 8 | [handoff](../skills/handoff/SKILL.md) | **?** | **?** | **B** | **?** | 143 | 881 | — | — | — | — |
 | 9 | [delegate](../skills/delegate/SKILL.md) | **?** | **?** | **A** | **?** | 97 | 872 | — | — | — | — |

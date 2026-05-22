@@ -38,7 +38,7 @@ except ImportError:
     yaml = None
 
 
-def call_mimo(model: str, prompt: str, system: str = "You are a helpful coding assistant.") -> dict:
+def call_mimo(model: str, prompt: str, system: str = "You are a helpful coding assistant.", retries: int = 3) -> dict:
     key = os.environ["MIMO_API_KEY"]
     base = os.environ.get("MIMO_BASE_URL", "https://api.xiaomimimo.com/v1").rstrip("/")
     max_tokens = 800 if "pro" in model else 400
@@ -51,21 +51,36 @@ def call_mimo(model: str, prompt: str, system: str = "You are a helpful coding a
         "max_tokens": max_tokens,
         "temperature": 0.0,
     }).encode()
-    req = urllib.request.Request(
-        f"{base}/chat/completions",
-        data=body,
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-    )
-    t0 = time.time()
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        data = json.loads(resp.read())
-    msg = data["choices"][0]["message"]
-    usage = data.get("usage", {})
+    last_err = None
+    for attempt in range(retries):
+        req = urllib.request.Request(
+            f"{base}/chat/completions",
+            data=body,
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        )
+        t0 = time.time()
+        try:
+            with urllib.request.urlopen(req, timeout=180) as resp:
+                data = json.loads(resp.read())
+            msg = data["choices"][0]["message"]
+            usage = data.get("usage", {})
+            return {
+                "output": (msg.get("content") or "").strip(),
+                "prompt_tokens": usage.get("prompt_tokens", 0),
+                "completion_tokens": usage.get("completion_tokens", 0),
+                "latency_ms": int((time.time() - t0) * 1000),
+                "attempt": attempt + 1,
+            }
+        except Exception as e:
+            last_err = e
+            time.sleep(2 ** attempt)  # 1s, 2s, 4s backoff
+    # All retries failed — return placeholder so the run continues
     return {
-        "output": (msg.get("content") or "").strip(),
-        "prompt_tokens": usage.get("prompt_tokens", 0),
-        "completion_tokens": usage.get("completion_tokens", 0),
-        "latency_ms": int((time.time() - t0) * 1000),
+        "output": f"<ERR after {retries} retries: {last_err}>",
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "latency_ms": 0,
+        "error": str(last_err),
     }
 
 

@@ -1,0 +1,496 @@
+{
+  "corpus": "eval/tasks/prompt-triage-corpus.yaml",
+  "cheap_model": "mimo-v2-flash",
+  "expensive_model": "mimo-v2.5-pro",
+  "n": 1,
+  "prompts": [
+    "What is a binary search tree?",
+    "Fix the typo in this line: prnt('hello')",
+    "Summarize this short paragraph: Foo. Bar. Baz.",
+    "Commit the staged files with message 'wip'.",
+    "Add a note to the wiki about my CSS findings today.",
+    "Install the requests library via pip.",
+    "Define 'idempotent'.",
+    "Research the current state of LLM prompt compression in 2026.",
+    "Investigate why our CI build started failing yesterday.",
+    "Survey GitHub for repos that implement RAG over markdown notes.",
+    "Refactor the auth subsystem to use OAuth instead of session cookies.",
+    "Design a multi-tenant storage architecture for our SaaS.",
+    "Implement a distributed lock service across three microservices."
+  ],
+  "expected_tiers": [
+    "simple",
+    "simple",
+    "simple",
+    "simple",
+    "simple",
+    "simple",
+    "simple",
+    "medium",
+    "medium",
+    "medium",
+    "hard",
+    "hard",
+    "hard"
+  ],
+  "without_triage": [
+    {
+      "output": "# Binary Search Tree (BST)\n\nA **Binary Search Tree** is a node-based data structure where each node follows a specific ordering property:\n\n## Key Properties\n\n1. **Each node has at most two children** (left and right).\n2. **Left subtree** contains only nodes with values **less than** the parent node.\n3. **Right subtree** contains only nodes with values **greater than** the parent node.\n4. Both subtrees are **also** binary search trees (recursive property).\n\n## Visual Example\n\n```\n        8\n       / \\\n      3   10\n     / \\    \\\n    1   6    14\n       / \\   /\n      4   7 13\n```\n\nNotice:\n- Everything left of `8` is **less than 8**\n- Everything right of `8` is **greater than 8**\n- This property holds **at every node**, not just the root\n\n## Common Operations & Time Complexity\n\n| Operation | Average Case | Worst Case (unbalanced) |\n|-------------|-------------|------------------------|\n| **Search** | O(log n) | O(n) |\n| **Insert** | O(log n) | O(n) |\n| **Delete** | O(log n) | O(n) |\n| **Traversal** | O(n) | O(n) |\n\n## Simple Example (Python)\n\n```python\nclass Node:\n    def __init__(self, value):\n        self.value = value\n        self.left = None\n        self.right = None\n\nclass BST:\n    def __init__(self):\n        self.root = None\n\n    def insert(self, value):\n        if not self.root:\n            self.root = Node(value)\n        else:\n            self._insert_recursive(self.root, value)\n\n    def _insert_recursive(self, node, value):\n        if value < node.value:\n            if node.left is None:\n                node.left = Node(value)\n            else:\n                self._insert_recursive(node.left, value)\n        else:\n            if node.right is None:\n                node.right = Node(value)\n            else:\n                self._insert_recursive(node.right, value)\n\n    def search(self, value):\n        return self._search_recursive(self.root, value)\n\n    def _search_recursive(self, node, value):\n        if node is None or node.value == value:\n            return node\n        if value < node.value:\n            return self._search_recursive(node.left, value)\n        return self._search_recursive(node.right, value)\n```\n\n## Why Use a BST?\n\n- \u2705 **Efficient searching** \u2013 O(log n) average case\n- \u2705 **Maintains sorted order** \u2013 in-order traversal gives sorted data\n- \u2705 **Dynamic** \u2013 easy insertions/deletions (unlike sorted arrays)\n\n## \u26a0\ufe0f The Worst Case\n\nIf elements are inserted in sorted order (e.g., 1, 2, 3, 4, 5), the tree becomes a **linked list**:\n\n```\n1\n \\\n  2\n   \\\n    3\n     \\\n      4\n       \\\n        5\n```\n\nThis degrades all operations to **O(n)**. To prevent this, **self-balancing BSTs** like **AVL Trees** or **Red-Black Trees** are used, which guarantee O(log n) even in the worst case.",
+      "prompt_tokens": 25,
+      "completion_tokens": 725,
+      "latency_ms": 14836,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 0,
+      "routed_to": "mimo-v2.5-pro"
+    },
+    {
+      "output": "The fixed line is:\n\n```python\nprint('hello')\n```\n\nThe typo was `prnt` \u2192 `print` (the **i** was missing).",
+      "prompt_tokens": 30,
+      "completion_tokens": 49,
+      "latency_ms": 3707,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 1,
+      "routed_to": "mimo-v2.5-pro"
+    },
+    {
+      "output": "This paragraph simply lists three placeholder terms: Foo, Bar, and Baz.",
+      "prompt_tokens": 31,
+      "completion_tokens": 34,
+      "latency_ms": 7136,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 2,
+      "routed_to": "mimo-v2.5-pro"
+    },
+    {
+      "output": "```bash\ngit commit -m 'wip'\n```\n\n\n\nThis commits all currently staged changes with the message \"wip\" (work in progress).",
+      "prompt_tokens": 28,
+      "completion_tokens": 48,
+      "latency_ms": 3383,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 3,
+      "routed_to": "mimo-v2.5-pro"
+    },
+    {
+      "output": "I'd love to help, but I have a couple of limitations here:\n\n1. **No wiki access**: I don't have the ability to connect to or edit any external wiki system (like Confluence, Notion, a GitHub wiki, etc.).\n2. **No context on your findings**: I don't know what CSS findings you discovered today.\n\n**Here's what I *can* do:**\n\nIf you share your CSS findings with me, I can:\n- **Draft a well-formatted wiki note** for you to copy and paste into your wiki.\n- Format it in Markdown, HTML, or whatever markup your wiki uses.\n- Organize the findings clearly with examples, code snippets, and explanations.\n\nWant to share what you found? I'll get it formatted and ready for you!",
+      "prompt_tokens": 30,
+      "completion_tokens": 245,
+      "latency_ms": 41219,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 4,
+      "routed_to": "mimo-v2.5-pro"
+    },
+    {
+      "output": "```bash\npip install requests\n```\n\n\n\nThis will download and install the `requests` library from PyPI (Python Package Index).\n\n**Notes:**\n- If you're using a specific Python version, you may need to use `pip3` instead:\n  ```bash\n  pip3 install requests\n  ```\n- If you want to install it for the current user only (no admin/sudo privileges):\n  ```bash\n  pip install --user requests\n  ```\n- To verify the installation:\n  ```bash\n  python -c \"import requests; print(requests.__version__)\"\n  ```",
+      "prompt_tokens": 25,
+      "completion_tokens": 139,
+      "latency_ms": 12184,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 5,
+      "routed_to": "mimo-v2.5-pro"
+    },
+    {
+      "output": "## Idempotent\n\nAn operation is **idempotent** if performing it **multiple times produces the same result** as performing it once.\n\nIn other words:\n\n> `f(f(x)) = f(x)`\n\nNo matter how many times you apply the operation beyond the first, the outcome doesn't change.\n\n### Examples\n\n| Context | Idempotent Example | Non-Idempotent Example |\n|---|---|---|\n| **Math** | `abs(-5) = 5`, `abs(5) = 5` | `x + 1` (keeps changing) |\n| **HTTP** | `GET`, `PUT`, `DELETE` | `POST` (may create duplicates) |\n| **SQL** | `UPDATE users SET name='A' WHERE id=1` | `INSERT INTO users (...)` |\n| **DevOps** | Setting a config value to `true` | Appending a line to a file |\n\n### Why It Matters\n\n- **Safety**: You can **retry** an idempotent operation without worrying about unintended side effects (e.g., duplicate charges).\n- **Distributed systems**: Network requests can be safely resent if a response is lost.\n- **Infrastructure-as-code**: Tools like Terraform aim for idempotency\u2014running the same plan twice converges to the same state.\n\n### Quick Mental Test\n\n> \"If I accidentally do this **twice**, will anything bad happen?\"\n> - **No** \u2192 idempotent \u2705\n> - **Yes** \u2192 not idempotent \u274c",
+      "prompt_tokens": 24,
+      "completion_tokens": 347,
+      "latency_ms": 20980,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 6,
+      "routed_to": "mimo-v2.5-pro"
+    },
+    {
+      "output": "# LLM Prompt Compression: What I Can Share\n\n## Important Caveat\n\nI need to be transparent: **my training data has a cutoff of early April 2025**, so I cannot genuinely research or report on the state of prompt compression *in 2026*. I don't have access to the internet to browse current publications, and I have no knowledge of developments after my cutoff. Claiming otherwise would be dishonest.\n\n---\n\n## What I *Can* Share: The State as of Early 2025\n\nHere's what was well-established and actively evolving by my knowledge cutoff:\n\n### Major Approaches\n\n1. **LLMLingua / LLMLingua-2 (Microsoft)**\n   - Used a small trained model to score and remove \"unimportant\" tokens from prompts\n   - LLMLingua-2 improved by training a token-level classifier (via data distillation from GPT-4) to decide what to keep\n   - Achieved 2\u201310x compression with relatively modest performance loss on many tasks\n\n2. **Selective Context**\n   - Filtered sentences/fragments based on perplexity or self-information scores from the LLM itself\n   - Simpler but less fine-grained than token-level methods\n\n3. **Gisting / Soft Prompt Methods**\n   - *Gist tokens* (Stanford, ~2023): trained a model to compress a long prefix into a handful of learned \"gist\" virtual tokens via fine-tuning\n   - *AutoCompressors* (Princeton): recursively summarized long contexts into fixed-length soft prompt vectors\n   - These required model access/fine-tuning but could achieve extreme compression ratios\n\n4. **Retrieval-Augmented Compression**\n   - Rather than compressing the full prompt, retrieve only the relevant portions (RAG), effectively a form of *lossy semantic compression*\n\n5. **Prompt Caching & Deduplication**\n   - Systems like those from Anthropic (prompt caching) and others focused on reusing KV-cache computations for repeated prompt prefixes \u2014 a systems-level form of compression\n\n6. **Structured/Symbolic Compression**\n   - Representing prompt instructions in structured formats (JSON, XML, DSLs) or using shorter paraphrases\n   - Less research-driven, more practitioner-driven optimization\n\n### Key Tensions (as of Early 2025)\n\n| Tension | Details |\n|---|---|\n| **Lossy vs. Lossless** | Most practical methods were lossy \u2014 some information is inevitably dropped |\n| **Task sensitivity** | Compression worked well for summarization/Q&A but hurt tasks requiring precise instructions (e.g., legal, code generation) |\n| **Model-specificity** | Methods like LLMLingua were somewhat model-agnostic, while gist tokens required per-model fine-tuning |\n| **Scaling context windows** | As models expanded to 128K\u20131M+ tokens (Gemini, Claude, GPT-4 Turbo), some questioned whether prompt compression was even necessary |\n| **Long-context quality** | \"Lost in the middle\" research showed models don't use all context equally, motivating compression even when long contexts are *available* |\n\n### Emerging Directions (Toward 2025)\n\n- **Learned compression tokens** (soft prompts) becoming more practical",
+      "prompt_tokens": 34,
+      "completion_tokens": 800,
+      "latency_ms": 72155,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 7,
+      "routed_to": "mimo-v2.5-pro"
+    },
+    {
+      "output": "I'd need more context to give a specific diagnosis, since I don't have access to your CI system, repository, or logs. Here's a structured investigation approach, along with what I'd need from you.\n\n---\n\n## Information I'd Need to Help\n\nPlease share any of the following:\n\n1. **The CI platform** (GitHub Actions, GitLab CI, Jenkins, CircleCI, etc.)\n2. **The error output** from the failing build\n3. **The last passing commit** vs. the first failing commit\n4. **Your CI configuration file** (e.g., `.github/workflows/*.yml`, `.gitlab-ci.yml`, `Jenkinsfile`)\n5. **What changed yesterday** \u2014 new commits, dependency updates, environment changes\n\n---\n\n## General Investigation Checklist\n\n### 1. Identify the Delta\n```bash\n# Find the last passing and first failing commits\ngit log --oneline --since=\"2 days ago\"\n```\n- Compare the **first failing commit** to the **last passing commit**\n- Did someone push code, merge a PR, or update dependencies?\n\n### 2. Check the Build Log\nLook for these common failure categories:\n\n| Symptom | Likely Cause |\n|---|---|\n| `ModuleNotFoundError` / `No module named ...` | Dependency issue \u2014 version pinned wrong, registry changed, lockfile out of date |\n| `npm ERR!` / `ERESOLVE` | Dependency conflict, especially after an update |\n| `docker: Error response` | Base image pulled a breaking tag, or Docker Hub rate limit |\n| `Error: Cannot find module './something'` | File moved/deleted in a commit |\n| `403` / `401` / `unauthorized` | Expired secret/token, rotated credentials |\n| `segfault` / `Killed` | Resource limits (OOM), runner size change |\n| `deprecated` warnings \u2192 errors | A tool/OS updated and dropped support (e.g., Node 16 EOL, Ubuntu 18.04 removal) |\n| Works locally, fails in CI | Environment difference \u2014 env vars, secrets, OS, architecture (arm64 vs amd64) |\n\n### 3. Check for External/Transient Causes\n```bash\n# Did a dependency release a new version yesterday?\n# Check npm / pip / crates.io / Maven Central for recent releases\n\n# Example: check recent releases of a suspect package\nnpm view <package> time\npip index versions <package>\n```\n\n- **Upstream outages**: Check the CI provider's status page\n- **Expired certificates or tokens**: Check if any secrets/credentials expired\n- **Docker base image updates**: `node:18`, `python:3.12`, etc. may have updated\n- **OS/package updates**: GitHub Actions runners update regularly and can break things\n\n### 4. Reproduce Locally\n```bash\n# Pull the failing commit\ngit checkout <first-failing-commit>\n\n# Run the exact CI steps locally\n# (match the CI environment as closely as possible)\n```\n\n### 5. Check CI Configuration Changes\n```bash\n# Did anyone modify the CI config itself?\ngit log --oneline --all -- '.github/workflows/*.yml'\ngit log --oneline -- all -- '.gitlab-ci.yml'\ngit log --oneline --all -- 'Jenkinsfile'\ngit",
+      "prompt_tokens": 28,
+      "completion_tokens": 800,
+      "latency_ms": 44084,
+      "attempt": 3,
+      "trial": 0,
+      "prompt_idx": 8,
+      "routed_to": "mimo-v2.5-pro"
+    },
+    {
+      "output": "# Survey: GitHub Repos Implementing RAG over Markdown Notes\n\n## Overview\n\nBelow is a structured survey of notable open-source repositories that implement Retrieval-Augmented Generation (RAG) specifically targeting markdown-based notes and knowledge bases. They range from Obsidian plugins to standalone applications and general-purpose frameworks.\n\n---\n\n## 1. Obsidian-Specific Plugins & Tools\n\nThese are tightly integrated with the Obsidian note-taking ecosystem.\n\n### **smart-connections** (brianpetro)\n- **Repo:** `brianpetro/obsidian-smart-connections`\n- **Stars:** ~7k+\n- **What it does:** Embeds and semantically searches your entire Obsidian vault. Includes",
+      "prompt_tokens": 30,
+      "completion_tokens": 800,
+      "latency_ms": 27848,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 9,
+      "routed_to": "mimo-v2.5-pro"
+    },
+    {
+      "output": "# Refactoring Auth from Session Cookies to OAuth 2.0\n\nThis is a substantial architectural change. Below is a comprehensive refactoring plan with concrete before/after code.\n\n## Architecture Overview\n\n```\nBEFORE (Session Cookies)              AFTER (OAuth 2.0)\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510                          \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502  Client   \u2502\u2500\u2500POST /login\u2500\u2500\u2510         \u2502  Client   \u2502\u2500\u2500GET /auth/login\u2500\u2500\u2510\n\u2502 (Browser) \u2502               \u2502         \u2502 (Browser) \u2502                   \u2502\n\u2514\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518               \u25bc         \u2514\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518                   \u25bc\n   \u2502\u25c4\u2500\u2500 Set-Cookie\u2500\u2500\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510       \u2502      \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n   \u2502                \u2502  Server     \u2502       \u2502      \u2502  Server                  \u2502\n   \u2502\u2500\u2500Cookie\u2500\u2500\u25ba     \u2502 Session DB  \u2502       \u2502      \u2502                          \u2502\n   \u2502                \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518       \u2502      \u2502  302 \u2192 OAuth Provider     \u2502\n   \u2502                                      \u2502      \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n   \u2502                                      \u2502\n   \u2502                                      \u2502\u25c4\u2500\u2500 Authorization Code \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n   \u2502                                      \u2502\u2500\u2500Exchange code for token\u2500\u2500\u25ba     \u2502\n   \u2502                                      \u2502\u25c4\u2500\u2500 Access Token + Refresh \u2500\u2500\u2500\u2500\u2500\u2500\u2502\n   \u2502                                      \u2502                                  \u2502\n   \u2502\u25c4\u2500\u2500 Set-Cookie(token)\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2502      \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n   \u2502                                       \\     \u2502  OAuth Provider          \u2502\n   \u2502                                        \\    \u2502  (Google/GitHub/etc.)    \u2502\n   \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u25ba\u2518   \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n```\n\n## Step 1 \u2014 Remove Session Infrastructure\n\n### Before: Session Configuration (`session_config.py`)\n```python\n# \u274c REMOVE \u2014 Session cookie configuration\nfrom flask import Flask\nfrom flask_session import Session\n\ndef init_session(app: Flask):\n    app.config[\"SESSION_TYPE\"] = \"redis\"\n    app.config[\"SESSION_PERMANENT\"] = False\n    app.config[\"SESSION_USE_SIGNER\"] = True\n    app.config[\"SESSION_KEY_PREFIX\"] = \"myapp:\"\n    app.config[\"SESSION_REDIS\"] = redis_client\n    app.config[\"SECRET_KEY\"] = \"super-secret-key\"  # \u26a0\ufe0f Weak point\n    Session(app)\n```\n\n### After: OAuth Configuration (`oauth_config.py`)\n```python\n# \u2705 ADD \u2014 OAuth provider configuration\nfrom dataclasses import dataclass, field\nfrom authlib.integrations.starlette_client import OAuth\nimport os\n\n@dataclass\nclass OAuthProviderConfig:\n    \"\"\"Configuration for a single OAuth provider.\"\"\"\n    client_id: str\n    client_secret: str\n    server_metadata_url: str\n    client_kwargs: dict = field(default_factory=lambda: {\n        \"scope\": \"openid email profile\"\n    })\n\nclass OAuthManager:\n    \"\"\"Manages OAuth provider registrations and token lifecycle.\"\"\"\n\n    def __init__(self):\n        self.oauth = OAuth()\n        self._providers: dict[str, OAuthProviderConfig] = {}\n        self._register_built_in_providers()\n\n    def _register_built_in_providers(self):\n        providers = {\n            \"google\": OAuthProviderConfig(\n                client_id=os.environ[\"GOOGLE_CLIENT_ID\"],\n                client_secret=os.environ[\"GOOGLE_CLIENT_SECRET\"],\n                server_metadata_url=(\n                    \"https://accounts.google.com/.well-known/openid-configuration\"\n                ),\n            ),\n            \"github\": OAuthProviderConfig(\n                client_id",
+      "prompt_tokens": 31,
+      "completion_tokens": 800,
+      "latency_ms": 19546,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 10,
+      "routed_to": "mimo-v2.5-pro"
+    },
+    {
+      "output": "# Multi-Tenant Storage Architecture for SaaS\n\n## High-Level Architecture Overview\n\n```\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502                           CLIENT REQUESTS                               \u2502\n\u2502                  (Tenant identified by JWT / Subdomain / Header)        \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n                               \u2502\n                               \u25bc\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502                        API GATEWAY / LOAD BALANCER                      \u2502\n\u2502  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510                \u2502\n\u2502  \u2502 Rate Limit   \u2502  \u2502 Auth (JWT)   \u2502  \u2502 Tenant Resolver\u2502                \u2502\n\u2502  \u2502 per Tenant   \u2502  \u2502 + RBAC       \u2502  \u2502 (ID\u2192Tier\u2192Shard)\u2502                \u2502\n\u2502  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518                \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n                               \u2502\n                               \u25bc\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502                      TENANT CONTEXT MIDDLEWARE                           \u2502\n\u2502         Injects TenantContext into every request thread/session         \u2502\n\u2502    \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510       \u2502\n\u2502    \u2502  TenantContext {                                          \u2502       \u2502\n\u2502    \u2502    tenantId, tenantTier, shardId, region, quotas          \u2502       \u2502\n\u2502    \u2502  }                                                        \u2502       \u2502\n\u2502    \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518       \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n                               \u2502\n            \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n            \u25bc                  \u25bc                   \u25bc\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510 \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510 \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502  APPLICATION      \u2502 \u2502  APPLICATION      \u2502 \u2502  APPLICATION      \u2502\n\u2502  SERVICE A        \u2502 \u2502  SERVICE B        \u2502 \u2502  SERVICE C        \u2502\n\u2502  (CRUD + Logic)   \u2502 \u2502  (File Service)   \u2502 \u2502  (Search / AI)    \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518 \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518 \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n         \u2502                    \u2502                     \u2502\n         \u25bc                    \u25bc                     \u25bc\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502                        STORAGE ROUTING LAYER                            \u2502\n\u2502                                                                         \u2502\n\u2502  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510       \u2502\n\u2502  \u2502 Relational DB \u2502  \u2502  Object Store  \u2502  \u2502  Cache / Search / MQ  \u2502       \u2502\n\u2502  \u2502 Router        \u2502  \u2502  Router        \u2502  \u2502  Router               \u2502       \u2502\n\u2502  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c",
+      "prompt_tokens": 30,
+      "completion_tokens": 800,
+      "latency_ms": 28438,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 11,
+      "routed_to": "mimo-v2.5-pro"
+    },
+    {
+      "output": "# Distributed Lock Service Across Three Microservices\n\n## Architecture Overview\n\n```\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502                        CLIENT APPLICATION                           \u2502\n\u2502  (acquires lock \u2192 performs operation \u2192 releases lock)               \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n       \u2502                    \u2502                     \u2502\n       \u25bc                    \u25bc                     \u25bc\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502   LOCK       \u2502  \u2502     LEASE        \u2502  \u2502   FENCING       \u2502\n\u2502  REGISTRY    \u2502\u25c4\u2500\u2524    MANAGER       \u2502  \u2502    TOKEN        \u2502\n\u2502  SERVICE     \u2502  \u2502    SERVICE       \u2502  \u2502   SERVICE       \u2502\n\u2502              \u2502\u2500\u2500\u25ba                   \u2502  \u2502                 \u2502\n\u2502 \u2022 Lock state \u2502  \u2502 \u2022 TTL tracking   \u2502  \u2502 \u2022 Monotonic IDs \u2502\n\u2502 \u2022 Queue/FIFO \u2502  \u2502 \u2022 Heartbeats     \u2502  \u2502 \u2022 Validation    \u2502\n\u2502 \u2022 Acquisition\u2502  \u2502 \u2022 Dead detection \u2502  \u2502 \u2022 Token history \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n       \u2502                    \u2502                     \u2502\n       \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n                    Inter-service RPC\n```\n\n## Full Implementation\n\n### Project Structure\n```\ndistributed_lock/\n\u251c\u2500\u2500 common/\n\u2502   \u251c\u2500\u2500 __init__.py\n\u2502   \u251c\u2500\u2500 models.py          # Shared data models\n\u2502   \u2514\u2500\u2500 config.py          # Configuration\n\u251c\u2500\u2500 lock_registry/\n\u2502   \u251c\u2500\u2500 __init__.py\n\u2502   \u2514\u2500\u2500 service.py         # Lock Registry microservice\n\u251c\u2500\u2500 lease_manager/\n\u2502   \u251c\u2500\u2500 __init__.py\n\u2502   \u2514\u2500\u2500 service.py         # Lease Manager microservice\n\u251c\u2500\u2500 fencing_token/\n\u2502   \u251c\u2500\u2500 __init__.py\n\u2502   \u2514\u2500\u2500 service.py         # Fencing Token microservice\n\u251c\u2500\u2500 client/\n\u2502   \u251c\u2500\u2500 __",
+      "prompt_tokens": 28,
+      "completion_tokens": 800,
+      "latency_ms": 40762,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 12,
+      "routed_to": "mimo-v2.5-pro"
+    }
+  ],
+  "with_triage": [
+    {
+      "output": "A **Binary Search Tree (BST)** is a hierarchical data structure composed of nodes, where each node has at most two children (left and right), and it follows a strict ordering property.\n\nHere is a breakdown of how it works, its rules, and why it is useful.\n\n---\n\n### 1. The Core Rules\nFor a tree to be considered a Binary Search Tree, it must satisfy the following properties for **every single node** in the tree:\n\n1.  **Left Subtree Rule:** All values in the left subtree of a node must be **less than** the node's own value.\n2.  **Right Subtree Rule:** All values in the right subtree of a node must be **greater than** the node's own value.\n3.  **Uniqueness:** Typically, duplicates are not allowed (though some variations allow them).\n4.  **Recursive Structure:** Both the left and right subtrees must also be binary search trees.\n\n### 2. Visual Example\nImagine a tree with the following values: `[8, 3, 10, 1, 6, 14]`\n\n```text\n        8\n       / \\\n      3   10\n     / \\    \\\n    1   6    14\n```\n\n**Why is this a BST?**\n*   **Root (8):** Left child (3) is smaller; Right child (10) is larger.\n*   **Node (3):** Left child (1) is smaller; Right child (6) is larger.\n*   **Node (10):** Left child is null; Right child (14) is larger.\n\nIf you tried to place a `5` as a child of `10`, it would violate the rule because `5` is less than `10`, so it would need to be on the left side of `10`. However, the left side of",
+      "prompt_tokens": 27,
+      "completion_tokens": 400,
+      "latency_ms": 5781,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 0,
+      "routed_to": "mimo-v2-flash",
+      "classified_tier": "simple"
+    },
+    {
+      "output": "The typo is `prnt`. It should be `print`.\n\nHere is the corrected line:\n\n```python\nprint('hello')\n```",
+      "prompt_tokens": 32,
+      "completion_tokens": 28,
+      "latency_ms": 4346,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 1,
+      "routed_to": "mimo-v2-flash",
+      "classified_tier": "simple"
+    },
+    {
+      "output": "The paragraph consists of three separate, unrelated words: \"Foo,\" \"Bar,\" and \"Baz.\"",
+      "prompt_tokens": 33,
+      "completion_tokens": 22,
+      "latency_ms": 2141,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 2,
+      "routed_to": "mimo-v2-flash",
+      "classified_tier": "simple"
+    },
+    {
+      "output": "```bash\ngit commit -m \"wip\"\n```",
+      "prompt_tokens": 30,
+      "completion_tokens": 13,
+      "latency_ms": 2360,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 3,
+      "routed_to": "mimo-v2-flash",
+      "classified_tier": "simple"
+    },
+    {
+      "output": "# CSS Findings\n\n## 2024-01-15\n\n### `position: sticky` with `overflow: hidden` parent\n\nWhen using `position: sticky` on an element, it will not work if any of its parent elements have `overflow: hidden`, `overflow: scroll`, or `overflow: auto` applied. This is because the sticky positioning is constrained by the scroll container.\n\n**Example:**\n```css\n/* This will NOT work */\n.parent {\n  overflow: hidden;\n}\n\n.child {\n  position: sticky;\n  top: 0;\n}\n```\n\n**Solution:** Remove the `overflow` property from the parent, or use a different layout approach.\n\n---\n\n### CSS Custom Properties (Variables) with `calc()`\n\nCSS custom properties can be used in `calc()` expressions, but they must be properly formatted. When using a custom property in `calc()`, ensure the variable is defined and accessible in the same scope.\n\n**Example:**\n```css\n:root {\n  --spacing: 16px;\n}\n\n.element {\n  padding: calc(var(--spacing) * 2); /* Works */\n  margin: calc(var(--spacing) / 2); /* Works */\n}\n```\n\n**Note:** If the custom property is not defined, `calc()` will use the inherited value or default to `0`.\n\n---\n\n### `:focus-visible` for keyboard navigation\n\nThe `:focus-visible` pseudo-class applies styles only when the element is focused and the user is navigating via keyboard (not mouse clicks). This is useful for accessibility, as it avoids showing focus rings on mouse clicks.\n\n**Example:**\n```css\nbutton:focus-visible {\n  outline: 2px solid blue;\n  outline-offset: 2px;\n}\n```\n\n**Browser Support:** Works in all modern browsers (Chrome 86+, Firefox 85+, Safari 15.4+).\n\n---\n\n### `aspect-ratio` property\n\nThe",
+      "prompt_tokens": 32,
+      "completion_tokens": 400,
+      "latency_ms": 5343,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 4,
+      "routed_to": "mimo-v2-flash",
+      "classified_tier": "simple"
+    },
+    {
+      "output": "To install the `requests` library, open your terminal or command prompt and run the following command:\n\n```bash\npip install requests\n```\n\nIf you are using Python 3 specifically and have both Python 2 and 3 installed, you might need to use:\n\n```bash\npip3 install requests\n```\n\n**Verification:**\nAfter installation, you can verify it works by running Python and importing the library:\n\n```python\nimport requests\nprint(requests.__version__)\n```\n\nIf no errors appear, the installation was successful.",
+      "prompt_tokens": 27,
+      "completion_tokens": 109,
+      "latency_ms": 3910,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 5,
+      "routed_to": "mimo-v2-flash",
+      "classified_tier": "simple"
+    },
+    {
+      "output": "In mathematics and computer science, an element or operation is called **idempotent** if applying it multiple times does not change the result after the first application.\n\nIn simple terms: **doing something more than once has the same effect as doing it just once.**\n\n### Mathematical Definition\nIf $x$ is an element and $f$ is an operation, then $x$ is idempotent under $f$ if:\n$$f(x, x) = x$$\n\n### Common Examples\n\n**1. Numbers (Addition and Multiplication)**\n*   **0** is idempotent under addition: $0 + 0 = 0$\n*   **1** is idempotent under multiplication: $1 \\times 1 = 1$\n\n**2. Sets (Union and Intersection)**\nIf $A$ is a set:\n*   **Union:** $A \\cup A = A$\n*   **Intersection:** $A \\cap A = A$\n\n**3. Functions**\nA function $f$ is idempotent if composing it with itself yields the same function:\n$$f(f(x)) = f(x)$$\n*   *Example:* The \"absolute value\" function. $| -5 | = 5$, and applying it again gives $| 5 | = 5$.\n\n**4. Computer Science (HTTP Methods)**\nIn web development, the HTTP method **GET** is idempotent. Requesting a specific resource (like a webpage) once or requesting it ten times results in the same resource being returned (and does not change the state of the server).\n\n**5. Computer Science (Boolean Logic)**\nIn Boolean algebra, the **OR** and **AND** operators are idempotent:\n*   $A \\lor A = A$ (True OR True is True)\n*   $A \\land A = A$ (True AND True is True)\n\n### Why is it useful?\nIdempot",
+      "prompt_tokens": 26,
+      "completion_tokens": 400,
+      "latency_ms": 5202,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 6,
+      "routed_to": "mimo-v2-flash",
+      "classified_tier": "simple"
+    },
+    {
+      "output": "Based on the trajectory of research from 2023\u20132025, here is a projection of the state of **LLM Prompt Compression** in **2026**.\n\nIn 2026, prompt compression has evolved from a niche optimization technique into a foundational infrastructure layer for enterprise-scale LLM deployment. The focus has shifted from simple token removal to **semantic preservation, multi-modal compression, and dynamic context management.**\n\n---\n\n### 1. The Shift: From Token Reduction to Semantic Fidelity\nIn 2023\u20132024, prompt compression relied heavily on heuristics (removing stop words) or lightweight models (like LLMLingua). By 2026, the paradigm has shifted to **Semantic-Aware Compression.**\n\n*   **The \"Lossless\" Threshold:** Research has established that compressing prompts beyond 50\u201360% of their original length without a dedicated compression model inevitably degrades reasoning performance. In 2026, standard pipelines use a **\"Compressor-LLM\" pair**\u2014a small, specialized encoder trained specifically to map high-dimensional natural language into dense latent vectors that the target LLM can decode effectively.\n*   **Gradient-Aligned Compression:** Instead of relying on frequency-based importance scoring, 2026 compressors utilize **gradient-matching objectives**. The compressor is trained to minimize the divergence between the gradients of the original prompt and the compressed prompt, ensuring the LLM\u2019s internal reasoning path remains identical.\n\n### 2. Key Architectural Innovations (2026)\n\n#### A. Hierarchical & Recursive Compression\nWith context windows now routinely exceeding 1M tokens (e.g., Gemini 2.5 Pro, GPT-5 class models), prompt compression is no longer flat.\n*   **Multi-Layered Indexing:** Prompts are compressed into a hierarchy: a \"headline\" (10 tokens), a",
+      "prompt_tokens": 36,
+      "completion_tokens": 400,
+      "latency_ms": 5961,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 7,
+      "routed_to": "mimo-v2-flash",
+      "classified_tier": "medium"
+    },
+    {
+      "output": "I'll help you investigate the CI build failure. To provide a thorough analysis, I'll need some information about your setup.\n\n**Could you please share:**\n\n1. **CI Platform**: Which CI system are you using? (GitHub Actions, GitLab CI, Jenkins, CircleCI, Travis CI, etc.)\n2. **Error Details**: What specific error messages or failure logs are you seeing?\n3. **Recent Changes**: What changes were made to the codebase or configuration before the failure started?\n4. **Build Configuration**: Can you share your CI configuration file? (e.g., `.github/workflows/*.yml`, `.gitlab-ci.yml`, `Jenkinsfile`)\n5. **Timing**: When exactly did the failure start? (date/time and timezone)\n\n**In the meantime, here are common causes of sudden CI failures:**\n\n### Common Issues by Category:\n\n**\ud83d\udd27 Configuration Changes**\n- Modified CI configuration files\n- Updated environment variables or secrets\n- Changed Docker images or base images\n- Altered dependency caching strategies\n\n**\ud83d\udce6 Dependency Issues**\n- New package releases breaking compatibility\n- Version pinning failures\n- Registry authentication changes\n- Network/firewall restrictions\n\n**\ud83d\udd10 Security & Access**\n- Expired credentials/tokens\n- Changed repository permissions\n- New security policies blocking builds\n- VPN or proxy configuration changes\n\n**\ud83c\udfd7\ufe0f Infrastructure**\n- CI platform outages or maintenance\n- Runner/agent pool changes\n- Resource limits exceeded\n- Network connectivity issues\n\n**\ud83e\uddea Code Changes**\n- New test failures\n- Linting rule violations\n- Build script errors\n- Environment-specific bugs\n\n**\ud83d\udd04 External Dependencies**\n- API endpoint changes\n- Third-party service outages\n- Database connection issues\n- External credential expiration\n\nOnce you provide the details above, I can give you a targeted investigation plan and specific troubleshooting steps for your situation.",
+      "prompt_tokens": 30,
+      "completion_tokens": 379,
+      "latency_ms": 5907,
+      "attempt": 2,
+      "trial": 0,
+      "prompt_idx": 8,
+      "routed_to": "mimo-v2-flash",
+      "classified_tier": "medium"
+    },
+    {
+      "output": "Here is a curated survey of GitHub repositories that implement Retrieval-Augmented Generation (RAG) specifically over Markdown notes. I have categorized them by approach and complexity.\n\n### 1. The \"Gold Standard\" Frameworks\nThese are robust, production-ready frameworks that handle Markdown parsing, chunking, and retrieval out of the box.\n\n*   **[LlamaIndex](https://github.com/run-llama/llama_index)**\n    *   **Focus:** Data ingestion and indexing for LLMs.\n    *   **Markdown Support:** Excellent. It includes a `MarkdownReader` that parses headers, code blocks, and lists from `.md` files. It supports hierarchical indexing (e.g., per section) which is ideal for long-form notes.\n    *   **Key Feature:** \"SimpleDirectoryReader\" automatically detects and loads Markdown files.\n    *   **Best For:** Complex note structures requiring advanced retrieval strategies (e.g., parent-child chunking).\n\n*   **[LangChain](https://github.com/langchain-ai/langchain)**\n    *   **Focus:** Orchestration and application framework.\n    *   **Markdown Support:** Uses `UnstructuredMarkdownLoader` or custom text splitters. It treats Markdown as text but preserves structural markers (headers) via text splitters like `MarkdownHeaderTextSplitter`.\n    *   **Key Feature:** Massive ecosystem of vector store integrations (Pinecone, Chroma, Weaviate).\n    *   **Best For:** Developers who want full control over the pipeline and integration with other tools (agents, tools, memory).\n\n### 2. Local-First & Personal Knowledge Management (PKM)\nThese tools are designed to run locally, often utilizing local LLMs (via Ollama) and local vector databases, specifically targeting personal Markdown vaults (like Obsidian or Logseq).\n\n*   **[PrivateGPT](https://github.com/imartinez/privateGPT)**\n    *",
+      "prompt_tokens": 32,
+      "completion_tokens": 400,
+      "latency_ms": 9653,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 9,
+      "routed_to": "mimo-v2-flash",
+      "classified_tier": "medium"
+    },
+    {
+      "output": "# Refactoring Auth: Session Cookies \u2192 OAuth 2.0\n\n## Migration Overview\n\nThis is a large-surface refactor. Below is a comprehensive, step-by-step transformation from a typical session-cookie auth system to OAuth 2.0 (Authorization Code flow with PKCE).\n\n---\n\n## Before (Session Cookie Auth)\n\n```python\n# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n# auth/session.py \u2014 OLD: Session-cookie based auth\n# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nimport hashlib, os, time\nfrom functools import wraps\nfrom flask import Flask, request, redirect, session, jsonify, make_response\nfrom werkzeug.security import generate_password_hash, check_password_hash\nfrom database import db, User  # ORM model\n\napp = Flask(__name__)\napp.secret_key = os.environ[\"FLASK_SECRET\"]  # used to sign session cookies\n\n# \u2500\u2500\u2500 Registration / Login (local password store) \u2500\u2500\u2500\n\n@app.route(\"/register\", methods=[\"POST\"])\ndef register():\n    data = request.json\n    if User.query.filter_by(email=data[\"email\"]).first():\n        return jsonify(error=\"Email already registered\"), 409\n\n    user = User(\n        email=data[\"email\"],\n        password_hash=generate_password_hash(data[\"password\"]),\n    )\n    db.session.add(user)\n    db.session.commit()\n    return jsonify(id=user.id), 201\n\n\n@app.route(\"/login\", methods=[\"POST\"])\ndef login():\n    data = request.json\n    user = User.query.filter_by(email=data[\"email\"]).first()\n\n    if not user or not check_password_hash(user.password_hash, data[\"password\"]):\n        return jsonify(error=\"Invalid credentials\"), 401\n\n    # Store user ID in the server-side (or signed client-side) session cookie\n    session[\"user_id\"] = user.id\n    session[\"login_time\"] = time.time()\n    return jsonify(message=\"Logged in\")\n\n\n@app.route(\"/logout\", methods=[\"POST\"])\ndef logout():\n    session.clear()\n    return jsonify(message=\"Logged out\")\n\n\n# \u2500\u2500\u2500 Auth decorator (relied on session cookie) \u2500\u2500\u2500\n\ndef login_required(f):\n    @wraps(f)\n    def decorated(*args, **kwargs):\n        user_id = session.get(\"user_id\")\n        if not user_id:\n            return jsonify(error=\"Authentication required\"), 401\n\n        user = db.session.get(User, user_id)\n        if not user:\n            session.clear()\n            return jsonify(error=\"User not found\"), 401\n\n        # Attach user object to request context\n        request.current_user = user\n        return f(*args, **kwargs)\n    return decorated\n\n\n# \u2500\u2500\u2500 Protected endpoint example \u2500\u2500\u2500\n\n@app.route(\"/api/profile\", methods=[\"GET\"])\n@login_required\ndef get_profile():\n    user = request.current_user\n    return jsonify(email=user.email, created_at=user.created_at.isoformat())\n\n\n# \u2500\u2500\u2500 Problems with this approach \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n# 1. Server must maintain / validate sessions (stateful)\n# 2. Passwords stored locally \u2192 breach risk\n# 3. No single sign-on (SSO) across services\n# 4. CSRF protection needed for every mutating endpoint\n# 5. Cookie scope issues across",
+      "prompt_tokens": 31,
+      "completion_tokens": 800,
+      "latency_ms": 15102,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 10,
+      "routed_to": "mimo-v2.5-pro",
+      "classified_tier": "hard"
+    },
+    {
+      "output": "# Multi-Tenant Storage Architecture for SaaS\n\n## High-Level Architecture Overview\n\n```\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502                           CLIENT LAYER                                      \u2502\n\u2502  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510                    \u2502\n\u2502  \u2502 Tenant A \u2502  \u2502 Tenant B \u2502  \u2502 Tenant C \u2502  \u2502 Tenant D \u2502                    \u2502\n\u2502  \u2514\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2518  \u2514\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2518  \u2514\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2518  \u2514\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2518                    \u2502\n\u2502       \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518                         \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n                       \u25bc              \u25bc\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502                        API GATEWAY / ROUTER                                 \u2502\n\u2502  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u2502\n\u2502  \u2502 Auth/Verify  \u2502\u2192\u2502 Tenant        \u2502\u2192\u2502 Rate Limiter  \u2502\u2192\u2502 Request Router\u2502  \u2502\n\u2502  \u2502 (JWT/API Key)\u2502  \u2502 Resolver      \u2502  \u2502 (per-tenant)  \u2502  \u2502               \u2502  \u2502\n\u2502  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518  \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n                       \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n                       \u25bc\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502                     TENANT-AWARE STORAGE MIDDLEWARE                         \u2502\n\u2502  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510    \u2502\n\u2502  \u2502 Context Injector  \u2502  \u2502 Connection Pool  \u2502  \u2502 Query Filter           \u2502    \u2502\n\u2502  \u2502 (tenant_id in     \u2502  \u2502 Manager          \u2502  \u2502 (auto-append           \u2502    \u2502\n\u2502  \u2502  all requests)    \u2502  \u2502 (per-strategy)   \u2502  \u2502  tenant_id WHERE)      \u2502    \u2502\n\u2502  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518    \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n                       \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n                       \u25bc\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502                     STORAGE LAYER (Tiered)                                  \u2502\n\u2502                                                                             \u2502\n\u2502  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510   \u2502\n\u2502  \u2502  HOT TIER (Frequently Accessed / Current Data)                      \u2502   \u2502\n\u2502  \u2502  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510",
+      "prompt_tokens": 30,
+      "completion_tokens": 800,
+      "latency_ms": 14303,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 11,
+      "routed_to": "mimo-v2.5-pro",
+      "classified_tier": "hard"
+    },
+    {
+      "output": "# Distributed Lock Service Across Three Microservices\n\n## Architecture Overview\n\n```\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502                      DISTRIBUTED LOCK SYSTEM                        \u2502\n\u2502                                                                     \u2502\n\u2502  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510    gRPC     \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510    gRPC         \u2502\n\u2502  \u2502 Worker Svc A \u2502\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u25b6\u2502   Lock Service    \u2502\u25c0\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 \u2502\n\u2502  \u2502  (Port 50051)\u2502            \u2502   (Port 50053)    \u2502   Worker Svc B \u2502\n\u2502  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518            \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518   (Port 50052)  \u2502\n\u2502         \u2502                             \u2502                             \u2502\n\u2502         \u2502  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510 \u2502\n\u2502         \u2502  \u2502         REDIS CLUSTER    \u2502                          \u2502 \u2502\n\u2502         \u2502  \u2502  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510 \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510                 \u2502 \u2502\n\u2502         \u2514\u2500\u2500\u253c\u2500\u25b6\u2502Master  \u2502\u25c0\u25b6\u2502Replica \u2502  \u2502Replica \u2502                 \u2502 \u2502\n\u2502            \u2502  \u2502:6379   \u2502 \u2502 :6380  \u2502  \u2502 :6381  \u2502                 \u2502 \u2502\n\u2502            \u2502  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518 \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518                 \u2502 \u2502\n\u2502            \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518 \u2502\n\u2502                                                                     \u2502\n\u2502  Features:                                                          \u2502\n\u2502  \u2022 Redlock algorithm for distributed consensus                      \u2502\n\u2502  \u2022 Automatic TTL with watchdog renewal                              \u2502\n\u2502  \u2022 Ownership verification on release                                \u2502\n\u2502  \u2022 Circuit breaker + retry with exponential backoff                 \u2502\n\u2502  \u2022 Deadlock detection & resolution                                  \u2502\n\u2502  \u2022 Lock queuing with fair ordering                                  \u2502\n\u2502  \u2022 Health checking & metrics                                        \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n```\n\n## Project Structure\n\n```\ndistributed-lock-service/\n\u251c\u2500\u2500 proto/\n\u2502   \u2514\u2500\u2500 lock_service.proto\n\u251c\u2500\u2500 lock_service/\n\u2502   \u251c\u2500\u2500 __init__.py\n\u2502   \u251c\u2500\u2500 server.py\n\u2502   \u251c\u2500\u2500 redlock.py\n\u2502   \u251c\u2500\u2500 lock_manager.py\n\u2502   \u251c\u2500\u2500 watchdog.py\n\u2502   \u251c\u2500\u2500 circuit_breaker.py\n\u2502   \u251c\u2500\u2500 deadlock_detector.py\n\u2502   \u251c\u2500\u2500 metrics.py\n\u2502   \u2514\u2500\u2500 config.py\n\u251c\u2500\u2500 worker_a/\n\u2502   \u251c\u2500\u2500 __init__.py\n\u2502   \u2514\u2500\u2500 server.py\n\u251c\u2500\u2500 worker_b/\n\u2502   \u251c\u2500\u2500 __init__.py\n\u2502   \u2514\u2500\u2500 server.py\n\u251c\u2500\u2500 client/\n\u2502   \u251c\u2500\u2500 __init__.py\n\u2502   \u2514\u2500\u2500 lock_client.py\n\u251c\u2500\u2500 docker-compose.yml\n\u251c\u2500\u2500 requirements.txt\n\u2514\u2500\u2500 tests/\n    \u251c\u2500\u2500 test_redlock.py\n    \u251c\u2500\u2500 test_lock_manager.py\n    \u2514\u2500\u2500 test_integration.py\n```\n\n## 1. Protocol Definition",
+      "prompt_tokens": 28,
+      "completion_tokens": 800,
+      "latency_ms": 14914,
+      "attempt": 1,
+      "trial": 0,
+      "prompt_idx": 12,
+      "routed_to": "mimo-v2.5-pro",
+      "classified_tier": "hard"
+    }
+  ],
+  "classifications": [
+    {
+      "tier": "simple",
+      "agent": "research-lite",
+      "model": "haiku",
+      "confidence": 0.85,
+      "reason": "factual lookup",
+      "lean_context": [],
+      "source": "regex",
+      "_classify_ms": 58,
+      "prompt_idx": 0,
+      "expected_tier": "simple"
+    },
+    {
+      "tier": "simple",
+      "agent": "quick-fix",
+      "model": "haiku",
+      "confidence": 0.85,
+      "reason": "one-liner fix",
+      "lean_context": [],
+      "source": "regex",
+      "_classify_ms": 46,
+      "prompt_idx": 1,
+      "expected_tier": "simple"
+    },
+    {
+      "tier": "simple",
+      "agent": "local-ollama",
+      "model": "local:gemma4:26b",
+      "confidence": 0.8,
+      "reason": "summarization -- local model fine",
+      "lean_context": [],
+      "source": "regex",
+      "_classify_ms": 48,
+      "prompt_idx": 2,
+      "expected_tier": "simple"
+    },
+    {
+      "tier": "simple",
+      "agent": "quick-fix",
+      "model": "haiku",
+      "confidence": 0.9,
+      "reason": "git mechanical",
+      "lean_context": [],
+      "source": "regex",
+      "_classify_ms": 48,
+      "prompt_idx": 3,
+      "expected_tier": "simple"
+    },
+    {
+      "tier": "simple",
+      "agent": "wiki-note",
+      "model": "haiku",
+      "confidence": 0.9,
+      "reason": "wiki add/edit pattern",
+      "lean_context": [
+        "**/*.md",
+        "index.md"
+      ],
+      "source": "regex",
+      "_classify_ms": 48,
+      "prompt_idx": 4,
+      "expected_tier": "simple"
+    },
+    {
+      "tier": "simple",
+      "agent": "quick-fix",
+      "model": "haiku",
+      "confidence": 0.75,
+      "reason": "setup task",
+      "lean_context": [],
+      "source": "regex-low-conf",
+      "_classify_ms": 49,
+      "prompt_idx": 5,
+      "expected_tier": "simple"
+    },
+    {
+      "tier": "simple",
+      "agent": "research-lite",
+      "model": "haiku",
+      "confidence": 0.85,
+      "reason": "factual lookup",
+      "lean_context": [],
+      "source": "regex",
+      "_classify_ms": 51,
+      "prompt_idx": 6,
+      "expected_tier": "simple"
+    },
+    {
+      "tier": "medium",
+      "agent": "research-lite",
+      "model": "sonnet",
+      "confidence": 0.8,
+      "reason": "research-lite task",
+      "lean_context": [],
+      "source": "regex",
+      "_classify_ms": 48,
+      "prompt_idx": 7,
+      "expected_tier": "medium"
+    },
+    {
+      "tier": "medium",
+      "agent": "research-lite",
+      "model": "sonnet",
+      "confidence": 0.8,
+      "reason": "research-lite task",
+      "lean_context": [],
+      "source": "regex",
+      "_classify_ms": 48,
+      "prompt_idx": 8,
+      "expected_tier": "medium"
+    },
+    {
+      "tier": "medium",
+      "agent": "research-lite",
+      "model": "sonnet",
+      "confidence": 0.8,
+      "reason": "research-lite task",
+      "lean_context": [],
+      "source": "regex",
+      "_classify_ms": 48,
+      "prompt_idx": 9,
+      "expected_tier": "medium"
+    },
+    {
+      "tier": "hard",
+      "agent": "none",
+      "model": "opus",
+      "confidence": 0.9,
+      "reason": "complex task -- opus appropriate",
+      "lean_context": [],
+      "source": "regex",
+      "_classify_ms": 51,
+      "prompt_idx": 10,
+      "expected_tier": "hard"
+    },
+    {
+      "tier": "hard",
+      "agent": "none",
+      "model": "opus",
+      "confidence": 0.9,
+      "reason": "complex task -- opus appropriate",
+      "lean_context": [],
+      "source": "regex",
+      "_classify_ms": 47,
+      "prompt_idx": 11,
+      "expected_tier": "hard"
+    },
+    {
+      "tier": "hard",
+      "agent": "none",
+      "model": "opus",
+      "confidence": 0.9,
+      "reason": "complex task -- opus appropriate",
+      "lean_context": [],
+      "source": "regex",
+      "_classify_ms": 48,
+      "prompt_idx": 12,
+      "expected_tier": "hard"
+    }
+  ],
+  "summary": {
+    "without_triage": {
+      "prompt_total": 374,
+      "completion_total": 6387,
+      "total": 6761,
+      "latency_total_ms": 336278
+    },
+    "with_triage": {
+      "prompt_total": 394,
+      "completion_total": 4951,
+      "total": 5345,
+      "latency_total_ms": 94923
+    },
+    "delta_total_tokens": -1416,
+    "delta_total_pct": -20.94,
+    "classification_accuracy": 1.0,
+    "classification_ms_mean": 49.1,
+    "routing": {
+      "mimo-v2-flash": 10,
+      "mimo-v2.5-pro": 3
+    }
+  }
+}
