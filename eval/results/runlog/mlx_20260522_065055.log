@@ -1,0 +1,29 @@
+/Users/za/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Fetching 6 files:   0%|          | 0/6 [00:00<?, ?it/s]Fetching 6 files:  17%|█▋        | 1/6 [00:01<00:06,  1.21s/it]Fetching 6 files:  33%|███▎      | 2/6 [01:55<04:31, 67.92s/it]Fetching 6 files: 100%|██████████| 6/6 [01:55<00:00, 19.31s/it]
+/Users/za/Library/Python/3.9/lib/python/site-packages/mlx_lm/server.py:1468: UserWarning: mlx_lm.server is not recommended for production as it only implements basic security checks.
+  warnings.warn(
+2026-05-22 06:52:53,076 - INFO - Starting httpd at 127.0.0.1 on port 8082...
+127.0.0.1 - - [22/May/2026 06:53:13] "GET /v1/models HTTP/1.1" 200 -
+127.0.0.1 - - [22/May/2026 06:53:28] "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-05-22 06:53:28,506 - INFO - Prompt processing progress: 40/41
+127.0.0.1 - - [22/May/2026 06:53:28] "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-05-22 06:53:28,911 - INFO - Prompt processing progress: 40/41
+127.0.0.1 - - [22/May/2026 06:53:29] "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-05-22 06:53:29,429 - INFO - Prompt processing progress: 242/243
+127.0.0.1 - - [22/May/2026 06:53:30] "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-05-22 06:53:30,101 - INFO - Prompt processing progress: 22/23
+127.0.0.1 - - [22/May/2026 06:53:31] "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-05-22 06:53:31,053 - INFO - Prompt processing progress: 22/23
+127.0.0.1 - - [22/May/2026 06:53:32] "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-05-22 06:53:32,358 - INFO - Prompt processing progress: 22/23
+127.0.0.1 - - [22/May/2026 06:53:33] "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-05-22 06:53:33,224 - INFO - Prompt processing progress: 22/23
+127.0.0.1 - - [22/May/2026 06:53:36] "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-05-22 06:53:36,795 - INFO - Prompt processing progress: 18/19
+127.0.0.1 - - [22/May/2026 06:53:37] "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-05-22 06:53:37,764 - INFO - Prompt processing progress: 18/19
+127.0.0.1 - - [22/May/2026 06:53:38] "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-05-22 06:53:38,835 - INFO - Prompt processing progress: 18/19
+127.0.0.1 - - [22/May/2026 06:53:39] "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-05-22 06:53:39,693 - INFO - Prompt processing progress: 18/19

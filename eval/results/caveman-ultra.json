@@ -1,0 +1,280 @@
+{
+  "task_id": "caveman-ultra",
+  "skills": [
+    "caveman-ultra"
+  ],
+  "model": "mimo-v2-flash",
+  "n": 3,
+  "prompts": [
+    "Explain what a binary search tree is and when to use one.",
+    "Summarize the difference between SQL and NoSQL databases in 3 sentences.",
+    "What's the safest way to delete a file in a shell script? Show one example.",
+    "How does prompt caching work in modern LLM APIs? Why does it help?",
+    "What does `git rebase -i` do? Give a short, practical example."
+  ],
+  "rubric": "Rate 0-5 on whether the candidate answer is correct AND concise.\n5 = correct and tight (no filler)\n4 = correct, slight verbosity OK\n3 = correct but rambly\n2 = partial / inaccurate\n1 = mostly wrong\n0 = blank or refused\nReply: digit on first line, brief reason on second.\n",
+  "without_skill": [
+    {
+      "trial": 0,
+      "prompt_idx": 0,
+      "output": "A **Binary Search Tree (BST)** is a hierarchical data structure that organizes data in a sorted manner, allowing for efficient searching, insertion, and deletion operations.\n\nHere is a breakdown of what it is and when to use it.\n\n---\n\n### 1. What is a Binary Search Tree?\n\nA BST is a binary tree (a data structure where each node has at most two children) that follows a strict ordering property.\n\n#### The Core Rule\nFor any given node $N$:\n*   **Left Subtree:** All values in the left subtree must be **less than** $N$'s value.\n*   **Right Subtree:** All values in the right subtree must be **greater than** $N$'s value.\n*   **No Duplicates:** (Most implementations) do not allow duplicate values, though some variations do.\n\n#### Visual Example\nImagine a list of numbers: `[8, 3, 10, 1, 6, 14]`\n\nA valid BST structure would look like this:\n\n```text\n      8\n     / \\\n    3   10\n   / \\    \\\n  1   6    14\n```\n\n*   **Root (8):** Everything to the left (3, 1, 6) is smaller; everything to the right (10, 14) is larger.\n*   **Node (3):** Its left child (1) is smaller; its right child (6) is larger.\n\n#### How Operations Work\nBecause of the ordering property, the tree acts like a \"divide and conquer\" structure.\n\n1.  **Search:** Start at the root. If the target is smaller, go left; if larger, go right. Repeat until found or the end is reached.\n2.  **Insert:** Traverse the tree exactly like a search. When you hit a `null` pointer (an empty spot), place the new node there.\n3.  **Delete:** This is the most complex operation. Depending on the node's children (0, 1, or 2), you must rearrange the tree to maintain the BST property.\n\n---\n\n### 2. Performance Characteristics\n\nThe efficiency of a BST depends heavily on its **balance**.\n\n| Operation | Average Case | Worst Case |\n| :--- | :--- | :--- |\n| **Search** | $O(\\log n)$ | $O(n)$ |\n| **Insert** | $O(\\log n)$ | $O(n)$ |\n| **Delete** | $O(\\log n)$ | $O(n)$ |\n\n*   **Average Case:** The tree is balanced (like the example above). The height is roughly $\\log n$, so operations are very fast.\n*   **Worst Case:** The tree becomes \"skewed\" (essentially a linked list). For example, if you insert numbers in sorted order `[1, 2, 3, 4, 5]`, the tree will only have right children. The height becomes $n$, and performance degrades to linear time.\n\n*Note: To avoid the worst case, developers often use **Self-Balancing BSTs** like AVL Trees or Red-Black Trees.*\n\n---\n\n### 3. When to Use a Binary Search Tree\n\nYou should choose a BST when you need a balance between the speed of arrays and the flexibility of linked lists.\n\n#### Ideal Use Cases:\n\n1.  **Dynamic Data Sets with Frequent Lookups:**\n    If you have a dataset that changes frequently (insertions/deletions) but is also searched often, a BST is better than a sorted array. In a sorted array, inserting an element requires shifting all subsequent elements ($O(n)$), whereas a BST inserts in $O(\\log n)$.\n\n2.  **Finding the \"Next\" or \"Previous\" Element:**\n    BSTs are excellent for finding the **in-order successor** (next largest value) or **predecessor** (next smallest value). This is useful for auto-complete features or scheduling tasks.\n\n3.  **Range Queries:**\n    If you need to find all values between $X$ and $Y$, a BST can efficiently prune branches that don't fit the range, making it faster than scanning a linked list.\n\n4.  **Symbol Tables / Dictionaries:**\n    While Hash Tables are generally faster for pure lookups ($O(1)$), BSTs offer a significant advantage: **ordered iteration**. If you need to print all keys in sorted order, a BST does this naturally via in-order traversal.\n\n#### Common Real-World Examples:\n*   **File Systems:** Directories are often organized in a tree structure.\n*   **Database Indexing:** Many databases use B-Trees (a generalization of BSTs) to index data for fast retrieval.\n*   **3D Graphics:** Scene graphs use tree structures to render objects efficiently.\n\n---\n\n### 4. When NOT to Use a BST\n\n1.",
+      "latency_ms": 10330,
+      "prompt_eval_count": 34,
+      "eval_count": 1024
+    },
+    {
+      "trial": 0,
+      "prompt_idx": 1,
+      "output": "SQL databases use a fixed schema and structured query language for relational data, while NoSQL databases are schema-less and designed for flexible, non-relational data models. SQL databases scale vertically by adding more resources to a single server, whereas NoSQL databases scale horizontally by distributing data across multiple servers. SQL is ideal for complex queries and transactional consistency, while NoSQL excels at handling large volumes of unstructured data and high-velocity workloads.",
+      "latency_ms": 2816,
+      "prompt_eval_count": 36,
+      "eval_count": 90
+    },
+    {
+      "trial": 0,
+      "prompt_idx": 2,
+      "output": "The safest way to delete a file in a shell script is to **check if the file exists and is a regular file** before attempting to delete it. This prevents accidental deletion of directories, special files, or non-existent files.\n\nHere's a robust example using `test` (or `[ ]`) with multiple safety checks:\n\n```bash\n#!/bin/bash\n\nFILE_PATH=\"/path/to/your/file.txt\"\n\n# Safety checks before deletion\nif [ -f \"$FILE_PATH\" ]; then\n    # Optional: Check if file is writable\n    if [ -w \"$FILE_PATH\" ]; then\n        # Delete the file\n        rm \"$FILE_PATH\"\n        echo \"File deleted successfully: $FILE_PATH\"\n    else\n        echo \"Error: Cannot delete file (no write permission): $FILE_PATH\"\n        exit 1\n    fi\nelse\n    echo \"Error: File does not exist or is not a regular file: $FILE_PATH\"\n    exit 1\nfi\n```\n\n### Key Safety Features:\n\n1. **`[ -f \"$FILE_PATH\" ]`** - Ensures the path exists AND is a regular file (not a directory, symlink, or special file)\n2. **`[ -w \"$FILE_PATH\" ]`** - Checks write permission before attempting deletion\n3. **Quoting `\"$FILE_PATH\"`** - Prevents issues with spaces or special characters in filenames\n4. **Error handling** - Exits with non-zero status on failure\n5. **Clear feedback** - Provides informative messages about what happened\n\n### Alternative: Using `rm -i` for Interactive Deletion\n\nFor extra safety, you can use the interactive flag:\n\n```bash\nif [ -f \"$FILE_PATH\" ]; then\n    rm -i \"$FILE_PATH\"  # Prompts for confirmation\nfi\n```\n\n### Even Safer: Using `shred` for Sensitive Files\n\nFor sensitive data, consider using `shred` instead of `rm`:\n\n```bash\nif [ -f \"$FILE_PATH\" ]; then\n    shred -u \"$FILE_PATH\"  # Overwrites file before deletion\nfi\n```\n\n**Note:** The `-u` flag removes the file after shredding. This is more secure but slower than regular deletion.",
+      "latency_ms": 6557,
+      "prompt_eval_count": 38,
+      "eval_count": 468
+    },
+    {
+      "trial": 0,
+      "prompt_idx": 3,
+      "output": "Hey there! So you're curious about prompt caching in LLM APIs? That's a great question - it's actually one of those sneaky optimizations that can make a huge difference in both performance and cost!\n\n## What is Prompt Caching?\n\nThink of it like this: imagine you're having a conversation with a friend, and you keep repeating the same context over and over. Instead of re-explaining everything each time, your friend just remembers it. That's basically what prompt caching does for LLMs!\n\nWhen you send a prompt to an LLM API, the system can store (cache) the processed context from that prompt. If you send the same or very similar prompt again later, instead of re-processing everything from scratch, the API can reuse the cached version.\n\n## How It Works Under the Hood\n\nHere's the cool part - modern LLMs use something called the \"KV cache\" (Key-Value cache). During the attention mechanism, the model computes keys and values for each token in your prompt. These are expensive to calculate! \n\nWhen caching is enabled:\n1. **First request**: The model processes your entire prompt and stores the KV pairs\n2. **Subsequent requests**: If the prompt matches the cache, it reuses those KV pairs and only processes the new tokens\n\nMost modern APIs (like OpenAI, Anthropic, etc.) implement this automatically, often with a time-based expiration (like 5-15 minutes).\n\n## Why It Helps So Much\n\n**Speed Boost**: This is huge! Instead of re-processing a 10,000-token system prompt every single time, you're only processing the new user input. We're talking about reducing response times by 50-80% in many cases.\n\n**Cost Savings**: Many APIs charge per token processed. If you're caching 80% of your prompt, you're only paying for the new 20%. That's a massive reduction in costs for applications with repetitive contexts.\n\n**Better User Experience**: Faster responses = happier users. For chat applications, this means snappier conversations that feel more natural.\n\n## Real-World Example\n\nLet's say you're building a customer service bot with a detailed 2,000-token knowledge base. Without caching, every single customer query would require processing those 2,000 tokens plus the new question. With caching, you process the knowledge base once, then only the customer's question each time.\n\n## The Catch\n\nThere are some limitations:\n- **Cache invalidation**: If you change your system prompt, you need to wait for the cache to expire or manually clear it\n- **Similarity matching**: Some systems only cache exact matches, while others use fuzzy matching\n- **Memory limits**: Caches have size limits, so very large prompts might not always be cached\n\n## Pro Tips\n\nIf you're building with LLMs:\n1. Structure your prompts to maximize cache hits (put static content first)\n2. Use consistent system prompts across similar requests\n3. Check your API provider's caching documentation - they all work slightly differently\n\nThe beauty of prompt caching is that it's mostly transparent to developers - you get the benefits without changing your code much. It's one of those \"set it and forget it\" optimizations that just makes everything better!\n\nPretty neat how a simple concept can have such a big impact, right?",
+      "latency_ms": 8207,
+      "prompt_eval_count": 36,
+      "eval_count": 691
+    },
+    {
+      "trial": 0,
+      "prompt_idx": 4,
+      "output": "`git rebase -i` (interactive rebase) lets you rewrite your commit history before merging it into another branch. It opens an editor showing your recent commits, allowing you to **reorder, squash, edit, or drop** them.\n\n### Practical Example\n\nImagine you have these commits on your feature branch:\n\n```\na1b2c3d Add login form\ne4f5g6h Fix typo in login\nh7i8j9k Add password validation\n```\n\nYou want to clean this up before merging to `main`.\n\n**Step 1:** Start interactive rebase (for the last 3 commits):\n```bash\ngit rebase -i HEAD~3\n```\n\n**Step 2:** In the editor, change the commands:\n```\npick a1b2c3d Add login form\nsquash e4f5g6h Fix typo in login\nsquash h7i8j9k Add password validation\n```\n\n**Step 3:** Save and exit. Git will:\n1. Combine all three commits into one\n2. Open another editor to write a new commit message (e.g., \"Add login with validation\")\n\n**Result:** Your messy three commits become one clean commit, making your history easier to read.\n\n**Common commands:**\n- `pick` \u2013 keep the commit\n- `squash` \u2013 merge into previous commit\n- `reword` \u2013 change commit message\n- `drop` \u2013 delete a commit\n- `edit` \u2013 pause to amend the commit",
+      "latency_ms": 4966,
+      "prompt_eval_count": 38,
+      "eval_count": 317
+    },
+    {
+      "trial": 1,
+      "prompt_idx": 0,
+      "output": "A **Binary Search Tree (BST)** is a hierarchical data structure that organizes data in a tree format to allow for fast lookup, insertion, and deletion operations.\n\nHere is a breakdown of what it is and when to use it.\n\n---\n\n### What is a Binary Search Tree?\n\nA BST is a specific type of binary tree (a tree where every node has at most two children: a left child and a right child) that follows a strict ordering property.\n\n#### The Core Rule\nFor any given node $N$:\n1.  **Left Subtree:** All values in the left subtree must be **less than** $N$'s value.\n2.  **Right Subtree:** All values in the right subtree must be **greater than** $N$'s value.\n3.  **Uniqueness:** Typically, duplicate values are not allowed (though implementations can vary).\n\n#### Visual Example\nImagine a dataset: `[10, 5, 15, 2, 7, 12, 20]`\n\nA valid BST would look like this:\n\n```text\n      10\n     /  \\\n    5    15\n   / \\   / \\\n  2   7 12  20\n```\n\n*   **Root (10):** Everything to the left (5, 2, 7) is smaller; everything to the right (15, 12, 20) is larger.\n*   **Node (5):** Its left child (2) is smaller; its right child (7) is larger.\n\n#### How Operations Work\nBecause of the ordering rule, the tree acts like a decision tree, cutting the search space in half at every step.\n\n1.  **Search:** Start at the root. If the target is smaller, go left; if larger, go right. Repeat until found or the end is reached.\n2.  **Insert:** Traverse the tree just like a search. When you hit a `null` pointer (an empty spot), place the new node there.\n3.  **Delete:** This is the most complex operation. You must maintain the tree structure while removing a node:\n    *   *Leaf node:* Simply remove it.\n    *   *One child:* Replace the node with its child.\n    *   *Two children:* Find the \"in-order successor\" (the smallest value in the right subtree), replace the node's value with that successor, and then delete the successor node.\n\n---\n\n### Performance (Time Complexity)\n\nThe efficiency of a BST depends heavily on the \"shape\" of the tree.\n\n| Operation | Average Case | Worst Case |\n| :--- | :--- | :--- |\n| **Search** | $O(\\log n)$ | $O(n)$ |\n| **Insert** | $O(\\log n)$ | $O(n)$ |\n| **Delete** | $O(\\log n)$ | $O(n)$ |\n\n*   **Average Case:** The tree is balanced (roughly the same height on both sides).\n*   **Worst Case:** The tree becomes \"skewed\" (essentially a linked list). This happens if you insert sorted data (e.g., 1, 2, 3, 4, 5) into a standard BST. The tree grows only in one direction, losing the logarithmic advantage.\n\n*Note: To guarantee $O(\\log n)$ performance, developers often use **Self-Balancing BSTs** like AVL Trees or Red-Black Trees, which automatically rotate nodes to keep the tree height minimal.*\n\n---\n\n### When to Use a Binary Search Tree\n\nYou should consider using a BST when you need a balance between the fast access of an array and the flexible size of a linked list.\n\n#### 1. When You Need Dynamic Data with Fast Lookups\nIf you have a dataset that changes frequently (insertions and deletions) but you also need to search for items often, a BST is excellent.\n*   *Example:* A real-time inventory system where items are added and sold frequently, but you need to quickly check stock levels.\n\n#### 2. When You Need Ordered Data\nUnlike Hash Tables (which are unordered), BSTs store data in a sorted sequence. This makes them ideal for operations that require order.\n*   *Example:* Finding the \"next closest\" value, finding the minimum or maximum element, or printing data in sorted order (via In-Order Traversal).\n\n#### 3. When Memory is a Concern\nBSTs are efficient with memory. Unlike arrays, they don't require pre-allocated contiguous memory blocks. Unlike Hash Tables, they don't require empty slots (buckets) to minimize collisions, so they use memory proportional to the number of elements actually stored.\n\n#### 4. Database Indexing and File Systems\nBSTs (and their variants like B-Trees) are the backbone of database indexing. They allow the database to find a record by a specific key (",
+      "latency_ms": 11319,
+      "prompt_eval_count": 34,
+      "eval_count": 1024
+    },
+    {
+      "trial": 1,
+      "prompt_idx": 1,
+      "output": "SQL databases use a fixed schema and structured query language (SQL) to manage relational data with strict consistency, while NoSQL databases are schema-less and designed for flexible, unstructured data with horizontal scalability. SQL databases excel at complex queries and transactions (ACID compliance), whereas NoSQL databases prioritize speed and scalability for large-scale, distributed systems. Common SQL examples include MySQL and PostgreSQL, while popular NoSQL options include MongoDB (document-based) and Redis (key-value).",
+      "latency_ms": 3125,
+      "prompt_eval_count": 36,
+      "eval_count": 94
+    },
+    {
+      "trial": 1,
+      "prompt_idx": 2,
+      "output": "The safest way to delete a file in a shell script is to **check if the file exists and is a regular file** before attempting to delete it. This prevents accidental deletion of directories, symbolic links, or non-existent files, and avoids unintended consequences.\n\nHere's a robust example using `bash`:\n\n```bash\n#!/bin/bash\n\n# Define the file path\nFILE=\"/path/to/your/file.txt\"\n\n# Safety check: Verify the file exists and is a regular file\nif [ -f \"$FILE\" ]; then\n    # Optional: Prompt for confirmation (interactive scripts)\n    # read -p \"Delete $FILE? (y/n): \" -n 1 -r\n    # echo\n    # if [[ $REPLY =~ ^[Yy]$ ]]; then\n        rm -f \"$FILE\"\n        echo \"File deleted successfully.\"\n    # fi\nelse\n    echo \"Error: File does not exist or is not a regular file.\"\nfi\n```\n\n### Key Safety Features:\n1. **`-f` flag**: Forces deletion without prompting (useful in scripts) but only after verification.\n2. **`-f` test**: Checks if the path exists and is a regular file (not a directory or symlink).\n3. **Quoted variable**: Prevents issues with spaces or special characters in the filename.\n4. **Error handling**: Provides clear feedback if the file doesn't exist.\n\n### Alternative: Using `rm -i` for Interactive Deletion\nFor critical files, you can use `rm -i` (interactive mode) which prompts before each deletion:\n\n```bash\nif [ -f \"$FILE\" ]; then\n    rm -i \"$FILE\"\nelse\n    echo \"File not found.\"\nfi\n```\n\n### Best Practices:\n- **Always use absolute paths** or properly resolve relative paths to avoid deleting the wrong file.\n- **Test your script** with `echo` before running `rm` to verify the logic.\n- **Consider using `shred`** for sensitive files (if security is a concern): `shred -u \"$FILE\"` (securely overwrites and deletes).\n\nThis approach minimizes the risk of accidental data loss while maintaining script reliability.",
+      "latency_ms": 5683,
+      "prompt_eval_count": 38,
+      "eval_count": 453
+    },
+    {
+      "trial": 1,
+      "prompt_idx": 3,
+      "output": "Hey there! \ud83c\udf1f So you're curious about prompt caching in LLM APIs? Let me break this down in a way that's actually fun to think about!\n\n## What is Prompt Caching?\n\nThink of it like this - imagine you're a student studying for exams, and you keep re-reading the same textbook chapters over and over. Instead of reading the entire book every single time, you'd probably just bookmark the important sections, right? That's basically what prompt caching does for LLMs!\n\nWhen you send a prompt to an LLM API, the system can store (cache) the computational results of processing that prompt. If you send the same or very similar prompt again later, instead of re-computing everything from scratch, it just pulls the cached version. It's like having a photographic memory for conversations!\n\n## How Does It Actually Work?\n\nHere's the cool part - modern LLM APIs use something called \"key-value caching\" at the attention layer level. When the model processes your prompt, it creates these mathematical representations (called keys and values) for each token. The caching system stores these representations so that when you continue the conversation or send a similar prompt, it doesn't have to recalculate all those relationships from the beginning.\n\nIt's kind of like when you're cooking and you've already prepped all your ingredients - you don't need to chop the onions again for the next dish!\n\n## Why Does It Help? (The Magic Part!)\n\n**Speed Boost**: This is the biggest win! Instead of waiting for the model to process your entire prompt again, you get responses way faster. We're talking about reducing response times by 2-10x in many cases!\n\n**Cost Savings**: Less computation means less server time, which translates to lower costs for both you and the API provider. It's like getting a bulk discount on your AI usage!\n\n**Better Conversations**: For chat applications, this is huge! When you're having a back-and-forth conversation, the model doesn't need to re-analyze your entire chat history every single message. It just builds on what it already \"knows\" from the cached context.\n\n**Scalability**: API providers can handle way more requests when they're not constantly re-computing the same prompts. This means more people can use the service without slowdowns.\n\n## Real-World Example\n\nImagine you're building a customer service chatbot. Every time someone asks \"What's your return policy?\", instead of the AI re-processing that entire policy document from scratch, it can pull from the cache and give you an instant, accurate response. The more people ask the same question, the faster and more efficient it gets!\n\n## The Smart Part\n\nModern systems are clever about what they cache. They don't just store everything blindly - they use smart algorithms to determine when caching makes sense. For example, they might cache the system prompt (your instructions to the AI) but not the user's unique personal data for privacy reasons.\n\n## The Bottom Line\n\nPrompt caching is like having a really efficient librarian who remembers exactly where every book is and can fetch information instantly instead of searching the entire library every time. It makes AI interactions feel more natural, responsive, and affordable - which is why it's become such a game-changer in modern LLM APIs!\n\nPretty neat how a simple concept like \"remembering what you've already computed\" can have such a massive impact on performance and user experience, right? \ud83d\ude0a",
+      "latency_ms": 9656,
+      "prompt_eval_count": 36,
+      "eval_count": 705
+    },
+    {
+      "trial": 1,
+      "prompt_idx": 4,
+      "output": "`git rebase -i` (interactive rebase) lets you rewrite your commit history before merging it into another branch. It opens an editor showing your recent commits, allowing you to **squash**, **reword**, **edit**, **drop**, or **reorder** them.\n\n### Practical Example\n\nImagine you have three messy commits on your feature branch:\n\n```\n* a1b2c3d (HEAD) Fix typo in README\n* e4f5g6h Add new feature\n* i7j8k9l Initial commit\n```\n\nYou want to combine them into one clean commit before merging to `main`.\n\n**Steps:**\n\n1. Start an interactive rebase on the last 3 commits:\n   ```bash\n   git rebase -i HEAD~3\n   ```\n\n2. Your editor opens with something like:\n   ```\n   pick i7j8k9l Initial commit\n   pick e4f5g6h Add new feature\n   pick a1b2c3d Fix typo in README\n   ```\n\n3. Change the last two commits to `squash` (or `s`):\n   ```\n   pick i7j8k9l Initial commit\n   squash e4f5g6h Add new feature\n   squash a1b2c3d Fix typo in README\n   ```\n\n4. Save and close. Git combines the commits and opens another editor for the new commit message.\n\n5. Write a clean message like \"Add new feature with README fix\" and save.\n\n**Result:** Your three commits become one clean commit, ready to merge.",
+      "latency_ms": 4834,
+      "prompt_eval_count": 38,
+      "eval_count": 335
+    },
+    {
+      "trial": 2,
+      "prompt_idx": 0,
+      "output": "A **Binary Search Tree (BST)** is a hierarchical data structure that organizes data in a way that allows for efficient searching, insertion, and deletion. It is a type of binary tree where each node has at most two children (left and right), and it follows a strict ordering property.\n\nHere is a breakdown of how it works and when to use it.\n\n---\n\n### 1. How a Binary Search Tree Works\n\nA BST is defined by a specific property regarding the values of its nodes:\n\n*   **The Left Subtree Rule:** All values in the left subtree of a node are **less than** the node's value.\n*   **The Right Subtree Rule:** All values in the right subtree of a node are **greater than** the node's value.\n*   **The Distinctness Rule:** Typically, duplicate values are not allowed (though implementations can vary).\n\n#### Visual Example\nImagine you want to store the numbers: `[10, 5, 15, 2, 7, 12, 20]`.\n\n1.  **10** becomes the root.\n2.  **5** is less than 10, so it goes to the left.\n3.  **15** is greater than 10, so it goes to the right.\n4.  **2** is less than 10, then less than 5, so it goes to the left of 5.\n5.  **7** is less than 10, but greater than 5, so it goes to the right of 5.\n6.  **12** is greater than 10, but less than 15, so it goes to the left of 15.\n7.  **20** is greater than 10 and 15, so it goes to the right of 15.\n\n**Resulting Structure:**\n```text\n      10\n     /  \\\n    5    15\n   / \\   / \\\n  2   7 12  20\n```\n\n#### Core Operations\n*   **Search:** Start at the root. If the target is smaller, go left; if larger, go right. Repeat until found or the branch ends. This eliminates half the remaining data at every step.\n*   **Insert:** Traverse the tree exactly like a search until you find an empty spot (a null pointer) where the new value belongs.\n*   **Delete:** This is the most complex operation. Depending on the node's children:\n    *   *No children:* Simply remove the node.\n    *   *One child:* Replace the node with its child.\n    *   *Two children:* Find the \"in-order successor\" (the smallest value in the right subtree), replace the node's value with that successor's value, and then delete the successor node.\n\n---\n\n### 2. Performance (Time Complexity)\n\nThe efficiency of a BST depends heavily on its **balance**.\n\n| Operation | Average Case | Worst Case |\n| :--- | :--- | :--- |\n| **Search** | $O(\\log n)$ | $O(n)$ |\n| **Insert** | $O(\\log n)$ | $O(n)$ |\n| **Delete** | $O(\\log n)$ | $O(n)$ |\n\n*   **Average Case:** Occurs when the tree is balanced (the height is roughly $\\log n$). This is fast.\n*   **Worst Case:** Occurs when the tree becomes \"degenerate\" (essentially a linked list). This happens if you insert sorted data (e.g., 1, 2, 3, 4, 5) into a standard BST. The tree leans heavily to one side, making operations linear time $O(n)$.\n\n*Note: To avoid the worst case, developers often use **Self-Balancing BSTs** like AVL Trees or Red-Black Trees, which automatically reorganize the tree during insertions/deletions to maintain a height of $O(\\log n)$.*\n\n---\n\n### 3. When to Use a Binary Search Tree\n\nYou should consider using a BST when you need a balance between the fast access of an array and the flexible size of a linked list.\n\n#### Ideal Use Cases:\n\n1.  **Dynamic Data Sets with Frequent Lookups:**\n    If you have a dataset that changes frequently (insertions and deletions) but is also searched often, a BST is better than a sorted array. In a sorted array, searching is $O(\\log n)$ (via binary search), but inserting/deleting is $O(n)$ because you must shift elements. A BST offers $O(\\log n)$ for all three operations (on average).\n\n2.  **Finding Nearest Values:**\n    BSTs are excellent for finding the \"closest\" value (floor or ceiling) to a target. For example, finding the price closest to a user",
+      "latency_ms": 13098,
+      "prompt_eval_count": 34,
+      "eval_count": 1024
+    },
+    {
+      "trial": 2,
+      "prompt_idx": 1,
+      "output": "SQL databases use a fixed schema and structured query language for relational data, while NoSQL databases are schema-less and designed for flexible, non-relational data models. SQL databases scale vertically by adding more resources to a single server, whereas NoSQL databases scale horizontally by distributing data across multiple servers. SQL is ideal for complex queries and transactional consistency, while NoSQL excels at handling large volumes of unstructured data and high-velocity applications.",
+      "latency_ms": 2762,
+      "prompt_eval_count": 36,
+      "eval_count": 89
+    },
+    {
+      "trial": 2,
+      "prompt_idx": 2,
+      "output": "The safest way to delete a file in a shell script is to **check if the file exists and is a regular file** before attempting to delete it. This prevents accidental deletion of directories, special files, or non-existent files, which could cause errors or unintended data loss.\n\n### Example: Safe File Deletion in Bash\n\n```bash\n#!/bin/bash\n\n# Define the file path\nFILE=\"/path/to/your/file.txt\"\n\n# Check if the file exists and is a regular file\nif [ -f \"$FILE\" ]; then\n    # Delete the file\n    rm \"$FILE\"\n    echo \"File deleted successfully: $FILE\"\nelse\n    echo \"Error: File does not exist or is not a regular file: $FILE\"\n    exit 1\nfi\n```\n\n### Key Safety Features:\n1. **`-f` flag in `rm`**: Forces deletion without prompting (useful for scripts), but only after verifying the file exists.\n2. **`[ -f \"$FILE\" ]`**: Checks if the path exists and is a regular file (not a directory, symlink, or special file).\n3. **Quoting `\"$FILE\"`**: Prevents issues with spaces or special characters in the filename.\n4. **Error handling**: Exits with a non-zero status if the file isn't found, allowing the script to handle failures gracefully.\n\n### Additional Safety Tips:\n- **Use absolute paths** to avoid deleting the wrong file due to relative path issues.\n- **Test with `echo` first**: Replace `rm` with `echo \"Would delete: $FILE\"` to verify the logic.\n- **For critical scripts**, consider adding a backup step (e.g., `cp \"$FILE\" \"$FILE.bak\"`) before deletion.\n- **Avoid wildcards** (e.g., `rm *.txt`) unless you've explicitly verified the matches.\n\nThis approach minimizes risks while keeping the script simple and reliable.",
+      "latency_ms": 6485,
+      "prompt_eval_count": 38,
+      "eval_count": 397
+    },
+    {
+      "trial": 2,
+      "prompt_idx": 3,
+      "output": "Hey there! So you're curious about prompt caching in LLM APIs? Let me break this down for you in a way that's actually useful.\n\n## What is Prompt Caching?\n\nThink of it like this - imagine you're having a conversation with a friend, and you keep repeating the same context over and over. That's basically what happens with LLMs when you send the same system prompt or context repeatedly. Prompt caching is like your friend saying \"Yeah, I remember that part, you don't need to explain it again.\"\n\nIn technical terms, it's when the API provider (like OpenAI, Anthropic, or others) stores the processed versions of your prompts and their corresponding computations, so they don't have to recompute everything from scratch every single time.\n\n## How Does It Actually Work?\n\nHere's the cool part - modern LLM APIs typically use **semantic caching** rather than just exact string matching. This means:\n\n1. **Content-based hashing**: The system creates a fingerprint of your prompt based on its meaning, not just the exact text\n2. **KV cache reuse**: For transformer models, they cache the Key-Value pairs from previous computations\n3. **Result storage**: When you send a prompt that's semantically similar to a cached one, they can serve the cached response instead of running the model again\n\nFor example, if you send:\n- \"Summarize this article about climate change...\"\n- Later: \"Give me a summary of this climate change article...\"\n\nThese are semantically equivalent, so the cache can kick in.\n\n## Why Does This Help? (The Real Benefits)\n\n**Speed**: This is the big one. Cached responses can be served in milliseconds instead of seconds. Your users notice this immediately.\n\n**Cost savings**: API providers often charge less for cached responses. You're essentially paying for computation you've already done.\n\n**Scalability**: When you're serving thousands of users with similar queries, caching prevents you from hammering the model unnecessarily.\n\n**Consistency**: If you're doing RAG (Retrieval-Augmented Generation) with the same documents, you get consistent responses without recomputing.\n\n## Real-World Example\n\nLet's say you're building a customer support chatbot:\n\n```python\n# Without caching - you're paying for the same context every time\nsystem_prompt = \"You are a helpful customer service agent for TechCorp...\"\nuser_query = \"My order #12345 hasn't arrived yet\"\n\n# With caching - the system prompt gets cached after first use\n# Only the user query needs fresh processing\n```\n\n## The Trade-offs\n\nNot everything is perfect though:\n\n- **Cache invalidation**: If your context changes, you need to invalidate the cache\n- **Memory costs**: Storing all those cached responses takes memory\n- **Semantic boundaries**: Sometimes similar prompts need different responses based on subtle context\n\n## Providers' Approaches\n\nDifferent API providers handle this differently:\n\n- **OpenAI**: Uses prompt caching with specific token thresholds\n- **Anthropic**: Has explicit prompt caching features in their API\n- **Google**: Uses various caching strategies in their Vertex AI platform\n\nThe key insight is that modern LLMs are expensive to run, so any optimization that reduces redundant computation is a win for both providers and users.\n\nDoes this help clarify things? I can dive deeper into any specific aspect if you're curious!",
+      "latency_ms": 8588,
+      "prompt_eval_count": 36,
+      "eval_count": 689
+    },
+    {
+      "trial": 2,
+      "prompt_idx": 4,
+      "output": "`git rebase -i` (interactive rebase) lets you rewrite your commit history by editing, reordering, squashing, or dropping commits before applying them to a new base.\n\n**Practical Example:**\n\nYou have three commits on your feature branch:\n```\nA - B - C (feature)\n```\n\nYou want to clean up your history before merging. Run:\n```bash\ngit rebase -i HEAD~3\n```\n\nThis opens an editor with:\n```\npick a1b2c3d Commit A\npick e4f5g6h Commit B\npick i7j8k9l Commit C\n```\n\n**Common actions you can take:**\n- **Reorder**: Swap lines to change commit order\n- **Squash** (or `s`): Combine a commit with the previous one\n- **Fixup** (or `f`): Squash but discard the commit message\n- **Reword** (or `r`): Edit a commit message\n- **Drop** (or `d`): Remove a commit\n\n**Example cleanup:**\n```\npick a1b2c3d Commit A\nsquash e4f5g6h Commit B  # Combine B into A\nfixup i7j8k9l Commit C   # Combine C into A (discard message)\n```\n\nThis creates a single clean commit with a consolidated message, making your history easier to review.\n\n**\u26a0\ufe0f Warning:** Only rebase commits you haven't pushed yet, or you'll need to force push (`git push --force`) and may disrupt collaborators.",
+      "latency_ms": 4855,
+      "prompt_eval_count": 38,
+      "eval_count": 334
+    }
+  ],
+  "with_skill": [
+    {
+      "trial": 0,
+      "prompt_idx": 0,
+      "output": "Binary search tree (BST): node with key, left subtree keys < node key, right subtree keys > node key. Balanced BSTs (AVL, Red-Black) keep height O(log n) for fast search, insert, delete.\n\nUse when: need ordered data, frequent lookups, dynamic inserts/deletes. Not for unsorted arrays or when order doesn't matter\u2014use hash table instead.",
+      "latency_ms": 4529,
+      "prompt_eval_count": 238,
+      "eval_count": 83
+    },
+    {
+      "trial": 0,
+      "prompt_idx": 1,
+      "output": "SQL: structured schema, ACID transactions, relational joins. NoSQL: flexible schema, horizontal scaling, eventual consistency. SQL fits complex queries; NoSQL fits high-velocity unstructured data.",
+      "latency_ms": 4206,
+      "prompt_eval_count": 240,
+      "eval_count": 40
+    },
+    {
+      "trial": 0,
+      "prompt_idx": 2,
+      "output": "Safest: `rm -f` with path validation.\n\n```bash\n#!/bin/bash\nfile=\"/path/to/file.txt\"\nif [[ -f \"$file\" ]]; then\n    rm -f \"$file\"\n    echo \"Deleted: $file\"\nelse\n    echo \"File not found: $file\"\nfi\n```\n\nCheck existence first. Use `-f` to ignore missing files. Quote paths.",
+      "latency_ms": 3668,
+      "prompt_eval_count": 242,
+      "eval_count": 85
+    },
+    {
+      "trial": 0,
+      "prompt_idx": 3,
+      "output": "Prompt caching stores repeated prompt prefixes in memory. Reuses them across requests. Cuts compute cost and latency.\n\nWhy it helps:\n- Reduces redundant token processing.\n- Lowers API bills.\n- Speeds up responses for long, repeated contexts.\n\nExample: OpenAI's cache-aware API stores system messages and user prefixes. Anthropic's cache control tags mark cacheable segments.",
+      "latency_ms": 3330,
+      "prompt_eval_count": 240,
+      "eval_count": 77
+    },
+    {
+      "trial": 0,
+      "prompt_idx": 4,
+      "output": "`git rebase -i` rewrites commit history interactively.\n\nExample:\n```bash\ngit rebase -i HEAD~3\n```\nOpens editor with commits:\n```\npick a1b2c3d First commit\npick e4f5g6h Second commit\npick i7j8k9l Third commit\n```\nChange `pick` to `squash` or `reword` to merge or edit messages. Save and exit. Git replays commits onto base.",
+      "latency_ms": 4265,
+      "prompt_eval_count": 242,
+      "eval_count": 104
+    },
+    {
+      "trial": 1,
+      "prompt_idx": 0,
+      "output": "Binary search tree (BST): node with key, left subtree keys < node key, right subtree keys > node key. Balanced BSTs (AVL, Red-Black) keep height O(log n) for fast search, insert, delete.\n\nUse when: need ordered data, frequent lookups, dynamic inserts/deletes. Not for unsorted arrays or when order doesn't matter\u2014use hash table instead.",
+      "latency_ms": 3123,
+      "prompt_eval_count": 238,
+      "eval_count": 83
+    },
+    {
+      "trial": 1,
+      "prompt_idx": 1,
+      "output": "SQL: structured schema, ACID transactions, relational joins. NoSQL: flexible schema, horizontal scaling, eventual consistency. SQL fits complex queries; NoSQL fits high-velocity unstructured data.",
+      "latency_ms": 2791,
+      "prompt_eval_count": 240,
+      "eval_count": 40
+    },
+    {
+      "trial": 1,
+      "prompt_idx": 2,
+      "output": "Safest: `rm -f` with path check.\n\nExample:\n```bash\n#!/bin/bash\nfile=\"/path/to/file\"\nif [ -f \"$file\" ]; then\n    rm -f \"$file\"\nfi\n```\n\nWhy: `-f` ignores missing files, `-f` prevents prompts. Check avoids errors.",
+      "latency_ms": 2603,
+      "prompt_eval_count": 242,
+      "eval_count": 69
+    },
+    {
+      "trial": 1,
+      "prompt_idx": 3,
+      "output": "Prompt caching stores repeated prompt prefixes in memory. Reuses them across requests. Cuts compute cost and latency.\n\nWhy it helps:\n- Reduces redundant token processing.\n- Cuts API costs for long, repeated contexts.\n- Speeds up responses for chat apps with fixed system prompts.\n\nExample: OpenAI's cache-aware API stores prefix tokens. Anthropic's cache points store reusable context.",
+      "latency_ms": 3724,
+      "prompt_eval_count": 240,
+      "eval_count": 79
+    },
+    {
+      "trial": 1,
+      "prompt_idx": 4,
+      "output": "`git rebase -i` rewrites commit history interactively.\n\nExample:\n```\ngit rebase -i HEAD~3\n```\nOpens editor with commits:\n```\npick a1b2c3d First commit\npick e4f5g6h Second commit\npick i7j8k9l Third commit\n```\nChange `pick` to `squash` or `reword` to merge or edit messages. Save and exit. History rewritten.",
+      "latency_ms": 3235,
+      "prompt_eval_count": 242,
+      "eval_count": 99
+    },
+    {
+      "trial": 2,
+      "prompt_idx": 0,
+      "output": "Binary search tree (BST): node with key, left subtree keys < node key, right subtree keys > node key. Invariant: sorted order.\n\nUse when:\n- Need ordered data.\n- Insert, delete, search in O(log n) average.\n- Memory overhead low (no extra pointers beyond tree structure).\n\nAvoid when:\n- Data unbalanced (degrades to O(n)).\n- Need guaranteed O(log n) (use balanced BST like AVL, Red-Black).\n- Frequent range queries (use B-tree).",
+      "latency_ms": 3447,
+      "prompt_eval_count": 238,
+      "eval_count": 106
+    },
+    {
+      "trial": 2,
+      "prompt_idx": 1,
+      "output": "SQL: structured schema, ACID transactions, relational joins. NoSQL: flexible schema, horizontal scaling, eventual consistency. SQL fits complex queries; NoSQL fits high-velocity unstructured data.",
+      "latency_ms": 3477,
+      "prompt_eval_count": 240,
+      "eval_count": 40
+    },
+    {
+      "trial": 2,
+      "prompt_idx": 2,
+      "output": "Safest: `rm -f` with path check.\n\nExample:\n```bash\n#!/bin/bash\nfile=\"/path/to/file\"\nif [ -f \"$file\" ]; then\n    rm -f \"$file\"\nfi\n```\n\nWhy: `-f` ignores missing files, `-f` prevents prompts. Check avoids errors.",
+      "latency_ms": 4722,
+      "prompt_eval_count": 242,
+      "eval_count": 69
+    },
+    {
+      "trial": 2,
+      "prompt_idx": 3,
+      "output": "Prompt caching stores repeated prompt prefixes in memory. Reuses them across requests. Cuts compute cost and latency.\n\nWhy it helps:\n- Reduces redundant token processing.\n- Lowers API bills.\n- Speeds up responses for long, repeated contexts.\n\nExample: OpenAI's cache-aware API. Prefix matching. Cache hit skips recomputation.",
+      "latency_ms": 3587,
+      "prompt_eval_count": 240,
+      "eval_count": 69
+    },
+    {
+      "trial": 2,
+      "prompt_idx": 4,
+      "output": "`git rebase -i` rewrites commit history interactively.\n\nExample:\n```bash\ngit rebase -i HEAD~3\n```\nOpens editor with commits:\n```\npick a1b2c3d First commit\npick e4f5g6h Second commit\npick i7j8k9l Third commit\n```\nChange `pick` to `squash` or `reword` to merge or rename commits. Save and exit. Git replays commits in order.",
+      "latency_ms": 3935,
+      "prompt_eval_count": 242,
+      "eval_count": 104
+    }
+  ],
+  "summary": {
+    "without_skill": {
+      "input_tokens_mean": 36.4,
+      "output_tokens_mean": 515.6,
+      "latency_ms_mean": 6885.4,
+      "input_tokens_total": 546,
+      "output_tokens_total": 7734
+    },
+    "with_skill": {
+      "input_tokens_mean": 240.4,
+      "output_tokens_mean": 76.46666666666667,
+      "latency_ms_mean": 3642.8,
+      "input_tokens_total": 3606,
+      "output_tokens_total": 1147
+    },
+    "delta_output_tokens": -439.1333333333333,
+    "delta_output_pct": -85.17,
+    "delta_input_tokens": 204.0,
+    "delta_input_pct": 560.44
+  }
+}

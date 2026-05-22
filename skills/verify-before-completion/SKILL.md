@@ -9,6 +9,10 @@ effort: low
 
 Rule: evidence before claims.
 
+> "If you have a fast, deterministic, agent-runnable pass/fail signal for the bug, you will find the cause. If you don't have one, no amount of staring at code will save you."  — *mattpocock/skills/engineering/diagnose*
+
+The same applies to "done": without a fresh, runnable signal that proves the work is correct, "done" is a guess.
+
 Before any completion/success claim:
 1. Identify the command, inspection, or checklist that proves it.
 2. Run or perform it fresh.

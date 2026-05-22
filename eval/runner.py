@@ -55,6 +55,50 @@ def call_ollama(model: str, system: str, prompt: str) -> dict[str, Any]:
     }
 
 
+def _openai_compat_chat(url: str, key: str, model: str, system: str, prompt: str) -> dict[str, Any]:
+    """Shared call for OpenAI-compatible /chat/completions endpoints (MIMO, MLX server)."""
+    body = json.dumps({
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt},
+        ],
+        "max_tokens": 1024,
+        "temperature": 0.0,
+    }).encode()
+    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"} if key else {"Content-Type": "application/json"}
+    req = urllib.request.Request(url, data=body, headers=headers)
+    t0 = time.time()
+    try:
+        with urllib.request.urlopen(req, timeout=180) as resp:
+            data = json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        err = e.read().decode()
+        raise RuntimeError(f"{url} {e.code}: {err}") from e
+    text = data["choices"][0]["message"]["content"]
+    usage = data.get("usage", {})
+    return {
+        "output": text,
+        "latency_ms": int((time.time() - t0) * 1000),
+        "prompt_eval_count": usage.get("prompt_tokens", 0),
+        "eval_count": usage.get("completion_tokens", 0),
+    }
+
+
+def call_mimo(model: str, system: str, prompt: str) -> dict[str, Any]:
+    key = os.environ.get("MIMO_API_KEY")
+    if not key:
+        raise RuntimeError("MIMO_API_KEY not set (source .token-economy/secrets.env)")
+    base = os.environ.get("MIMO_BASE_URL", "https://api.xiaomimimo.com/v1").rstrip("/")
+    return _openai_compat_chat(f"{base}/chat/completions", key, model, system, prompt)
+
+
+def call_mlx(model: str, system: str, prompt: str) -> dict[str, Any]:
+    """Call the local MLX server (start with: python3 -m mlx_lm server --host 127.0.0.1 --port 8082)."""
+    base = os.environ.get("MLX_BASE_URL", "http://127.0.0.1:8082/v1").rstrip("/")
+    return _openai_compat_chat(f"{base}/chat/completions", "", model, system, prompt)
+
+
 def call_anthropic(model: str, system: str, prompt: str) -> dict[str, Any]:
     key = os.environ.get("ANTHROPIC_API_KEY")
     if not key:
@@ -95,6 +139,10 @@ def call_model(backend: str, model: str, system: str, prompt: str) -> dict[str, 
         return call_ollama(model, system, prompt)
     if backend == "anthropic":
         return call_anthropic(model, system, prompt)
+    if backend == "mimo":
+        return call_mimo(model, system, prompt)
+    if backend == "mlx":
+        return call_mlx(model, system, prompt)
     raise ValueError(f"unknown backend: {backend}")
 
 
@@ -173,7 +221,7 @@ def main() -> int:
     p.add_argument("--task")
     p.add_argument("--combo")
     p.add_argument("--n", type=int, default=5)
-    p.add_argument("--backend", default="ollama", choices=["ollama", "anthropic"])
+    p.add_argument("--backend", default="ollama", choices=["ollama", "anthropic", "mimo", "mlx"])
     p.add_argument("--model", default="phi4:14b")
     p.add_argument("--judge", default=None, help="optional judge model (e.g. gemma4:26b)")
     p.add_argument("--out", default=None, help="output JSON path; default eval/results/<task-id>.json")

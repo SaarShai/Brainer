@@ -42,10 +42,11 @@ model: haiku|sonnet|opus|local|any
 effort: low|medium|high          # optional
 context: fork                    # optional, for read-heavy skills
 host_compat: [claude-code, codex, cursor, gemini, copilot]   # optional
+disable-model-invocation: true   # optional; slash-command-only skills
 ---
 ```
 
-`description` is the ONLY field always resident in the agent's context across sessions. Front-load the trigger words. Mention anti-triggers ("do not use when X") inside the cap.
+The `description` is **the only thing your agent sees** when deciding which skill to load. Front-load the trigger words. Mention anti-triggers ("do not use when X") inside the cap. Everything else loads on trigger.
 
 ## Protocol
 
@@ -71,6 +72,17 @@ host_compat: [claude-code, codex, cursor, gemini, copilot]   # optional
 1. `python skills/skill-creator/tools/lint.py skills/*/SKILL.md` — checks description length, trigger keywords up front, required fields.
 2. `python skills/skill-creator/tools/overlap.py` — flags pairs of skills with overlapping trigger keywords.
 3. Report findings; suggest merges or rename targets. Do not auto-merge.
+
+### Review checklist (before merging a new skill)
+
+- [ ] Description front-loads trigger keywords (`Use when…`, `Trigger on…`, `Fires on…`).
+- [ ] Description ≤ 1,536 chars (agentskills.io cap).
+- [ ] SKILL.md body ≤ ~100 lines; longer goes into `tools/` or wiki.
+- [ ] No time-sensitive info inline (dates, versions in flux) — link to wiki instead.
+- [ ] Consistent terminology with the rest of the catalog.
+- [ ] References only one level deep (no chains of "see X which see Y").
+- [ ] `EVAL.md` exists; for any measured-savings claim, points at a runnable bench task.
+- [ ] No overlap >25% with an existing skill (run `overlap.py`).
 
 ## What this skill does NOT do
 

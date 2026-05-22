@@ -43,7 +43,9 @@ Put in the handoff:
 - Done / in progress / next
 - Files, commands, errors, decisions, blockers
 - Branch/dirty state if relevant
-- Repo/wiki pointers to retrieve later
+- **Suggested skills for the successor to invoke first** (1–3 names from this catalog)
+
+Do not duplicate content already captured in other artifacts (PRDs, plans, ADRs, issues, commits, diffs). Reference them by path or URL instead.
 
 Leave out:
 - Details recoverable from repo state
@@ -58,6 +60,8 @@ Leave out:
 - Don't load docs-only wiki memory into fresh context; link to it instead.
 - Don't execute first in fresh session — enter plan-first mode.
 - A handoff without a fresh context is not a completed refresh.
+- Redact API keys, passwords, tokens, and PII before writing the handoff.
+- When the handoff is a standalone file (not a relay packet), prefer the OS temp dir over the workspace so it doesn't accidentally get committed.
 
 ## Fallback (no launch available)
 

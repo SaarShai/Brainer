@@ -1,0 +1,7 @@
+[06:48:52] starting caveman-ultra
+=== caveman-ultra (n=3 × 5 prompts, model=mimo-v2-flash) ===
+  input tokens:  36 → 240 (+560.4%)
+  output tokens: 516 → 76 (-85.2%)
+  latency (ms):  6885 → 3643
+  results: eval/results/caveman-ultra.json
+[06:51:30] starting lean-execution
