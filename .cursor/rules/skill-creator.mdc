@@ -1,7 +1,0 @@
----
-description: Create or edit skills in this catalog. Use when the user asks to add a new skill, rewrite an existing skill, improve a skill's description, lint frontmatter, or audit the catalog for triggering accuracy. Enforces agentskills.io schema (name + description ≤1536 chars, optional tools/model/effort/context/host_compat), front-loaded trigger keywords, and the standard folder layout (SKILL.md + tools/ + EVAL.md + optional README.md). Suggests rather than auto-writes durable artifacts.
-globs: ["**/*"]
-alwaysApply: false
----
-
-@skills/skill-creator/SKILL.md

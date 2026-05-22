@@ -1,0 +1,193 @@
+{
+  "judge_model": "mimo-v2-flash",
+  "judge_backend": "mimo",
+  "scored_without_skill": [
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3 - No wiki retrieval or model picks, but plan is correct; verification command missing.",
+      "latency_ms": 2937
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 response names per-subtask model picks, but lacks wiki retrieval and verification command.",
+      "latency_ms": 3668
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 (a) explicit, (b) explicit, (c) missing",
+      "latency_ms": 2186
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4 - Model picks named per subtask, but no explicit verification command or wiki retrieval.",
+      "latency_ms": 2105
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 one explicit, answer correct",
+      "latency_ms": 4645
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3 Only (a) is partially met by referencing prior wiki notes; (b) and (c) are absent.",
+      "latency_ms": 2630
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3 one explicit (c) only, missing (a) and (b)",
+      "latency_ms": 2846
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\n(a) not explicitly retrieved before reasoning, (b) no per-subtask model picks named, (c) no fresh verification command + expected output.",
+      "latency_ms": 2944
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4\nTwo of three: per-subtask model picks are named and decomposition is present, but no wiki/repo retrieval or verification command is included.",
+      "latency_ms": 7313
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 retrieved facts, no subtask model picks, no verification command",
+      "latency_ms": 3789
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response provides a complete plan but does not explicitly retrieve prior wiki notes before reasoning, nor does it name specific model picks for subtasks (e.g., defaulting to generic models), and it lacks a final verification command with expected output.",
+      "latency_ms": 2551
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4, names per-subtask model picks but lacks wiki/repo retrieval and verification command.",
+      "latency_ms": 4118
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response retrieves the source (paper, section, table) but does not name per-subtask model picks or end with a fresh verification command.",
+      "latency_ms": 3247
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4\n(a) Not explicitly stated, (b) per-subtask model picks named, (c) no verification command.",
+      "latency_ms": 2268
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 one explicit (c) only",
+      "latency_ms": 7091
+    }
+  ],
+  "scored_with_skill": [
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3: Only (a) is explicit; (b) and (c) are missing.",
+      "latency_ms": 2064
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3 only (c) explicit, no wiki/repo retrieval or per-subtask model naming",
+      "latency_ms": 2096
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3: only (b) explicit via multiple named searches; (a) and (c) missing.",
+      "latency_ms": 2218
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4 explicit model picks and verification command, but no wiki/repo retrieval mentioned",
+      "latency_ms": 2204
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nCandidate runs multiple search commands but never reads actual skill files or wiki pages to retrieve facts before reasoning; no per-subtask model picks named; ends with incomplete command, not fresh verification + expected output.",
+      "latency_ms": 2918
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4\nRetrieves wiki facts before reasoning, names per-subtask model picks, but lacks fresh verification command.",
+      "latency_ms": 2841
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 names per-subtask model picks, ends with verification command, but no wiki/repo retrieval before reasoning",
+      "latency_ms": 2925
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 retrieved facts but no explicit subtask model picks",
+      "latency_ms": 1877
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4 explicit model picks and verification, but no wiki/repo retrieval",
+      "latency_ms": 2419
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate attempted to retrieve facts but failed to execute commands effectively (no output shown), did not explicitly name model picks for decomposition, and did not end with a fresh verification command + expected output.",
+      "latency_ms": 2677
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3 Only (a) is explicit; (b) and (c) are missing.",
+      "latency_ms": 2498
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3 only (c) explicit, but (a) and (b) are not fully met",
+      "latency_ms": 2839
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response attempts to retrieve wiki facts (a) but fails to name specific model picks (b) and does not end with a fresh verification command + expected output (c).",
+      "latency_ms": 2891
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3 only (c) explicit, no wiki/repo retrieval or model picks named",
+      "latency_ms": 2238
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response attempts multiple commands but fails to retrieve any wiki/repo facts before reasoning, does not explicitly name per-subtask model picks, and ends without a fresh verification command + expected output.",
+      "latency_ms": 2102
+    }
+  ],
+  "judge_summary": {
+    "without_mean": 3.4,
+    "with_mean": 3.2666666666666666,
+    "delta": -0.1333333333333333
+  }
+}

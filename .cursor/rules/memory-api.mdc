@@ -1,7 +1,0 @@
----
-description: Optional MCP server exposing tier-aware queries over the wiki-memory store (L0 rules, L1 pointer index, L2 facts, L3 SOPs, L4 archive). Use when the host is MCP-aware and the task needs progressive retrieval with strict latency (≤200ms target). Eager-indexed at startup. Opt-in install.
-globs: ["**/*"]
-alwaysApply: false
----
-
-@skills/memory-api/SKILL.md

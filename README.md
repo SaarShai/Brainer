@@ -15,20 +15,23 @@ A token- and context-efficient skill catalog for AI coding agents — Claude Cod
 | [wiki-memory](skills/wiki-memory/SKILL.md) | retrieve OR write durable | 108 | Tier-aware (L0–L4) repo-local markdown wiki. |
 | [context-refresh](skills/context-refresh/SKILL.md) | 20% fill, `/refresh`, `summ` | 89 | Lean handoff + persistent fresh successor. |
 | [prompt-triage](skills/prompt-triage/SKILL.md) | UserPromptSubmit hook | 89 | Pre-model regex+Ollama classifier; routes simple tasks to cheap models. |
-| [personal-assistant](skills/personal-assistant/SKILL.md) | `/pa`, `/btw` | 57 | Explicit context-light routing. |
 | [delegate](skills/delegate/SKILL.md) | independent subtasks, research | 97 | Subagent orchestration + cost preflight + model registry. |
 | [context-keeper](skills/context-keeper/SKILL.md) | PreCompact hook | 80 | Structured memory before compaction. |
-| [memory-api](skills/memory-api/SKILL.md) | optional MCP | 82 | Tier-aware memory MCP server. |
 | [compress-context](skills/compress-context/SKILL.md) | opt-in long-context | 127 | LLMLingua-based compound compression. 44.9% savings, Δscore −0.12 measured on SQuAD v2 (n=8). |
 | [semantic-diff](skills/semantic-diff/SKILL.md) | file re-read | 99 | AST-node diff. 95.5% measured savings on argparse.py re-reads. |
 | [output-filter](skills/output-filter/SKILL.md) | terminal output hook | 99 | Strip ANSI/progress/dup noise; preserves errors. |
-| [skill-creator](skills/skill-creator/SKILL.md) | "add / edit a skill" | 138 | Authoring helper + linter + overlap detector. |
 
-**Always-resident context tax (all 15 descriptions): 1,328 tokens.** Roughly 0.66% of a 200K context window.
+**Always-resident context tax (12 descriptions): ~1,050 tokens.** Roughly 0.5% of a 200K context window.
 
-Full body cost (worst case, all loaded at once): 7,838 tokens. In practice, only the triggered skill's body loads.
+Full body cost (worst case, all loaded at once): ~6,400 tokens. In practice, only the triggered skill's body loads.
 
 See [eval/results/static_cost.json](eval/results/static_cost.json) for the full measurement.
+
+### Removed in v1.1.0 (after measurement)
+
+- `personal-assistant` — redundant with `prompt-triage` (auto > manual `/pa`).
+- `memory-api` — thin MCP wrapper over wiki-memory; same value via CLI.
+- `skill-creator` — maintainer tool (not an end-user efficiency skill). Linter and overlap detector live at `scripts/lint_skill_md.py` and `scripts/skill_overlap.py`.
 
 ## Install
 

@@ -1,0 +1,193 @@
+{
+  "judge_model": "mimo-v2-flash",
+  "judge_backend": "mimo",
+  "scored_without_skill": [
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 correct, mild over-reach",
+      "latency_ms": 2325
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 The response accurately extracts the headline result from the provided context without hallucination or over-reach.",
+      "latency_ms": 2235
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5 Correctly grounded in the diff's public API changes.",
+      "latency_ms": 2099
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4 correct, mild over-reach",
+      "latency_ms": 2726
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 The solution correctly uses tree-sitter to parse and compare ASTs for renames, but the example code is truncated (incomplete v2), which is a minor over-reach in presentation.",
+      "latency_ms": 3363
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5 The response correctly refuses to hallucinate and asks for the necessary context.",
+      "latency_ms": 1919
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 The headline result is mostly correct but the 77% improvement claim is not explicitly stated in the provided context.",
+      "latency_ms": 3642
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 The candidate accurately describes the new flags but slightly over-reaches by specifying the command name \"run\" which is not explicitly in the diff context.",
+      "latency_ms": 4938
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4 The response correctly identifies the missing code and asks for it, with only mild over-reach in listing general optimization steps.",
+      "latency_ms": 2394
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 correct, mild over-reach",
+      "latency_ms": 2219
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 correct, mild over-reach",
+      "latency_ms": 2456
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 The response accurately extracts the headline result from the context without hallucination or overreach.",
+      "latency_ms": 2370
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5 The summary accurately reflects only the diff's changes to the `run` command's flags and help text.",
+      "latency_ms": 2200
+    },
+    {
+      "prompt_idx": 3,
+      "score": 0,
+      "raw": "0 The response hallucinates a module and asks for code, ignoring the provided context.",
+      "latency_ms": 2254
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4\nThe response provides a general method and script but does not actually compare the provided v1/v2 content, instead using its own example.",
+      "latency_ms": 2265
+    }
+  ],
+  "scored_with_skill": [
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 correct, mild over-reach",
+      "latency_ms": 2651
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 The headline result exactly matches the paper's reported 44.9% savings with quality preservation metrics.",
+      "latency_ms": 2563
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 mild over-reach on token savings specifics",
+      "latency_ms": 1945
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3 The response hallucinates a self-referential module analysis (e.g., `self._estimate_complexity`) and creates test code not present in the context.",
+      "latency_ms": 2147
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 mostly correct, some hallucination",
+      "latency_ms": 2080
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4: Correct approach but mild over-reach in assuming tool availability",
+      "latency_ms": 2309
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 The response accurately extracts the headline result and key details directly from the provided context without hallucination or overreach.",
+      "latency_ms": 4018
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4, mild over-reach in describing the pipeline stages",
+      "latency_ms": 5710
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3 The response hallucinates a specific module context (e.g., 'compress_prompt') not provided in the prompt.",
+      "latency_ms": 3121
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 mostly correct, some hallucination",
+      "latency_ms": 3125
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3: mostly correct, some hallucination",
+      "latency_ms": 2644
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5\nFaithfully extracts headline result and caveats directly from the provided context without hallucination.",
+      "latency_ms": 3780
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 minor over-reach in tool naming",
+      "latency_ms": 1961
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3 The response hallucinates a module file and attempts to profile it, whereas the task only provides a 3K-line module context without an actual file.",
+      "latency_ms": 2623
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 The code is correct and grounded, but the incomplete print statement is a minor over-reach.",
+      "latency_ms": 2759
+    }
+  ],
+  "judge_summary": {
+    "without_mean": 4.066666666666666,
+    "with_mean": 3.8,
+    "delta": -0.2666666666666666
+  }
+}

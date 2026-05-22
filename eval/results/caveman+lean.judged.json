@@ -1,0 +1,121 @@
+{
+  "judge_model": "mimo-v2-flash",
+  "judge_backend": "mimo",
+  "scored_without_skill": [
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 slightly verbose execution example",
+      "latency_ms": 1880
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 slightly verbose, includes minor ceremony",
+      "latency_ms": 2360
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5 Concise steps, correct, no extra fluff.",
+      "latency_ms": 2615
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4: Plan is correct and lean, but execution outline adds verbosity beyond a minimal outline.",
+      "latency_ms": 2388
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 slightly verbose with optional backward compatibility section",
+      "latency_ms": 2848
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 slightly verbose with commit/doc steps",
+      "latency_ms": 2051
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4\nPlan is correct and lean but the execution outline includes a full script, which is slightly verbose for a plan.",
+      "latency_ms": 3239
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 slightly verbose with extra steps like manual smoke test",
+      "latency_ms": 2825
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5: Concise steps, correct, no unnecessary ceremony.",
+      "latency_ms": 4530
+    }
+  ],
+  "scored_with_skill": [
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4\nPlan is correct and lean but step 3 could be merged with step 2 for tighter terseness.",
+      "latency_ms": 2819
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4: Slight verbosity in step 1 (grep flags not needed) and step 8 (commit message not part of plan).",
+      "latency_ms": 2506
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 slightly verbose, extra step",
+      "latency_ms": 2195
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4, plan is correct but slightly verbose with extra steps",
+      "latency_ms": 3171
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4: Correct but one extra step (step 7 is unnecessary for the rename plan).",
+      "latency_ms": 2182
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 slight verbosity or one extra step",
+      "latency_ms": 2078
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4\nPlan is correct and lean but could be slightly more concise.",
+      "latency_ms": 2211
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 slightly verbose, includes docstrings and commit message",
+      "latency_ms": 8766
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 slightly verbose, extra step",
+      "latency_ms": 2256
+    }
+  ],
+  "judge_summary": {
+    "without_mean": 4.222222222222222,
+    "with_mean": 4,
+    "delta": -0.22222222222222232
+  }
+}

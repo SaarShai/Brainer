@@ -19,7 +19,7 @@ agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K conte
 | input tokens (mean)  | 36 | 240 | +560.4% | n/a |
 | output tokens (mean) | 516 | 76 | -85.2% | n/a |
 | latency (ms)         | 6885 | 3643 | n/a | n/a |
-| judge score (0–5)    | +4.67 | +4.90 | +0.23 |   |
+| judge score (0–5)    | +4.73 | +4.87 | +0.13 |   |
 
 
 Raw: [`eval/results/caveman-ultra.json`](../../eval/results/caveman-ultra.json)

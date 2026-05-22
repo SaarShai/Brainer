@@ -1,0 +1,193 @@
+{
+  "judge_model": "mimo-v2-flash",
+  "judge_backend": "mimo",
+  "scored_without_skill": [
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4\nThe answer is accurate and comprehensive, covering definition, operations, performance, and use cases. However, it is slightly verbose with formatting (headers, tables, bolding) and could be more terse while still being correct.",
+      "latency_ms": 10721
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5\nThe answer is accurate, covers schema, scalability, and use cases, and is concise with no filler.",
+      "latency_ms": 2096
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5\nCorrect and concise, with clear safety checks and a minimal example.",
+      "latency_ms": 2222
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4\nThe answer is correct and covers the key aspects (KV cache, speed/cost benefits, limitations), but includes some conversational filler and informal language that makes it slightly verbose.",
+      "latency_ms": 2324
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5\nCorrect, concise, and practical with a clear example.",
+      "latency_ms": 3844
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5\nThe answer is accurate, well-structured, and covers the definition, operations, performance, and use cases without unnecessary filler.",
+      "latency_ms": 2287
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5\nThe answer is accurate, covers schema, query language, scalability, and use cases, and is concise with minimal filler.",
+      "latency_ms": 2972
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5\nCorrect and concise, with clear safety checks and example.",
+      "latency_ms": 2321
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4\nCorrect but uses many analogies and conversational filler; could be more concise.",
+      "latency_ms": 2423
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5\nCorrect, concise, and provides a clear practical example without filler.",
+      "latency_ms": 2339
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5\nThe answer is accurate, comprehensive, and well-structured without unnecessary filler. It correctly defines the BST property, explains operations and complexities (including balance), and provides clear use cases.",
+      "latency_ms": 4005
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5\nThe answer is accurate, covers schema, scalability, and use cases, and is concise with no filler.",
+      "latency_ms": 2353
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5\nCorrect and concise, with essential safety checks and a clear example.",
+      "latency_ms": 2263
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4\nThe answer is correct and covers key aspects (semantic caching, KV cache, benefits), but includes some conversational filler and minor inaccuracies (e.g., semantic hashing is not standard in all APIs; exact prefix caching is more common).",
+      "latency_ms": 2961
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5\nCorrect, practical, and concise with no filler.",
+      "latency_ms": 2155
+    }
+  ],
+  "scored_with_skill": [
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5\nCorrect, concise, and covers key points (definition, balance, use cases, alternatives) without filler.",
+      "latency_ms": 2853
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5\nCandidate accurately contrasts SQL and NoSQL in three sentences, covering schema, transactions, scaling, and use cases with no filler.",
+      "latency_ms": 2712
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5\nCorrect and concise, with proper validation and quoting.",
+      "latency_ms": 2424
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4\nCorrect and concise, though could be slightly tighter on examples.",
+      "latency_ms": 1861
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5\nCorrect, concise, and provides a practical example without filler.",
+      "latency_ms": 7059
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5\nCorrect and tight: defines BST, mentions balancing for efficiency, and gives clear use cases with contrast to hash tables.",
+      "latency_ms": 3136
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5\nCandidate accurately contrasts SQL and NoSQL in three sentences, covering schema, transactions, scaling, consistency, and use cases with no filler.",
+      "latency_ms": 2880
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5\nCorrect and concise, with clear rationale.",
+      "latency_ms": 7307
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4\nCorrect and concise, though could be slightly tighter.",
+      "latency_ms": 3657
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5\nCorrect, concise, and practical.",
+      "latency_ms": 2103
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5\nCorrect, concise, and covers key points without filler.",
+      "latency_ms": 5773
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5\nCandidate accurately contrasts SQL and NoSQL in three sentences, covering schema, transactions, scaling, and use cases with no filler.",
+      "latency_ms": 2577
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5\nCorrect and concise, with clear rationale.",
+      "latency_ms": 1772
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5\nCorrect and concise, covers mechanism, benefits, and example without filler.",
+      "latency_ms": 2929
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5\nCorrect, concise, and provides a practical example without filler.",
+      "latency_ms": 2016
+    }
+  ],
+  "judge_summary": {
+    "without_mean": 4.733333333333333,
+    "with_mean": 4.866666666666666,
+    "delta": 0.13333333333333286
+  }
+}

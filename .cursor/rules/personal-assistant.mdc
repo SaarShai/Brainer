@@ -1,7 +1,0 @@
----
-description: Route context-light prompts away from the expensive main model. Triggers on explicit `/pa` or `/btw` prefix. Loads minimal context, dispatches to the cheapest capable handler, escalates only if needed.
-globs: ["**/*"]
-alwaysApply: false
----
-
-@skills/personal-assistant/SKILL.md

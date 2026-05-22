@@ -17,14 +17,13 @@ For ratings and measured deltas see [`SKILLS_INDEX_RATED.md`](SKILLS_INDEX_RATED
 | [wiki-memory](wiki-memory/SKILL.md) | Repo-local markdown wiki: progressive retrieval + gated writes. |
 | [context-refresh](context-refresh/SKILL.md) | Handoff + persistent fresh-successor at 20% context fill. |
 | [prompt-triage](prompt-triage/SKILL.md) | Pre-model classifier hook; routes simple tasks to cheap models. |
-| [personal-assistant](personal-assistant/SKILL.md) | Explicit `/pa` / `/btw` routing to cheapest capable handler. |
 | [delegate](delegate/SKILL.md) | Subagent orchestration + cost preflight + model choice. |
 | [context-keeper](context-keeper/SKILL.md) | PreCompact hook: structured memory before compaction. |
-| [memory-api](memory-api/SKILL.md) | Optional MCP server exposing tier-aware memory queries. |
 | [compress-context](compress-context/SKILL.md) | LLMLingua-based compound compression with self-verify (opt-in). |
 | [semantic-diff](semantic-diff/SKILL.md) | AST-node diff on file re-reads (95%+ savings; opt-in MCP). |
 | [output-filter](output-filter/SKILL.md) | Strip ANSI/progress/dup noise from terminal output. |
-| [skill-creator](skill-creator/SKILL.md) | Helps add/edit skills in this catalog. |
+
+12 skills total. The dropped `personal-assistant` (redundant with prompt-triage), `memory-api` (thin MCP over wiki-memory), and `skill-creator` (maintainer tool — see `scripts/lint_skill_md.py` and `scripts/skill_overlap.py`) were removed in v1.1.0 after measurement.
 
 ## Prime directive
 
@@ -41,8 +40,6 @@ For ratings and measured deltas see [`SKILLS_INDEX_RATED.md`](SKILLS_INDEX_RATED
 ./install.sh             # symlink to all four host loaders
 ./install.sh --host claude-code   # just one host
 ```
-
-Per-host details and adapters: see [INSTALL.md](../INSTALL.md).
 
 ## Status
 

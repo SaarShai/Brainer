@@ -72,18 +72,6 @@
     "effort_pin": "low"
   },
   {
-    "name": "memory-api",
-    "description_tokens": 82,
-    "description_chars": 286,
-    "body_tokens": 447,
-    "body_chars": 1565,
-    "tools_bytes": 16069,
-    "tools_kb": 15.7,
-    "has_eval_template": true,
-    "model_pin": "any",
-    "effort_pin": "low"
-  },
-  {
     "name": "output-filter",
     "description_tokens": 99,
     "description_chars": 347,
@@ -93,18 +81,6 @@
     "tools_kb": 15.4,
     "has_eval_template": true,
     "model_pin": "any",
-    "effort_pin": "low"
-  },
-  {
-    "name": "personal-assistant",
-    "description_tokens": 57,
-    "description_chars": 201,
-    "body_tokens": 329,
-    "body_chars": 1152,
-    "tools_bytes": 0,
-    "tools_kb": 0.0,
-    "has_eval_template": true,
-    "model_pin": "haiku",
     "effort_pin": "low"
   },
   {
@@ -142,18 +118,6 @@
     "has_eval_template": true,
     "model_pin": "any",
     "effort_pin": "low"
-  },
-  {
-    "name": "skill-creator",
-    "description_tokens": 138,
-    "description_chars": 483,
-    "body_tokens": 1092,
-    "body_chars": 3823,
-    "tools_bytes": 5870,
-    "tools_kb": 5.7,
-    "has_eval_template": true,
-    "model_pin": "any",
-    "effort_pin": "medium"
   },
   {
     "name": "verify-before-completion",
