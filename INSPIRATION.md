@@ -46,6 +46,7 @@ Repos and writeups that shaped this catalog or live in adjacent territory. Group
 - [garrytan/gstack](https://github.com/garrytan/gstack) — Claude Code as a 23-role virtual engineering team (CEO / designer / QA lead / release engineer / …) with enforced planning-building-reviewing-testing-shipping workflow.
 - [crewaiinc/crewai](https://github.com/crewaiinc/crewai) — multi-agent orchestration framework (role-based crews, tasks, processes).
 - [lsdefine/GenericAgent](https://github.com/lsdefine/GenericAgent) — minimal self-evolving agent (~3k LOC core, 9 atomic tools, ~100-line loop) for system-level local control.
+- [ray-amjad/claude-code-workflow-creator](https://github.com/ray-amjad/claude-code-workflow-creator) — meta-skill that authors **workflow scripts** (JavaScript files) for Claude Code's unreleased `Workflow` tool (gated behind `CLAUDE_CODE_WORKFLOWS=1`). Deterministic multi-agent orchestration: `agent()`/`parallel()`/`pipeline()`/`phase()` as plain JS, only leaf `agent()` calls spend tokens, each in its own fresh-context window. Ships an api-reference, a 6-pattern playbook (fan-out, pipeline, barrier-dedup, loop-until-budget, judge panel, nested workflow), runnable examples, and a validator script. Adjacent to our dropped [`delegate`](README.md) skill — when the Workflow tool ships, our [`eval/combos/`](eval/combos/) YAMLs (caveman+lean, triage+caveman+keeper, etc.) could be re-expressed as workflow files for end-users who want a specific stack deployed deterministically.
 
 ## Prompt engineering & background reading
 
