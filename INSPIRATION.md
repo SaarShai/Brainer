@@ -48,6 +48,17 @@ Repos and writeups that shaped this catalog or live in adjacent territory. Group
 - [lsdefine/GenericAgent](https://github.com/lsdefine/GenericAgent) — minimal self-evolving agent (~3k LOC core, 9 atomic tools, ~100-line loop) for system-level local control.
 - [ray-amjad/claude-code-workflow-creator](https://github.com/ray-amjad/claude-code-workflow-creator) — meta-skill that authors **workflow scripts** (JavaScript files) for Claude Code's unreleased `Workflow` tool (gated behind `CLAUDE_CODE_WORKFLOWS=1`). Deterministic multi-agent orchestration: `agent()`/`parallel()`/`pipeline()`/`phase()` as plain JS, only leaf `agent()` calls spend tokens, each in its own fresh-context window. Ships an api-reference, a 6-pattern playbook (fan-out, pipeline, barrier-dedup, loop-until-budget, judge panel, nested workflow), runnable examples, and a validator script. Adjacent to our dropped [`delegate`](README.md) skill — when the Workflow tool ships, our [`eval/combos/`](eval/combos/) YAMLs (caveman+lean, triage+caveman+keeper, etc.) could be re-expressed as workflow files for end-users who want a specific stack deployed deterministically.
 
+## Drift mitigation (loop/goal/spec)
+
+- [google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli) `loopDetectionService.ts` — production loop detector: identical tool-call ≥ 5× or identical sentence ≥ 10× triggers halt + recovery. Lineage for [`loop-breaker`](skills/loop-breaker/SKILL.md).
+- [anthropics/claude-code#4277](https://github.com/anthropics/claude-code/issues/4277) — open feature request: no first-party loop detection in Claude Code. Documents the gap [`loop-breaker`](skills/loop-breaker/SKILL.md) fills.
+- [othmanadi/planning-with-files](https://github.com/othmanadi/planning-with-files) — 3-file plan/findings/progress pattern with PreToolUse plan re-reads. Candidate lineage for a future `plan-anchor` skill (held; design questions on re-injection cadence vs. noise).
+- [itsuzef/goalkeeper](https://github.com/itsuzef/goalkeeper) — fresh subagent judges work against a written Definition of Done after validator passes. Adjacent to [`verify-before-completion`](skills/verify-before-completion/SKILL.md) but DoD-driven rather than test-driven.
+- [fiberplane/drift](https://github.com/fiberplane/drift) — tree-sitter AST anchors bind markdown blocks to source symbols + `@<git-sha>`; `drift check` fails CI on spec↔code divergence. Candidate for a future `spec-anchor` thin wrapper.
+- [rohitg00/pro-workflow](https://github.com/rohitg00/pro-workflow) — converts user corrections into FTS5-indexed rules auto-injected at SessionStart so the same failure doesn't recur next session. Cross-session counterpart to [`loop-breaker`](skills/loop-breaker/SKILL.md)'s in-session detection.
+- [rulebricks/claude-code-guardrails](https://github.com/rulebricks/claude-code-guardrails) — PreToolUse rule engine blocking fabricated/dangerous commands. Adjacent shape to [`loop-breaker`](skills/loop-breaker/SKILL.md) but rule-based rather than pattern-based.
+- arXiv [2601.04170](https://arxiv.org/abs/2601.04170) "Agent Drift" — taxonomy (semantic/coordination/behavioral) + Agent Stability Index across 12 dimensions. Background; ASI itself doesn't fit a slash-skill (needs cross-session telemetry).
+
 ## Prompt engineering & background reading
 
 - [EgoAlpha/prompt-in-context-learning](https://github.com/EgoAlpha/prompt-in-context-learning) — curated resource hub: papers, playgrounds, prompt-engineering techniques, real-world prompts. Useful as a survey, not as a tool.

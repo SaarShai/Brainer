@@ -1,6 +1,6 @@
 # Skills — Rated Index
 
-All 11 measured skills, rated on efficiency, gain, reliability, and quality loss. (`index-first` added v1.4.0 — eval pending.)
+All 11 measured skills, rated on efficiency, gain, reliability, and quality loss. (`index-first` and `loop-breaker` added v1.4.0 — eval pending; `loop-breaker` targets a tail failure mode so standard A/B will under-represent the effect — see [`loop-breaker/EVAL.md`](../skills/loop-breaker/EVAL.md) for the measurement plan.)
 Static columns are deterministic. Live columns require a live A/B run via `eval/runner.py`.
 
 ### Rating scale
