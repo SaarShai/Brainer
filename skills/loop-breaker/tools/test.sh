@@ -155,6 +155,50 @@ else
 fi
 
 # -----------------------------------------------------------------------------
+echo "[12] Same command, different `description` → same signature (key bug fix)"
+SUB=t12
+# Simulate Claude Code's actual PreToolUse payload — model adds varying description per call
+for i in 1 2 3 4 5; do
+  P=$(printf '{"session_id":"desc","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"pwd","description":"Run pwd - call %d"}}' "$i")
+  out=$(printf '%s' "$P" | env LOOP_BREAKER_STATE_DIR="$STATE_ROOT/$SUB" $HOOK)
+done
+if emitted "$out"; then ok "5th call triggers despite varying description"; else no "5th call triggers despite varying description" "got empty"; fi
+final_count=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["consecutive_count"])' "$STATE_ROOT/$SUB/desc.json")
+if [ "$final_count" = "5" ]; then ok "consecutive_count reached 5"; else no "consecutive_count reached 5" "got $final_count"; fi
+
+echo "[13] Leading-underscore fields stripped from signature"
+SUB=t13
+for i in 1 2 3 4 5; do
+  P=$(printf '{"session_id":"underscore","hook_event_name":"PreToolUse","tool_name":"X","tool_input":{"x":"same","_callId":"id-%d"}}' "$i")
+  out=$(printf '%s' "$P" | env LOOP_BREAKER_STATE_DIR="$STATE_ROOT/$SUB" $HOOK)
+done
+if emitted "$out"; then ok "underscore-prefixed fields excluded from signature"; else no "underscore-prefixed fields excluded"; fi
+
+echo "[14] Different commands still produce different signatures (anti-overgeneralization)"
+SUB=t14
+for c in "echo a" "echo b" "echo c" "echo d" "echo e"; do
+  P=$(printf '{"session_id":"diff","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"%s","description":"same desc"}}' "$c")
+  out=$(printf '%s' "$P" | env LOOP_BREAKER_STATE_DIR="$STATE_ROOT/$SUB" $HOOK)
+done
+if [ -z "$out" ]; then ok "5 different commands (same desc) → no false trigger"; else no "no false trigger" "got: $(echo "$out" | head -c80)"; fi
+
+echo "[11a] State GC at session-start: 8-day-old files purged, fresh kept"
+SUB=t11a
+mkdir -p "$STATE_ROOT/$SUB"
+# Plant 3 fake old state files (mtime 8 days ago) + 1 fresh
+for old in aaaa bbbb cccc; do
+  echo '{"consecutive_count": 1}' > "$STATE_ROOT/$SUB/$old.json"
+  # touch with 8-day-old mtime (use python for portability across BSD/GNU date)
+  python3 -c "import os,time;os.utime('$STATE_ROOT/$SUB/$old.json', (time.time()-8*86400, time.time()-8*86400))"
+done
+echo '{"consecutive_count": 1}' > "$STATE_ROOT/$SUB/fresh.json"
+# Now trigger session-start by calling hook with a NEW session id (no pre-existing state for "newsid")
+out=$(call $SUB -- "$(bash_payload newsid 'echo gc')")
+old_present=$(ls "$STATE_ROOT/$SUB"/{aaaa,bbbb,cccc}.json 2>/dev/null | wc -l | tr -d ' ')
+fresh_present=$(ls "$STATE_ROOT/$SUB"/fresh.json 2>/dev/null | wc -l | tr -d ' ')
+if [ "$old_present" = "0" ]; then ok "all 3 stale files purged"; else no "all 3 stale files purged" "still present: $old_present"; fi
+if [ "$fresh_present" = "1" ]; then ok "fresh file kept"; else no "fresh file kept"; fi
+
 echo "[11b] Concurrency: 10 parallel invocations → count=10 (no lost increments)"
 SUB=t11b
 mkdir -p "$STATE_ROOT/$SUB"

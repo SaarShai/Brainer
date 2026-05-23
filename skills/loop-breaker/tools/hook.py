@@ -41,6 +41,8 @@ from pathlib import Path
 
 THRESHOLD_DEFAULT = 5
 PREVIEW_MAX = 200
+GC_AGE_SECONDS = 7 * 24 * 3600   # delete state files older than 7 days
+GC_SCAN_MAX = 500                # bound the scandir cost
 
 
 def log_err(msg: str) -> None:
@@ -48,11 +50,28 @@ def log_err(msg: str) -> None:
     sys.stderr.write(f"{ts} loop-breaker: {msg}\n")
 
 
+SIG_STRIP_KEYS = {"description"}  # model-generated free-text labels that vary per call
+
+
+def signature_input(tool_input: object) -> object:
+    """Project tool_input down to fields that meaningfully define the action.
+    Drops `description` (model-generated label, varies per call) and any
+    leading-underscore internal fields. Other tool-specific drift sources
+    (e.g. a future `_callId`) get caught by the underscore rule."""
+    if isinstance(tool_input, dict):
+        return {
+            k: v for k, v in tool_input.items()
+            if k not in SIG_STRIP_KEYS and not k.startswith("_")
+        }
+    return tool_input
+
+
 def canonical_signature(tool_name: str, tool_input: object) -> str:
+    projected = signature_input(tool_input)
     try:
-        canon = json.dumps(tool_input, sort_keys=True, separators=(",", ":"), default=str)
+        canon = json.dumps(projected, sort_keys=True, separators=(",", ":"), default=str)
     except Exception:
-        canon = repr(tool_input)
+        canon = repr(projected)
     digest = hashlib.sha256(canon.encode("utf-8", errors="replace")).hexdigest()
     return f"{tool_name}::{digest}"
 
@@ -87,6 +106,33 @@ def state_dir() -> Path:
 def state_path(session_id: str) -> Path:
     sid8 = (session_id or "unknown")[:8] or "unknown"
     return state_dir() / f"{sid8}.json"
+
+
+def gc_old_state(dir_path: Path, now: float) -> int:
+    """Delete state + lock files older than GC_AGE_SECONDS. Returns count removed.
+    Bounded by GC_SCAN_MAX; on any error logs and returns the count so far."""
+    if not dir_path.is_dir():
+        return 0
+    removed = 0
+    try:
+        with os.scandir(dir_path) as it:
+            for i, entry in enumerate(it):
+                if i >= GC_SCAN_MAX:
+                    break
+                if not entry.is_file():
+                    continue
+                name = entry.name
+                if not (name.endswith(".json") or name.endswith(".json.lock")):
+                    continue
+                try:
+                    if now - entry.stat().st_mtime > GC_AGE_SECONDS:
+                        os.unlink(entry.path)
+                        removed += 1
+                except OSError:
+                    pass
+    except OSError as e:
+        log_err(f"gc-scandir-fail dir={dir_path} err={e!r}")
+    return removed
 
 
 @contextmanager
@@ -183,6 +229,7 @@ def main() -> int:
 
     sig = canonical_signature(tool_name, tool_input)
     path = state_path(session_id)
+    is_new_session = not path.exists()
 
     with state_lock(path):
         state = load_state(path)
@@ -201,6 +248,9 @@ def main() -> int:
             "last_seen_iso": now_iso,
         })
         save_state(path, state)
+
+    if is_new_session:
+        gc_old_state(path.parent, time.time())
 
     if count < threshold:
         return 0

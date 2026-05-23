@@ -20,6 +20,10 @@ Inspired by Gemini-CLI's `loopDetectionService.ts` (≥5 identical tool calls �
 
 The single most expensive agent-drift symptom in token-economy terms: the agent retries the same failing command 8, 12, 20 times. Each retry burns full main-context tokens. `verify-before-completion` runs once at the end. `plan-first-execute` runs once at the start. Neither watches the mid-run loop.
 
+## Compatibility
+
+**Claude Code only.** `PreToolUse` is a Claude-Code-specific hook event — the other catalog hosts (Codex/Cursor/Gemini) don't fire it, so the skill is a no-op there. The top-level `./install.sh` still symlinks the folder into all four host dirs so the description shows up in skill indexes; only the Claude Code installer wires the actual hook.
+
 ## Install
 
 Claude Code (project-local):
