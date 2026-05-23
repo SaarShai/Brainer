@@ -39,7 +39,7 @@ Skills compound across axes (output × input × routing × memory) but **diminis
 | Metric | Value | Source |
 |---|---|---|
 | Always-on context tax (11 skill descriptions, v1.3.0) | **801 tokens** (~0.4% of 200K) | `eval/results/static_cost.json` |
-| Best per-call output reduction (caveman-ultra) | **−85.2%** output, **+0.13 judge** | `eval/results/caveman-ultra.json` + `.judged.json` |
+| Best per-call output reduction (caveman-ultra) | **−86.4%** output (N=50), **+0.13 judge** (prior N=15) | `eval/results/caveman-ultra.json` + `.judged.json` |
 | Best discipline combo (caveman + lean) | **−87.7%** output | `eval/results/caveman+lean.json` |
 | End-to-end routing savings (prompt-triage, N=13 mixed prompts) | **−20.9%** total tokens, 100% classification accuracy | `eval/results/prompt-triage.json` |
 | Memory compression (context-keeper, real 970-event transcript) | sidecar = **2.3% of raw transcript** (44× smaller), 100% URL recall, 67% numbers recall | `eval/results/context-keeper.json` |
@@ -53,16 +53,20 @@ Headline numbers with the skill active. Different metrics per skill type — see
 | **semantic-diff** | **97.5% / 96.5% / 86.0%** on unchanged / +fn / 2-edit re-reads | — | 3 source files | `runner_semdiff.py` |
 | **output-filter** | **−88.8%** bytes, 5/5 error lines preserved | — | 4 noisy samples | `runner_filter.py` |
 | **context-keeper** | **97.7%** transcript compression, 100% URL / 67% measurement recall | — | 1 transcript | `runner_keeper.py` |
-| caveman-ultra | **−85.2%** output | +0.13 | 3 × 5 | `runner.py` |
+| caveman-ultra | **−86.4%** output | +0.13 (prior N=15) | **50 × 5** | `runner.py` |
 | **wiki-memory** | **−64.6%** output, +411% input, +6.9% total, same judge | 0.00 | 1 × 8 | `runner_wiki.py` |
 | lean-execution | **−55.8%** output | +0.00 | 3 × 5 | `runner.py` |
-| verify-before-completion | **−45.2%** output | −0.40 ⚠ | 3 × 5 | `runner.py` |
+| verify-before-completion | **−33.5%** output | n/a (judge pending) ⚠ | **50 × 5** | `runner.py` |
 | **compress-context** | **−35.6%** mean token reduction (n=3 long contexts) | — | 3 samples | `runner_compress.py` |
 | prompt-triage | **−20.9%** total tokens, 100% routing accuracy | — | 1 × 13 | `runner_triage.py` |
-| plan-first-execute | −20.4% output | +0.20 | 3 × 5 | `runner.py` |
+| plan-first-execute | **−20.45%** output | +0.20 (prior N=15) | **50 × 5** | `runner.py` |
 | **handoff** | 3/3 integration pass, 4/4 sections, 39 ms / call, ~2.5 KB doc | — | 3 focus arguments | `runner_handoff.py` |
 
-⚠ The verify-before-completion `−0.40` is a rubric artifact — the test prompts ask "I just did X, is it done?" without execution access; the skill correctly demands fresh verification commands but can't run them, and the judge scores "demands evidence" lower than "affirms confidently". Re-test with executable prompts before downrating.
+⚠ The verify-before-completion judge column is `n/a (pending)` because the N=50 run with the new executable-prompt YAML (`eval/tasks/verify-before-completion.yaml`, commit `caf0400`) produced the output deltas but the judge pass failed mid-batch on `MiMo 402: Insufficient balance`. Prior to the prompt rework, this skill judged at `−0.40` on the old "I just did X, is it done?" prompts — a known rubric artifact (judge scored "demands fresh evidence" lower than "affirms confidently"). The new prompts embed verification artifacts (test output, build log, install record, env state, migration log) so the rubric can fairly score "examined the evidence + named the gap" vs. "trusted the artifact" — but the judge needs to be re-run on a non-MiMo backend (e.g. `judge.py --backend ollama --model qwen3.6:35b-a3b-q4km`) before the rubric question is settled.
+
+### Model-size sensitivity (small-instruct caveat)
+
+One pre-existing smoke test (`eval/results/_smoke_mlx_verify.json`, MLX + `mlx-community/Llama-3.2-1B-Instruct-4bit`) shows `verify-before-completion` going in the **opposite** direction on tiny targets: **+96.17% output, +343% input**. The skill's "examine the evidence, name the gap, request the specific next check" framing requires the target to have headroom to compress — a 1B/4-bit instruct model doesn't, so the skill's prose inflates the response instead of tightening it. The catalog's −20% to −86% savings assume **Haiku-class or larger** targets. Smaller / heavily-quantised instruct models are out of scope; treat the catalog as net-cost-positive on those until separately validated.
 
 ## Session-level replay — two configurations
 
