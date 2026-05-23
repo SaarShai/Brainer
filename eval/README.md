@@ -2,6 +2,14 @@
 
 Three-layer measurement strategy. Each layer answers a different question.
 
+## Local setup
+
+```bash
+pip install -r eval/requirements.txt    # datasets, PyYAML, tiktoken
+```
+
+Kaggle preinstalls these; `eval/kaggle_notebook.py` handles its own pinning.
+
 ## Layer 1 — Static cost (no model required)
 
 What a skill costs the agent just by existing in the catalog (description-tokens, always resident).

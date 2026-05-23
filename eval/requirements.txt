@@ -1,0 +1,6 @@
+# Deps for running eval/ harnesses locally.
+# Kaggle has datasets preinstalled; this file is for local reproduction.
+# pip install -r eval/requirements.txt
+datasets>=2.14  # bench/adapters/squad.py, coqa.py loaders
+PyYAML>=6.0    # eval/runner.py task/combo YAML loader
+tiktoken>=0.5  # token counting in several runners

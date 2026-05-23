@@ -134,6 +134,22 @@ for h in "${HOST_LIST[@]}"; do
   esac
 done
 
+# Per-skill tools/install.sh — for skills with Python/MCP deps (best-effort).
+echo
+echo "[skill-tools] running per-skill installers (Python deps, MCP servers)"
+for tool_installer in "$SRC"/*/tools/install.sh; do
+  [ -f "$tool_installer" ] || continue
+  skill_name="$(basename "$(dirname "$(dirname "$tool_installer")")")"
+  echo "  → $skill_name"
+  if [ "$DRY_RUN" = "1" ]; then
+    echo "    DRY: bash $tool_installer"
+  else
+    # Tolerate per-skill installer failures (e.g. stale paths in other skills)
+    # so a broken sibling never aborts the whole install.
+    { bash "$tool_installer" 2>&1 | sed 's/^/    /'; } || echo "    [warn] $skill_name installer exited nonzero — see above"
+  fi
+done
+
 for f in CLAUDE.md AGENTS.md GEMINI.md; do
   shim="$REPO_ROOT/$f"
   if [ ! -f "$shim" ] || ! grep -q 'SKILLS_INDEX' "$shim" 2>/dev/null; then
