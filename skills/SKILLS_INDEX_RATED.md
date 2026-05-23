@@ -1,6 +1,6 @@
 # Skills — Rated Index
 
-All 11 skills, rated on efficiency, gain, reliability, and quality loss.
+All 11 measured skills, rated on efficiency, gain, reliability, and quality loss. (`index-first` added v1.4.0 — eval pending.)
 Static columns are deterministic. Live columns require a live A/B run via `eval/runner.py`.
 
 ### Rating scale
