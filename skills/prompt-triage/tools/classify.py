@@ -89,7 +89,7 @@ JSON:"""
 
 
 def ollama_classify(prompt: str, model: str = "qwen3:8b", timeout: int = 2) -> dict | None:
-    full = LLM_PROMPT.format(task=prompt[:800])
+    full = LLM_PROMPT.replace("{task}", prompt[:800])
     if "qwen3" in model:
         full += " /no_think"
     data = json.dumps({
