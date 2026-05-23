@@ -44,6 +44,19 @@ MAX_PROBES_TRIGGERED = 4          # cap pulse payload
 GC_AGE_SECONDS = 7 * 24 * 3600
 GC_SCAN_MAX = 500
 
+# Strip fenced + inline code from assistant text before running detectors —
+# otherwise a literal string like `print("Certainly!")` triggers caveman's
+# filler regex. Detectors should fire on the model's *prose*, not on code
+# the model is quoting.
+_CODE_BLOCK_RE = re.compile(r"```[\s\S]*?```")
+_INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
+
+
+def strip_code(text: str) -> str:
+    text = _CODE_BLOCK_RE.sub(" ", text)
+    text = _INLINE_CODE_RE.sub(" ", text)
+    return text
+
 
 def log_err(msg: str) -> None:
     ts = time.strftime("%FT%TZ", time.gmtime())
@@ -208,8 +221,10 @@ def recent_assistant_messages(events: list[dict], n: int) -> list[dict]:
         text_chunks = [b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text"]
         if not text_chunks:
             continue
+        joined = "\n".join(text_chunks)
         out.append({
-            "text": "\n".join(text_chunks),
+            "text": strip_code(joined),
+            "raw_text": joined,
             "uuid": e.get("uuid", ""),
             "timestamp": e.get("timestamp", ""),
         })

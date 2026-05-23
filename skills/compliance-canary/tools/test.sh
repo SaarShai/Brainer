@@ -240,6 +240,61 @@ old_count=$(ls "$STATE_ROOT/cc18"/{old1,old2}.json 2>/dev/null | wc -l | tr -d '
 keep=$(ls "$STATE_ROOT/cc18"/keep.json 2>/dev/null | wc -l | tr -d ' ')
 if [ "$old_count" = "0" ] && [ "$keep" = "1" ]; then ok "stale purged, fresh kept"; else no "GC" "old=$old_count keep=$keep"; fi
 
+echo "[20] Code-block strip: filler word inside fenced code → silent (false-positive fix)"
+PROBES='[{"id":"filler","kind":"forbidden_regex","pattern":"(?i)\\bcertainly\\b"}]'
+make_skill_with_probes sk20 cv "$PROBES"
+TX="$TRANSCRIPT_DIR/t20.jsonl"
+# Build a message with the filler word ONLY inside a fenced code block.
+# Use Python (no shell quoting) to write the transcript so backticks survive.
+python3 <<PY > "$TX"
+import json
+fence = chr(96) * 3
+msg = f"Here is the change:\n\n{fence}python\nprint(\"Certainly!\")  # literal\n{fence}\n\nDone."
+print(json.dumps({"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":msg}]}}))
+PY
+out=$(call cc20 sk20 "$TX" s20)
+if [ -z "$out" ]; then ok "code-block 'Certainly' does NOT trigger"; else no "code-block 'Certainly' does NOT trigger" "got: $(echo "$out" | head -c150)"; fi
+
+echo "[21] Code-block strip: filler in PROSE still triggers"
+TX="$TRANSCRIPT_DIR/t21.jsonl"
+write_transcript "$TX" "$(assistant_text 'Certainly! Glad to help.' u21)"
+out=$(call cc21 sk20 "$TX" s21)
+if emitted "$out"; then ok "prose 'Certainly' still triggers"; else no "prose 'Certainly' still triggers"; fi
+
+echo "[22] Inline backtick code stripped: inline-coded 'done' does NOT trigger claim probe"
+PROBES='[{"id":"unverified","kind":"claim_without_evidence","claim_pattern":"(?i)\\b(done|fixed)\\b","verify_tools":["Bash"]}]'
+make_skill_with_probes sk22 vbc "$PROBES"
+TX="$TRANSCRIPT_DIR/t22.jsonl"
+python3 <<PY > "$TX"
+import json
+bt = chr(96)
+msg = f"I added a {bt}done{bt} flag in the config"
+print(json.dumps({"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":msg}]}}))
+PY
+out=$(call cc22 sk22 "$TX" s22)
+if [ -z "$out" ]; then ok "inline backtick 'done' does NOT trigger claim probe"; else no "inline backtick 'done' does NOT trigger" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[23] Multi-probe cooldown interleaving: A+B fire turn 1, C newly fires turn 2 (A+B suppressed)"
+PROBES='[
+  {"id":"a","kind":"forbidden_regex","pattern":"(?i)\\bfoo\\b"},
+  {"id":"b","kind":"forbidden_regex","pattern":"(?i)\\bbar\\b"},
+  {"id":"c","kind":"forbidden_regex","pattern":"(?i)\\bbaz\\b"}
+]'
+make_skill_with_probes sk23 multi "$PROBES"
+TX="$TRANSCRIPT_DIR/t23a.jsonl"
+write_transcript "$TX" "$(assistant_text 'foo and bar are here' u23)"
+out1=$(call cc23 sk23 "$TX" s23)
+if emitted "$out1" && echo "$out1" | grep -q ' a' && echo "$out1" | grep -q ' b'; then ok "turn 1: A + B both fire"; else no "turn 1: A + B both fire" "got: $(echo "$out1" | head -c200)"; fi
+# Turn 2: text now has all three; A + B suppressed, C newly fires
+TX="$TRANSCRIPT_DIR/t23b.jsonl"
+write_transcript "$TX" "$(assistant_text 'foo bar baz' u23b)"
+out2=$(call cc23 sk23 "$TX" s23)
+if emitted "$out2" && echo "$out2" | grep -q "matched 'baz'" && ! echo "$out2" | grep -qE "matched 'foo'|matched 'bar'"; then
+  ok "turn 2: C fires (matched 'baz'), A+B suppressed"
+else
+  no "turn 2: cooldown selective" "got: $(echo "$out2" | head -c300)"
+fi
+
 echo "[19] MAX_PROBES_TRIGGERED cap: 6 probes, only 4 in output"
 mkdir -p "$SKILLS_ROOT/sk19/many"
 python3 -c "
