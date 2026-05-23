@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# agents-triage installer. Project-local only.
+# prompt-triage installer. Project-local only.
 
 set -euo pipefail
 
@@ -9,17 +9,18 @@ if [ "${1:-}" = "--dry-run" ]; then
     shift
 fi
 if [ "${1:-}" != "" ] && [ "${1:-}" != "--project" ]; then
-    echo "agents-triage installs project-locally only. Use --project, --dry-run, or no flag." >&2
+    echo "prompt-triage installs project-locally only. Use --project, --dry-run, or no flag." >&2
     exit 2
 fi
 
-REPO="$(cd "$(dirname "$0")/../.." && pwd)"
-SKILL_SRC="$REPO/projects/agents-triage"
+TOOLS_DIR="$(cd "$(dirname "$0")" && pwd)"
+SKILL_SRC="$(cd "$TOOLS_DIR/.." && pwd)"
+REPO="$(cd "$TOOLS_DIR/../../.." && pwd)"
 
 SKILL_DIR="$REPO/.claude/skills"
 AGENT_DIR="$REPO/.claude/agents"
 SETTINGS="$REPO/.claude/settings.json"
-HOOK_CMD="bash $SKILL_SRC/hook.sh"
+HOOK_CMD="bash $TOOLS_DIR/hook.sh"
 AGENTS=(wiki-note quick-fix local-ollama research-lite kaggle-feeder)
 
 merge_settings() {
@@ -56,7 +57,7 @@ PY
 }
 
 if [ "$DRY_RUN" = "1" ]; then
-    echo "[1/3] dry-run: would symlink skill → $SKILL_DIR/agents-triage"
+    echo "[1/3] dry-run: would symlink skill → $SKILL_DIR/prompt-triage"
     echo "[2/3] dry-run: would copy agent definitions → $AGENT_DIR/"
     printf '  - %s\n' "${AGENTS[@]}"
     echo "[3/3] dry-run: would update $SETTINGS with UserPromptSubmit -> $HOOK_CMD"
@@ -65,21 +66,21 @@ fi
 
 mkdir -p "$SKILL_DIR" "$AGENT_DIR"
 
-echo "[1/3] symlinking skill → $SKILL_DIR/agents-triage"
-ln -sfn "$SKILL_SRC" "$SKILL_DIR/agents-triage"
+echo "[1/3] symlinking skill → $SKILL_DIR/prompt-triage"
+ln -sfn "$SKILL_SRC" "$SKILL_DIR/prompt-triage"
 
 echo "[2/3] copying agent definitions → $AGENT_DIR/"
 for a in "${AGENTS[@]}"; do
-    cp -f "$SKILL_SRC/agents/$a.md" "$AGENT_DIR/$a.md"
+    cp -f "$TOOLS_DIR/agents/$a.md" "$AGENT_DIR/$a.md"
 done
 
-chmod +x "$SKILL_SRC/hook.sh" "$SKILL_SRC/classify.py"
+chmod +x "$TOOLS_DIR/hook.sh" "$TOOLS_DIR/classify.py"
 
 echo "[3/3] hook wiring ($SETTINGS)"
 merge_settings
 
 cat <<EOF
-Installed agents-triage into repo-local .claude.
+Installed prompt-triage into repo-local .claude.
 
 Override per-prompt: include "NO TRIAGE" anywhere in your message.
 
@@ -88,5 +89,5 @@ Env:
   AGENTS_TRIAGE_LOG=/path/log    log every classification
 
 Test the classifier:
-  python3 $SKILL_SRC/classify.py "add a note to the wiki about X"
+  python3 $TOOLS_DIR/classify.py "add a note to the wiki about X"
 EOF

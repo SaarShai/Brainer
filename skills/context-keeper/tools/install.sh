@@ -11,12 +11,13 @@ if [ "${1:-}" != "" ] && [ "${1:-}" != "--project" ]; then
   exit 2
 fi
 
-REPO="$(cd "$(dirname "$0")/../.." && pwd)"
-PROJECT_SRC="$REPO/projects/context-keeper"
+TOOLS_DIR="$(cd "$(dirname "$0")" && pwd)"
+SKILL_SRC="$(cd "$TOOLS_DIR/.." && pwd)"
+REPO="$(cd "$TOOLS_DIR/../../.." && pwd)"
 CLAUDE_DIR="$REPO/.claude"
 SKILL_DIR="$CLAUDE_DIR/skills"
 SETTINGS="$CLAUDE_DIR/settings.json"
-HOOK_CMD="bash ./.claude/skills/context-keeper/hook.sh"
+HOOK_CMD="bash ./.claude/skills/context-keeper/tools/hook.sh"
 
 merge_settings() {
   python3 - "$SETTINGS" "$HOOK_CMD" <<'PY'
@@ -52,14 +53,14 @@ PY
 }
 
 if [ "$DRY_RUN" = "1" ]; then
-  echo "dry-run: would symlink $PROJECT_SRC → $SKILL_DIR/context-keeper"
+  echo "dry-run: would symlink $SKILL_SRC → $SKILL_DIR/context-keeper"
   echo "dry-run: would update $SETTINGS with PreCompact -> $HOOK_CMD"
   exit 0
 fi
 
 mkdir -p "$SKILL_DIR"
-chmod +x "$PROJECT_SRC/hook.sh"
-ln -sfn "$PROJECT_SRC" "$SKILL_DIR/context-keeper"
+chmod +x "$TOOLS_DIR/hook.sh"
+ln -sfn "$SKILL_SRC" "$SKILL_DIR/context-keeper"
 merge_settings
 
 echo "Installed context-keeper into repo-local .claude."
