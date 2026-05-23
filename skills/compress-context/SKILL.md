@@ -1,7 +1,6 @@
 ---
 name: compress-context
 description: Compound prompt compression with self-verify escalation. Use opt-in for long-context tasks where the prompt is ≥2K tokens. Compresses input via LLMLingua-2 + structural protection of code/paths/numbers, then runs a quick judge to verify the answer is still grounded; on low confidence, re-runs at a higher rate or falls back to original. Measured 44.9% token savings, Δscore −0.12 (95% CI touches 0) on SQuAD v2 (n=8). Opt-in until N≥50 verified.
-model: any
 effort: medium
 tools: [Bash, Read]
 ---

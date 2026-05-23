@@ -1,7 +1,6 @@
 ---
 name: output-filter
 description: Use when terminal output is noisy with ANSI / progress bars / duplicate lines and you want to keep the agent's eyes on signal. Strips ANSI, collapses adjacent duplicates, archives raw output locally for recovery, exposes stats and rewind. Wire as a shell pipe or PostToolUse hook on Bash. Preserves error lines and exact failure evidence verbatim.
-model: any
 effort: low
 tools: [Bash]
 ---

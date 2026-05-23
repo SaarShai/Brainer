@@ -1,7 +1,6 @@
 ---
 name: caveman-ultra
 description: Terse output style. Use at session start, or whenever the user asks for compact, short, terse, or "caveman" responses. Drops filler, pleasantries, hedging, soft closings. Keeps code blocks, paths, numbers, math, errors verbatim. Affects emitted prose only; reasoning budget unchanged.
-model: any
 effort: low
 ---
 

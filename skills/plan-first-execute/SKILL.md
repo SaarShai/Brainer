@@ -1,7 +1,6 @@
 ---
 name: plan-first-execute
 description: Plan before executing non-trivial tasks. Trigger when the task has more than 3 steps, unclear scope, multiple files, real risk, or architecture decisions. Inspect reality first, draft a phased plan with verification gates, simplify, then execute.
-model: any
 effort: medium
 ---
 

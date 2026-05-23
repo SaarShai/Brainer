@@ -1,7 +1,6 @@
 ---
 name: semantic-diff
 description: AST-node-level diff for file re-reads. Use whenever you'd re-read a file you've read before — the skill returns only the changed AST nodes, not the full file. 95.5% token savings measured on argparse.py (2575 lines, 2 method edits). MCP server exposes read_file_smart, snapshot_clear, snapshot_status. Supports Python, JavaScript, TypeScript, Rust.
-model: any
 effort: low
 tools: [Bash, Read]
 ---

@@ -1,7 +1,6 @@
 ---
 name: handoff
 description: Fires on the literal token "/handoff" in the user's message. Do NOT fire on any other input. Writes a markdown handoff document summarising the current conversation so a fresh agent can continue the work. Three modes — default (write doc to OS temp dir), --full (also route durable facts into wiki/L2_facts/), --ask (query the most recent handoff for one specific fact). Pure local — no successor launch, no API calls. Replaces the older `context-refresh` skill; manual launch is the contract for now.
-model: any
 effort: low
 tools: [Bash, Read, Write]
 argument-hint: What will the next session be used for? (or use --ask, --full)

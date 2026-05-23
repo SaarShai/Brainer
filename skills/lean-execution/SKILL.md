@@ -1,7 +1,6 @@
 ---
 name: lean-execution
 description: Prune plans, process, context, and delegation to the smallest safe path. Trigger when the user asks to simplify, be lean, reduce process, remove steps, or cut rot; or when a plan has more steps than the task seems to need.
-model: any
 effort: low
 ---
 

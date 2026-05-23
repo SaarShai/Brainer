@@ -1,7 +1,6 @@
 ---
 name: verify-before-completion
 description: Use before claiming work is done, fixed, passing, committed, or ready. Evidence before claims. Run the verification fresh; report exact command + output + remaining risk.
-model: any
 effort: low
 ---
 
