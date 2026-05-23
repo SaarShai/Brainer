@@ -26,6 +26,8 @@ Full body cost (worst case, all loaded at once): ~6,500 tokens. In practice, onl
 
 See [eval/results/static_cost.json](eval/results/static_cost.json) for the full measurement.
 
+**Tuning your install:** stacking guidance, anti-patterns, and workload-aware install advice live in [`eval/FINDINGS.md`](eval/FINDINGS.md) — read once when you adopt the catalog or change which skills are enabled.
+
 ### Removed after measurement
 
 **v1.1.0** (no measurable gain or redundant):

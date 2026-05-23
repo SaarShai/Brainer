@@ -2,11 +2,43 @@
 
 Aggregating per-skill A/B + session-level replay. Updated as new measurements land.
 
+## Stacking & anti-patterns (read before tuning install)
+
+Skills compound across axes (output × input × routing × memory) but **diminish within the same axis** — two output-reducers don't sum, they compound on the remainder.
+
+**Workload → which bodies actually earn their cost:**
+
+| Signal in the user's prompt | Load body |
+|---|---|
+| Asks for explanation / summary / answer | `caveman-ultra` |
+| Asks for plan / refactor / multi-step task | `plan-first-execute` + `lean-execution` |
+| Claims something is done ("I just fixed X, is it done?") | `verify-before-completion` |
+| Re-reading a file already loaded this session | `semantic-diff` (automatic via `read_file_smart`) |
+| Prompt about to be sent is > 2K tokens | `compress-context` (opt-in) |
+| References past work, decisions, "have we done X?" | `wiki-memory` |
+| End of session, want a fresh one | `/handoff [focus]` |
+| Need one fact from a previous session | `/handoff --ask "<question>"` |
+| Approaching `/compact` | nothing — `context-keeper` hook fires automatically |
+| Noisy terminal output | `output-filter` (already piped via hook) |
+
+**Anti-patterns** (most are agent-internal, but you want to know them when deciding what to install):
+
+- Don't sum percentages. caveman (−85%) + lean (−56%) ≠ −141%. Measured stack: **−87.7%**. Gains compound on the remaining, not on the original.
+- Don't expect savings on short imperative prompts ("commit and push", "fix the typo"). The catalog can be net-cost-positive on workloads dominated by terse imperatives.
+- Don't add an output-reducer to a prompt that already has minimal output room. caveman cuts long explanations 85%; on a 50-token answer it can't do much.
+
+**Where the wins are bimodal:**
+
+- **Verbose-prone workloads** (planning, explanation, code review, multi-step bug fixing): catalog is a clear net win. Stack output reducers on top of the input reducers and expect −60% to −85% total tokens.
+- **Short imperative workloads** (commits, fixes, one-line answers): catalog adds marginal cost without proportional savings. Even with prompt caching, expect roughly flat to +10% total.
+
+**Workload-aware install:** keep the hook skills (`prompt-triage`, `context-keeper`, `output-filter`) and `caveman-ultra` everywhere; trim the discipline skills (`plan-first-execute`, `lean-execution`, `verify-before-completion`) on machines that mostly do quick imperative work.
+
 ## Headline numbers
 
 | Metric | Value | Source |
 |---|---|---|
-| Always-on context tax (13 skill descriptions) | **1,151 tokens** (~0.6% of 200K) | `eval/results/static_cost.json` |
+| Always-on context tax (11 skill descriptions, v1.3.0) | **801 tokens** (~0.4% of 200K) | `eval/results/static_cost.json` |
 | Best per-call output reduction (caveman-ultra) | **−85.2%** output, **+0.13 judge** | `eval/results/caveman-ultra.json` + `.judged.json` |
 | Best discipline combo (caveman + lean) | **−87.7%** output | `eval/results/caveman+lean.json` |
 | End-to-end routing savings (prompt-triage, N=13 mixed prompts) | **−20.9%** total tokens, 100% classification accuracy | `eval/results/prompt-triage.json` |

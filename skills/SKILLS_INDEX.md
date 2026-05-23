@@ -33,6 +33,8 @@ For ratings and measured deltas see [`SKILLS_INDEX_RATED.md`](SKILLS_INDEX_RATED
 - **Retrieve before reasoning** about project/wiki facts.
 - **Use cheapest capable worker**; keep main context clean.
 
+Stacking, anti-patterns, and workload guidance live in [`eval/FINDINGS.md`](../eval/FINDINGS.md) — not always-loaded; read once when installing or tuning the catalog.
+
 ## Install
 
 ```bash
