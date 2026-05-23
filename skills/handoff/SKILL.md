@@ -1,10 +1,10 @@
 ---
 name: handoff
-description: Fires on the literal token "/handoff" in the user's message (with or without a focus argument after it; e.g. "/handoff" or "/handoff fixing the auth race"). Do NOT fire on any other input. Writes a handoff document summarising the current conversation so a fresh agent can continue the work. Saves to the OS temp dir, not the workspace. Suggests 1–3 skills the successor should invoke first. References existing artifacts; doesn't duplicate them. Redacts secrets. Pure write-doc — no successor launch.
+description: Fires on the literal token "/handoff" in the user's message. Do NOT fire on any other input. Writes a markdown handoff document summarising the current conversation so a fresh agent can continue the work. Three modes — default (write doc to OS temp dir), --full (also route durable facts into wiki/L2_facts/), --ask (query the most recent handoff for one specific fact). Pure local — no successor launch, no API calls. Replaces the older `context-refresh` skill; manual launch is the contract for now.
 model: any
 effort: low
 tools: [Bash, Read, Write]
-argument-hint: What will the next session be used for?
+argument-hint: What will the next session be used for? (or use --ask, --full)
 disable-model-invocation: true
 ---
 
@@ -12,88 +12,75 @@ disable-model-invocation: true
 
 ## Strict trigger gate
 
-This skill fires **only** when the user's most recent message starts with the literal token `/handoff` (case-insensitive), with or without text after it. Examples that DO fire:
+Fires **only** when the user's most recent message starts with the literal token `/handoff` (case-insensitive). If the message doesn't start with `/handoff`, **exit silently** — do not write a file, do not propose a handoff, do not mention this skill.
 
-- `/handoff`
-- `/handoff fixing the auth race condition`
-- `/HANDOFF — continue the eval`
+## Three modes
 
-If the message does not start with `/handoff`, **exit silently** — do not write any file, do not propose a handoff, do not mention this skill. Hand control back to whatever skill or default behaviour the host was going to run.
+### 1. Default — write the doc
 
-This gate is necessary because hosts vary in how they route slash commands: Claude Code maps `/handoff` natively via the `name:` frontmatter, but Codex / Cursor / Gemini fall back to description-keyword matching, where a loose trigger would fire on arbitrary prose containing the word "handoff".
-
-## Body
-
-When the trigger matches, write a handoff document summarising the current conversation so a fresh agent can continue the work. **Save it to the temporary directory of the user's OS — not the current workspace.**
-
-Include a **suggested skills** section listing 1–3 skills the next session should invoke first (drawn from this catalog: caveman-ultra, plan-first-execute, lean-execution, verify-before-completion, wiki-memory, context-refresh, prompt-triage, delegate, context-keeper, compress-context, semantic-diff, output-filter).
-
-**Do not duplicate** content already captured in other artifacts (PRDs, plans, ADRs, issues, commits, diffs). Reference them by path or URL instead.
-
-**Redact** API keys, passwords, tokens, and any PII before writing the file.
-
-If the user passed an argument to the slash command, treat it as a description of what the next session will focus on and tailor the doc accordingly.
-
-## Output format (markdown)
-
-```markdown
-# Handoff — <date> — <one-sentence focus>
-
-## Summary
-<one paragraph: where we are, what was just done, what's next.>
-
-## Done
-- ...
-
-## In progress
-- ...
-
-## Next
-- ...
-
-## Files touched
-- path:line  why
-
-## Exact commands / errors to recall
-```bash
-<verbatim>
+```text
+/handoff                                  # untitled handoff
+/handoff fixing the auth race condition   # focus-tailored
 ```
 
-## Open questions / blockers
+Writes a structured markdown doc to `${TMPDIR}/handoff-YYYYMMDD-HHMMSS.md` and prints the absolute path on the last line so you can copy/paste it into the next session. The doc contains:
 
-## Suggested skills (invoke first)
-- skill-name — why
+- One-sentence summary tailored to the focus argument (if given).
+- Current task, what's done, what's in progress, what's next.
+- Files touched / exact commands / errors to recall.
+- Open questions / blockers.
+- **Suggested skills** for the next session to invoke first (1–3 names from this catalog).
+- **References** (paths/URLs only — never paste content from other artifacts).
 
-## References (do not paste — link to them)
-- <path or URL> — what's there
+Doesn't duplicate content from PRDs/plans/ADRs/issues/commits/diffs. Redacts API keys, passwords, tokens, PII.
+
+### 2. `--full` — write doc + route durable facts to wiki
+
+```text
+/handoff --full
+/handoff --full database migration plan
 ```
 
-Default path: `${TMPDIR:-/tmp}/handoff-$(date +%Y%m%d-%H%M%S).md`. Print the absolute path on the last line so the user can copy it.
+Same as default, **plus** extracts durable facts (files, commands, errors, numbers, URLs) and appends them as a new page under `wiki/L2_facts/<date>-<slug>.md`. Use when the session produced findings worth keeping across sessions, not just continuing into the next one.
+
+### 3. `--ask` — query the most recent handoff
+
+```text
+/handoff --ask "what was the auth race condition we found?"
+/handoff --ask "which file had the regression?"
+```
+
+Finds the most recent handoff doc (in `$TMPDIR` or `.token-economy/checkpoints/`) and returns matching snippets as JSON. Useful in a fresh session that needs one specific fact from the previous one without re-loading the whole handoff into context.
+
+## What this skill no longer does
+
+- **No successor launch.** The old `context-refresh` skill tried to spawn a fresh persistent session via `context.py relay --execute`. That path is fragile across hosts; manual launch is the contract now. Paste the handoff path into a fresh session yourself.
+- **No `meter` / fill-checkpoint auto-trigger.** Slash-only invocation. If you want a periodic checkpoint, set up a host-level reminder.
 
 ## Implementation
 
-When invoked as a slash command **inside an active agent session**, you (the agent) assemble the doc yourself from the current conversation. **Do not call any tool to "summarise the conversation"** — you are the summariser. Use a single `Write` tool call to produce the file at the path shown above.
+When invoked as a slash command **inside an active agent session**, the agent assembles the doc itself from the current conversation. **Do not call any tool to "summarise the conversation"** — the agent IS the summariser. Use a single `Write` tool call to put the file at the path shown above.
 
-**Standalone CLI fallback** (for scripting, CI, or when no agent is in the loop):
-
-```bash
-python3 skills/handoff/tools/handoff.py --goal "<focus argument>"
-```
-
-The wrapper calls `context-refresh`'s `checkpoint()` function, writes the packet to `${TMPDIR}/handoff-YYYYMMDD-HHMMSS.md`, and prints the absolute path. The CLI version uses regex extraction over the transcript instead of agent-assembled prose — less polished, but fully deterministic. Measured at 39 ms per call, 3/3 integration-test pass (`eval/runner_handoff.py`).
-
-A reasonable bash invocation to compute the output path and assert the temp dir exists:
+**Standalone CLI** (for scripting, CI, or when no agent is in the loop):
 
 ```bash
-OUT="${TMPDIR:-/tmp}/handoff-$(date +%Y%m%d-%H%M%S).md"
-mkdir -p "$(dirname "$OUT")"
-echo "$OUT"
+python3 skills/handoff/tools/handoff.py --goal "<focus>"
+python3 skills/handoff/tools/handoff.py --goal "<focus>" --full
+python3 skills/handoff/tools/handoff.py --ask "<question>"
 ```
 
-Then write the markdown to `$OUT` and print `$OUT` to the user as the very last line of your reply so they can copy it.
+The CLI calls regex-based extraction from the bundled `tools/_lib/context.py` (lifted from the absorbed `context-refresh` skill). Measured: 3/3 integration test pass on default mode (`eval/runner_handoff.py`), 4/4 required sections present, ~2.5 KB doc, 39 ms latency.
 
-This skill **does not** launch a successor session, sync the wiki, or modify settings. That is `context-refresh`'s job and is opt-in.
+## Files
+
+```
+tools/
+├── handoff.py             # CLI entrypoint (3 modes)
+└── _lib/
+    ├── context.py         # checkpoint() + extract_transcript_facts() + ask_old_from_transcript()
+    └── tokens.py          # token estimator (shared utility)
+```
 
 ## Lineage
 
-mattpocock/skills/productivity/handoff (MIT). Phrasing on summary, suggested-skills, reference-don't-duplicate, redaction, OS-temp-dir, and argument-hint borrowed verbatim. The `disable-model-invocation: true` discipline is his — keep the trigger explicit so the model never auto-fires a handoff mid-task.
+`mattpocock/skills/productivity/handoff` (MIT) for the slash-only / `disable-model-invocation` discipline, the suggested-skills section, the reference-don't-duplicate rule, redaction guidance, and the OS-temp-dir output convention. The `--full` and `--ask` modes are absorbed from our older `context-refresh` skill (dropped in v1.3.0 — the auto-launcher was the only unique piece and it never worked reliably).

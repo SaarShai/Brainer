@@ -13,17 +13,16 @@ A token- and context-efficient skill catalog for AI coding agents — Claude Cod
 | [lean-execution](skills/lean-execution/SKILL.md) | "simplify / lean / prune" | 63 | Pruning rule. |
 | [verify-before-completion](skills/verify-before-completion/SKILL.md) | before any "done" claim | 49 | Evidence-first. |
 | [wiki-memory](skills/wiki-memory/SKILL.md) | retrieve OR write durable | 108 | Tier-aware (L0–L4) repo-local markdown wiki. |
-| [context-refresh](skills/context-refresh/SKILL.md) | 20% fill, `/refresh`, `summ` | 89 | Lean handoff + persistent fresh successor. |
-| [handoff](skills/handoff/SKILL.md) | explicit `/handoff [focus]` | ~120 | Pure write-doc handoff, slash-only, no successor launch (matt-style). |
+| [handoff](skills/handoff/SKILL.md) | explicit `/handoff` (+ `--full`, `--ask`) | ~150 | Unified session handoff. Three modes: write doc to $TMPDIR / write doc + route facts to wiki / query last handoff. Replaces `context-refresh`; manual successor launch only. |
 | [prompt-triage](skills/prompt-triage/SKILL.md) | UserPromptSubmit hook | 89 | Pre-model regex+Ollama classifier; routes simple tasks to cheap models. |
 | [context-keeper](skills/context-keeper/SKILL.md) | PreCompact hook | 80 | Structured memory before compaction. |
 | [compress-context](skills/compress-context/SKILL.md) | opt-in long-context | 127 | LLMLingua-based compound compression. 44.9% savings, Δscore −0.12 measured on SQuAD v2 (n=8). |
 | [semantic-diff](skills/semantic-diff/SKILL.md) | file re-read | 99 | AST-node diff. 95.5% measured savings on argparse.py re-reads. |
 | [output-filter](skills/output-filter/SKILL.md) | terminal output hook | 99 | Strip ANSI/progress/dup noise; preserves errors. |
 
-**Always-resident context tax (12 descriptions): ~1,100 tokens.** Roughly 0.5% of a 200K context window.
+**Always-resident context tax (11 descriptions): ~1,000 tokens.** Roughly 0.5% of a 200K context window.
 
-Full body cost (worst case, all loaded at once): ~6,800 tokens. In practice, only the triggered skill's body loads.
+Full body cost (worst case, all loaded at once): ~6,500 tokens. In practice, only the triggered skill's body loads.
 
 See [eval/results/static_cost.json](eval/results/static_cost.json) for the full measurement.
 
@@ -36,6 +35,9 @@ See [eval/results/static_cost.json](eval/results/static_cost.json) for the full 
 
 **v1.2.0** (zero measured win after dedicated attempts):
 - `delegate` — orchestration contract with no per-call gain; `prompt-triage` already automates the cheap-model routing it advised manually. Subagent lifecycle prose folded into `prompts/` if needed for downstream use.
+
+**v1.3.0** (merged, not dropped):
+- `context-refresh` — its only unique piece beyond `handoff` was the auto-launcher (`context.py relay --execute`), which never worked reliably. The other useful bits (`checkpoint` doc-write, `extract_transcript_facts`, `ask_old_from_transcript`) live on inside `skills/handoff/tools/_lib/context.py` and surface as `/handoff` modes (`--full`, `--ask`). Manual successor launch is the contract now — paste the handoff path into a fresh session yourself.
 
 ## Install
 

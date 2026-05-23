@@ -1,6 +1,6 @@
 # Skills — Rated Index
 
-All 12 skills, rated on efficiency, gain, reliability, and quality loss.
+All 11 skills, rated on efficiency, gain, reliability, and quality loss.
 Static columns are deterministic. Live columns require a live A/B run via `eval/runner.py`.
 
 ### Rating scale
@@ -26,8 +26,7 @@ Static columns are deterministic. Live columns require a live A/B run via `eval/
 | 8 | [verify-before-completion](../skills/verify-before-completion/SKILL.md) | **B** | **B** | **B** | **C** | 34 | 209 | +539% | -45% | -0.40 | 3 |
 | 9 | [prompt-triage](../skills/prompt-triage/SKILL.md) | **C** | **C** | **A** | **?** | 69 | 871 | +0% | -21% | — | 1 |
 | 10 | [plan-first-execute](../skills/plan-first-execute/SKILL.md) | **C** | **C** | **C** | **A** | 50 | 142 | +377% | -20% | +0.20 | 3 |
-| 11 | [handoff](../skills/handoff/SKILL.md) | **?** | **?** | **A** | **?** | 114 | 962 | — | — | — | 3 |
-| 12 | [context-refresh](../skills/context-refresh/SKILL.md) | **?** | **?** | **A** | **?** | 69 | 901 | — | — | — | — |
+| 11 | [handoff](../skills/handoff/SKILL.md) | **?** | **?** | **A** | **?** | 114 | 967 | — | — | — | 3 |
 
 ## What the columns mean
 

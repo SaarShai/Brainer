@@ -4,8 +4,8 @@
 
 | field | tokens / size |
 |---|---|
-| description (always resident) | **80 tokens** (281 chars) |
-| body (loaded on trigger)      | **360 tokens** (1261 chars) |
+| description (always resident) | **55 tokens** (281 chars) |
+| body (loaded on trigger)      | **304 tokens** (1261 chars) |
 | tools/ payload                 | 14.3 KB |
 | model pin                      | `haiku` |
 | effort pin                     | `low` |

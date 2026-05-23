@@ -36,25 +36,13 @@
     "effort_pin": "low"
   },
   {
-    "name": "context-refresh",
-    "description_tokens": 69,
-    "description_chars": 313,
-    "body_tokens": 901,
-    "body_chars": 3937,
-    "tools_bytes": 44902,
-    "tools_kb": 43.8,
-    "has_eval_template": true,
-    "model_pin": "any",
-    "effort_pin": "medium"
-  },
-  {
     "name": "handoff",
     "description_tokens": 114,
     "description_chars": 501,
-    "body_tokens": 962,
-    "body_chars": 3983,
-    "tools_bytes": 1609,
-    "tools_kb": 1.6,
+    "body_tokens": 967,
+    "body_chars": 3926,
+    "tools_bytes": 28990,
+    "tools_kb": 28.3,
     "has_eval_template": true,
     "model_pin": "any",
     "effort_pin": "low"
