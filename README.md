@@ -43,31 +43,52 @@ See [eval/results/static_cost.json](eval/results/static_cost.json) for the full 
 
 ## Install
 
-```bash
-git clone https://github.com/saarshai/token-economy.git
-cd token-economy
-./install.sh                            # wires skills into all detected hosts
-./install.sh --host claude-code         # one host
-./install.sh --dry-run                  # see what would happen
-```
+**Pick your row.** Claude Code has a real plugin format; the other hosts don't (skills are bare files there). One canonical source (`skills/`), one plugin (`.claude-plugin/marketplace.json`), one installer (`install.sh`) for the rest.
 
-| Host | Target | Mechanism |
+| You use… | Want skills… | Run this |
 |---|---|---|
-| Claude Code | `.claude/skills/` + `.claude-plugin/marketplace.json` | symlinks + plugin manifest |
-| Codex | `.codex/skills/` | symlinks |
-| Cursor | `.cursor/skills/` + `.cursor/rules/*.mdc` | symlinks + MDC rule shims |
-| Gemini CLI | `.gemini/skills/` + `.gemini/settings.json` | symlinks + settings extension |
-| Copilot / VS Code | root `AGENTS.md` | shared shim, auto-discovered |
+| **Claude Code** | **everywhere** (recommended) | `git clone https://github.com/SaarShai/token-economy.git ~/.local/share/token-economy && claude plugin install ~/.local/share/token-economy/.claude-plugin/marketplace.json` |
+| Claude Code | in one project only | clone into `<project>/.token-economy`, then `mkdir -p .claude/skills && ln -sfn ../.token-economy/skills/* .claude/skills/` |
+| Codex / Cursor / Gemini CLI / Copilot | per-project (no plugin format exists for these) | clone into `<project>/.token-economy`, then `.token-economy/install.sh --host <name>` + symlink — see [Per-project install](#per-project-install-non-claude-code-hosts) |
+| any host (inside the token-economy clone itself, e.g. contributing) | for that clone only | `./install.sh` (all hosts) or `./install.sh --host <name>` |
 
-Single canonical source — `skills/` at repo root. Installer fans out to per-host loaders. Pattern lifted from `amtiYo/agents`.
+The plugin (`token-economy` v1.3.0) bundles all 11 skills plus optional `UserPromptSubmit` and `PreCompact` hooks (off by default; toggle in plugin config).
 
-### Plugin install (Claude Code)
+### Host install matrix
+
+| Host | Plugin? | Where skills land | Extra wiring |
+|---|---|---|---|
+| Claude Code | **Yes** (`.claude-plugin/marketplace.json`) | `.claude/skills/` or the plugin registry | optional hooks declared in the plugin manifest |
+| Codex | No | `.codex/skills/<name>/` | none — SKILL.md auto-discovered |
+| Cursor | No | `.cursor/skills/<name>/` | `.cursor/rules/<name>.mdc` shim per skill (set by `install.sh`) |
+| Gemini CLI | No | `.gemini/skills/<name>/` | `.gemini/settings.json` extension entry (set by `install.sh`) |
+| Copilot / VS Code | No | root `AGENTS.md` shim | auto-discovered by VS Code Copilot |
+
+Plugin packaging is Claude-Code-specific. Other hosts read SKILL.md files directly — there's nothing for them to "plug into," so a Codex/Cursor/Gemini plugin would be a no-op wrapper. Pattern for the fan-out installer is lifted from `amtiYo/agents`.
+
+### `install.sh` flags
 
 ```bash
-claude plugin install ./.claude-plugin/marketplace.json
+./install.sh                            # all detected hosts
+./install.sh --host claude-code         # one host
+./install.sh --host claude-code,codex   # comma-separated subset
+./install.sh --dry-run                  # show what would happen
+SKILLS_DIR=skills.new ./install.sh      # alternate canonical dir
 ```
 
-Installs all 11 skills as one named plugin (`token-economy`) with optional `UserPromptSubmit` and `PreCompact` hooks (off by default; toggle in plugin config).
+`install.sh` always targets *its own repo*'s hidden dirs (`.claude/skills/`, `.codex/skills/`, etc., next to `install.sh` itself — **not** next to the project you're working in). For per-project install on non-Claude-Code hosts, see below.
+
+### Per-project install (non-Claude-Code hosts)
+
+```bash
+cd /path/to/project-X
+git clone https://github.com/SaarShai/token-economy.git .token-economy
+.token-economy/install.sh --host codex          # wires .token-economy/.codex/skills/
+mkdir -p .codex/skills
+ln -sfn ../.token-economy/.codex/skills/* .codex/skills/
+```
+
+Repeat the last two lines per host (`.cursor/skills/`, `.gemini/skills/`, etc.). For Claude Code, use the plugin command in the table above — it's cwd-independent and skips the symlink dance entirely.
 
 ## What changed (vs the old framework)
 
