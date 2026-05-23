@@ -4,7 +4,7 @@ A token- and context-efficient skill catalog for AI coding agents — Claude Cod
 
 **Skills, not a framework.** Drop the catalog into any [agentskills.io](https://agentskills.io)-compatible host. Each skill is a single folder with a `SKILL.md`, optional bundled tools, and measured evaluation numbers.
 
-## The catalog (11 skills)
+## The catalog (12 skills)
 
 | Skill | Trigger | Desc tokens | Notes |
 |---|---|---:|---|
@@ -18,15 +18,18 @@ A token- and context-efficient skill catalog for AI coding agents — Claude Cod
 | [context-keeper](skills/context-keeper/SKILL.md) | PreCompact hook | 80 | Structured memory before compaction. |
 | [compress-context](skills/compress-context/SKILL.md) | opt-in long-context | 127 | LLMLingua-based compound compression. 44.9% savings, Δscore −0.12 measured on SQuAD v2 (n=8). |
 | [semantic-diff](skills/semantic-diff/SKILL.md) | file re-read | 99 | AST-node diff. 95.5% measured savings on argparse.py re-reads. |
+| [index-first](skills/index-first/SKILL.md) | "where is X used / what calls Y" | ~110 | Prefer pre-built indexes / composite verbs over grep+read chains. Eval pending. (colbymchenry/codegraph lineage.) |
 | [output-filter](skills/output-filter/SKILL.md) | terminal output hook | 99 | Strip ANSI/progress/dup noise; preserves errors. |
 
-**Always-resident context tax (11 descriptions): ~1,000 tokens.** Roughly 0.5% of a 200K context window.
+**Always-resident context tax (12 descriptions): ~1,100 tokens.** Roughly 0.55% of a 200K context window.
 
 Full body cost (worst case, all loaded at once): ~6,500 tokens. In practice, only the triggered skill's body loads.
 
 See [eval/results/static_cost.json](eval/results/static_cost.json) for the full measurement.
 
 **Tuning your install:** stacking guidance, anti-patterns, and workload-aware install advice live in [`eval/FINDINGS.md`](eval/FINDINGS.md) — read once when you adopt the catalog or change which skills are enabled.
+
+**Where these ideas came from:** [`INSPIRATION.md`](INSPIRATION.md) indexes the repos and writeups that shaped this catalog or live in adjacent territory (codegraph, caveman, mattpocock/skills, karpathy's LLM-wiki, cognee, memento, claude-context, …).
 
 ### Removed after measurement
 
