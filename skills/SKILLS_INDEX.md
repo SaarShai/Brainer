@@ -16,6 +16,7 @@ For ratings and measured deltas see [`SKILLS_INDEX_RATED.md`](SKILLS_INDEX_RATED
 | [verify-before-completion](verify-before-completion/SKILL.md) | Run fresh verification before claiming done. |
 | [wiki-memory](wiki-memory/SKILL.md) | Repo-local markdown wiki: progressive retrieval + gated writes. |
 | [handoff](handoff/SKILL.md) | Unified session handoff. `/handoff` writes a doc; `--full` also routes facts to wiki; `--ask` queries the last handoff. Mattpocock-style, slash-only. |
+| [handoff-from](handoff-from/SKILL.md) | Inverse of `/handoff` — pulls a previous/parallel session's state into *this* new session. Use when the source session is blocked/waiting and you can't `/handoff` from it. |
 | [prompt-triage](prompt-triage/SKILL.md) | Pre-model classifier hook; routes simple tasks to cheap models. |
 | [context-keeper](context-keeper/SKILL.md) | PreCompact hook: structured memory before compaction. |
 | [compress-context](compress-context/SKILL.md) | LLMLingua-based compound compression with self-verify (opt-in). |
@@ -24,7 +25,7 @@ For ratings and measured deltas see [`SKILLS_INDEX_RATED.md`](SKILLS_INDEX_RATED
 | [output-filter](output-filter/SKILL.md) | Strip ANSI/progress/dup noise from terminal output. |
 | [loop-breaker](loop-breaker/SKILL.md) | PreToolUse hook: detects N consecutive identical tool calls, injects replan signal. Drift-mitigation. |
 
-13 skills total. Removed after measurement: `personal-assistant` / `memory-api` / `skill-creator` (v1.1.0, redundancy), `delegate` (v1.2.0, zero measured gain — auto-routing via `prompt-triage` already covers the use case), `context-refresh` (v1.3.0, merged into `handoff` — its only unique piece was the auto-launcher which never worked reliably; the rest is now `/handoff --full` and `/handoff --ask`).
+14 skills total. Removed after measurement: `personal-assistant` / `memory-api` / `skill-creator` (v1.1.0, redundancy), `delegate` (v1.2.0, zero measured gain — auto-routing via `prompt-triage` already covers the use case), `context-refresh` (v1.3.0, merged into `handoff` — its only unique piece was the auto-launcher which never worked reliably; the rest is now `/handoff --full` and `/handoff --ask`).
 
 ## Prime directive
 
