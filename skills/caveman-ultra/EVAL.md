@@ -12,13 +12,13 @@
 
 agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K context window).
 
-## A/B savings (measured, N=3 × 5 prompts, model=mimo-v2-flash)
+## A/B savings (measured, N=50 × 5 prompts, model=mimo-v2-flash)
 
 | metric | without skill | with skill | Δ | 95% CI |
 |---|---|---|---|---|
 | input tokens (mean)  | 36 | 240 | +560.4% | n/a |
-| output tokens (mean) | 516 | 76 | -85.2% | n/a |
-| latency (ms)         | 6885 | 3643 | n/a | n/a |
+| output tokens (mean) | 570 | 77 | -86.4% | n/a |
+| latency (ms)         | 6759 | 3336 | n/a | n/a |
 | judge score (0–5)    | +4.73 | +4.87 | +0.13 |   |
 
 

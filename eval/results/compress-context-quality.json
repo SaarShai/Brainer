@@ -1,0 +1,14 @@
+{
+  "harness": "runner_compress_quality.py",
+  "target": "mimo-v2-flash",
+  "judge": "mimo-v2-flash",
+  "n_attempted": 50,
+  "n_scored": 0,
+  "rate": 0.5,
+  "mean_savings_pct": null,
+  "stdev_savings_pct": null,
+  "mean_score_full": null,
+  "mean_score_compressed": null,
+  "delta_score": null,
+  "items": []
+}

@@ -8,7 +8,7 @@
     "tools_bytes": 0,
     "tools_kb": 0.0,
     "has_eval_template": true,
-    "model_pin": "any",
+    "model_pin": "",
     "effort_pin": "low"
   },
   {
@@ -20,7 +20,7 @@
     "tools_bytes": 144688,
     "tools_kb": 141.3,
     "has_eval_template": true,
-    "model_pin": "any",
+    "model_pin": "",
     "effort_pin": "medium"
   },
   {
@@ -44,7 +44,7 @@
     "tools_bytes": 28990,
     "tools_kb": 28.3,
     "has_eval_template": true,
-    "model_pin": "any",
+    "model_pin": "",
     "effort_pin": "low"
   },
   {
@@ -56,7 +56,7 @@
     "tools_bytes": 0,
     "tools_kb": 0.0,
     "has_eval_template": true,
-    "model_pin": "any",
+    "model_pin": "",
     "effort_pin": "low"
   },
   {
@@ -68,7 +68,7 @@
     "tools_bytes": 16161,
     "tools_kb": 15.8,
     "has_eval_template": true,
-    "model_pin": "any",
+    "model_pin": "",
     "effort_pin": "low"
   },
   {
@@ -80,7 +80,7 @@
     "tools_bytes": 0,
     "tools_kb": 0.0,
     "has_eval_template": true,
-    "model_pin": "any",
+    "model_pin": "",
     "effort_pin": "medium"
   },
   {
@@ -92,7 +92,7 @@
     "tools_bytes": 21657,
     "tools_kb": 21.1,
     "has_eval_template": true,
-    "model_pin": "local",
+    "model_pin": "",
     "effort_pin": "low"
   },
   {
@@ -104,7 +104,7 @@
     "tools_bytes": 35338,
     "tools_kb": 34.5,
     "has_eval_template": true,
-    "model_pin": "any",
+    "model_pin": "",
     "effort_pin": "low"
   },
   {
@@ -116,7 +116,7 @@
     "tools_bytes": 0,
     "tools_kb": 0.0,
     "has_eval_template": true,
-    "model_pin": "any",
+    "model_pin": "",
     "effort_pin": "low"
   },
   {
@@ -128,7 +128,7 @@
     "tools_bytes": 63308,
     "tools_kb": 61.8,
     "has_eval_template": true,
-    "model_pin": "any",
+    "model_pin": "",
     "effort_pin": "low"
   }
 ]
