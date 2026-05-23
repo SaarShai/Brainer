@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# PreCompact hook entry. Thin shim around hook.py.
+# Always exit 0 — compaction must not be blocked by a hook failure.
+set -uo pipefail
 
-ROOT="${TOKEN_ECONOMY_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
-exec "$ROOT/hooks/pre-compact.sh" "$@"
+TOOLS_DIR="$(cd "$(dirname "$0")" && pwd)"
+python3 "$TOOLS_DIR/hook.py" || true
+exit 0

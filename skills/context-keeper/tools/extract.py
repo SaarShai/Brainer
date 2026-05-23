@@ -21,7 +21,7 @@ import argparse, json, os, re, sys, time, urllib.request
 from collections import defaultdict
 from pathlib import Path
 
-PATH_RE = re.compile(r"(?:~|\.{0,2})/[\w\-./]+\.(?:py|js|ts|tsx|jsx|rs|md|txt|json|yaml|yml|toml|sh|go|rb|java|c|cpp|h|hpp|css|html|sql|mjs|cjs|ini|conf)")
+PATH_RE = re.compile(r"(?<![\w\-])(?:~|\.{0,2})/[\w\-./]+\.(?:py|js|ts|tsx|jsx|rs|md|txt|json|yaml|yml|toml|sh|go|rb|java|c|cpp|h|hpp|css|html|sql|mjs|cjs|ini|conf)")
 URL_RE = re.compile(r"https?://[^\s)\]'\"]+")
 NUM_RE = re.compile(r"\b\d+(?:\.\d+)?\s*(?:%|ms|s|x|tokens?|tok|GB|MB|KB|B|bytes?|lines?|items?|calls?)\b", re.I)
 ERROR_RE = re.compile(r"(?:Error|Exception|Traceback|fail(?:ed|ure)?|SIGKILL|exit code [1-9]|stderr)[^\n]{3,200}", re.I)
@@ -99,12 +99,21 @@ def regex_extract(events):
 
         if t == "user":
             last_user_idx = i
-            # First imperative sentence from user = likely goal
-            for sent in re.split(r"[.!?\n]", text):
-                s = sent.strip()
-                if 5 < len(s) < 200 and IMPERATIVE_RE.match(s):
-                    add("user_goals", s, limit=30)
-                    break
+            # Claude Code stores tool_results with type="user" — skip those, they aren't user-typed input.
+            is_tool_result = isinstance(content, list) and any(
+                isinstance(b, dict) and b.get("type") == "tool_result" for b in content
+            )
+            if not is_tool_result:
+                for sent in re.split(r"[.!?\n]", text):
+                    s = sent.strip()
+                    if (
+                        15 <= len(s) < 200
+                        and len(s.split()) >= 4
+                        and IMPERATIVE_RE.match(s)
+                        and "/" not in s.split()[0]
+                    ):
+                        add("user_goals", s, limit=30)
+                        break
 
         # File paths
         for m in PATH_RE.findall(text):

@@ -10,9 +10,9 @@ tools: [Bash, Read, Write]
 
 ## What it does
 
-Parses the transcript JSONL, regex-extracts structured state (goals, files touched, commands, errors, numbers, failures). Optional LLM pass (local `gemma4:31b` by default) pulls out decisions and next-steps. Writes a terse markdown packet to `.token-economy/checkpoints/<timestamp>-precompact.md` and emits a one-line pointer the summarizer must preserve.
+Parses the transcript JSONL, regex-extracts structured state (goals, files touched, commands, errors, numbers, URLs, failure signals). Optional LLM pass (local `gemma4:31b` by default, off by default in the hook) pulls out decisions and next-steps. Writes a terse markdown packet to `.token-economy/sessions/<YYYY-MM-DD-HHMM>-<sid8>.md` and emits a multi-line pointer on the hook's stdout — Claude Code prepends that pointer to the compaction prompt so the summarizer references the checkpoint path.
 
-Tested on a 150-turn session: 68 files, 21 commands, 21 errors logged into a single grep-able page.
+Measured on an 893-line transcript: 100 files, 40 commands, 30 errors logged in ~290 lines. See [`EVAL.md`](EVAL.md).
 
 ## Install
 
@@ -35,9 +35,25 @@ Wires `tools/hook.sh` into `.claude/settings.json` under `PreCompact`.
 ```
 tools/
 ├── extract.py     # regex extractor + optional LLM pass
-├── hook.sh        # PreCompact entry
+├── hook.py        # PreCompact worker: parses stdin payload, invokes extract.py
+├── hook.sh        # PreCompact shell shim (settings.json points here)
+├── tokens.py      # token estimator helper
 └── install.sh     # wires into project-local .claude/
 ```
+
+## Reliability contract
+
+The hook MUST exit 0 on every input. A failing PreCompact hook would block compaction and corrupt the session. Edge cases all verified to exit 0:
+
+- empty stdin payload
+- malformed JSON
+- missing `transcript_path` field
+- transcript file does not exist
+- empty transcript file
+- malformed JSONL lines mid-file
+- extract.py timeout (30s cap)
+
+Errors are logged to stderr with an ISO timestamp prefix; Claude Code captures them in the session transcript without aborting compaction.
 
 ## Lineage
 
