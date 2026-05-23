@@ -9,6 +9,16 @@ tools: [Bash, Read, Write, Glob, Grep]
 
 Long-term repo-local memory. One skill, two modes: **retrieve** (read) and **write** (gated).
 
+## First-time bootstrap (per project)
+
+If `wiki/` doesn't exist in the project root, run once:
+
+```bash
+python3 skills/wiki-memory/tools/wiki.py init
+```
+
+Creates the `wiki/` tree (`L0_rules.md`, `L1_index.md`, `schema.md`, `L2_facts/`, `L3_sops/`, `L4_archive/`, `raw/`, `concepts/`, `patterns/`, `projects/`, `people/`, `queries/`, `templates/`) seeded from the skill's bundled defaults. Idempotent — re-running after content lands is safe and writes nothing. Default target is `./wiki` in cwd; override with `--root <path>` or `WIKI_ROOT=<path>`.
+
 ## Retrieve
 
 Use when the task references past work, decisions, docs, memory, project facts, or "have we done X".

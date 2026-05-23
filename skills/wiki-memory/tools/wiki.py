@@ -174,18 +174,29 @@ class WikiStore:
         for name in WIKI_DIRS:
             (self.root / name).mkdir(parents=True, exist_ok=True)
         created = []
-        templates = {
+        seeds = {
             "index.md": "# Wiki Index\n\nCompact catalog. Update after material wiki changes.\n",
             "log.md": "# Wiki Log\n\n",
             "schema.md": DEFAULT_SCHEMA,
             "L0_rules.md": "# L0 Rules\n\n- Caveman Ultra by default.\n- Retrieve before reasoning about stored facts.\n",
-            "L1_index.md": "# L1 Index\n\nRun `./te wiki index` to rebuild pointers.\n",
+            "L1_index.md": "# L1 Index\n\nRun `python3 wiki.py index` to rebuild pointers.\n",
         }
-        for rel, content in templates.items():
+        for rel, content in seeds.items():
             path = self.root / rel
             if not path.exists():
                 path.write_text(content, encoding="utf-8")
                 created.append(rel)
+        # Copy bundled templates into <wiki_root>/templates/ so `wiki.py new`
+        # works in a fresh project without relying on the install layout.
+        bundled_templates = Path(__file__).resolve().parents[1] / "templates"
+        if bundled_templates.exists():
+            target_templates = self.root / "templates"
+            target_templates.mkdir(exist_ok=True)
+            for src in sorted(bundled_templates.glob("*.template.md")):
+                dst = target_templates / src.name
+                if not dst.exists():
+                    dst.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+                    created.append(f"templates/{src.name}")
         self.state_dir.mkdir(exist_ok=True)
         return {"wiki_root": str(self.root), "created": created}
 
@@ -954,3 +965,115 @@ class WikiStore:
         entry = f"## [{date.today().isoformat()}] {op} | {title}\n\n{body}\n\n"
         with log_path.open("a", encoding="utf-8") as f:
             f.write(entry)
+
+
+# ---------------------------------------------------------------------------
+# CLI dispatcher.
+#
+# Exposes WikiStore methods so the commands referenced in
+# skills/wiki-memory/SKILL.md actually work from the shell:
+#
+#   python3 wiki.py init                          # bootstrap ./wiki in cwd
+#   python3 wiki.py init --root /path/to/wiki     # explicit target
+#   python3 wiki.py search "auth race"            # progressive retrieval, tier 1
+#   python3 wiki.py timeline <page-id>            # tier 2: backlinks + neighbors
+#   python3 wiki.py fetch <page-id>               # tier 3: full page
+#   python3 wiki.py new --template page --title "X" --domain framework
+#   python3 wiki.py ingest <source-or-url> [--title T]
+#   python3 wiki.py index                         # rebuild SQLite index
+#   python3 wiki.py lint [--strict]               # stale claims, orphans, broken links
+#
+# All commands print JSON to stdout. `--root <path>` overrides the default
+# (`./wiki` in cwd). Idempotent — `init` will not overwrite existing seed
+# files; re-running it after pages are written is safe.
+# ---------------------------------------------------------------------------
+
+
+def _cli_default_root() -> Path:
+    """Default wiki root: <cwd>/wiki. Honours WIKI_ROOT env var if set."""
+    import os
+    env = os.environ.get("WIKI_ROOT")
+    if env:
+        return Path(env).expanduser().resolve()
+    return (Path.cwd() / "wiki").resolve()
+
+
+def _cli_print(result: Any) -> None:
+    print(json.dumps(result, indent=2, default=str))
+
+
+def _cli_main(argv: list[str] | None = None) -> int:
+    import argparse
+    p = argparse.ArgumentParser(
+        prog="wiki.py",
+        description="Repo-local markdown wiki for agent memory — see "
+                    "skills/wiki-memory/SKILL.md for the retrieval/write contract.",
+    )
+    p.add_argument("--root", default=None,
+                   help="Wiki root dir (default: ./wiki in cwd, or $WIKI_ROOT)")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    sub.add_parser("init", help="Create the wiki dir tree + seed files. Idempotent.")
+
+    sp = sub.add_parser("search", help="Tier 1: compact search hits.")
+    sp.add_argument("query")
+    sp.add_argument("-k", type=int, default=10)
+
+    sp = sub.add_parser("timeline", help="Tier 2: backlinks, neighbors, log slice.")
+    sp.add_argument("item_id")
+    sp.add_argument("--window", type=int, default=3)
+
+    sp = sub.add_parser("fetch", help="Tier 3: one full page.")
+    sp.add_argument("item_id")
+
+    sp = sub.add_parser("new", help="Create a new page from a template.")
+    sp.add_argument("--template", required=True,
+                    help="Template name (page, decision, handoff, source-summary, import-manifest)")
+    sp.add_argument("--title", required=True)
+    sp.add_argument("--domain", default="framework")
+    sp.add_argument("--slug", default=None)
+
+    sp = sub.add_parser("ingest", help="Add a source (file path or URL) to raw/.")
+    sp.add_argument("source")
+    sp.add_argument("--title", default=None)
+
+    sub.add_parser("index", help="Rebuild the SQLite search index.")
+
+    sp = sub.add_parser("lint", help="Stale claims, orphans, broken links, contradictions.")
+    sp.add_argument("--strict", action="store_true",
+                    help="Enforce v2 frontmatter on every page (not just v2/templated).")
+
+    sp = sub.add_parser("import-audit", help="Validate an import manifest.")
+    sp.add_argument("--manifest", required=True)
+
+    args = p.parse_args(argv)
+    root = Path(args.root).expanduser().resolve() if args.root else _cli_default_root()
+    store = WikiStore(root)
+
+    if args.cmd == "init":
+        _cli_print(store.init())
+    elif args.cmd == "search":
+        _cli_print(store.search(args.query, k=args.k))
+    elif args.cmd == "timeline":
+        _cli_print(store.timeline(args.item_id, window=args.window))
+    elif args.cmd == "fetch":
+        _cli_print(store.fetch(args.item_id))
+    elif args.cmd == "new":
+        _cli_print(store.new_page(args.template, args.title,
+                                  domain=args.domain, slug=args.slug))
+    elif args.cmd == "ingest":
+        _cli_print(store.ingest(args.source, title=args.title))
+    elif args.cmd == "index":
+        _cli_print(store.index())
+    elif args.cmd == "lint":
+        _cli_print(store.lint_pages(strict=args.strict))
+    elif args.cmd == "import-audit":
+        _cli_print(store.import_audit(args.manifest))
+    else:  # unreachable — argparse enforces choices
+        p.error(f"unknown subcommand: {args.cmd}")
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(_cli_main())

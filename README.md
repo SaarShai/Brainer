@@ -90,6 +90,17 @@ ln -sfn ../.token-economy/.codex/skills/* .codex/skills/
 
 Repeat the last two lines per host (`.cursor/skills/`, `.gemini/skills/`, etc.). For Claude Code, use the plugin command in the table above — it's cwd-independent and skips the symlink dance entirely.
 
+### Bootstrap wiki-memory in a fresh project
+
+The `wiki-memory` skill needs a `wiki/` tree in your project root. After installing the catalog, run once per project:
+
+```bash
+python3 ~/.local/share/token-economy/skills/wiki-memory/tools/wiki.py init
+# (or .token-economy/skills/wiki-memory/tools/wiki.py init for per-project installs)
+```
+
+Creates `wiki/{L0_rules.md, L1_index.md, schema.md, L2_facts/, L3_sops/, L4_archive/, raw/, concepts/, patterns/, projects/, people/, queries/, templates/}` seeded from the skill's bundled defaults. Idempotent — safe to re-run. Default target is `./wiki` in cwd; override with `--root <path>` or `WIKI_ROOT=<path>`. Without this step, `wiki-memory` triggers correctly but has nothing to retrieve.
+
 ## What changed (vs the old framework)
 
 This used to be framed as a framework with a `te` CLI, layered docs (`start.md`, `L0_rules.md`, `L1_index.md`, `token-economy.yaml`), and project-style research under `projects/`. All of that is gone.
