@@ -59,6 +59,24 @@ Repos and writeups that shaped this catalog or live in adjacent territory. Group
 - [rulebricks/claude-code-guardrails](https://github.com/rulebricks/claude-code-guardrails) — PreToolUse rule engine blocking fabricated/dangerous commands. Adjacent shape to [`loop-breaker`](skills/loop-breaker/SKILL.md) but rule-based rather than pattern-based.
 - arXiv [2601.04170](https://arxiv.org/abs/2601.04170) "Agent Drift" — taxonomy (semantic/coordination/behavioral) + Agent Stability Index across 12 dimensions. Background; ASI itself doesn't fit a slash-skill (needs cross-session telemetry).
 
+## Compliance decay / instruction adherence
+
+Skill-rules fading from effective attention as sessions grow. Distinct from loop drift (above) — this is about *prose and tool-choice style* slipping away from rules established earlier.
+
+- [Cline Focus Chain](https://docs.cline.bot/features/focus-chain) — closest production analog: re-injects the todo list every 6 messages. **Pulses todos, not skill rules.** User backlash on UX: [#5763](https://github.com/cline/cline/issues/5763) "Focus Chain is terrible and just breaks stuff", [#6105](https://github.com/cline/cline/issues/6105), [#5638](https://github.com/cline/cline/issues/5638). Lesson taken: stale pulse content is worse than no pulse — pulse stable things (rules), not volatile things (todos). Lineage for [`skill-pulse`](skills/skill-pulse/SKILL.md).
+- [Cursor `alwaysApply: true`](https://forum.cursor.com/t/alwaysapply-true-rules-are-being-completely-ignored-now/158551) — every-prompt re-injection mechanism. Widely reported to fail in long sessions ([85458](https://forum.cursor.com/t/always-rules-intermittently-fail-in-long-sessions-in-cursor-49-6/85458), [157484](https://forum.cursor.com/t/alwaysapply-silently-ignored-in-rules-from-team-plugins/157484)). v0 baseline; lesson: same-text-every-time loses salience.
+- [anthropics/claude-code#22421](https://github.com/anthropics/claude-code/issues/22421) — closed-not-planned feature request for "Periodic Directive Refresh." Reporter observed ~50% compliance by tool call 40, near-zero by 60. Documents the gap [`skill-pulse`](skills/skill-pulse/SKILL.md) fills.
+- [delta-hq/cc-canary](https://github.com/delta-hq/cc-canary) (65★) — forensic / offline drift detector that scores JSONL session logs (read:edit ratios, reasoning-loop phrases, premature-stop). **Post-hoc only, no intervention.** Candidate lineage for the held v2 `compliance-canary`.
+- [umputun/570c77f8…](https://gist.github.com/umputun/570c77f8d5f3ab621498e1449d2b98b6) / [claudefa.st Skill Activation Hook](https://claudefa.st/blog/tools/hooks/skill-activation-hook) — UserPromptSubmit preamble injecting "evaluate → activate → implement." Fires once per prompt; addresses cold-start skill loading, **not** session-decay.
+- [johnlindquist/23fac87f…](https://gist.github.com/johnlindquist/23fac87f6bc589ddf354582837ec4ecc) — every-N-prompts UserPromptSubmit hook refreshing the tools list. Same pulse shape as `skill-pulse` but pulses tool inventory instead of skill rules.
+- [DoubleNode/claude-context-tick](https://github.com/DoubleNode/claude-context-tick) — state-gated UserPromptSubmit injection (timestamp on session-start / 15-min boundaries). Pattern (conditional injection) transfers; payload doesn't.
+- [Michaelliv/pi-system-reminders](https://github.com/Michaelliv/pi-system-reminders) — reactive system-reminders SDK with 13 ported examples from Claude Code internals (bash-spiral, token-warn, post-compact). No periodic skill-decay reminder ships.
+- [michaellivs.com — System reminders teardown](https://michaellivs.com/blog/system-reminders-steering-agents/) — best explainer of Anthropic's internal reactive reminder pattern.
+- arXiv [2510.07777 — "Drift No More?"](https://arxiv.org/html/2510.07777) — **empirical basis for `skill-pulse`.** Tests reminder injections at turns 4 + 7 of 10-turn convos; KL divergence drops 6.45–11.81%; judge scores +0.5–0.6 (5-pt scale). Drift stabilizes at a noise-limited equilibrium, not a fixed plateau; pulses lower that equilibrium. Does NOT test cadence sweeps, format variations, or rotated phrasings.
+- arXiv [2411.07037 — LIFBench](https://arxiv.org/abs/2411.07037) — benchmark for instruction-following stability across context length.
+- arXiv [2402.10962](https://arxiv.org/abs/2402.10962) — significant drift within 8 rounds on Llama2-70B / GPT-3.5.
+- arXiv [2512.10172 — Offscript](https://arxiv.org/abs/2512.10172) — auditor LLM identifies adherence failures in 86.4% of conversations (22.2% material). Judge / auditor pattern.
+
 ## Prompt engineering & background reading
 
 - [EgoAlpha/prompt-in-context-learning](https://github.com/EgoAlpha/prompt-in-context-learning) — curated resource hub: papers, playgrounds, prompt-engineering techniques, real-world prompts. Useful as a survey, not as a tool.

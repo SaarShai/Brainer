@@ -2,6 +2,7 @@
 name: verify-before-completion
 description: Use before claiming work is done, fixed, passing, committed, or ready. Evidence before claims. Run the verification fresh; report exact command + output + remaining risk.
 effort: low
+pulse_reminder: before claiming done/fixed/passing, run a fresh verification command and quote its exact output. Evidence beats claims.
 ---
 
 # Verify Before Completion

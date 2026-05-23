@@ -2,6 +2,7 @@
 name: caveman-ultra
 description: Terse output style. Use at session start, or whenever the user asks for compact, short, terse, or "caveman" responses. Drops filler, pleasantries, hedging, soft closings. Keeps code blocks, paths, numbers, math, errors verbatim. Affects emitted prose only; reasoning budget unchanged.
 effort: low
+pulse_reminder: terse output — drop filler, hedging, pleasantries, and soft closings. Prefer fragments. Preserve code/paths/numbers verbatim.
 ---
 
 # Caveman Ultra
