@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import statistics
 import sys
 import time
@@ -84,17 +85,82 @@ def mimo_chat(model: str, system: str, prompt: str, max_tokens: int = 256) -> di
     }
 
 
-def judge_score(model: str, q: str, gt: str, ans: str) -> int:
+_THINK_CLOSED_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+_THINK_UNCLOSED_RE = re.compile(r"<think>.*$", re.DOTALL | re.IGNORECASE)
+_JUNK_TOKENS_RE = re.compile(r"<\|(?:im_(?:start|end)|endoftext|user|assistant|system)\|>")
+
+
+def _clean_thinking_output(raw: str) -> str:
+    """Strip <think>...</think> blocks (closed and unclosed) plus stray chat
+    tokens that reasoning models leak into the response."""
+    text = _THINK_CLOSED_RE.sub("", raw)
+    text = _THINK_UNCLOSED_RE.sub("", text)
+    text = _JUNK_TOKENS_RE.sub("", text)
+    return text.strip()
+
+
+def ollama_chat(model: str, system: str, prompt: str, max_tokens: int = 256) -> dict[str, Any]:
+    """Mirrors mimo_chat shape via Ollama /api/generate. Handles `<think>` tags
+    (closed AND unclosed if num_predict ran out mid-think) plus end-of-text
+    spam by stripping them so the JSON-extraction path in judge_score keeps
+    working with reasoning-style models like qwen3.6."""
+    full_prompt = (f"{system}\n\n{prompt}" if system else prompt) + " /no_think"
+    body = json.dumps({
+        "model": model,
+        "prompt": full_prompt,
+        "stream": False,
+        "think": False,
+        # Reasoning models need headroom for <think>...</think> + the actual answer.
+        # 4× the caller's nominal max_tokens keeps the answer from being truncated
+        # while we strip the think prefix.
+        "options": {"num_predict": max_tokens * 4, "temperature": 0.0, "seed": 42},
+        "keep_alive": "30m",
+    }).encode()
+    req = urllib.request.Request(
+        "http://127.0.0.1:11434/api/generate",
+        data=body,
+        headers={"Content-Type": "application/json"},
+    )
+    t0 = time.time()
+    try:
+        with urllib.request.urlopen(req, timeout=300) as resp:
+            data = json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        err = e.read().decode()
+        raise RuntimeError(f"ollama {e.code}: {err}") from e
+    text = _clean_thinking_output(data.get("response", ""))
+    return {
+        "text": text,
+        "latency_ms": int((time.time() - t0) * 1000),
+        "prompt_tokens": data.get("prompt_eval_count", 0),
+        "completion_tokens": data.get("eval_count", 0),
+    }
+
+
+def chat(backend: str, model: str, system: str, prompt: str, max_tokens: int = 256) -> dict[str, Any]:
+    if backend == "mimo":
+        return mimo_chat(model, system, prompt, max_tokens)
+    if backend == "ollama":
+        return ollama_chat(model, system, prompt, max_tokens)
+    raise ValueError(f"unknown backend: {backend}")
+
+
+def judge_score(backend: str, model: str, q: str, gt: str, ans: str) -> int:
     prompt = JUDGE_PROMPT.format(q=q, gt=gt, ans=ans[:600])
     try:
-        out = mimo_chat(model, "You are a strict evaluator.", prompt, max_tokens=64)
+        out = chat(backend, model, "You are a strict evaluator.", prompt, max_tokens=64)
     except Exception as e:
         print(f"judge err: {e}", file=sys.stderr)
         return -1
     text = out["text"].strip()
+    # Extract the FIRST {...} block. Local models sometimes echo the prompt
+    # back, which puts a literal "{...}" from the rubric near the end —
+    # rfind("}") would grab that and produce unparseable concatenated JSON.
     start = text.find("{")
-    end = text.rfind("}")
-    if start < 0 or end < 0:
+    if start < 0:
+        return -1
+    end = text.find("}", start)
+    if end < 0:
         return -1
     try:
         obj = json.loads(text[start : end + 1])
@@ -110,6 +176,8 @@ def main() -> int:
     p.add_argument("--rate", type=float, default=0.5, help="compress target rate")
     p.add_argument("--target", default="mimo-v2-flash")
     p.add_argument("--judge", default="mimo-v2-flash")
+    p.add_argument("--backend", default="mimo", choices=["mimo", "ollama"],
+                   help="Backend for both target and judge calls")
     p.add_argument("--out", default="eval/results/compress-context-quality.json")
     args = p.parse_args()
 
@@ -135,14 +203,14 @@ def main() -> int:
             continue
 
         try:
-            ans_a = mimo_chat(args.target, "", TARGET_PROMPT.format(ctx=ctx_full, q=q))
-            ans_c = mimo_chat(args.target, "", TARGET_PROMPT.format(ctx=ctx_c, q=q))
+            ans_a = chat(args.backend, args.target, "", TARGET_PROMPT.format(ctx=ctx_full, q=q))
+            ans_c = chat(args.backend, args.target, "", TARGET_PROMPT.format(ctx=ctx_c, q=q))
         except Exception as e:
             print(f"[{i}] target fail: {e}", file=sys.stderr)
             continue
 
-        s_a = judge_score(args.judge, q, gt, ans_a["text"])
-        s_c = judge_score(args.judge, q, gt, ans_c["text"])
+        s_a = judge_score(args.backend, args.judge, q, gt, ans_a["text"])
+        s_c = judge_score(args.backend, args.judge, q, gt, ans_c["text"])
 
         tok_in = ans_a["prompt_tokens"]
         tok_in_c = ans_c["prompt_tokens"]
