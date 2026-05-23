@@ -4,7 +4,7 @@ A token- and context-efficient skill catalog for AI coding agents — Claude Cod
 
 **Skills, not a framework.** Drop the catalog into any [agentskills.io](https://agentskills.io)-compatible host. Each skill is a single folder with a `SKILL.md`, optional bundled tools, and measured evaluation numbers.
 
-## The catalog (15 skills)
+## The catalog (11 skills)
 
 | Skill | Trigger | Desc tokens | Notes |
 |---|---|---:|---|
@@ -67,7 +67,7 @@ Single canonical source — `skills/` at repo root. Installer fans out to per-ho
 claude plugin install ./.claude-plugin/marketplace.json
 ```
 
-Installs all 15 skills as one named plugin (`token-economy`) with optional `UserPromptSubmit` and `PreCompact` hooks (off by default; toggle in plugin config).
+Installs all 11 skills as one named plugin (`token-economy`) with optional `UserPromptSubmit` and `PreCompact` hooks (off by default; toggle in plugin config).
 
 ## What changed (vs the old framework)
 
@@ -76,7 +76,7 @@ This used to be framed as a framework with a `te` CLI, layered docs (`start.md`,
 - `te` CLI → deleted. Each skill owns its scripts in `skills/<name>/tools/`.
 - `start.md`, `L0_rules.md`, `L1_index.md`, `token-economy.yaml`, `models.yaml` → deleted. Replaced by `skills/SKILLS_INDEX.md`.
 - `adapters/`, `prompts/`, `hooks/` → deleted. Folded into per-skill `tools/`.
-- 11 old skills → consolidated into 15 new ones via the audit (merges, renames, one new `skill-creator` skill).
+- 11 old skills → audited up to 15, then trimmed to 11 after measurement (drops listed above).
 - Working Python projects (ComCom, semdiff, context-keeper, agents-triage, output-filter) → bundled into their matching skills' `tools/` folders.
 - Wiki content (`raw/`, `concepts/`, `patterns/`, `projects/`, `people/`, `queries/`, `L2_facts/`, `L3_sops/`, `L4_archive/`, `index.md`, `log.md`, `schema.md`, `templates/`) → moved under `wiki/`. The `wiki-memory` skill reads it.
 - `bench/` → kept at root for eval datasets.
@@ -112,7 +112,7 @@ Built on prior work:
 
 ## Status
 
-- 15 skills written and lint-clean.
+- 11 skills written and lint-clean.
 - 4 hosts wired and verified (Claude Code, Codex, Cursor, Gemini CLI).
 - Static-cost measurements published.
 - Live A/B harness ready; needs a healthy Ollama / explicit `ANTHROPIC_API_KEY` / `HF_TOKEN` to run.

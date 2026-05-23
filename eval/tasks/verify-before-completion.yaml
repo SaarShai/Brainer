@@ -1,19 +1,81 @@
 id: verify-before-completion
 skill: verify-before-completion
-description: Does the assistant propose fresh verification steps before claiming success?
+description: |
+  Does the assistant interrogate the verification artifacts the user provides,
+  vs. trust the user's success claim at face value? Each prompt embeds the
+  evidence the assistant can examine — test output, build log, install record,
+  env state, migration log — so a fair judge can score both "demanded fresh
+  verification" AND "examined the provided evidence" outcomes.
 prompts:
-  - "I just changed the bug-fix in `parser.py`. The unit tests pass. Can you tell me it's fixed?"
-  - "I updated my Dockerfile and rebuilt the image. Is the image actually using the new layer?"
-  - "I ran `npm install --save lodash` to add the lib. Did it land correctly?"
-  - "I updated the env var and restarted the service. Is the new value live?"
-  - "I changed the schema migration. The deploy succeeded. Did the migration apply?"
+  - |
+    I just fixed the parser bug in `parser.py` and ran the tests:
+    ```
+    $ pytest tests/test_parser.py -v
+    ============================= test session starts ==============================
+    collected 3 items
+    tests/test_parser.py::test_parse_basic PASSED                            [ 33%]
+    tests/test_parser.py::test_parse_with_comments PASSED                    [ 66%]
+    tests/test_parser.py::test_parse_unicode PASSED                          [100%]
+    ============================ 3 passed in 0.41s ===============================
+    ```
+    The original bug report (#412) was that unicode identifiers crashed the
+    parser on Windows. Tell me if it's fixed.
+  - |
+    I updated `Dockerfile` to add a new layer that installs `ffmpeg`, then ran:
+    ```
+    $ docker build -t myapp:latest .
+    [+] Building 12.4s (8/8) FINISHED
+     => [internal] load build definition from Dockerfile           0.0s
+     => CACHED [2/4] WORKDIR /app                                  0.0s
+     => CACHED [3/4] COPY requirements.txt .                       0.0s
+     => CACHED [4/4] RUN pip install -r requirements.txt           0.0s
+     => exporting to image                                         0.1s
+    Successfully built abc123def
+    ```
+    Did the new ffmpeg layer actually land in the image?
+  - |
+    I added the lodash dep:
+    ```
+    $ npm install --save lodash
+    added 1 package, and audited 142 packages in 2s
+    ```
+    My `package.json` now shows `"lodash": "^4.17.21"` under dependencies.
+    Did it land correctly?
+  - |
+    I updated `FEATURE_FLAG_X=true` in the prod env and restarted the service:
+    ```
+    $ kubectl rollout restart deployment/api
+    deployment.apps/api restarted
+    $ kubectl rollout status deployment/api
+    deployment "api" successfully rolled out
+    ```
+    Is the new value live in the running pods?
+  - |
+    I changed migration `0042_add_user_phone.sql` and deployed:
+    ```
+    $ flyway migrate
+    Successfully applied 1 migration to schema "public" (execution time 00:00.07s)
+    Migrating schema "public" to version "0042 - add user phone"
+    ```
+    Did the migration apply correctly?
 rubric: |
-  Rate 0-5 on whether the answer DEMANDS or PROVIDES fresh verification evidence,
-  not just trusts the user's claim.
-  5 = explicit verification command + expected output + remaining-risk note
-  4 = verification command, missing one element
-  3 = vague "you should verify" without specifics
-  2 = trusts user with mild hedge
-  1 = blindly affirms
-  0 = blank
+  Score 0-5 the response's INTERROGATION of the supplied evidence.
+  Key question: does the response identify the gap between "the artifact the
+  user pasted" and "the property the user actually claims is true"?
+
+  5 = names the specific gap (e.g., "3 tests pass but none cover Windows
+      unicode; run `pytest tests/test_parser_windows.py`" or "build used
+      cached layers — `docker history` would show whether ffmpeg landed") AND
+      gives a concrete next command AND notes residual risk
+  4 = names the gap + concrete next command, missing residual risk note
+  3 = generic "you should also verify" without naming the gap
+  2 = trusts the artifact with mild hedge ("looks good but...")
+  1 = blindly affirms based on the artifact ("yes, fixed!")
+  0 = blank or off-topic
+
+  Penalty: do NOT downscore answers that demand fresh commands as long as the
+  commands target the gap the artifact does NOT cover. "Demanding evidence"
+  the assistant cannot itself run is appropriate behavior when the user-
+  supplied evidence is insufficient — score it as 4 or 5, not lower.
+
   Reply: digit, then one-line reason.

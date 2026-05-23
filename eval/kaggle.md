@@ -16,7 +16,7 @@ Use Kaggle's free T4 (30h/week) to scale `eval/runner.py` from N=3 smoke to N≥
 
 Copy the contents of `eval/kaggle_notebook.py` into the first notebook cell. Click "Save & Run All". The driver:
 
-1. Clones this repo (current branch: `restructure/skill-catalog-v1`).
+1. Clones this repo (current branch: `main`).
 2. Installs `PyYAML`.
 3. Reads `MIMO_API_KEY` from Kaggle Secrets.
 4. Runs `eval/runner.py` for each task + combo at N=50 with `--backend mimo`.
