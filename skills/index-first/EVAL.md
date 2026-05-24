@@ -122,8 +122,29 @@ Distinct from testing graphify-the-tool. The integration changes prose in two SK
 | Triggered-body token cost | Same | `index-first` body 840 → 1634 (+794), `wiki-memory` body 844 → 1026 (+182). Paid only when those skills load |
 | Wiki retrieval regression | Ran `WikiStore.search()` deterministically against the 8 baseline questions from [`eval/runner_wiki.py`](../../eval/runner_wiki.py) | Bit-identical hit IDs + scores — the boundary-clause edit is prose only, no code path touched |
 | Does the new recipe steer an agent? | Spawned a fresh subagent (no prior context) with the edited [SKILL.md](SKILL.md) + the graph + a real question | **Yes**: agent reached for `graphify explain` first, no grep. ~2.4K tokens for the graphify path (n=1, directional only — not an N=50 measurement) |
-| End-to-end stack across all axes | Not run | Open — would need a multi-skill harness that fires output + routing + retrieval + memory together against a mixed-prompt corpus |
-| Side finding | Subagent ran into `graphify explain` truncating connections with no flag to expand | Not yet filed upstream; tracked here as the next candidate PR |
+| End-to-end stack across 5 parallel agents | See "5-agent run" table below | **5/5 followed the recipe correctly** across full-setup / no-graph / no-graphify conditions |
+| Side finding (truncation) | Subagent ran into `graphify explain` truncating connections with no flag to expand | Filed upstream as [PR #1008](https://github.com/safishamsi/graphify/pull/1008) — adds `--limit N` / `--full` |
+
+#### 5-agent run (2026-05-24, n=1 per condition)
+
+Five fresh subagents, parallel launch, no prior context. Each got the edited [`SKILL.md`](SKILL.md) + [`wiki-memory/SKILL.md`](../wiki-memory/SKILL.md) and a question that should exercise a specific path. Token + tool-call counts include the ~2K from reading the two SKILL.md files (a real in-process install doesn't pay that prelude).
+
+| # | Setup | Q kind | Tool calls | Tokens | Path taken | Recipe followed? |
+|---|---|---|---:|---:|---|---|
+| T1 | full (graphify + wiki + graph) | code | 6 | ~2.5K | `graphify explain WikiStore` first; skipped wiki entirely | ✅ |
+| T2 | full | project (why) | 5 | ~4.5K | L1 index → `wiki.py search` → 1 `fetch`; skipped graphify | ✅ |
+| T3 | full | hybrid | 6 | ~3.5K | `graphify explain` (what) + wiki search+fetch (why), split cleanly on the boundary | ✅ |
+| T4 | graphify CLI present, no graph built | code | 8 | ~3.5K | Detected missing `graphify-out/`, ran `graphify extract` to build it, then `explain` | ✅ |
+| T5 | no graphify CLI (--no-graphify path) | code | 5 | ~5.5K | Recognized graphify absent, fell back to `grep -l` → `grep -n` chain. No ritual graphify call | ✅ |
+
+**Findings the 5-agent run surfaced:**
+
+- Recipe steers agents reliably across all four conditions we tested (full-setup × 3 question kinds + 2 degraded environments).
+- Token costs match the shell-level A/B predictions within ~25%: full-setup code path ~2.5K, full-setup project path ~4.5K, hybrid ~3.5K, grep fallback ~5.5K (~2× the graphify path). The build-on-missing-graph path (T4) is essentially free — AST extract on the small corpus is <1s, only 1K extra tokens vs T1.
+- **T4 surfaced a UX bug**: `graphify extract` demands `--backend` even for code-only AST extraction. The agent tried `--backend none`, was rejected, eventually picked `--backend claude-cli`. Skill text now spells out `--backend ollama` (no API key needed) so future agents don't fumble.
+- **T1 surfaced the truncation issue** that became [PR #1008](https://github.com/safishamsi/graphify/pull/1008). Patch is applied locally; agents now see "(pass --limit N or --full to expand)" hint and don't burn calls hunting for flags.
+
+This closes the previously-listed "End-to-end stack: not run" gap. Still not measured: full eight-slot stack (output + routing + memory + retrieval + re-read + terminal + done-claims) firing simultaneously against a mixed-prompt corpus — that's the next eval to build if you want a single end-to-end stack number.
 
 ### Ship gate
 

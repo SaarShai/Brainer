@@ -52,7 +52,7 @@ If the project has `graphify-out/graph.json` (built via [graphify](https://githu
 - **Path question** ("how does A reach B") → `graphify path "<A>" "<B>"`. Shortest path between two exact labels.
 - **Exploration / concept question** ("show me the auth neighborhood") → `graphify query "<question>"`. Natural-language BFS — fastest but **unreliable for symbol-precision** questions (50% evidence rate on the same A/B): graphify's NL→start-node resolver picks generic matches over the obvious symbol. If the question names a symbol, prefer `explain`.
 
-Build: `graphify extract .` (single shot; clustering is built in — do NOT pass `--no-cluster` then `cluster-only`, the two-step path refuses to overwrite on node-count drift). Code is AST-only and free; LLM cost only on docs/PDFs/images.
+Build: `graphify extract . --backend ollama` (single shot; clustering is built in — do NOT pass `--no-cluster` then `cluster-only`, the two-step path refuses to overwrite on node-count drift). The `--backend` flag is mandatory even for code-only corpora (graphify's argparse requires it); `ollama` is the lightest dummy choice — **no API key needed** for code-only AST extraction. The flag only matters when graphify hits a non-code file (docs/PDFs/images) — set a real backend (`gemini`, `claude`, `openai`, `kimi`) if you want those processed too.
 
 Refresh after edits:
 - `graphify update . --force` — fast AST refresh **for additions and modifications only**.
@@ -63,7 +63,7 @@ Staleness rule: if the graph is older than the last `git HEAD` move on files you
 
 Known issues (graphify 0.8.17, measured 2026-05-23):
 - `graphify query` (NL) picks weak start nodes for symbol-precision questions (50% evidence rate vs 92% for `explain`) — prefer `explain` whenever the question names a symbol.
-- In published 0.8.17, `affected`/`benchmark` crash on a networkx `edges`/`links` schema mismatch, `cluster-only` silently refuses to overwrite on node-count drift, and `update` is additive (doesn't drop renamed/deleted symbols). All three have upstream PRs ([#1002](https://github.com/safishamsi/graphify/pull/1002), [#1003](https://github.com/safishamsi/graphify/pull/1003), [#1004](https://github.com/safishamsi/graphify/pull/1004)) and are patched locally in `.venvs/graphify/`.
+- In published 0.8.17, `affected`/`benchmark` crash on a networkx `edges`/`links` schema mismatch, `cluster-only` silently refuses to overwrite on node-count drift, `update` is additive (doesn't drop renamed/deleted symbols), and `explain` truncates connections at 20 with no expansion flag. All four have upstream PRs ([#1002](https://github.com/safishamsi/graphify/pull/1002), [#1003](https://github.com/safishamsi/graphify/pull/1003), [#1004](https://github.com/safishamsi/graphify/pull/1004), [#1008](https://github.com/safishamsi/graphify/pull/1008)) and are patched locally in `.venvs/graphify/`.
 
 ## Lineage
 
