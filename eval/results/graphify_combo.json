@@ -1,0 +1,797 @@
+{
+  "summary": {
+    "n_questions": 12,
+    "ALL": {
+      "n": 12,
+      "A_grep": {
+        "tokens": 26959,
+        "tool_calls": 34,
+        "evidence_rate_pct": 75.0
+      },
+      "B_wiki": {
+        "tokens": 1985,
+        "tool_calls": 12,
+        "evidence_rate_pct": 75.0
+      },
+      "C_graphify": {
+        "tokens": 1504,
+        "tool_calls": 12,
+        "evidence_rate_pct": 91.7
+      },
+      "D_combo": {
+        "tokens": 3527,
+        "tool_calls": 24,
+        "evidence_rate_pct": 100.0
+      }
+    },
+    "code": {
+      "n": 4,
+      "A_grep": {
+        "tokens": 12644,
+        "tool_calls": 14,
+        "evidence_rate_pct": 100.0
+      },
+      "B_wiki": {
+        "tokens": 640,
+        "tool_calls": 4,
+        "evidence_rate_pct": 25.0
+      },
+      "C_graphify": {
+        "tokens": 676,
+        "tool_calls": 4,
+        "evidence_rate_pct": 100.0
+      },
+      "D_combo": {
+        "tokens": 1328,
+        "tool_calls": 8,
+        "evidence_rate_pct": 100.0
+      }
+    },
+    "project": {
+      "n": 6,
+      "A_grep": {
+        "tokens": 8995,
+        "tool_calls": 13,
+        "evidence_rate_pct": 50.0
+      },
+      "B_wiki": {
+        "tokens": 970,
+        "tool_calls": 6,
+        "evidence_rate_pct": 100.0
+      },
+      "C_graphify": {
+        "tokens": 351,
+        "tool_calls": 6,
+        "evidence_rate_pct": 83.3
+      },
+      "D_combo": {
+        "tokens": 1341,
+        "tool_calls": 12,
+        "evidence_rate_pct": 100.0
+      }
+    },
+    "hybrid": {
+      "n": 2,
+      "A_grep": {
+        "tokens": 5320,
+        "tool_calls": 7,
+        "evidence_rate_pct": 100.0
+      },
+      "B_wiki": {
+        "tokens": 375,
+        "tool_calls": 2,
+        "evidence_rate_pct": 100.0
+      },
+      "C_graphify": {
+        "tokens": 477,
+        "tool_calls": 2,
+        "evidence_rate_pct": 100.0
+      },
+      "D_combo": {
+        "tokens": 858,
+        "tool_calls": 4,
+        "evidence_rate_pct": 100.0
+      }
+    }
+  },
+  "per_question": [
+    {
+      "question": "What calls WikiStore in the code?",
+      "kind": "code",
+      "symbol": "WikiStore",
+      "wiki_query": "WikiStore",
+      "A_grep": {
+        "tokens": 2234,
+        "elapsed_ms": 191,
+        "tool_calls": 3,
+        "evidence": {
+          "hits": 2,
+          "of": 3,
+          "matched": [
+            "_store",
+            "wiki_search"
+          ]
+        }
+      },
+      "B_wiki": {
+        "tokens": 74,
+        "elapsed_ms": 81,
+        "tool_calls": 1,
+        "n_hits": 1,
+        "evidence": {
+          "hits": 0,
+          "of": 3,
+          "matched": []
+        }
+      },
+      "C_graphify": {
+        "tokens": 248,
+        "elapsed_ms": 92,
+        "tool_calls": 1,
+        "evidence": {
+          "hits": 2,
+          "of": 3,
+          "matched": [
+            "_cli_main",
+            "_store"
+          ]
+        }
+      },
+      "D_combo": {
+        "tokens": 325,
+        "elapsed_ms": 173,
+        "tool_calls": 2,
+        "evidence": {
+          "hits": 2,
+          "of": 3,
+          "matched": [
+            "_cli_main",
+            "_store"
+          ]
+        }
+      }
+    },
+    {
+      "question": "What methods does WikiStore expose?",
+      "kind": "code",
+      "symbol": "WikiStore",
+      "wiki_query": "WikiStore methods",
+      "A_grep": {
+        "tokens": 2234,
+        "elapsed_ms": 184,
+        "tool_calls": 3,
+        "evidence": {
+          "hits": 4,
+          "of": 4,
+          "matched": [
+            "search",
+            "fetch",
+            "timeline",
+            "ingest"
+          ]
+        }
+      },
+      "B_wiki": {
+        "tokens": 206,
+        "elapsed_ms": 81,
+        "tool_calls": 1,
+        "n_hits": 3,
+        "evidence": {
+          "hits": 3,
+          "of": 4,
+          "matched": [
+            "search",
+            "fetch",
+            "timeline"
+          ]
+        }
+      },
+      "C_graphify": {
+        "tokens": 248,
+        "elapsed_ms": 88,
+        "tool_calls": 1,
+        "evidence": {
+          "hits": 4,
+          "of": 4,
+          "matched": [
+            "search",
+            "fetch",
+            "timeline",
+            "ingest"
+          ]
+        }
+      },
+      "D_combo": {
+        "tokens": 457,
+        "elapsed_ms": 169,
+        "tool_calls": 2,
+        "evidence": {
+          "hits": 4,
+          "of": 4,
+          "matched": [
+            "search",
+            "fetch",
+            "timeline",
+            "ingest"
+          ]
+        }
+      }
+    },
+    {
+      "question": "What does code_map.py expose?",
+      "kind": "code",
+      "symbol": "code_map",
+      "wiki_query": "code_map symbol navigation",
+      "A_grep": {
+        "tokens": 2565,
+        "elapsed_ms": 158,
+        "tool_calls": 4,
+        "evidence": {
+          "hits": 2,
+          "of": 3,
+          "matched": [
+            "code_map",
+            "symbol"
+          ]
+        }
+      },
+      "B_wiki": {
+        "tokens": 161,
+        "elapsed_ms": 79,
+        "tool_calls": 1,
+        "n_hits": 6,
+        "evidence": {
+          "hits": 0,
+          "of": 3,
+          "matched": []
+        }
+      },
+      "C_graphify": {
+        "tokens": 114,
+        "elapsed_ms": 87,
+        "tool_calls": 1,
+        "evidence": {
+          "hits": 1,
+          "of": 3,
+          "matched": [
+            "code_map"
+          ]
+        }
+      },
+      "D_combo": {
+        "tokens": 278,
+        "elapsed_ms": 166,
+        "tool_calls": 2,
+        "evidence": {
+          "hits": 1,
+          "of": 3,
+          "matched": [
+            "code_map"
+          ]
+        }
+      }
+    },
+    {
+      "question": "What functions handle lint operations?",
+      "kind": "code",
+      "symbol": "lint",
+      "wiki_query": "lint validation",
+      "A_grep": {
+        "tokens": 5611,
+        "elapsed_ms": 164,
+        "tool_calls": 4,
+        "evidence": {
+          "hits": 2,
+          "of": 3,
+          "matched": [
+            "lint",
+            "strict"
+          ]
+        }
+      },
+      "B_wiki": {
+        "tokens": 199,
+        "elapsed_ms": 81,
+        "tool_calls": 1,
+        "n_hits": 10,
+        "evidence": {
+          "hits": 0,
+          "of": 3,
+          "matched": []
+        }
+      },
+      "C_graphify": {
+        "tokens": 66,
+        "elapsed_ms": 89,
+        "tool_calls": 1,
+        "evidence": {
+          "hits": 1,
+          "of": 3,
+          "matched": [
+            "lint"
+          ]
+        }
+      },
+      "D_combo": {
+        "tokens": 268,
+        "elapsed_ms": 170,
+        "tool_calls": 2,
+        "evidence": {
+          "hits": 1,
+          "of": 3,
+          "matched": [
+            "lint"
+          ]
+        }
+      }
+    },
+    {
+      "question": "What was the semdiff prior-art survey conclusion about Difftastic?",
+      "kind": "project",
+      "symbol": "Difftastic",
+      "wiki_query": "semdiff difftastic survey",
+      "A_grep": {
+        "tokens": 0,
+        "elapsed_ms": 184,
+        "tool_calls": 1,
+        "evidence": {
+          "hits": 0,
+          "of": 4,
+          "matched": []
+        }
+      },
+      "B_wiki": {
+        "tokens": 170,
+        "elapsed_ms": 81,
+        "tool_calls": 1,
+        "n_hits": 10,
+        "evidence": {
+          "hits": 1,
+          "of": 4,
+          "matched": [
+            "AST"
+          ]
+        }
+      },
+      "C_graphify": {
+        "tokens": 10,
+        "elapsed_ms": 90,
+        "tool_calls": 1,
+        "evidence": {
+          "hits": 2,
+          "of": 4,
+          "matched": [
+            "Difftastic",
+            "AST"
+          ]
+        }
+      },
+      "D_combo": {
+        "tokens": 183,
+        "elapsed_ms": 171,
+        "tool_calls": 2,
+        "evidence": {
+          "hits": 2,
+          "of": 4,
+          "matched": [
+            "Difftastic",
+            "AST"
+          ]
+        }
+      }
+    },
+    {
+      "question": "What is the write-gate's purpose?",
+      "kind": "project",
+      "symbol": "write_gate",
+      "wiki_query": "write-gate gate write",
+      "A_grep": {
+        "tokens": 0,
+        "elapsed_ms": 181,
+        "tool_calls": 1,
+        "evidence": {
+          "hits": 0,
+          "of": 4,
+          "matched": []
+        }
+      },
+      "B_wiki": {
+        "tokens": 132,
+        "elapsed_ms": 86,
+        "tool_calls": 1,
+        "n_hits": 10,
+        "evidence": {
+          "hits": 2,
+          "of": 4,
+          "matched": [
+            "gate",
+            "write"
+          ]
+        }
+      },
+      "C_graphify": {
+        "tokens": 10,
+        "elapsed_ms": 92,
+        "tool_calls": 1,
+        "evidence": {
+          "hits": 2,
+          "of": 4,
+          "matched": [
+            "gate",
+            "write"
+          ]
+        }
+      },
+      "D_combo": {
+        "tokens": 145,
+        "elapsed_ms": 178,
+        "tool_calls": 2,
+        "evidence": {
+          "hits": 2,
+          "of": 4,
+          "matched": [
+            "gate",
+            "write"
+          ]
+        }
+      }
+    },
+    {
+      "question": "What does relay-session do?",
+      "kind": "project",
+      "symbol": "relay",
+      "wiki_query": "relay session",
+      "A_grep": {
+        "tokens": 2129,
+        "elapsed_ms": 183,
+        "tool_calls": 2,
+        "evidence": {
+          "hits": 2,
+          "of": 3,
+          "matched": [
+            "session",
+            "handoff"
+          ]
+        }
+      },
+      "B_wiki": {
+        "tokens": 143,
+        "elapsed_ms": 82,
+        "tool_calls": 1,
+        "n_hits": 10,
+        "evidence": {
+          "hits": 2,
+          "of": 3,
+          "matched": [
+            "relay",
+            "session"
+          ]
+        }
+      },
+      "C_graphify": {
+        "tokens": 81,
+        "elapsed_ms": 91,
+        "tool_calls": 1,
+        "evidence": {
+          "hits": 2,
+          "of": 3,
+          "matched": [
+            "relay",
+            "handoff"
+          ]
+        }
+      },
+      "D_combo": {
+        "tokens": 227,
+        "elapsed_ms": 173,
+        "tool_calls": 2,
+        "evidence": {
+          "hits": 3,
+          "of": 3,
+          "matched": [
+            "relay",
+            "session",
+            "handoff"
+          ]
+        }
+      }
+    },
+    {
+      "question": "Why was delegate-router built and where did it land?",
+      "kind": "project",
+      "symbol": "delegate",
+      "wiki_query": "delegate router",
+      "A_grep": {
+        "tokens": 2381,
+        "elapsed_ms": 179,
+        "tool_calls": 4,
+        "evidence": {
+          "hits": 2,
+          "of": 4,
+          "matched": [
+            "delegate",
+            "model"
+          ]
+        }
+      },
+      "B_wiki": {
+        "tokens": 163,
+        "elapsed_ms": 79,
+        "tool_calls": 1,
+        "n_hits": 10,
+        "evidence": {
+          "hits": 4,
+          "of": 4,
+          "matched": [
+            "delegate",
+            "router",
+            "tiny",
+            "model"
+          ]
+        }
+      },
+      "C_graphify": {
+        "tokens": 9,
+        "elapsed_ms": 88,
+        "tool_calls": 1,
+        "evidence": {
+          "hits": 1,
+          "of": 4,
+          "matched": [
+            "delegate"
+          ]
+        }
+      },
+      "D_combo": {
+        "tokens": 175,
+        "elapsed_ms": 167,
+        "tool_calls": 2,
+        "evidence": {
+          "hits": 4,
+          "of": 4,
+          "matched": [
+            "delegate",
+            "router",
+            "tiny",
+            "model"
+          ]
+        }
+      }
+    },
+    {
+      "question": "What is the Karpathy LLM wiki pattern?",
+      "kind": "project",
+      "symbol": "karpathy",
+      "wiki_query": "karpathy wiki pattern",
+      "A_grep": {
+        "tokens": 0,
+        "elapsed_ms": 182,
+        "tool_calls": 1,
+        "evidence": {
+          "hits": 0,
+          "of": 4,
+          "matched": []
+        }
+      },
+      "B_wiki": {
+        "tokens": 181,
+        "elapsed_ms": 85,
+        "tool_calls": 1,
+        "n_hits": 10,
+        "evidence": {
+          "hits": 3,
+          "of": 4,
+          "matched": [
+            "karpathy",
+            "wiki",
+            "markdown"
+          ]
+        }
+      },
+      "C_graphify": {
+        "tokens": 9,
+        "elapsed_ms": 90,
+        "tool_calls": 1,
+        "evidence": {
+          "hits": 1,
+          "of": 4,
+          "matched": [
+            "karpathy"
+          ]
+        }
+      },
+      "D_combo": {
+        "tokens": 194,
+        "elapsed_ms": 175,
+        "tool_calls": 2,
+        "evidence": {
+          "hits": 3,
+          "of": 4,
+          "matched": [
+            "karpathy",
+            "wiki",
+            "markdown"
+          ]
+        }
+      }
+    },
+    {
+      "question": "What is wiki-governance about?",
+      "kind": "project",
+      "symbol": "wiki",
+      "wiki_query": "wiki governance",
+      "A_grep": {
+        "tokens": 4485,
+        "elapsed_ms": 168,
+        "tool_calls": 4,
+        "evidence": {
+          "hits": 1,
+          "of": 3,
+          "matched": [
+            "rules"
+          ]
+        }
+      },
+      "B_wiki": {
+        "tokens": 181,
+        "elapsed_ms": 83,
+        "tool_calls": 1,
+        "n_hits": 10,
+        "evidence": {
+          "hits": 2,
+          "of": 3,
+          "matched": [
+            "governance",
+            "rules"
+          ]
+        }
+      },
+      "C_graphify": {
+        "tokens": 232,
+        "elapsed_ms": 91,
+        "tool_calls": 1,
+        "evidence": {
+          "hits": 0,
+          "of": 3,
+          "matched": []
+        }
+      },
+      "D_combo": {
+        "tokens": 417,
+        "elapsed_ms": 174,
+        "tool_calls": 2,
+        "evidence": {
+          "hits": 2,
+          "of": 3,
+          "matched": [
+            "governance",
+            "rules"
+          ]
+        }
+      }
+    },
+    {
+      "question": "How does WikiStore implement progressive retrieval, and why was it designed that way?",
+      "kind": "hybrid",
+      "symbol": "WikiStore",
+      "wiki_query": "wiki progressive retrieval",
+      "A_grep": {
+        "tokens": 2234,
+        "elapsed_ms": 183,
+        "tool_calls": 3,
+        "evidence": {
+          "hits": 3,
+          "of": 4,
+          "matched": [
+            "search",
+            "preview",
+            "retrieval"
+          ]
+        }
+      },
+      "B_wiki": {
+        "tokens": 187,
+        "elapsed_ms": 85,
+        "tool_calls": 1,
+        "n_hits": 10,
+        "evidence": {
+          "hits": 2,
+          "of": 4,
+          "matched": [
+            "search",
+            "retrieval"
+          ]
+        }
+      },
+      "C_graphify": {
+        "tokens": 248,
+        "elapsed_ms": 91,
+        "tool_calls": 1,
+        "evidence": {
+          "hits": 2,
+          "of": 4,
+          "matched": [
+            "search",
+            "rank"
+          ]
+        }
+      },
+      "D_combo": {
+        "tokens": 438,
+        "elapsed_ms": 176,
+        "tool_calls": 2,
+        "evidence": {
+          "hits": 3,
+          "of": 4,
+          "matched": [
+            "search",
+            "rank",
+            "retrieval"
+          ]
+        }
+      }
+    },
+    {
+      "question": "What does compound compression do in code and why was it chosen?",
+      "kind": "hybrid",
+      "symbol": "compress",
+      "wiki_query": "compound compression pipeline",
+      "A_grep": {
+        "tokens": 3086,
+        "elapsed_ms": 2,
+        "tool_calls": 4,
+        "evidence": {
+          "hits": 3,
+          "of": 3,
+          "matched": [
+            "compress",
+            "LLMLingua",
+            "pipeline"
+          ]
+        }
+      },
+      "B_wiki": {
+        "tokens": 188,
+        "elapsed_ms": 84,
+        "tool_calls": 1,
+        "n_hits": 10,
+        "evidence": {
+          "hits": 2,
+          "of": 3,
+          "matched": [
+            "compress",
+            "pipeline"
+          ]
+        }
+      },
+      "C_graphify": {
+        "tokens": 229,
+        "elapsed_ms": 93,
+        "tool_calls": 1,
+        "evidence": {
+          "hits": 3,
+          "of": 3,
+          "matched": [
+            "compress",
+            "LLMLingua",
+            "pipeline"
+          ]
+        }
+      },
+      "D_combo": {
+        "tokens": 420,
+        "elapsed_ms": 177,
+        "tool_calls": 2,
+        "evidence": {
+          "hits": 3,
+          "of": 3,
+          "matched": [
+            "compress",
+            "LLMLingua",
+            "pipeline"
+          ]
+        }
+      }
+    }
+  ]
+}

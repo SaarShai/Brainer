@@ -1,0 +1,78 @@
+{
+  "corpus": "/private/tmp/te-graphify-test",
+  "edge_precision": {
+    "n_candidates": 677,
+    "n_sampled": 30,
+    "n_hits": 29,
+    "precision_pct": 96.7,
+    "miss_examples": [
+      {
+        "relation": "contains",
+        "confidence": "EXTRACTED",
+        "source_file": "skills/skill-pulse/tools/test.sh",
+        "source_location": "L1",
+        "weight": 1.0,
+        "source": "skills_skill_pulse_tools_test_sh",
+        "target": "private_tmp_te_graphify_test_skills_skill_pulse_tools_test_sh__entry",
+        "confidence_score": 1.0,
+        "reason": "target label not in \u00b15 lines",
+        "window_excerpt": "#!/usr/bin/env bash\n# skill-pulse self-test. Exits 0 only if every assertion passes.\nset -uo pipefail\n\nTOOLS_DIR=\"$(cd \"$(dirname \"$0\")\" && pwd)\"\nHOOK=\"bash $TOOLS_DIR/hook.sh\"\nSTATE_ROOT=\"$(mktemp -d"
+      }
+    ]
+  },
+  "path_soundness": {
+    "n": 3,
+    "n_ok": 2,
+    "soundness_pct": 66.7,
+    "per_case": [
+      {
+        "start": "WikiStore",
+        "end": ".search()",
+        "hops": 1,
+        "verdict": "ok",
+        "expected_hops_min": 1,
+        "expected_hops_max": 1,
+        "within_expected": true,
+        "bad_hops": [],
+        "raw_excerpt": "Shortest path (1 hops):\n  WikiStore --method [EXTRACTED]--> .search()\n"
+      },
+      {
+        "start": "WikiStore",
+        "end": "._ensure_db()",
+        "hops": 1,
+        "verdict": "ok",
+        "expected_hops_min": 1,
+        "expected_hops_max": 2,
+        "within_expected": true,
+        "bad_hops": [],
+        "raw_excerpt": "Shortest path (1 hops):\n  WikiStore --method [EXTRACTED]--> ._ensure_db()\n"
+      },
+      {
+        "start": "_cli_main()",
+        "end": ".search()",
+        "hops": 1,
+        "verdict": "ok",
+        "expected_hops_min": 2,
+        "expected_hops_max": 3,
+        "within_expected": false,
+        "bad_hops": [],
+        "raw_excerpt": "Shortest path (1 hops):\n  _cli_main() --calls [EXTRACTED]--> .search()\n"
+      }
+    ]
+  },
+  "staleness": {
+    "build_s": 1.05,
+    "baseline_found_old_name": true,
+    "stale_still_found_old_name": true,
+    "update_s": 0.64,
+    "update_rc": 0,
+    "update_tail": [
+      "[graphify watch] graph.json, graph.html and GRAPH_REPORT.md updated in graphify-out",
+      "Code graph updated. For doc/paper/image changes run /graphify --update in your AI assistant.",
+      "Tip: set GEMINI_API_KEY or GOOGLE_API_KEY to use Gemini for semantic extraction."
+    ],
+    "after_update_still_finds_old": false,
+    "after_update_finds_renamed": true,
+    "verdict": "good_staleness_signal"
+  }
+}

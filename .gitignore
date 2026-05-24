@@ -4,7 +4,11 @@ __pycache__/
 *.pyo
 .pytest_cache/
 .venv/
+.venvs/
 venv/
+
+# graphify build outputs (regeneratable; not committed)
+graphify-out/
 
 # Benchmark data (large, fetched via scripts)
 bench/data/

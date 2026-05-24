@@ -1,0 +1,103 @@
+{
+  "results": [
+    {
+      "label": "small",
+      "path": "/private/tmp/te-graphify-test",
+      "source": {
+        "file_count": 13239,
+        "source_bytes": 207345159
+      },
+      "extract": {
+        "cmd": "/Users/za/Documents/token-economy/.venvs/graphify/bin/graphify extract . --backend ollama --api-timeout 5 --max-concurrency 1",
+        "elapsed_s": 17.27,
+        "returncode": 0,
+        "child_maxrss_delta_bytes_or_kb": 102629376,
+        "stdout_tail": [
+          "[graphify] Deduplicated 3 node(s) (1 exact, 2 fuzzy).",
+          "[graphify extract] wrote /private/tmp/te-graphify-test/graphify-out/graph.json: 507 nodes, 810 edges, 58 communities",
+          "[graphify extract] wrote /private/tmp/te-graphify-test/graphify-out/.graphify_analysis.json"
+        ],
+        "stderr_tail": []
+      },
+      "cluster": {
+        "elapsed_s": 0.0,
+        "skipped": "clustering built into extract"
+      },
+      "graph": {
+        "schema": "node-link",
+        "nodes": 507,
+        "edges": 810,
+        "communities": 58,
+        "graph_bytes": 433693,
+        "extraction_input_tokens": 0,
+        "extraction_output_tokens": 0
+      }
+    },
+    {
+      "label": "medium",
+      "path": "/private/tmp/graphify-bench/flask_code",
+      "source": {
+        "file_count": 84,
+        "source_bytes": 589895
+      },
+      "extract": {
+        "cmd": "/Users/za/Documents/token-economy/.venvs/graphify/bin/graphify extract . --backend ollama --api-timeout 5 --max-concurrency 1",
+        "elapsed_s": 1.56,
+        "returncode": 0,
+        "child_maxrss_delta_bytes_or_kb": 9814016,
+        "stdout_tail": [
+          "[graphify] Deduplicated 108 node(s) (48 exact, 59 fuzzy).",
+          "[graphify extract] wrote /private/tmp/graphify-bench/flask_code/graphify-out/graph.json: 1195 nodes, 1793 edges, 128 communities",
+          "[graphify extract] wrote /private/tmp/graphify-bench/flask_code/graphify-out/.graphify_analysis.json"
+        ],
+        "stderr_tail": []
+      },
+      "cluster": {
+        "elapsed_s": 0.0,
+        "skipped": "clustering built into extract"
+      },
+      "graph": {
+        "schema": "node-link",
+        "nodes": 1195,
+        "edges": 1793,
+        "communities": 128,
+        "graph_bytes": 916162,
+        "extraction_input_tokens": 0,
+        "extraction_output_tokens": 0
+      }
+    },
+    {
+      "label": "large",
+      "path": "/private/tmp/graphify-bench/django_code",
+      "source": {
+        "file_count": 3023,
+        "source_bytes": 20505623
+      },
+      "extract": {
+        "cmd": "/Users/za/Documents/token-economy/.venvs/graphify/bin/graphify extract . --backend ollama --api-timeout 5 --max-concurrency 1",
+        "elapsed_s": 57.92,
+        "returncode": 0,
+        "child_maxrss_delta_bytes_or_kb": 1174437888,
+        "stdout_tail": [
+          "[graphify] Deduplicated 8792 node(s) (3703 exact, 4784 fuzzy).",
+          "[graphify extract] wrote /private/tmp/graphify-bench/django_code/graphify-out/graph.json: 41373 nodes, 127537 edges, 2694 communities",
+          "[graphify extract] wrote /private/tmp/graphify-bench/django_code/graphify-out/.graphify_analysis.json"
+        ],
+        "stderr_tail": []
+      },
+      "cluster": {
+        "elapsed_s": 0.0,
+        "skipped": "clustering built into extract"
+      },
+      "graph": {
+        "schema": "node-link",
+        "nodes": 41373,
+        "edges": 127537,
+        "communities": 2694,
+        "graph_bytes": 55691726,
+        "extraction_input_tokens": 0,
+        "extraction_output_tokens": 0
+      }
+    }
+  ]
+}

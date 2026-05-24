@@ -81,6 +81,15 @@ wiki/
 └── schema.md          # contract for page types
 ```
 
+## Boundary with graphify
+
+If the project has `graphify-out/graph.json` (auto-extracted code graph), do not duplicate its content here. Split:
+
+- **`graphify-out/`** owns the *what / how / connected-to* layer: symbols, callers, modules, communities. Auto-extracted, refreshed on commit, ephemeral.
+- **`wiki/`** owns the *why / decision / failure-lesson* layer: rationale, trade-offs, incidents, durable procedures. Hand-curated, gated, permanent.
+
+When writing a new page, first run `graphify query "<topic>"` (or grep `graphify-out/GRAPH_REPORT.md`); if the answer is already covered by the auto-graph, the page is redundant — skip the write. The reverse also holds: don't try to make graphify carry the *why*; it can't.
+
 ## Optional MCP
 
 `tools/wiki_mcp/` exposes `wiki_search`, `wiki_fetch`, `wiki_timeline`, `wiki_new` for MCP-aware hosts.

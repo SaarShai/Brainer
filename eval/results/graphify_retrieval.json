@@ -1,0 +1,673 @@
+{
+  "summary": {
+    "n_questions": 12,
+    "grep": {
+      "total_tokens": 27790,
+      "total_bytes": 111156,
+      "total_tool_calls": 33,
+      "mean_elapsed_ms": 169.4,
+      "evidence_rate_pct": 91.7
+    },
+    "graphify_query": {
+      "total_tokens": 8114,
+      "total_bytes": 32449,
+      "total_tool_calls": 12,
+      "mean_elapsed_ms": 94.5,
+      "evidence_rate_pct": 50.0,
+      "delta_tokens_pct_vs_grep": -70.8
+    },
+    "graphify_explain": {
+      "total_tokens": 1826,
+      "total_bytes": 7285,
+      "total_tool_calls": 12,
+      "mean_elapsed_ms": 94,
+      "evidence_rate_pct": 91.7,
+      "delta_tokens_pct_vs_grep": -93.4
+    }
+  },
+  "per_question": [
+    {
+      "question": "What calls WikiStore?",
+      "symbol": "WikiStore",
+      "grep": {
+        "tokens": 2234,
+        "bytes": 8934,
+        "elapsed_ms": 189,
+        "tool_calls": 3,
+        "files": [
+          "skills/wiki-memory/tools/wiki.py",
+          "skills/wiki-memory/tools/wiki_mcp/wiki_search.py"
+        ],
+        "evidence": {
+          "hits": 3,
+          "of": 4,
+          "matched": [
+            "_store",
+            "wiki_search",
+            "wiki_mcp"
+          ]
+        }
+      },
+      "graphify_query": {
+        "tokens": 142,
+        "bytes": 568,
+        "elapsed_ms": 95,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 0,
+          "of": 4,
+          "matched": []
+        }
+      },
+      "graphify_explain": {
+        "tokens": 248,
+        "bytes": 989,
+        "elapsed_ms": 94,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 2,
+          "of": 4,
+          "matched": [
+            "_cli_main",
+            "_store"
+          ]
+        }
+      },
+      "grep_output_excerpt": "=== skills/wiki-memory/tools/wiki.py ===\nfrom __future__ import annotations\n\nimport json\nimport re\nimport sqlite3\nfrom dataclasses import dataclass\nfrom datetime import date\nfrom math import ceil\nfrom pathlib import Path\nfrom typing import Any\n\n\nWIKI_DIRS = (\"raw\", \"concepts\", \"patterns\", \"projects\", \"people\", \"queries\", \"L2_facts\", \"L3_sops\", \"L4_archive\")\nSKIP_PARTS = {\".git\", \".token-economy\", ",
+      "graphify_query_excerpt": "Traversal: BFS depth=2 | Start: [\"Anthropic-API-backed verify, drop-in replacement for verify.py's Ollama calls.\", 'Estimate $ savings from using ComCom over N API calls.      Args:       n_calls:'] | Context: call (heuristic) | 2 nodes found\n\nNODE Anthropic-API-backed verify, drop-in replacement for verify.py's Ollama calls. [src=skills/compress-context/tools/verify_anthropic.py loc=L1 community=",
+      "graphify_explain_excerpt": "Node: WikiStore\n  ID:        tools_wiki_wikistore\n  Source:    skills/wiki-memory/tools/wiki.py L166\n  Type:      code\n  Community: 1\n  Degree:    33\n\nConnections (33):\n  <-- wiki.py [contains] [EXTRACTED]\n  <-- _cli_main() [calls] [EXTRACTED]\n  --> .context() [method] [EXTRACTED]\n  --> .import_audit() [method] [EXTRACTED]\n  --> .pages() [method] [EXTRACTED]\n  --> ._rank_pages() [method] [EXTRACTE"
+    },
+    {
+      "question": "What methods does WikiStore expose?",
+      "symbol": "WikiStore",
+      "grep": {
+        "tokens": 2234,
+        "bytes": 8934,
+        "elapsed_ms": 190,
+        "tool_calls": 3,
+        "files": [
+          "skills/wiki-memory/tools/wiki.py",
+          "skills/wiki-memory/tools/wiki_mcp/wiki_search.py"
+        ],
+        "evidence": {
+          "hits": 4,
+          "of": 6,
+          "matched": [
+            "search",
+            "fetch",
+            "timeline",
+            "index"
+          ]
+        }
+      },
+      "graphify_query": {
+        "tokens": 1159,
+        "bytes": 4637,
+        "elapsed_ms": 94,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 6,
+          "of": 6,
+          "matched": [
+            "search",
+            "fetch",
+            "timeline",
+            "new_page",
+            "index",
+            "ingest"
+          ]
+        }
+      },
+      "graphify_explain": {
+        "tokens": 248,
+        "bytes": 989,
+        "elapsed_ms": 93,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 6,
+          "of": 6,
+          "matched": [
+            "search",
+            "fetch",
+            "timeline",
+            "new_page",
+            "index",
+            "ingest"
+          ]
+        }
+      },
+      "grep_output_excerpt": "=== skills/wiki-memory/tools/wiki.py ===\nfrom __future__ import annotations\n\nimport json\nimport re\nimport sqlite3\nfrom dataclasses import dataclass\nfrom datetime import date\nfrom math import ceil\nfrom pathlib import Path\nfrom typing import Any\n\n\nWIKI_DIRS = (\"raw\", \"concepts\", \"patterns\", \"projects\", \"people\", \"queries\", \"L2_facts\", \"L3_sops\", \"L4_archive\")\nSKIP_PARTS = {\".git\", \".token-economy\", ",
+      "graphify_query_excerpt": "Traversal: BFS depth=2 | Start: ['WikiStore'] | 56 nodes found\n\nNODE WikiStore [src=skills/wiki-memory/tools/wiki.py loc=L166 community=1]\nNODE wiki.py [src=skills/wiki-memory/tools/wiki.py loc=L1 community=1]\nNODE .set() [src=skills/semantic-diff/tools/semdiff/cache.py loc=L29 community=5]\nNODE _cli_main() [src=skills/wiki-memory/tools/wiki.py loc=L1005 community=1]\nNODE .context() [src=skills/wi",
+      "graphify_explain_excerpt": "Node: WikiStore\n  ID:        tools_wiki_wikistore\n  Source:    skills/wiki-memory/tools/wiki.py L166\n  Type:      code\n  Community: 1\n  Degree:    33\n\nConnections (33):\n  <-- wiki.py [contains] [EXTRACTED]\n  <-- _cli_main() [calls] [EXTRACTED]\n  --> .context() [method] [EXTRACTED]\n  --> .import_audit() [method] [EXTRACTED]\n  --> .pages() [method] [EXTRACTED]\n  --> ._rank_pages() [method] [EXTRACTE"
+    },
+    {
+      "question": "What does write_gate enforce?",
+      "symbol": "write_gate",
+      "grep": {
+        "tokens": 0,
+        "bytes": 0,
+        "elapsed_ms": 186,
+        "tool_calls": 1,
+        "files": [],
+        "evidence": {
+          "hits": 0,
+          "of": 4,
+          "matched": []
+        }
+      },
+      "graphify_query": {
+        "tokens": 7,
+        "bytes": 25,
+        "elapsed_ms": 94,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 0,
+          "of": 4,
+          "matched": []
+        }
+      },
+      "graphify_explain": {
+        "tokens": 10,
+        "bytes": 37,
+        "elapsed_ms": 96,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 1,
+          "of": 4,
+          "matched": [
+            "gate"
+          ]
+        }
+      },
+      "grep_output_excerpt": "",
+      "graphify_query_excerpt": "No matching nodes found.\n",
+      "graphify_explain_excerpt": "No node matching 'write_gate' found.\n"
+    },
+    {
+      "question": "What is the wiki CLI entry point?",
+      "symbol": "_cli_main",
+      "grep": {
+        "tokens": 1839,
+        "bytes": 7355,
+        "elapsed_ms": 188,
+        "tool_calls": 2,
+        "files": [
+          "skills/wiki-memory/tools/wiki.py"
+        ],
+        "evidence": {
+          "hits": 2,
+          "of": 4,
+          "matched": [
+            "search",
+            "fetch"
+          ]
+        }
+      },
+      "graphify_query": {
+        "tokens": 1165,
+        "bytes": 4659,
+        "elapsed_ms": 96,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 0,
+          "of": 4,
+          "matched": []
+        }
+      },
+      "graphify_explain": {
+        "tokens": 158,
+        "bytes": 629,
+        "elapsed_ms": 94,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 3,
+          "of": 4,
+          "matched": [
+            "_cli_main",
+            "search",
+            "fetch"
+          ]
+        }
+      },
+      "grep_output_excerpt": "=== skills/wiki-memory/tools/wiki.py ===\nfrom __future__ import annotations\n\nimport json\nimport re\nimport sqlite3\nfrom dataclasses import dataclass\nfrom datetime import date\nfrom math import ceil\nfrom pathlib import Path\nfrom typing import Any\n\n\nWIKI_DIRS = (\"raw\", \"concepts\", \"patterns\", \"projects\", \"people\", \"queries\", \"L2_facts\", \"L3_sops\", \"L4_archive\")\nSKIP_PARTS = {\".git\", \".token-economy\", ",
+      "graphify_query_excerpt": "Traversal: BFS depth=2 | Start: ['cli.py', 'cli.py', 'cli.py'] | 38 nodes found\n\nNODE read_smart() [src=skills/semantic-diff/tools/semdiff/core.py loc=L271 community=0]\nNODE .set() [src=skills/semantic-diff/tools/semdiff/cache.py loc=L29 community=5]\nNODE SessionCache [src=skills/semantic-diff/tools/semdiff/cache.py loc=L9 community=0]\nNODE compress() [src=skills/compress-context/tools/pipeline_v2",
+      "graphify_explain_excerpt": "Node: _cli_main()\n  ID:        tools_wiki_cli_main\n  Source:    skills/wiki-memory/tools/wiki.py L1005\n  Type:      code\n  Community: 1\n  Degree:    12\n\nConnections (12):\n  --> WikiStore [calls] [EXTRACTED]\n  <-- wiki.py [contains] [EXTRACTED]\n  --> .import_audit() [calls] [EXTRACTED]\n  --> .index() [calls] [EXTRACTED]\n  --> .lint_pages() [calls] [EXTRACTED]\n  --> .search() [calls] [EXTRACTED]\n  -"
+    },
+    {
+      "question": "Which functions handle lint operations?",
+      "symbol": "lint",
+      "grep": {
+        "tokens": 5611,
+        "bytes": 22443,
+        "elapsed_ms": 171,
+        "tool_calls": 4,
+        "files": [
+          "skills/wiki-memory/tools/wiki.py",
+          "skills/handoff/tools/_lib/context.py",
+          "skills/compliance-canary/tools/hook.py"
+        ],
+        "evidence": {
+          "hits": 1,
+          "of": 3,
+          "matched": [
+            "lint"
+          ]
+        }
+      },
+      "graphify_query": {
+        "tokens": 1170,
+        "bytes": 4681,
+        "elapsed_ms": 95,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 1,
+          "of": 3,
+          "matched": [
+            "lint"
+          ]
+        }
+      },
+      "graphify_explain": {
+        "tokens": 66,
+        "bytes": 263,
+        "elapsed_ms": 93,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 1,
+          "of": 3,
+          "matched": [
+            "lint"
+          ]
+        }
+      },
+      "grep_output_excerpt": "=== skills/wiki-memory/tools/wiki.py ===\nfrom __future__ import annotations\n\nimport json\nimport re\nimport sqlite3\nfrom dataclasses import dataclass\nfrom datetime import date\nfrom math import ceil\nfrom pathlib import Path\nfrom typing import Any\n\n\nWIKI_DIRS = (\"raw\", \"concepts\", \"patterns\", \"projects\", \"people\", \"queries\", \"L2_facts\", \"L3_sops\", \"L4_archive\")\nSKIP_PARTS = {\".git\", \".token-economy\", ",
+      "graphify_query_excerpt": "Traversal: BFS depth=2 | Start: ['lint_handoff()'] | 31 nodes found\n\nNODE context.py [src=skills/handoff/tools/_lib/context.py loc=L1 community=3]\nNODE wiki.py [src=skills/wiki-memory/tools/wiki.py loc=L1 community=1]\nNODE checkpoint() [src=skills/handoff/tools/_lib/context.py loc=L351 community=3]\nNODE .context() [src=skills/wiki-memory/tools/wiki.py loc=L488 community=1]\nNODE estimate_tokens() [",
+      "graphify_explain_excerpt": "Node: lint_handoff()\n  ID:        lib_context_lint_handoff\n  Source:    skills/handoff/tools/_lib/context.py L452\n  Type:      code\n  Community: 3\n  Degree:    2\n\nConnections (2):\n  <-- context.py [contains] [EXTRACTED]\n  --> estimate_tokens() [calls] [INFERRED]\n"
+    },
+    {
+      "question": "What does code_map.py expose?",
+      "symbol": "code_map",
+      "grep": {
+        "tokens": 2565,
+        "bytes": 10257,
+        "elapsed_ms": 168,
+        "tool_calls": 4,
+        "files": [
+          "skills/wiki-memory/tools/code_map.py",
+          "skills/wiki-memory/tools/wiki_mcp/mcp_server.py",
+          "skills/wiki-memory/tools/wiki_mcp/wiki_search.py"
+        ],
+        "evidence": {
+          "hits": 2,
+          "of": 3,
+          "matched": [
+            "code_map",
+            "symbol"
+          ]
+        }
+      },
+      "graphify_query": {
+        "tokens": 505,
+        "bytes": 2018,
+        "elapsed_ms": 94,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 2,
+          "of": 3,
+          "matched": [
+            "code_map",
+            "symbol"
+          ]
+        }
+      },
+      "graphify_explain": {
+        "tokens": 114,
+        "bytes": 456,
+        "elapsed_ms": 95,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 1,
+          "of": 3,
+          "matched": [
+            "code_map"
+          ]
+        }
+      },
+      "grep_output_excerpt": "=== skills/wiki-memory/tools/code_map.py ===\nfrom __future__ import annotations\n\nimport ast\nimport re\nfrom dataclasses import dataclass, field\nfrom pathlib import Path\nfrom typing import Any\n\nfrom tokens import estimate_tokens\n\n\nCODE_EXTS = {\".py\", \".js\", \".jsx\", \".ts\", \".tsx\", \".sh\", \".bash\", \".zsh\"}\nSKIP_PARTS = {\".git\", \".token-economy\", \"__pycache__\", \".pytest_cache\", \"node_modules\", \".venv\", ",
+      "graphify_query_excerpt": "Traversal: BFS depth=2 | Start: ['code_map.py'] | 13 nodes found\n\nNODE code_map.py [src=skills/wiki-memory/tools/code_map.py loc=L1 community=11]\nNODE map_file() [src=skills/wiki-memory/tools/code_map.py loc=L130 community=11]\nNODE code_map() [src=skills/wiki-memory/tools/code_map.py loc=L157 community=11]\nNODE estimate_tokens() [src=skills/wiki-memory/tools/wiki.py loc=L140 community=11]\nNODE par",
+      "graphify_explain_excerpt": "Node: code_map()\n  ID:        tools_code_map_code_map\n  Source:    skills/wiki-memory/tools/code_map.py L157\n  Type:      code\n  Community: 11\n  Degree:    7\n\nConnections (7):\n  <-- code_map.py [contains] [EXTRACTED]\n  --> map_file() [calls] [EXTRACTED]\n  --> estimate_tokens() [calls] [INFERRED]\n  --> FileMap [calls] [EXTRACTED]\n  --> .as_dict() [calls] [EXTRACTED]\n  --> iter_code_files() [calls] "
+    },
+    {
+      "question": "What are the methods of class WikiStore?",
+      "symbol": "WikiStore",
+      "grep": {
+        "tokens": 2234,
+        "bytes": 8934,
+        "elapsed_ms": 185,
+        "tool_calls": 3,
+        "files": [
+          "skills/wiki-memory/tools/wiki.py",
+          "skills/wiki-memory/tools/wiki_mcp/wiki_search.py"
+        ],
+        "evidence": {
+          "hits": 4,
+          "of": 5,
+          "matched": [
+            "search",
+            "fetch",
+            "timeline",
+            "context"
+          ]
+        }
+      },
+      "graphify_query": {
+        "tokens": 218,
+        "bytes": 869,
+        "elapsed_ms": 94,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 1,
+          "of": 5,
+          "matched": [
+            "context"
+          ]
+        }
+      },
+      "graphify_explain": {
+        "tokens": 248,
+        "bytes": 989,
+        "elapsed_ms": 92,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 5,
+          "of": 5,
+          "matched": [
+            "search",
+            "fetch",
+            "timeline",
+            "_ensure_db",
+            "context"
+          ]
+        }
+      },
+      "grep_output_excerpt": "=== skills/wiki-memory/tools/wiki.py ===\nfrom __future__ import annotations\n\nimport json\nimport re\nimport sqlite3\nfrom dataclasses import dataclass\nfrom datetime import date\nfrom math import ceil\nfrom pathlib import Path\nfrom typing import Any\n\n\nWIKI_DIRS = (\"raw\", \"concepts\", \"patterns\", \"projects\", \"people\", \"queries\", \"L2_facts\", \"L3_sops\", \"L4_archive\")\nSKIP_PARTS = {\".git\", \".token-economy\", ",
+      "graphify_query_excerpt": "Traversal: BFS depth=2 | Start: ['classify()', 'classify.py'] | 5 nodes found\n\nNODE classify() [src=skills/prompt-triage/tools/classify.py loc=L116 community=24]\nNODE classify.py [src=skills/prompt-triage/tools/classify.py loc=L1 community=24]\nNODE main() [src=skills/prompt-triage/tools/classify.py loc=L136 community=24]\nNODE regex_classify() [src=skills/prompt-triage/tools/classify.py loc=L62 com",
+      "graphify_explain_excerpt": "Node: WikiStore\n  ID:        tools_wiki_wikistore\n  Source:    skills/wiki-memory/tools/wiki.py L166\n  Type:      code\n  Community: 1\n  Degree:    33\n\nConnections (33):\n  <-- wiki.py [contains] [EXTRACTED]\n  <-- _cli_main() [calls] [EXTRACTED]\n  --> .context() [method] [EXTRACTED]\n  --> .import_audit() [method] [EXTRACTED]\n  --> .pages() [method] [EXTRACTED]\n  --> ._rank_pages() [method] [EXTRACTE"
+    },
+    {
+      "question": "How is import_audit related to WikiStore?",
+      "symbol": "import_audit",
+      "grep": {
+        "tokens": 1839,
+        "bytes": 7355,
+        "elapsed_ms": 188,
+        "tool_calls": 2,
+        "files": [
+          "skills/wiki-memory/tools/wiki.py"
+        ],
+        "evidence": {
+          "hits": 1,
+          "of": 3,
+          "matched": [
+            "WikiStore"
+          ]
+        }
+      },
+      "graphify_query": {
+        "tokens": 1159,
+        "bytes": 4637,
+        "elapsed_ms": 93,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 3,
+          "of": 3,
+          "matched": [
+            "WikiStore",
+            "method",
+            "import_audit"
+          ]
+        }
+      },
+      "graphify_explain": {
+        "tokens": 157,
+        "bytes": 628,
+        "elapsed_ms": 94,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 3,
+          "of": 3,
+          "matched": [
+            "WikiStore",
+            "method",
+            "import_audit"
+          ]
+        }
+      },
+      "grep_output_excerpt": "=== skills/wiki-memory/tools/wiki.py ===\nfrom __future__ import annotations\n\nimport json\nimport re\nimport sqlite3\nfrom dataclasses import dataclass\nfrom datetime import date\nfrom math import ceil\nfrom pathlib import Path\nfrom typing import Any\n\n\nWIKI_DIRS = (\"raw\", \"concepts\", \"patterns\", \"projects\", \"people\", \"queries\", \"L2_facts\", \"L3_sops\", \"L4_archive\")\nSKIP_PARTS = {\".git\", \".token-economy\", ",
+      "graphify_query_excerpt": "Traversal: BFS depth=2 | Start: ['.import_audit()'] | 38 nodes found\n\nNODE WikiStore [src=skills/wiki-memory/tools/wiki.py loc=L166 community=1]\nNODE wiki.py [src=skills/wiki-memory/tools/wiki.py loc=L1 community=1]\nNODE .set() [src=skills/semantic-diff/tools/semdiff/cache.py loc=L29 community=5]\nNODE _cli_main() [src=skills/wiki-memory/tools/wiki.py loc=L1005 community=1]\nNODE .context() [src=ski",
+      "graphify_explain_excerpt": "Node: .import_audit()\n  ID:        tools_wiki_wikistore_import_audit\n  Source:    skills/wiki-memory/tools/wiki.py L733\n  Type:      code\n  Community: 1\n  Degree:    10\n\nConnections (10):\n  <-- WikiStore [method] [EXTRACTED]\n  <-- _cli_main() [calls] [EXTRACTED]\n  --> .pages() [calls] [EXTRACTED]\n  --> ._parse_import_manifest() [calls] [EXTRACTED]\n  --> ._cell() [calls] [EXTRACTED]\n  --> ._audit_s"
+    },
+    {
+      "question": "What imports the WikiStore class?",
+      "symbol": "WikiStore",
+      "grep": {
+        "tokens": 2234,
+        "bytes": 8934,
+        "elapsed_ms": 186,
+        "tool_calls": 3,
+        "files": [
+          "skills/wiki-memory/tools/wiki.py",
+          "skills/wiki-memory/tools/wiki_mcp/wiki_search.py"
+        ],
+        "evidence": {
+          "hits": 2,
+          "of": 3,
+          "matched": [
+            "wiki_search",
+            "wiki_mcp"
+          ]
+        }
+      },
+      "graphify_query": {
+        "tokens": 42,
+        "bytes": 168,
+        "elapsed_ms": 95,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 0,
+          "of": 3,
+          "matched": []
+        }
+      },
+      "graphify_explain": {
+        "tokens": 248,
+        "bytes": 989,
+        "elapsed_ms": 94,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 0,
+          "of": 3,
+          "matched": []
+        }
+      },
+      "grep_output_excerpt": "=== skills/wiki-memory/tools/wiki.py ===\nfrom __future__ import annotations\n\nimport json\nimport re\nimport sqlite3\nfrom dataclasses import dataclass\nfrom datetime import date\nfrom math import ceil\nfrom pathlib import Path\nfrom typing import Any\n\n\nWIKI_DIRS = (\"raw\", \"concepts\", \"patterns\", \"projects\", \"people\", \"queries\", \"L2_facts\", \"L3_sops\", \"L4_archive\")\nSKIP_PARTS = {\".git\", \".token-economy\", ",
+      "graphify_query_excerpt": "Traversal: BFS depth=2 | Start: ['WikiStore'] | Context: import (heuristic) | 1 nodes found\n\nNODE WikiStore [src=skills/wiki-memory/tools/wiki.py loc=L166 community=1]\n",
+      "graphify_explain_excerpt": "Node: WikiStore\n  ID:        tools_wiki_wikistore\n  Source:    skills/wiki-memory/tools/wiki.py L166\n  Type:      code\n  Community: 1\n  Degree:    33\n\nConnections (33):\n  <-- wiki.py [contains] [EXTRACTED]\n  <-- _cli_main() [calls] [EXTRACTED]\n  --> .context() [method] [EXTRACTED]\n  --> .import_audit() [method] [EXTRACTED]\n  --> .pages() [method] [EXTRACTED]\n  --> ._rank_pages() [method] [EXTRACTE"
+    },
+    {
+      "question": "What does the rank_pages function do?",
+      "symbol": "_rank_pages",
+      "grep": {
+        "tokens": 1839,
+        "bytes": 7355,
+        "elapsed_ms": 193,
+        "tool_calls": 2,
+        "files": [
+          "skills/wiki-memory/tools/wiki.py"
+        ],
+        "evidence": {
+          "hits": 1,
+          "of": 3,
+          "matched": [
+            "WikiStore"
+          ]
+        }
+      },
+      "graphify_query": {
+        "tokens": 1189,
+        "bytes": 4755,
+        "elapsed_ms": 96,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 3,
+          "of": 3,
+          "matched": [
+            "WikiStore",
+            "method",
+            "rank"
+          ]
+        }
+      },
+      "graphify_explain": {
+        "tokens": 137,
+        "bytes": 548,
+        "elapsed_ms": 94,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 3,
+          "of": 3,
+          "matched": [
+            "WikiStore",
+            "method",
+            "rank"
+          ]
+        }
+      },
+      "grep_output_excerpt": "=== skills/wiki-memory/tools/wiki.py ===\nfrom __future__ import annotations\n\nimport json\nimport re\nimport sqlite3\nfrom dataclasses import dataclass\nfrom datetime import date\nfrom math import ceil\nfrom pathlib import Path\nfrom typing import Any\n\n\nWIKI_DIRS = (\"raw\", \"concepts\", \"patterns\", \"projects\", \"people\", \"queries\", \"L2_facts\", \"L3_sops\", \"L4_archive\")\nSKIP_PARTS = {\".git\", \".token-economy\", ",
+      "graphify_query_excerpt": "Traversal: BFS depth=2 | Start: ['._rank_pages()', '._audit_synthesized_pages()', 'Project tool_input down to fields that meaningfully define the action.     Drops'] | 44 nodes found\n\nNODE WikiStore [src=skills/wiki-memory/tools/wiki.py loc=L166 community=1]\nNODE wiki.py [src=skills/wiki-memory/tools/wiki.py loc=L1 community=1]\nNODE hook.py [src=skills/loop-breaker/tools/hook.py loc=L1 community=7",
+      "graphify_explain_excerpt": "Node: ._rank_pages()\n  ID:        tools_wiki_wikistore_rank_pages\n  Source:    skills/wiki-memory/tools/wiki.py L402\n  Type:      code\n  Community: 1\n  Degree:    9\n\nConnections (9):\n  <-- WikiStore [method] [EXTRACTED]\n  <-- .context() [calls] [EXTRACTED]\n  --> .pages() [calls] [EXTRACTED]\n  --> .search() [calls] [EXTRACTED]\n  --> listish_has_value() [calls] [EXTRACTED]\n  --> confidence_value() ["
+    },
+    {
+      "question": "Where is 'progressive retrieval' implemented?",
+      "symbol": "search",
+      "grep": {
+        "tokens": 3322,
+        "bytes": 13300,
+        "elapsed_ms": 2,
+        "tool_calls": 4,
+        "files": [
+          "skills/output-filter/tools/output_filter.py",
+          "skills/compress-context/tools/skip_detector.py",
+          "skills/compress-context/tools/pipeline.py"
+        ],
+        "evidence": {
+          "hits": 1,
+          "of": 3,
+          "matched": [
+            "search"
+          ]
+        }
+      },
+      "graphify_query": {
+        "tokens": 527,
+        "bytes": 2108,
+        "elapsed_ms": 94,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 0,
+          "of": 3,
+          "matched": []
+        }
+      },
+      "graphify_explain": {
+        "tokens": 102,
+        "bytes": 408,
+        "elapsed_ms": 96,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 2,
+          "of": 3,
+          "matched": [
+            "search",
+            "rank"
+          ]
+        }
+      },
+      "grep_output_excerpt": "=== skills/output-filter/tools/output_filter.py ===\nfrom __future__ import annotations\n\nimport argparse\nimport hashlib\nimport json\nimport os\nimport re\nimport sys\nfrom dataclasses import dataclass\nfrom datetime import datetime, timezone\nfrom pathlib import Path\nfrom typing import Any\n\nfrom config import load_config\n\n\nANSI = re.compile(r\"\\x1b\\[[0-9;]*[A-Za-z]\")\nDEFAULT_KEEP = re.compile(r\"(error|fai",
+      "graphify_query_excerpt": "Traversal: BFS depth=2 | Start: ['Skip-detector heuristics for content types where compression damages quality.  W'] | 11 nodes found\n\nNODE skip_heuristics() [src=skills/compress-context/tools/auto_rate_selector.py loc=L1 community=13]\nNODE extended_skip_reasons() [src=skills/compress-context/tools/skip_heuristics.py loc=L73 community=13]\nNODE should_compress_extended() [src=skills/compress-contex",
+      "graphify_explain_excerpt": "Node: .search()\n  ID:        tools_wiki_wikistore_search\n  Source:    skills/wiki-memory/tools/wiki.py L385\n  Type:      code\n  Community: 1\n  Degree:    6\n\nConnections (6):\n  <-- WikiStore [method] [EXTRACTED]\n  <-- _cli_main() [calls] [EXTRACTED]\n  <-- .context() [calls] [EXTRACTED]\n  <-- ._rank_pages() [calls] [EXTRACTED]\n  --> ._ensure_db() [calls] [EXTRACTED]\n  --> ._search_hit() [calls] [EXT"
+    },
+    {
+      "question": "What class has a method named ingest?",
+      "symbol": "ingest",
+      "grep": {
+        "tokens": 1839,
+        "bytes": 7355,
+        "elapsed_ms": 187,
+        "tool_calls": 2,
+        "files": [
+          "skills/wiki-memory/tools/wiki.py"
+        ],
+        "evidence": {
+          "hits": 1,
+          "of": 2,
+          "matched": [
+            "WikiStore"
+          ]
+        }
+      },
+      "graphify_query": {
+        "tokens": 831,
+        "bytes": 3324,
+        "elapsed_ms": 94,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 0,
+          "of": 2,
+          "matched": []
+        }
+      },
+      "graphify_explain": {
+        "tokens": 90,
+        "bytes": 360,
+        "elapsed_ms": 93,
+        "tool_calls": 1,
+        "returncode": 0,
+        "evidence": {
+          "hits": 2,
+          "of": 2,
+          "matched": [
+            "WikiStore",
+            "ingest"
+          ]
+        }
+      },
+      "grep_output_excerpt": "=== skills/wiki-memory/tools/wiki.py ===\nfrom __future__ import annotations\n\nimport json\nimport re\nimport sqlite3\nfrom dataclasses import dataclass\nfrom datetime import date\nfrom math import ceil\nfrom pathlib import Path\nfrom typing import Any\n\n\nWIKI_DIRS = (\"raw\", \"concepts\", \"patterns\", \"projects\", \"people\", \"queries\", \"L2_facts\", \"L3_sops\", \"L4_archive\")\nSKIP_PARTS = {\".git\", \".token-economy\", ",
+      "graphify_query_excerpt": "Traversal: BFS depth=2 | Start: ['classify()', 'classify.py', 'has_version_comparison()'] | 16 nodes found\n\nNODE skip_heuristics() [src=skills/compress-context/tools/auto_rate_selector.py loc=L1 community=13]\nNODE extended_skip_reasons() [src=skills/compress-context/tools/skip_heuristics.py loc=L73 community=13]\nNODE classify() [src=skills/prompt-triage/tools/classify.py loc=L116 community=24]\nNOD",
+      "graphify_explain_excerpt": "Node: .ingest()\n  ID:        tools_wiki_wikistore_ingest\n  Source:    skills/wiki-memory/tools/wiki.py L917\n  Type:      code\n  Community: 1\n  Degree:    5\n\nConnections (5):\n  <-- WikiStore [method] [EXTRACTED]\n  <-- _cli_main() [calls] [EXTRACTED]\n  --> .index() [calls] [EXTRACTED]\n  --> slugify() [calls] [EXTRACTED]\n  --> .append_log() [calls] [EXTRACTED]\n"
+    }
+  ]
+}

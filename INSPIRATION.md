@@ -12,6 +12,7 @@ Repos and writeups that shaped this catalog or live in adjacent territory. Group
 
 ## Code indexing / structural retrieval
 
+- [safishamsi/graphify](https://github.com/safishamsi/graphify) — tree-sitter AST graph + Leiden communities + Obsidian export, packaged as a multi-host skill (Claude Code / Codex / Cursor / Gemini / Aider / OpenCode / …). Closest concrete realization of Karpathy's "LLM-maintained knowledge base" idea, applied to codebases. Recognized by [`index-first`](skills/index-first/SKILL.md) when `graphify-out/graph.json` is present; measured −93% tokens vs grep+read at parity evidence rate (12-Q A/B) using `graphify explain`. See [`skills/index-first/EVAL.md`](skills/index-first/EVAL.md) for full numbers + known issues.
 - [zilliztech/claude-context](https://github.com/zilliztech/claude-context) — MCP semantic code search; hybrid BM25 + dense vector across whole codebases.
 - [tirth8205/code-review-graph](https://github.com/tirth8205/code-review-graph) — tree-sitter graph + blast-radius traversal for code review (claims 8.2× token reduction).
 - [Mibayy/token-savior](https://github.com/Mibayy/token-savior) — MCP: structural code index + memory + bash compactor.
