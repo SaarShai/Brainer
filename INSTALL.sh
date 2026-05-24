@@ -2,11 +2,16 @@
 # Token Economy skill-set installer.
 # Symlinks skills/ into the per-host loader path. Idempotent.
 # Usage:
-#   ./install.sh                           # all detected hosts
+#   ./install.sh                           # all detected hosts + graphify
 #   ./install.sh --host claude-code        # one host
 #   ./install.sh --host claude-code,codex  # comma-separated
+#   ./install.sh --no-graphify             # skip graphify auto-install
 #   ./install.sh --dry-run                 # show what would happen
 #   SKILLS_DIR=skills.new ./install.sh     # alternate canonical dir (Phase A/B)
+#
+# Graphify is the external code-graph tool paired with `index-first` and
+# `wiki-memory` (see skills/index-first/EVAL.md for the measured numbers).
+# By default this installer pip-installs it; pass --no-graphify to opt out.
 
 set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -15,11 +20,13 @@ SRC="$REPO_ROOT/$SKILLS_DIR"
 
 HOSTS_REQUESTED=""
 DRY_RUN=0
+INSTALL_GRAPHIFY=1
 
 while (( "$#" )); do
   case "$1" in
     --host) HOSTS_REQUESTED="$2"; shift 2 ;;
     --dry-run) DRY_RUN=1; shift ;;
+    --no-graphify) INSTALL_GRAPHIFY=0; shift ;;
     -h|--help)
       grep -E '^# ' "$0" | sed 's/^# //'
       exit 0 ;;
@@ -149,6 +156,60 @@ for tool_installer in "$SRC"/*/tools/install.sh; do
     { bash "$tool_installer" 2>&1 | sed 's/^/    /'; } || echo "    [warn] $skill_name installer exited nonzero — see above"
   fi
 done
+
+install_graphify() {
+  # Best-effort install of the external `graphify` CLI (PyPI: graphifyy).
+  # Paired by default with `index-first` and `wiki-memory` per the
+  # recommended stack (see README.md). Skip with --no-graphify.
+  echo
+  echo "[graphify] external code-graph tool (PyPI: graphifyy)"
+
+  if command -v graphify >/dev/null 2>&1; then
+    local ver
+    ver=$(graphify --help 2>&1 | head -1 || true)
+    echo "  [skip] graphify already on PATH ($ver)"
+    return 0
+  fi
+
+  # Try pipx first — cleanest for a CLI install.
+  if command -v pipx >/dev/null 2>&1; then
+    echo "  installing via pipx..."
+    run "pipx install graphifyy"
+    return 0
+  fi
+
+  # Fall back to a python3.10+ -m pip install --user. graphifyy needs ≥3.10.
+  local py=""
+  for cand in python3.13 python3.12 python3.11 python3.10; do
+    if command -v "$cand" >/dev/null 2>&1; then py="$cand"; break; fi
+  done
+  if [ -z "$py" ]; then
+    echo "  [warn] no python3.10+ on PATH and no pipx — graphify not installed."
+    echo "         install pipx (recommended) or python3.10+, then run:"
+    echo "           pipx install graphifyy"
+    return 0
+  fi
+
+  echo "  no pipx found; installing via $py -m pip install --user..."
+  if [ "$DRY_RUN" = "1" ]; then
+    echo "DRY: $py -m pip install --user graphifyy"
+  else
+    # Tolerate failures (--break-system-packages may be needed on some
+    # Debian/Ubuntu setups; we don't want to assume that)
+    if ! "$py" -m pip install --user graphifyy 2>&1 | sed 's/^/    /'; then
+      echo "  [warn] graphify install failed via pip --user."
+      echo "         try: pipx install graphifyy"
+      return 0
+    fi
+  fi
+}
+
+if [ "$INSTALL_GRAPHIFY" = "1" ]; then
+  install_graphify
+else
+  echo
+  echo "[graphify] skipped (--no-graphify)"
+fi
 
 for f in CLAUDE.md AGENTS.md GEMINI.md; do
   shim="$REPO_ROOT/$f"
