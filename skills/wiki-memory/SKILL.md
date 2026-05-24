@@ -55,6 +55,14 @@ Protocol:
 8. Append `wiki/log.md`.
 9. Run `python ... index`; for new v2 pages run `python ... lint --strict`.
 
+## Lint
+
+```
+python3 tools/wiki.py lint [--strict] [--stale-days N] [--hub-threshold N] [--scope PATH ...]
+```
+
+Always-on findings: broken `[[wikilinks]]`, orphans (0 inbound), duplicate titles, stale `verified:` (>`--stale-days`, default 180, with `age_days`), gravity-well hubs (inbound > `--hub-threshold`, default 20). `--scope` adds extra roots so trees outside the wiki (concepts/, runbooks/, designs/foo/ledger.md) participate in the link graph and get hygiene-scanned. `--strict` adds v2-frontmatter enforcement, missing-provenance / missing-backlinks warnings, and supersession-reverse-link checks.
+
 Write-gate (enforced in `tools/wiki.py`):
 - No durable memory from unexecuted plans.
 - No trivial lookups inflated into fake procedures.

@@ -589,10 +589,81 @@ class WikiStore:
     def lint(self) -> dict[str, Any]:
         return self.lint_pages(strict=False)
 
-    def lint_pages(self, strict: bool = False) -> dict[str, Any]:
+    def _read_extra_page(self, path: Path, scope_root: Path) -> Page:
+        """Read a page whose id is relative to scope_root (not self.root).
+
+        Used by lint_pages when called with extra_roots so concepts/, runbooks/,
+        designs/*/ledger.md etc. can be hygiene-scanned alongside the wiki tree.
+        """
+        scope_root = scope_root.resolve()
+        text = path.read_text(encoding="utf-8", errors="replace")
+        fm, body = parse_frontmatter(text)
+        title = ""
+        for line in body.splitlines():
+            if line.startswith("# "):
+                title = line[2:].strip()
+                break
+        title = title or path.stem.replace("-", " ").replace("_", " ").title()
+        preview = ""
+        for line in body.splitlines():
+            clean = line.strip()
+            if clean and not clean.startswith("#"):
+                preview = clean[:240]
+                break
+        links = [normalize_wikilink(x) for x in WIKILINK_RE.findall(strip_fenced_code(body))]
+        try:
+            rel = path.resolve().relative_to(scope_root).with_suffix("").as_posix()
+        except ValueError:
+            rel = path.stem
+        prefix = scope_root.name or "scope"
+        pid = f"{prefix}/{rel}" if rel else f"{prefix}/{path.stem}"
+        return Page(
+            id=pid,
+            path=path,
+            title=title,
+            type=fm.get("type", ""),
+            tags=parse_tags(fm.get("tags", "")),
+            preview=preview,
+            body=body,
+            links=links,
+            frontmatter=fm,
+        )
+
+    def _collect_extra_pages(self, extra_roots: list[str | Path]) -> list[Page]:
+        out: list[Page] = []
+        for er in extra_roots:
+            er_path = Path(er).expanduser().resolve()
+            if not er_path.exists():
+                continue
+            if er_path.is_file() and er_path.suffix == ".md":
+                out.append(self._read_extra_page(er_path, er_path.parent))
+                continue
+            if er_path.is_dir():
+                # Use the dir itself as the scope_root so ids are <dirname>/<rel>.
+                for path in sorted(er_path.rglob("*.md")):
+                    if any(part in SKIP_PARTS for part in path.parts):
+                        continue
+                    out.append(self._read_extra_page(path, er_path))
+        return out
+
+    def lint_pages(
+        self,
+        strict: bool = False,
+        stale_days: int = 180,
+        hub_threshold: int = 20,
+        extra_roots: list[str | Path] | None = None,
+    ) -> dict[str, Any]:
         pages = self.pages()
+        if extra_roots:
+            pages = pages + self._collect_extra_pages(extra_roots)
         ids = {p.id for p in pages}
         stems = {Path(p.id).name for p in pages}
+        # First-occurrence wins for stem→id, so [[foo]] resolves to the most
+        # canonical foo when stems collide. duplicate_titles surfaces collisions.
+        stem_to_id: dict[str, str] = {}
+        for p in pages:
+            name = Path(p.id).name
+            stem_to_id.setdefault(name, p.id)
         incoming: dict[str, int] = {p.id: 0 for p in pages}
         broken = []
         missing_frontmatter = []
@@ -623,6 +694,7 @@ class WikiStore:
                 for p in pages
                 if p.path.name not in {"index.md", "log.md", "L0_rules.md", "L1_index.md"}
                 and not p.id.startswith(("raw/m5-outputs-",))
+                and p.path.is_relative_to(self.root)
                 and not (set(p.path.relative_to(self.root).parts) & {"templates", "hooks", "configs", "adapters"})
             ]
             for rel in ("L1_index.md",):
@@ -633,7 +705,7 @@ class WikiStore:
                         stale_indexes.append(rel)
                         warn.append({"code": "stale_index", "page": rel})
         for p in pages:
-            rel_parts = set(p.path.relative_to(self.root).parts)
+            rel_parts = set(p.path.relative_to(self.root).parts) if p.path.is_relative_to(self.root) else set()
             if strict and rel_parts & {"templates", "skills", "prompts", "hooks", "configs", "extensions", "adapters"}:
                 continue
             if p.path.name not in {"index.md", "log.md", "schema.md", "L0_rules.md", "L1_index.md"} and not p.frontmatter:
@@ -665,6 +737,11 @@ class WikiStore:
                 link_id = link.removesuffix(".md")
                 if link_id in incoming:
                     incoming[link_id] += 1
+                elif Path(link_id).name in stem_to_id:
+                    # Stem-only wikilink (e.g. [[foo]] referring to L2_facts/foo).
+                    # Resolve to the canonical id so inbound counts are accurate
+                    # for orphan + hub detection.
+                    incoming[stem_to_id[Path(link_id).name]] += 1
                 elif link_id not in ids and Path(link_id).name not in stems:
                     broken.append({"from": p.id, "to": link})
                     if strict and is_v2_page(p.frontmatter):
@@ -684,6 +761,40 @@ class WikiStore:
                 page = next((p for p in pages if p.id == pid), None)
                 if page and is_v2_page(page.frontmatter):
                     warn.append({"code": "orphan", "page": pid})
+
+        # Always-on: stale `verified:` (was strict-only) with age in days.
+        today = date.today()
+        stale_verified = []
+        for p in pages:
+            value = p.frontmatter.get("verified", "").strip().strip("\"'")
+            if not value:
+                continue
+            try:
+                parsed = date.fromisoformat(value)
+            except ValueError:
+                continue
+            age_days = (today - parsed).days
+            if age_days > stale_days:
+                stale_verified.append({
+                    "page": p.id,
+                    "verified": value,
+                    "age_days": age_days,
+                })
+                if strict:
+                    warn.append({"code": "stale_verified", "page": p.id, "verified": value, "age_days": age_days})
+
+        # Always-on: gravity-well hub detection. A page with > hub_threshold
+        # inbound links is a junk drawer; suggests splitting or cleanup.
+        hubs = [
+            {"page": pid, "inbound": count}
+            for pid, count in sorted(incoming.items(), key=lambda kv: -kv[1])
+            if count > hub_threshold
+            and Path(pid).name not in {"index", "log", "L1_index", "schema", "L0_rules"}
+        ]
+        if strict:
+            for h in hubs:
+                warn.append({"code": "hub_gravity_well", "page": h["page"], "inbound": h["inbound"]})
+
         result = {
             "pages": len(pages),
             "missing_frontmatter": missing_frontmatter,
@@ -694,6 +805,8 @@ class WikiStore:
             "duplicate_titles": duplicate_titles,
             "missing_provenance": missing_provenance,
             "missing_backlinks": missing_backlinks,
+            "stale_verified": stale_verified,
+            "hubs": hubs,
         }
         if strict:
             result["strict"] = True
@@ -718,9 +831,10 @@ class WikiStore:
             value = fm.get(key, "")
             if value:
                 try:
-                    parsed = date.fromisoformat(value)
-                    if key == "verified" and (date.today() - parsed).days > 180:
-                        warnings.append({"code": "stale_verified", "page": page.id, "verified": value})
+                    date.fromisoformat(value)
+                    # Stale-verified detection lives in lint_pages() (always-on,
+                    # configurable threshold). _lint_v2_page only validates the
+                    # date format here.
                 except ValueError:
                     errors.append({"code": "invalid_date", "page": page.id, "field": key, "value": value})
         for key in ("supersedes", "superseded-by"):
@@ -1039,9 +1153,16 @@ def _cli_main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("index", help="Rebuild the SQLite search index.")
 
-    sp = sub.add_parser("lint", help="Stale claims, orphans, broken links, contradictions.")
+    sp = sub.add_parser("lint", help="Stale claims, orphans, broken links, duplicate titles, hub gravity-wells.")
     sp.add_argument("--strict", action="store_true",
                     help="Enforce v2 frontmatter on every page (not just v2/templated).")
+    sp.add_argument("--stale-days", type=int, default=180,
+                    help="Threshold for stale `verified:` in days (default 180).")
+    sp.add_argument("--hub-threshold", type=int, default=20,
+                    help="Inbound-link count above which a page is flagged as a gravity-well hub (default 20).")
+    sp.add_argument("--scope", action="append", default=[],
+                    help="Extra root (dir or .md file) to include in the lint pass. Repeatable. "
+                         "Use for trees outside the wiki, e.g. --scope concepts --scope runbooks --scope designs/foo/ledger.md.")
 
     sp = sub.add_parser("import-audit", help="Validate an import manifest.")
     sp.add_argument("--manifest", required=True)
@@ -1066,7 +1187,12 @@ def _cli_main(argv: list[str] | None = None) -> int:
     elif args.cmd == "index":
         _cli_print(store.index())
     elif args.cmd == "lint":
-        _cli_print(store.lint_pages(strict=args.strict))
+        _cli_print(store.lint_pages(
+            strict=args.strict,
+            stale_days=args.stale_days,
+            hub_threshold=args.hub_threshold,
+            extra_roots=args.scope or None,
+        ))
     elif args.cmd == "import-audit":
         _cli_print(store.import_audit(args.manifest))
     else:  # unreachable — argparse enforces choices
