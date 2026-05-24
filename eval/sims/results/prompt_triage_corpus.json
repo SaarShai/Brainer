@@ -1,7 +1,7 @@
 {
   "skill": "prompt_triage",
   "shape": "corpus",
-  "elapsed_s": 0.38079309463500977,
+  "elapsed_s": 0.43865323066711426,
   "passed": true,
   "summary": {
     "n": 45,

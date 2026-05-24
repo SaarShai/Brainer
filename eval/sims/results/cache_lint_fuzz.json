@@ -1,7 +1,7 @@
 {
   "n_cases": 19,
   "crashes": 0,
-  "total_elapsed_s": 0.085,
+  "total_elapsed_s": 0.089,
   "correctness": {
     "node_modules_skipped": true,
     "nested_plugin_discovered": true,
@@ -78,7 +78,7 @@
     {
       "case": "huge_claude",
       "ok": true,
-      "elapsed_ms": 34,
+      "elapsed_ms": 36,
       "n_targets": 1,
       "n_findings": 2,
       "fails": 0,
@@ -123,7 +123,7 @@
     {
       "case": "many_skills",
       "ok": true,
-      "elapsed_ms": 8,
+      "elapsed_ms": 9,
       "n_targets": 51,
       "n_findings": 2,
       "fails": 0,
@@ -141,7 +141,7 @@
     {
       "case": "nested_plugin_claude",
       "ok": true,
-      "elapsed_ms": 0,
+      "elapsed_ms": 1,
       "n_targets": 3,
       "n_findings": 2,
       "fails": 0,
