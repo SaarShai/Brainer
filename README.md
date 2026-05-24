@@ -4,6 +4,34 @@ A token- and context-efficient skill catalog for AI coding agents — Claude Cod
 
 **Skills, not a framework.** Drop the catalog into any [agentskills.io](https://agentskills.io)-compatible host. Each skill is a single folder with a `SKILL.md`, optional bundled tools, and measured evaluation numbers.
 
+## Most-recommended stack
+
+If you only install one combination, install this. Each item earns its slot with measured numbers — see [`eval/FINDINGS.md`](eval/FINDINGS.md) for the full breakdown.
+
+| Slot | Skill | Why it's in the stack |
+|---|---|---|
+| Output style | [`caveman-ultra`](skills/caveman-ultra/SKILL.md) + [`lean-execution`](skills/lean-execution/SKILL.md) | **−87.7%** output on verbose-prone prompts (measured combo, [eval/results/caveman+lean.json](eval/results/caveman+lean.json)) |
+| Routing | [`prompt-triage`](skills/prompt-triage/SKILL.md) | −20.9% total tokens, 100% classification accuracy on mixed prompts |
+| Memory across compaction | [`context-keeper`](skills/context-keeper/SKILL.md) | 97.7% transcript compression, 100% URL recall, hook-driven (zero per-prompt cost) |
+| Retrieval (*what / how / connected*) | [graphify](https://github.com/safishamsi/graphify) (`graphify-out/graph.json`, external) | **−93% tokens** vs grep+read at parity evidence using `graphify explain` ([eval/results/graphify_retrieval.json](eval/results/graphify_retrieval.json)) |
+| Retrieval (*why / decision*) | [`wiki-memory`](skills/wiki-memory/SKILL.md) | 100% evidence on project-history questions; combo with graphify hits 100% evidence at **−87% vs grep** ([eval/results/graphify_combo.json](eval/results/graphify_combo.json)) |
+| Re-reads | [`semantic-diff`](skills/semantic-diff/SKILL.md) | 95.5% reduction on unchanged re-reads (auto via `read_file_smart`) |
+| Terminal output | [`output-filter`](skills/output-filter/SKILL.md) | −88.8% bytes on noisy logs, all error lines preserved |
+| Claims of done | [`verify-before-completion`](skills/verify-before-completion/SKILL.md) | −33.5% output on "is this fixed?" prompts; fires only on done-claims |
+
+These compose **across axes** (output × routing × memory × retrieval × re-read). Per [`eval/FINDINGS.md`](eval/FINDINGS.md), within-axis stacking diminishes (two output-reducers don't sum) — across-axis stacking compounds. The full eight-slot stack has not yet been measured end-to-end as a single number; per-axis wins are independent and additive on their own dimension.
+
+Bootstrap once per project:
+
+```bash
+# wiki-memory needs a wiki/ tree:
+python3 ~/.local/share/token-economy/skills/wiki-memory/tools/wiki.py init
+# graphify owns the code graph (external; one-time install):
+pipx install graphifyy && graphify extract .
+```
+
+After that the stack is on automatically — hooks fire per event, descriptions trigger on prompt shape.
+
 ## The catalog (12 skills)
 
 | Skill | Trigger | Desc tokens | Notes |
