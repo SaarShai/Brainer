@@ -9,47 +9,26 @@
 # with the suggested args and does NO deep reasoning. Actual task runs on the
 # lesser subagent's context budget.
 #
-# Override: user types "NO TRIAGE" anywhere in prompt → hook exits silently.
+# Override: user types "NO TRIAGE" anywhere in prompt, or starts the prompt
+# with "/opus", → hook exits silently.
+#
+# H1 fix (2026-05): was 4 separate python3 spawns per prompt (~120-320ms
+# cold-start tax on macOS, paid on every Enter press). Now one process:
+# classify.py --emit-context reads stdin, runs bypass + classification, and
+# prints the final directive block (or nothing).
 
 set -e
-INPUT=$(cat)
 
-# extract prompt via python one-liner
-PROMPT=$(printf '%s' "$INPUT" | python3 -c "
-import json, sys
-try:
-    d = json.load(sys.stdin)
-    print(d.get('prompt') or d.get('user_prompt') or '')
-except Exception: pass
-" 2>/dev/null)
-
-# bypass flag
-if printf '%s' "$PROMPT" | grep -qiE "NO[ _-]?TRIAGE|/opus"; then
-    exit 0
-fi
-
-# classify
 HERE="$(cd "$(dirname "$0")" && pwd)"
 CLASSIFIER="$HERE/classify.py"
-[ -f "$CLASSIFIER" ] || exit 0   # skill not installed properly; don't break hook
 
-CLS=$(printf '%s' "$PROMPT" | python3 "$CLASSIFIER" 2>/dev/null)
-[ -z "$CLS" ] && exit 0
+# Skill not installed properly → exit clean, never break the host hook.
+[ -f "$CLASSIFIER" ] || exit 0
 
-# If main-model required (tier=hard or agent=none), emit nothing.
-TIER=$(echo "$CLS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('tier',''))" 2>/dev/null)
-AGENT=$(echo "$CLS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('agent',''))" 2>/dev/null)
-[ "$TIER" = "hard" ] && exit 0
-[ "$AGENT" = "none" ] && exit 0
-
-# Build directive
-cat <<EOF
-⚡ [agents-triage] Task classified:
-$CLS
-
-**Strong recommendation:** dispatch this task via the \`Task\` tool using the suggested subagent + model, then return its result. Do NOT engage deep-thinking or load full context yourself. The subagent will load only what it needs.
-
-If classification seems wrong, user can re-send with "NO TRIAGE" to bypass.
-EOF
+# One python invocation: parses stdin payload, checks bypass flags,
+# classifies, emits the directive block (or stays silent).
+# stderr is suppressed so a transient classifier crash never bubbles into the
+# user's prompt context — the hook's contract is "never break the prompt".
+python3 "$CLASSIFIER" --emit-context 2>/dev/null || true
 
 exit 0

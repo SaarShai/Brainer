@@ -26,6 +26,15 @@ eval/results/_smoke_*.json
 .claude/
 .mcp.json
 
+# Per-machine install targets (./install.sh symlinks skills into these)
+.codex/skills/
+.cursor/skills/
+.cursor/rules/
+.gemini/skills/
+
+# cache-lint per-project fingerprint baseline
+.cache-lint-fingerprint.json
+
 # OS
 .DS_Store
 Thumbs.db

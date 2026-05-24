@@ -1,0 +1,1736 @@
+{
+  "threshold": 3.0,
+  "elapsed_s": 0.046,
+  "real_corpus": {
+    "n_pages": 172,
+    "overall_acceptance": 0.75,
+    "by_kind": {
+      "fact": {
+        "n": 168,
+        "acceptance_rate": 0.768,
+        "mean_score": 4.83
+      },
+      "sop": {
+        "n": 3,
+        "acceptance_rate": 0.0,
+        "mean_score": 0.33
+      },
+      "decision": {
+        "n": 1,
+        "acceptance_rate": 0.0,
+        "mean_score": 4.0
+      }
+    },
+    "rows": [
+      {
+        "path": "L0_rules.md",
+        "kind": "fact",
+        "score": 2.0,
+        "has_why": false,
+        "passed": false,
+        "size": 88
+      },
+      {
+        "path": "L1_index.md",
+        "kind": "fact",
+        "score": 4.0,
+        "has_why": false,
+        "passed": true,
+        "size": 1685
+      },
+      {
+        "path": "L2_facts/20260522-2147-smoke-test-full.md",
+        "kind": "fact",
+        "score": 2.0,
+        "has_why": false,
+        "passed": false,
+        "size": 209
+      },
+      {
+        "path": "L2_facts/20260522-2149-v1-3-0-merge-smoke.md",
+        "kind": "fact",
+        "score": 2.0,
+        "has_why": false,
+        "passed": false,
+        "size": 212
+      },
+      {
+        "path": "L4_archive/2026-04-24-handoff-codex-context-refresh.md",
+        "kind": "fact",
+        "score": 7.5,
+        "has_why": true,
+        "passed": true,
+        "size": 3000
+      },
+      {
+        "path": "L4_archive/2026-04-24-summ-codex-manual.md",
+        "kind": "fact",
+        "score": 8.0,
+        "has_why": true,
+        "passed": true,
+        "size": 7768
+      },
+      {
+        "path": "L4_archive/2026-05-22-skill-crystallizer/README.md",
+        "kind": "fact",
+        "score": 4.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1514
+      },
+      {
+        "path": "concepts/caveman-compress-session-files.md",
+        "kind": "fact",
+        "score": 1.5,
+        "has_why": false,
+        "passed": false,
+        "size": 322
+      },
+      {
+        "path": "concepts/caveman-output-compression.md",
+        "kind": "fact",
+        "score": 1.5,
+        "has_why": false,
+        "passed": false,
+        "size": 508
+      },
+      {
+        "path": "concepts/devices-inventory.md",
+        "kind": "fact",
+        "score": 9.0,
+        "has_why": false,
+        "passed": true,
+        "size": 10990
+      },
+      {
+        "path": "concepts/framework-hardening-adoption.md",
+        "kind": "fact",
+        "score": 10.0,
+        "has_why": true,
+        "passed": true,
+        "size": 5051
+      },
+      {
+        "path": "concepts/karpathy-wiki.md",
+        "kind": "fact",
+        "score": 1.0,
+        "has_why": false,
+        "passed": false,
+        "size": 381
+      },
+      {
+        "path": "concepts/kv-cache-eviction.md",
+        "kind": "fact",
+        "score": 0.0,
+        "has_why": false,
+        "passed": false,
+        "size": 253
+      },
+      {
+        "path": "concepts/lean-execution.md",
+        "kind": "fact",
+        "score": 7.5,
+        "has_why": true,
+        "passed": true,
+        "size": 3362
+      },
+      {
+        "path": "concepts/llmlingua.md",
+        "kind": "fact",
+        "score": 0.5,
+        "has_why": false,
+        "passed": false,
+        "size": 333
+      },
+      {
+        "path": "concepts/local-model-setup.md",
+        "kind": "fact",
+        "score": 7.0,
+        "has_why": false,
+        "passed": true,
+        "size": 3883
+      },
+      {
+        "path": "concepts/optimization-axes.md",
+        "kind": "fact",
+        "score": 6.5,
+        "has_why": false,
+        "passed": true,
+        "size": 3135
+      },
+      {
+        "path": "concepts/prefix-caching.md",
+        "kind": "fact",
+        "score": 4.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1021
+      },
+      {
+        "path": "concepts/semantic-diff-edits.md",
+        "kind": "fact",
+        "score": 8.0,
+        "has_why": false,
+        "passed": true,
+        "size": 3339
+      },
+      {
+        "path": "concepts/speculative-decoding.md",
+        "kind": "fact",
+        "score": 1.5,
+        "has_why": true,
+        "passed": false,
+        "size": 233
+      },
+      {
+        "path": "concepts/structured-outputs.md",
+        "kind": "fact",
+        "score": 0.5,
+        "has_why": false,
+        "passed": false,
+        "size": 307
+      },
+      {
+        "path": "concepts/superpowers-skills.md",
+        "kind": "fact",
+        "score": 4.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1692
+      },
+      {
+        "path": "concepts/turboquant-kv-cache.md",
+        "kind": "fact",
+        "score": 10.5,
+        "has_why": false,
+        "passed": true,
+        "size": 7243
+      },
+      {
+        "path": "concepts/unsloth-distill.md",
+        "kind": "fact",
+        "score": 1.5,
+        "has_why": false,
+        "passed": false,
+        "size": 207
+      },
+      {
+        "path": "concepts/wiki-governance.md",
+        "kind": "fact",
+        "score": 9.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2769
+      },
+      {
+        "path": "index.md",
+        "kind": "fact",
+        "score": 7.5,
+        "has_why": false,
+        "passed": true,
+        "size": 3104
+      },
+      {
+        "path": "log.md",
+        "kind": "fact",
+        "score": 14.5,
+        "has_why": true,
+        "passed": true,
+        "size": 30242
+      },
+      {
+        "path": "patterns/compound-compression-pipeline.md",
+        "kind": "sop",
+        "score": 0.0,
+        "has_why": false,
+        "passed": false,
+        "size": 275
+      },
+      {
+        "path": "patterns/tiny-model-router.md",
+        "kind": "sop",
+        "score": 0.0,
+        "has_why": false,
+        "passed": false,
+        "size": 252
+      },
+      {
+        "path": "patterns/wiki-query-shortcircuit.md",
+        "kind": "sop",
+        "score": 1.0,
+        "has_why": false,
+        "passed": false,
+        "size": 236
+      },
+      {
+        "path": "people/jesse-vincent.md",
+        "kind": "fact",
+        "score": 0.0,
+        "has_why": false,
+        "passed": false,
+        "size": 238
+      },
+      {
+        "path": "people/julius-brussee.md",
+        "kind": "fact",
+        "score": 0.0,
+        "has_why": false,
+        "passed": false,
+        "size": 207
+      },
+      {
+        "path": "people/karpathy.md",
+        "kind": "fact",
+        "score": 1.5,
+        "has_why": false,
+        "passed": false,
+        "size": 203
+      },
+      {
+        "path": "people/unsloth-team.md",
+        "kind": "fact",
+        "score": 1.5,
+        "has_why": false,
+        "passed": false,
+        "size": 188
+      },
+      {
+        "path": "projects/context-keeper-v2.md",
+        "kind": "fact",
+        "score": 9.0,
+        "has_why": false,
+        "passed": true,
+        "size": 2585
+      },
+      {
+        "path": "projects/context-keeper.md",
+        "kind": "fact",
+        "score": 7.0,
+        "has_why": false,
+        "passed": true,
+        "size": 3012
+      },
+      {
+        "path": "projects/context-refresh.md",
+        "kind": "fact",
+        "score": 5.0,
+        "has_why": false,
+        "passed": true,
+        "size": 1520
+      },
+      {
+        "path": "projects/delegate-router.md",
+        "kind": "fact",
+        "score": 6.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1732
+      },
+      {
+        "path": "projects/relay-session.md",
+        "kind": "fact",
+        "score": 5.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2302
+      },
+      {
+        "path": "projects/semdiff.md",
+        "kind": "fact",
+        "score": 6.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2864
+      },
+      {
+        "path": "projects/wiki-search.md",
+        "kind": "fact",
+        "score": 13.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2441
+      },
+      {
+        "path": "projects/write-gate.md",
+        "kind": "fact",
+        "score": 6.0,
+        "has_why": false,
+        "passed": true,
+        "size": 1044
+      },
+      {
+        "path": "raw/2026-04-17-research-brief.md",
+        "kind": "fact",
+        "score": 5.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2687
+      },
+      {
+        "path": "raw/2026-04-17-semantic-diff-survey.md",
+        "kind": "fact",
+        "score": 6.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2550
+      },
+      {
+        "path": "raw/2026-04-18-karpathy-wiki-spinoffs.md",
+        "kind": "fact",
+        "score": 6.0,
+        "has_why": false,
+        "passed": true,
+        "size": 2896
+      },
+      {
+        "path": "raw/2026-04-19-triage-patterns.md",
+        "kind": "fact",
+        "score": 6.0,
+        "has_why": false,
+        "passed": true,
+        "size": 3994
+      },
+      {
+        "path": "raw/2026-04-20-machine-baselines.md",
+        "kind": "fact",
+        "score": 9.0,
+        "has_why": false,
+        "passed": true,
+        "size": 3789
+      },
+      {
+        "path": "raw/2026-04-20-machine-optimization-round2.md",
+        "kind": "fact",
+        "score": 10.5,
+        "has_why": false,
+        "passed": true,
+        "size": 3366
+      },
+      {
+        "path": "raw/2026-04-20-turboquant-research.md",
+        "kind": "fact",
+        "score": 9.5,
+        "has_why": false,
+        "passed": true,
+        "size": 5010
+      },
+      {
+        "path": "raw/2026-04-25-agent-memory-framework-research-rerun.md",
+        "kind": "fact",
+        "score": 5.5,
+        "has_why": true,
+        "passed": true,
+        "size": 2946
+      },
+      {
+        "path": "raw/2026-04-25-turboquant-adoption-review.md",
+        "kind": "fact",
+        "score": 7.5,
+        "has_why": true,
+        "passed": true,
+        "size": 4391
+      },
+      {
+        "path": "raw/2026-05-16-ai-coding-bill-reduction-article.md",
+        "kind": "fact",
+        "score": 12.0,
+        "has_why": false,
+        "passed": true,
+        "size": 2411
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-17/analysis_comcom_pipeline_review.md",
+        "kind": "fact",
+        "score": 5.5,
+        "has_why": true,
+        "passed": true,
+        "size": 1528
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-17/analysis_eval_v3_failure_patterns.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1718
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-17/analysis_recursive_compression.md",
+        "kind": "fact",
+        "score": 1.0,
+        "has_why": true,
+        "passed": false,
+        "size": 1827
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-17/analysis_semdiff_rename_lineage.md",
+        "kind": "fact",
+        "score": 5.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2606
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-17/analysis_when_skip_compression.md",
+        "kind": "fact",
+        "score": 4.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1910
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-17/follow_analysis_port_longllmlingua.md",
+        "kind": "fact",
+        "score": 3.0,
+        "has_why": false,
+        "passed": true,
+        "size": 2193
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-17/follow_analysis_prefix_cache_comcom.md",
+        "kind": "fact",
+        "score": 4.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1146
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-17/prose_mcp_ecosystem_growth.md",
+        "kind": "fact",
+        "score": 5.0,
+        "has_why": false,
+        "passed": true,
+        "size": 3078
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-17/prose_prefix_caching_providers.md",
+        "kind": "fact",
+        "score": 5.5,
+        "has_why": true,
+        "passed": true,
+        "size": 2979
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-17/prose_question_aware_compression.md",
+        "kind": "fact",
+        "score": 2.5,
+        "has_why": true,
+        "passed": false,
+        "size": 3373
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/A1_why_skip_misses_versions.md",
+        "kind": "fact",
+        "score": 7.0,
+        "has_why": true,
+        "passed": true,
+        "size": 1248
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/A2_temporal_skip_extension.md",
+        "kind": "fact",
+        "score": 7.0,
+        "has_why": false,
+        "passed": true,
+        "size": 2082
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/A3_bench_run_unified_spec.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 3038
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/A4_context_keeper_v2_detector.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1870
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/A5_compress_v2_edge_cases.md",
+        "kind": "fact",
+        "score": 8.0,
+        "has_why": true,
+        "passed": true,
+        "size": 2348
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/A6_semdiff_ignore_comments_tradeoff.md",
+        "kind": "fact",
+        "score": 7.0,
+        "has_why": true,
+        "passed": true,
+        "size": 2469
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/A7_logprob_escalation_threshold_tuning.md",
+        "kind": "fact",
+        "score": 6.0,
+        "has_why": false,
+        "passed": true,
+        "size": 1479
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/A8_comcom_on_code_content.md",
+        "kind": "fact",
+        "score": 4.0,
+        "has_why": false,
+        "passed": true,
+        "size": 1033
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B10_validate_write_hook_design.md",
+        "kind": "fact",
+        "score": 7.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2088
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B11_adversarial_category_medical.md",
+        "kind": "fact",
+        "score": 5.0,
+        "has_why": false,
+        "passed": true,
+        "size": 2019
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B12_adversarial_category_legal.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2713
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B13_adversarial_category_finance.md",
+        "kind": "fact",
+        "score": 5.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2678
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B14_skill_crystallizer_cluster.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2635
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B15_wiki_search_retrieval_tier_1.md",
+        "kind": "fact",
+        "score": 8.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2655
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B16_supersession_auto_detect.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2168
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B17_bench_run_tool_registry.md",
+        "kind": "fact",
+        "score": 5.0,
+        "has_why": false,
+        "passed": true,
+        "size": 2593
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B18_longcontext_mega_bench.md",
+        "kind": "fact",
+        "score": 6.5,
+        "has_why": true,
+        "passed": true,
+        "size": 1879
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B19_compression_confidence_score.md",
+        "kind": "fact",
+        "score": 9.0,
+        "has_why": false,
+        "passed": true,
+        "size": 2852
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B1_skip_heuristic_composition.md",
+        "kind": "fact",
+        "score": 7.5,
+        "has_why": true,
+        "passed": true,
+        "size": 3219
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B20_skill_sop_format.md",
+        "kind": "fact",
+        "score": 9.0,
+        "has_why": false,
+        "passed": true,
+        "size": 2640
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B21_prompt_template_compression.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1142
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B22_compressed_mcp_context.md",
+        "kind": "fact",
+        "score": 4.5,
+        "has_why": true,
+        "passed": true,
+        "size": 1196
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B23_adv_category_scientific.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2133
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B24_adv_category_scheduling.md",
+        "kind": "fact",
+        "score": 5.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2605
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B25_adv_category_code_semantics.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1508
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B26_sweep_runner_spec.md",
+        "kind": "fact",
+        "score": 5.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1709
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B27_adv_category_configs.md",
+        "kind": "fact",
+        "score": 5.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1661
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B28_adv_category_instructions.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1191
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B29_adv_category_negation.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1084
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B2_compress_two_pass.md",
+        "kind": "fact",
+        "score": 2.5,
+        "has_why": true,
+        "passed": false,
+        "size": 1142
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B30_classify_prompt_routing.md",
+        "kind": "fact",
+        "score": 5.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2094
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B31_skip_heuristics_eval.md",
+        "kind": "fact",
+        "score": 5.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2090
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B34_tool_token_accounting.md",
+        "kind": "fact",
+        "score": 5.5,
+        "has_why": false,
+        "passed": true,
+        "size": 3172
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B35_adv_category_spatial.md",
+        "kind": "fact",
+        "score": 2.5,
+        "has_why": false,
+        "passed": false,
+        "size": 1051
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B36_adv_category_causation.md",
+        "kind": "fact",
+        "score": 4.0,
+        "has_why": false,
+        "passed": true,
+        "size": 1186
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B37_adv_category_attribution.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2411
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B38_classify_prompt_coverage.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1198
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B39_bench_run_full_spec.md",
+        "kind": "fact",
+        "score": 8.5,
+        "has_why": false,
+        "passed": true,
+        "size": 3704
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B3_domain_adaptive_rate.md",
+        "kind": "fact",
+        "score": 3.0,
+        "has_why": true,
+        "passed": true,
+        "size": 1481
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B40_confidence_aggregation.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 787
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B41_token_budget_alert.md",
+        "kind": "fact",
+        "score": 6.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1020
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B42_cost_estimator_real_data.md",
+        "kind": "fact",
+        "score": 7.0,
+        "has_why": false,
+        "passed": true,
+        "size": 3233
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B43_supersession_tag_heuristic.md",
+        "kind": "fact",
+        "score": 4.5,
+        "has_why": true,
+        "passed": true,
+        "size": 2080
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B44_github_actions_adversarial.md",
+        "kind": "fact",
+        "score": 10.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2532
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B45_classify_prompt_patterns.md",
+        "kind": "fact",
+        "score": 2.5,
+        "has_why": false,
+        "passed": false,
+        "size": 1528
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B46_adv_category_counterfactual.md",
+        "kind": "fact",
+        "score": 2.0,
+        "has_why": false,
+        "passed": false,
+        "size": 3068
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B47_adv_category_precision.md",
+        "kind": "fact",
+        "score": 5.0,
+        "has_why": false,
+        "passed": true,
+        "size": 2077
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B48_adv_category_commonsense.md",
+        "kind": "fact",
+        "score": 1.5,
+        "has_why": false,
+        "passed": false,
+        "size": 1907
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B49_compress_rate_auto.md",
+        "kind": "fact",
+        "score": 7.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2518
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B4_semdiff_gumtree_compare.md",
+        "kind": "fact",
+        "score": 5.5,
+        "has_why": true,
+        "passed": true,
+        "size": 2581
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B50_wiki_search_fts5_schema.md",
+        "kind": "fact",
+        "score": 7.0,
+        "has_why": false,
+        "passed": true,
+        "size": 1860
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B51_bench_results_aggregator.md",
+        "kind": "fact",
+        "score": 5.5,
+        "has_why": false,
+        "passed": true,
+        "size": 3131
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B52_skill_crystallizer_trigger_signals.md",
+        "kind": "fact",
+        "score": 6.5,
+        "has_why": true,
+        "passed": true,
+        "size": 1536
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B53_adv_category_aspectual.md",
+        "kind": "fact",
+        "score": 2.5,
+        "has_why": false,
+        "passed": false,
+        "size": 1992
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B54_adv_category_conditional.md",
+        "kind": "fact",
+        "score": 2.0,
+        "has_why": false,
+        "passed": false,
+        "size": 1499
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B55_adv_category_analogies.md",
+        "kind": "fact",
+        "score": 1.5,
+        "has_why": false,
+        "passed": false,
+        "size": 1439
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B56_adv_category_hedged_claims.md",
+        "kind": "fact",
+        "score": 1.5,
+        "has_why": false,
+        "passed": false,
+        "size": 1538
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B57_auto_rate_feature_extractor.md",
+        "kind": "fact",
+        "score": 7.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2206
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B58_bench_aggregator_template.md",
+        "kind": "fact",
+        "score": 7.0,
+        "has_why": false,
+        "passed": true,
+        "size": 2355
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B59_skill_crystallizer_integration.md",
+        "kind": "fact",
+        "score": 6.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1547
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B5_context_keeper_eval_design.md",
+        "kind": "fact",
+        "score": 5.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2096
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B60_sop_inheritance.md",
+        "kind": "fact",
+        "score": 7.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2271
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B61_adversarial_nightly_report.md",
+        "kind": "fact",
+        "score": 9.0,
+        "has_why": false,
+        "passed": true,
+        "size": 4753
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B62_compress_metrics_dashboard.md",
+        "kind": "fact",
+        "score": 9.0,
+        "has_why": false,
+        "passed": true,
+        "size": 1421
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B63_mcp_tool_introspection.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 3167
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B64_compressed_chain_of_thought.md",
+        "kind": "fact",
+        "score": 3.0,
+        "has_why": true,
+        "passed": true,
+        "size": 2239
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B65_adversarial_coverage_matrix.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2328
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B66_tool_chain_efficiency.md",
+        "kind": "fact",
+        "score": 4.5,
+        "has_why": true,
+        "passed": true,
+        "size": 3528
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B67_fail_fast_semantics.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1446
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B68_stable_release_cadence.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1676
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B69_migration_v1_to_v2.md",
+        "kind": "fact",
+        "score": 5.0,
+        "has_why": false,
+        "passed": true,
+        "size": 2704
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B6_skill_crystallizer_data_flywheel.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2372
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B70_compressor_cache.md",
+        "kind": "fact",
+        "score": 4.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1229
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B71_implement_bench_run.md",
+        "kind": "fact",
+        "score": 6.5,
+        "has_why": false,
+        "passed": true,
+        "size": 3208
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B72_implement_auto_rate.md",
+        "kind": "fact",
+        "score": 7.0,
+        "has_why": false,
+        "passed": true,
+        "size": 2266
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B73_implement_report_aggregator.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 3519
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B74_implement_mcp_introspect.md",
+        "kind": "fact",
+        "score": 3.0,
+        "has_why": false,
+        "passed": true,
+        "size": 1348
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B75_implement_adversarial_nightly.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1188
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B76_adv_category_ambiguity.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1706
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B77_adv_category_graded_quantifiers.md",
+        "kind": "fact",
+        "score": 2.0,
+        "has_why": false,
+        "passed": false,
+        "size": 660
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B78_adv_category_modality.md",
+        "kind": "fact",
+        "score": 1.0,
+        "has_why": false,
+        "passed": false,
+        "size": 1587
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B79_adv_category_role_inversion.md",
+        "kind": "fact",
+        "score": 2.5,
+        "has_why": false,
+        "passed": false,
+        "size": 1371
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B7_compressed_cache_interaction.md",
+        "kind": "fact",
+        "score": 2.5,
+        "has_why": false,
+        "passed": false,
+        "size": 1054
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B80_adv_category_nested_scope.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1758
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B81_implement_classify_prompt_full.md",
+        "kind": "fact",
+        "score": 0.5,
+        "has_why": false,
+        "passed": false,
+        "size": 2949
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B82_implement_validate_write_hook.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1174
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B83_implement_supersession_detect.md",
+        "kind": "fact",
+        "score": 3.0,
+        "has_why": false,
+        "passed": true,
+        "size": 2773
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B84_implement_l1_indexer.md",
+        "kind": "fact",
+        "score": 2.5,
+        "has_why": false,
+        "passed": false,
+        "size": 735
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B85_implement_token_budget_middleware.md",
+        "kind": "fact",
+        "score": 2.5,
+        "has_why": false,
+        "passed": false,
+        "size": 1045
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B86_implement_test_runner.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 957
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B8_adversarial_extension_ideas.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 1369
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/B9_classify_message_hook_design.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2490
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/P15_prompt_cache_anthropic_2026.md",
+        "kind": "fact",
+        "score": 5.5,
+        "has_why": true,
+        "passed": true,
+        "size": 3098
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/P29_small_model_distillation.md",
+        "kind": "fact",
+        "score": 3.5,
+        "has_why": true,
+        "passed": true,
+        "size": 2394
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/P2_structured_output_savings.md",
+        "kind": "fact",
+        "score": 4.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2469
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/P36_test_time_compute.md",
+        "kind": "fact",
+        "score": 1.5,
+        "has_why": false,
+        "passed": false,
+        "size": 2866
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/P41_long_context_cost.md",
+        "kind": "fact",
+        "score": 2.5,
+        "has_why": true,
+        "passed": false,
+        "size": 2625
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/P43_llm_routing_2026.md",
+        "kind": "fact",
+        "score": 3.0,
+        "has_why": false,
+        "passed": true,
+        "size": 2452
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/P47_open_model_commodity.md",
+        "kind": "fact",
+        "score": 2.5,
+        "has_why": true,
+        "passed": false,
+        "size": 2689
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/P4_eval_metrics_for_compression.md",
+        "kind": "fact",
+        "score": 3.0,
+        "has_why": false,
+        "passed": true,
+        "size": 2730
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/P50_browser_agents_2026.md",
+        "kind": "fact",
+        "score": 4.0,
+        "has_why": true,
+        "passed": true,
+        "size": 2497
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/P5_anthropic_cache_best_practices.md",
+        "kind": "fact",
+        "score": 6.0,
+        "has_why": true,
+        "passed": true,
+        "size": 2660
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/P6_llmlingua_v3_status.md",
+        "kind": "fact",
+        "score": 1.5,
+        "has_why": false,
+        "passed": false,
+        "size": 2156
+      },
+      {
+        "path": "raw/m5-outputs-2026-04-18/P7_prompt_caching_vs_compression.md",
+        "kind": "fact",
+        "score": 4.5,
+        "has_why": false,
+        "passed": true,
+        "size": 2548
+      },
+      {
+        "path": "schema.md",
+        "kind": "fact",
+        "score": 7.5,
+        "has_why": false,
+        "passed": true,
+        "size": 4572
+      },
+      {
+        "path": "templates/decision.template.md",
+        "kind": "decision",
+        "score": 4.0,
+        "has_why": false,
+        "passed": false,
+        "size": 166
+      },
+      {
+        "path": "templates/handoff.template.md",
+        "kind": "fact",
+        "score": 3.0,
+        "has_why": false,
+        "passed": true,
+        "size": 955
+      },
+      {
+        "path": "templates/import-manifest.template.md",
+        "kind": "fact",
+        "score": 5.5,
+        "has_why": false,
+        "passed": true,
+        "size": 790
+      },
+      {
+        "path": "templates/page.template.md",
+        "kind": "fact",
+        "score": 2.0,
+        "has_why": false,
+        "passed": false,
+        "size": 160
+      },
+      {
+        "path": "templates/source-summary.template.md",
+        "kind": "fact",
+        "score": 2.0,
+        "has_why": false,
+        "passed": false,
+        "size": 140
+      }
+    ]
+  },
+  "labeled_corpus": {
+    "n": 29,
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "tp": 15,
+    "tn": 14,
+    "fp": 0,
+    "fn": 0,
+    "wrong": [],
+    "all": [
+      {
+        "label": "pos_decision_with_why_1",
+        "kind": "decision",
+        "expected": true,
+        "actual": true,
+        "correct": true,
+        "score": 5.0,
+        "has_why": true,
+        "text_preview": "We chose pgvector over Qdrant because dev parity matters and so that local == pr\u2026",
+        "verdict": "PASSED: signal score 5.00 \u2265 threshold 3.00"
+      },
+      {
+        "label": "pos_decision_with_why_2",
+        "kind": "decision",
+        "expected": true,
+        "actual": true,
+        "correct": true,
+        "score": 5.0,
+        "has_why": true,
+        "text_preview": "Decision: adopted Rust for the ingest path to avoid GIL contention on the parsin\u2026",
+        "verdict": "PASSED: signal score 5.00 \u2265 threshold 3.00"
+      },
+      {
+        "label": "pos_decision_with_why_3",
+        "kind": "decision",
+        "expected": true,
+        "actual": true,
+        "correct": true,
+        "score": 4.0,
+        "has_why": true,
+        "text_preview": "We're going with Postgres LISTEN/NOTIFY because Kafka is overkill for 50 events/\u2026",
+        "verdict": "PASSED: signal score 4.00 \u2265 threshold 3.00"
+      },
+      {
+        "label": "pos_decision_with_why_4",
+        "kind": "decision",
+        "expected": true,
+        "actual": true,
+        "correct": true,
+        "score": 5.0,
+        "has_why": true,
+        "text_preview": "Chose React Query over SWR because we already have its retry semantics in our te\u2026",
+        "verdict": "PASSED: signal score 5.00 \u2265 threshold 3.00"
+      },
+      {
+        "label": "pos_decision_with_why_5",
+        "kind": "decision",
+        "expected": true,
+        "actual": true,
+        "correct": true,
+        "score": 3.0,
+        "has_why": true,
+        "text_preview": "Settled on Fly.io rather than Render in order to avoid the cold-start tax on bur\u2026",
+        "verdict": "PASSED: signal score 3.00 \u2265 threshold 3.00"
+      },
+      {
+        "label": "neg_decision_no_why_1",
+        "kind": "decision",
+        "expected": false,
+        "actual": false,
+        "correct": true,
+        "score": 4.0,
+        "has_why": false,
+        "text_preview": "We chose pgvector over Qdrant. Decision finalized in the Tuesday meeting.",
+        "verdict": "REJECTED: decision/convention missing a why-clause (need 'because\u2026', 'so that\u2026', 'to avoid\u2026', etc)"
+      },
+      {
+        "label": "neg_decision_no_why_2",
+        "kind": "decision",
+        "expected": false,
+        "actual": false,
+        "correct": true,
+        "score": 4.0,
+        "has_why": false,
+        "text_preview": "Going with Rust for ingest. Rejected Python and Go.",
+        "verdict": "REJECTED: decision/convention missing a why-clause (need 'because\u2026', 'so that\u2026', 'to avoid\u2026', etc)"
+      },
+      {
+        "label": "neg_decision_no_why_3",
+        "kind": "decision",
+        "expected": false,
+        "actual": false,
+        "correct": true,
+        "score": 4.0,
+        "has_why": false,
+        "text_preview": "We picked TypeScript over JavaScript. Done.",
+        "verdict": "REJECTED: decision/convention missing a why-clause (need 'because\u2026', 'so that\u2026', 'to avoid\u2026', etc)"
+      },
+      {
+        "label": "neg_decision_no_why_4",
+        "kind": "decision",
+        "expected": false,
+        "actual": false,
+        "correct": true,
+        "score": 2.0,
+        "has_why": false,
+        "text_preview": "Decision: use Tailwind. Convention: never inline styles.",
+        "verdict": "REJECTED: decision/convention missing a why-clause (need 'because\u2026', 'so that\u2026', 'to avoid\u2026', etc)"
+      },
+      {
+        "label": "pos_fact_arch_code_numbers",
+        "kind": "fact",
+        "expected": true,
+        "actual": true,
+        "correct": true,
+        "score": 7.0,
+        "has_why": false,
+        "text_preview": "The ingest worker lives in services/ingest/ and calls the embedding API at /embe\u2026",
+        "verdict": "PASSED: signal score 7.00 \u2265 threshold 3.00"
+      },
+      {
+        "label": "pos_fact_concrete_failure",
+        "kind": "fact",
+        "expected": true,
+        "actual": true,
+        "correct": true,
+        "score": 5.0,
+        "has_why": true,
+        "text_preview": "Bug: deploy failed because PG_URL was unset in production env.\nFix: added to vau\u2026",
+        "verdict": "PASSED: signal score 5.00 \u2265 threshold 3.00"
+      },
+      {
+        "label": "pos_fact_arch_with_numbers",
+        "kind": "fact",
+        "expected": true,
+        "actual": true,
+        "correct": true,
+        "score": 4.0,
+        "has_why": false,
+        "text_preview": "The vector index lives in PostgreSQL with pgvector extension. The schema stores \u2026",
+        "verdict": "PASSED: signal score 4.00 \u2265 threshold 3.00"
+      },
+      {
+        "label": "pos_error_concrete",
+        "kind": "error",
+        "expected": true,
+        "actual": true,
+        "correct": true,
+        "score": 5.0,
+        "has_why": true,
+        "text_preview": "Bug: race condition in the queue worker \u2014 two consumers grabbed the same job\nbec\u2026",
+        "verdict": "PASSED: signal score 5.00 \u2265 threshold 3.00"
+      },
+      {
+        "label": "pos_sop_concrete_procedure",
+        "kind": "sop",
+        "expected": true,
+        "actual": true,
+        "correct": true,
+        "score": 3.0,
+        "has_why": false,
+        "text_preview": "To debug a stuck migration:\n1. Run `select * from pg_stat_activity where state='\u2026",
+        "verdict": "PASSED: signal score 3.00 \u2265 threshold 3.00"
+      },
+      {
+        "label": "neg_fact_pure_filler",
+        "kind": "fact",
+        "expected": false,
+        "actual": false,
+        "correct": true,
+        "score": -3.0,
+        "has_why": false,
+        "text_preview": "Basically what we did was some database work. In summary, things happened.",
+        "verdict": "REJECTED: signal score -3.00 < threshold 3.00"
+      },
+      {
+        "label": "neg_fact_pure_speculation",
+        "kind": "fact",
+        "expected": false,
+        "actual": false,
+        "correct": true,
+        "score": -4.5,
+        "has_why": false,
+        "text_preview": "Maybe we should probably use Redis. I think it could work. Perhaps we'll try it.",
+        "verdict": "REJECTED: signal score -4.50 < threshold 3.00"
+      },
+      {
+        "label": "neg_fact_trivial_recap",
+        "kind": "fact",
+        "expected": false,
+        "actual": false,
+        "correct": true,
+        "score": 0.0,
+        "has_why": false,
+        "text_preview": "We did stuff yesterday.",
+        "verdict": "REJECTED: signal score 0.00 < threshold 3.00"
+      },
+      {
+        "label": "neg_fact_only_meta",
+        "kind": "fact",
+        "expected": false,
+        "actual": false,
+        "correct": true,
+        "score": -4.5,
+        "has_why": false,
+        "text_preview": "TL;DR: anyway, long story short, basically the thing worked out.",
+        "verdict": "REJECTED: signal score -4.50 < threshold 3.00"
+      },
+      {
+        "label": "neg_fact_pure_uncertainty",
+        "kind": "fact",
+        "expected": false,
+        "actual": false,
+        "correct": true,
+        "score": -6.0,
+        "has_why": false,
+        "text_preview": "It might be possible that the cache could maybe help us probably. Seems like a g\u2026",
+        "verdict": "REJECTED: signal score -6.00 < threshold 3.00"
+      },
+      {
+        "label": "neg_metrics_only_log_entry",
+        "kind": "fact",
+        "expected": false,
+        "actual": false,
+        "correct": true,
+        "score": 2.0,
+        "has_why": false,
+        "text_preview": "Migration ran in 14s. Index is 320MB. Reads are 12ms p50.",
+        "verdict": "REJECTED: signal score 2.00 < threshold 3.00"
+      },
+      {
+        "label": "pos_decision_pragmatic_why",
+        "kind": "decision",
+        "expected": true,
+        "actual": true,
+        "correct": true,
+        "score": 3.0,
+        "has_why": true,
+        "text_preview": "We're using PostgreSQL because we already have it deployed and operations knows \u2026",
+        "verdict": "PASSED: signal score 3.00 \u2265 threshold 3.00"
+      },
+      {
+        "label": "pos_fact_pipeline_description",
+        "kind": "fact",
+        "expected": true,
+        "actual": true,
+        "correct": true,
+        "score": 4.0,
+        "has_why": false,
+        "text_preview": "Embeddings are produced by services/embed/worker.py which reads from kafka topic\u2026",
+        "verdict": "PASSED: signal score 4.00 \u2265 threshold 3.00"
+      },
+      {
+        "label": "neg_adversarial_decisions_words_only",
+        "kind": "decision",
+        "expected": false,
+        "actual": false,
+        "correct": true,
+        "score": 2.5,
+        "has_why": false,
+        "text_preview": "We chose, in summary, basically, to do the thing. Decision: yes. Convention: pro\u2026",
+        "verdict": "REJECTED: decision/convention missing a why-clause (need 'because\u2026', 'so that\u2026', 'to avoid\u2026', etc)"
+      },
+      {
+        "label": "neg_adversarial_arch_words_but_speculation",
+        "kind": "fact",
+        "expected": false,
+        "actual": false,
+        "correct": true,
+        "score": -7.5,
+        "has_why": false,
+        "text_preview": "The system might possibly maybe run on AWS or perhaps GCP. I think it could be e\u2026",
+        "verdict": "REJECTED: signal score -7.50 < threshold 3.00"
+      },
+      {
+        "label": "pos_short_but_concrete_fix",
+        "kind": "error",
+        "expected": true,
+        "actual": true,
+        "correct": true,
+        "score": 6.0,
+        "has_why": false,
+        "text_preview": "Fix: bumped timeout from 5s to 30s. Root cause: cold-start in lambda.",
+        "verdict": "PASSED: signal score 6.00 \u2265 threshold 3.00"
+      },
+      {
+        "label": "pos_short_decision_with_why",
+        "kind": "decision",
+        "expected": true,
+        "actual": true,
+        "correct": true,
+        "score": 3.0,
+        "has_why": true,
+        "text_preview": "Adopted ESLint to avoid the styling debates that ate the last sprint.",
+        "verdict": "PASSED: signal score 3.00 \u2265 threshold 3.00"
+      },
+      {
+        "label": "pos_fact_high_signal_with_numbers",
+        "kind": "fact",
+        "expected": true,
+        "actual": true,
+        "correct": true,
+        "score": 4.0,
+        "has_why": false,
+        "text_preview": "The Postgres replica runs on db-replica-01.prod and lags primary by ~30ms p99. T\u2026",
+        "verdict": "PASSED: signal score 4.00 \u2265 threshold 3.00"
+      },
+      {
+        "label": "neg_one_word_no_signal",
+        "kind": "fact",
+        "expected": false,
+        "actual": false,
+        "correct": true,
+        "score": 0.0,
+        "has_why": false,
+        "text_preview": "Failed.",
+        "verdict": "REJECTED: signal score 0.00 < threshold 3.00"
+      },
+      {
+        "label": "neg_decision_marker_but_empty",
+        "kind": "fact",
+        "expected": false,
+        "actual": false,
+        "correct": true,
+        "score": 2.0,
+        "has_why": false,
+        "text_preview": "Decision: TBD.",
+        "verdict": "REJECTED: signal score 2.00 < threshold 3.00"
+      }
+    ]
+  }
+}

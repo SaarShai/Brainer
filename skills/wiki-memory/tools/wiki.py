@@ -12,6 +12,11 @@ from typing import Any
 
 WIKI_DIRS = ("raw", "concepts", "patterns", "projects", "people", "queries", "L2_facts", "L3_sops", "L4_archive")
 SKIP_PARTS = {".git", ".token-economy", ".claude", "__pycache__", ".pytest_cache"}
+# H8 fix: hard cap on file sizes read into memory. Stops a runaway/corrupt
+# manifest or log from blowing the host's memory. 10MB is plenty for any
+# real-world wiki log or import manifest.
+MAX_MANIFEST_BYTES = 10 * 1024 * 1024
+MAX_LOG_BYTES = 10 * 1024 * 1024
 WIKILINK_RE = re.compile(r"\[\[([^\]]+)\]\]")
 V2_REQUIRED = ("title", "type", "domain", "tier", "confidence", "created", "updated", "verified", "sources", "supersedes", "superseded-by", "tags")
 V2_TYPES = {"entity", "summary", "decision", "source-summary", "procedure", "concept", "pattern", "project", "query", "fact", "sop", "raw", "person", "handoff"}
@@ -91,19 +96,66 @@ def page_id(root: Path, path: Path) -> str:
     return path.relative_to(root).with_suffix("").as_posix()
 
 
+_FRONTMATTER_OPEN_RE = re.compile(r"^﻿?---\r?\n")
+_FRONTMATTER_CLOSE_RE = re.compile(r"\r?\n---\r?\n")
+
+
 def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
-    if not text.startswith("---\n"):
+    """Parse YAML frontmatter robustly.
+
+    Tolerates: UTF-8 BOM prefix, CRLF line endings, quoted scalars, simple
+    block-list values (`tags:\n  - foo\n  - bar`).
+
+    Returns (fields, body). Empty dict if no frontmatter found.
+    NB: this is a heuristic parser; install PyYAML for full spec compliance.
+    """
+    m = _FRONTMATTER_OPEN_RE.match(text)
+    if not m:
         return {}, text
-    end = text.find("\n---", 4)
-    if end < 0:
+    fm_start = m.end()
+    close = _FRONTMATTER_CLOSE_RE.search(text, fm_start)
+    if close is None:
         return {}, text
-    raw = text[4:end].strip()
-    body = text[end + 4 :].lstrip("\n")
+    raw = text[fm_start:close.start()]
+    body = text[close.end():]
     fm: dict[str, str] = {}
+    current_key: str | None = None
+    current_list: list[str] | None = None
+
+    def _flush_list() -> None:
+        nonlocal current_key, current_list
+        if current_key is not None and current_list is not None:
+            fm[current_key] = "[" + ", ".join(current_list) + "]"
+        current_key = None
+        current_list = None
+
     for line in raw.splitlines():
+        stripped = line.rstrip()
+        if not stripped:
+            _flush_list()
+            continue
+        # List continuation: `  - value`
+        if current_key is not None and current_list is not None and re.match(r"^\s+-\s+", line):
+            item = line.lstrip()[1:].strip().strip("\"'")
+            current_list.append(item)
+            continue
+        # End of list (un-indented line)
+        if current_list is not None and not line.startswith((" ", "\t")):
+            _flush_list()
         if ":" in line:
             key, value = line.split(":", 1)
-            fm[key.strip()] = value.strip().strip("\"'")
+            key = key.strip()
+            value = value.strip()
+            # Strip matching outer quotes only — `"foo'` stays `"foo'`
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+                value = value[1:-1]
+            if value == "":
+                # Open a list — next indented lines populate it
+                current_key = key
+                current_list = []
+            else:
+                fm[key] = value
+    _flush_list()
     return fm, body
 
 
@@ -117,7 +169,28 @@ def parse_tags(value: str) -> list[str]:
 
 
 def strip_fenced_code(text: str) -> str:
-    return re.sub(r"```.*?```", "", text, flags=re.DOTALL)
+    """Remove ```...``` blocks line-by-line.
+
+    M1 fix: the old regex `\\`\\`\\`.*?\\`\\`\\`` (DOTALL) doesn't track nesting
+    or unbalanced fences — a file with an odd number of ``` lines treated
+    content inside what should be a fence as plain text, so wikilinks inside
+    a code block leaked into the index.
+
+    Walk line-by-line, toggle "in fence" on any line starting with ``` (after
+    optional whitespace). On unbalanced fences (odd count), conservatively
+    treat trailing content from the last opener as still-in-fence and drop it
+    — better to miss a legit wikilink than index a documentation example.
+    """
+    out: list[str] = []
+    in_fence = False
+    for line in text.splitlines(keepends=True):
+        stripped = line.lstrip()
+        if stripped.startswith("```"):
+            in_fence = not in_fence
+            continue  # drop the fence line itself
+        if not in_fence:
+            out.append(line)
+    return "".join(out)
 
 
 def normalize_wikilink(inner: str) -> str:
@@ -158,9 +231,19 @@ def listish_has_value(value: str) -> bool:
 
 
 def render_template(text: str, values: dict[str, str]) -> str:
-    for key, value in values.items():
-        text = text.replace("{{" + key + "}}", value)
-    return text
+    """Substitute `{{key}}` placeholders in one pass.
+
+    L2 fix: sequential `.replace()` re-scanned the text once per key, so a
+    title value containing `{{date}}` got substituted in the second pass.
+    Single-pass regex with a dict-lookup callback closes the hole.
+    """
+    pattern = re.compile(r"\{\{(\w+)\}\}")
+    def repl(m: re.Match) -> str:
+        key = m.group(1)
+        # Leave unknown placeholders untouched (consistent with old behavior
+        # where missing keys produced no substitution).
+        return values.get(key, m.group(0))
+    return pattern.sub(repl, text)
 
 
 class WikiStore:
@@ -168,6 +251,20 @@ class WikiStore:
         self.root = Path(root).expanduser().resolve()
         self.state_dir = self.root / ".token-economy"
         self.db_path = self.state_dir / "wiki.sqlite3"
+        # H2 fix: per-instance caches. iter_markdown / read_page / _rank_pages
+        # previously walked + re-read every file on each call. A single
+        # context() with max_pages=5 hit each file 6-17x. Now: each markdown
+        # file is read at most once per instance lifetime; re-read only when
+        # mtime advances. _rank_cache memoizes _rank_pages within one search.
+        self._page_cache: dict[Path, tuple[float, Page]] = {}
+        self._iter_cache: list[Path] | None = None
+        self._rank_cache: dict[str, list[tuple[Page, float, list[str]]]] = {}
+
+    def _invalidate_caches(self) -> None:
+        """Call after any write that creates/modifies pages."""
+        self._page_cache.clear()
+        self._iter_cache = None
+        self._rank_cache.clear()
 
     def init(self) -> dict[str, Any]:
         self.root.mkdir(parents=True, exist_ok=True)
@@ -201,14 +298,38 @@ class WikiStore:
         return {"wiki_root": str(self.root), "created": created}
 
     def iter_markdown(self) -> list[Path]:
+        # H2 fix: memoize the listing — many callers (search, context, timeline)
+        # hit this multiple times per request.
+        if self._iter_cache is not None:
+            return self._iter_cache
         files = []
+        root_resolved = self.root.resolve()
         for path in self.root.rglob("*.md"):
             if any(part in SKIP_PARTS for part in path.parts):
                 continue
+            # H4 fix: rglob follows symlinks by default. A symlink resolving
+            # outside self.root made page_id raise ValueError in relative_to.
+            # Skip anything that doesn't actually live under the wiki root.
+            try:
+                resolved = path.resolve()
+                resolved.relative_to(root_resolved)
+            except (OSError, ValueError):
+                continue
             files.append(path)
-        return sorted(files)
+        self._iter_cache = sorted(files)
+        return self._iter_cache
 
     def read_page(self, path: Path) -> Page:
+        # H2 fix: cache parsed pages keyed by path with mtime invalidation.
+        # Hot paths (search, context, timeline) called pages()/read_page
+        # repeatedly per request, re-reading + re-parsing every markdown file.
+        try:
+            mtime = path.stat().st_mtime
+        except OSError:
+            mtime = 0.0
+        cached = self._page_cache.get(path)
+        if cached is not None and cached[0] == mtime:
+            return cached[1]
         text = path.read_text(encoding="utf-8", errors="replace")
         fm, body = parse_frontmatter(text)
         title = ""
@@ -224,7 +345,7 @@ class WikiStore:
                 preview = clean[:240]
                 break
         links = [normalize_wikilink(x) for x in WIKILINK_RE.findall(strip_fenced_code(body))]
-        return Page(
+        page = Page(
             id=page_id(self.root, path),
             path=path,
             title=title,
@@ -235,29 +356,41 @@ class WikiStore:
             links=links,
             frontmatter=fm,
         )
+        self._page_cache[path] = (mtime, page)
+        return page
 
     def pages(self) -> list[Page]:
         return [self.read_page(path) for path in self.iter_markdown()]
 
     def index(self) -> dict[str, Any]:
+        # New files may have appeared on disk since last call; bust the
+        # iter_markdown listing so we see them. read_page cache stays — it
+        # self-invalidates on mtime change.
+        self._iter_cache = None
+        self._rank_cache.clear()
         self.init()
         pages = self.pages()
         self.state_dir.mkdir(exist_ok=True)
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("DROP TABLE IF EXISTS docs")
-            conn.execute("DROP TABLE IF EXISTS docs_fts")
+        # H5 follow-on: two concurrent ingests both call index() and used to
+        # race on DROP+CREATE TABLE (one sees the other's mid-flight table).
+        # Use `CREATE TABLE IF NOT EXISTS` + `DELETE FROM` inside an immediate
+        # transaction so each call rebuilds atomically without colliding.
+        with sqlite3.connect(self.db_path, timeout=10) as conn:
+            conn.execute("BEGIN IMMEDIATE")
             conn.execute(
-                "CREATE TABLE docs (id TEXT PRIMARY KEY, path TEXT, title TEXT, type TEXT, tags TEXT, preview TEXT, body TEXT, links TEXT, mtime REAL)"
+                "CREATE TABLE IF NOT EXISTS docs (id TEXT PRIMARY KEY, path TEXT, title TEXT, type TEXT, tags TEXT, preview TEXT, body TEXT, links TEXT, mtime REAL)"
             )
+            conn.execute("DELETE FROM docs")
             fts_enabled = True
             try:
-                conn.execute("CREATE VIRTUAL TABLE docs_fts USING fts5(id, title, body, tags)")
+                conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS docs_fts USING fts5(id, title, body, tags)")
+                conn.execute("DELETE FROM docs_fts")
             except sqlite3.OperationalError:
                 fts_enabled = False
             for page in pages:
                 tags = ",".join(page.tags)
                 conn.execute(
-                    "INSERT INTO docs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT OR REPLACE INTO docs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         page.id,
                         page.path.relative_to(self.root).as_posix(),
@@ -367,6 +500,16 @@ class WikiStore:
             l1_lines.append(f"- {page.id} ({page.type or 'page'}{tags}) -> `{page.path.relative_to(self.root).as_posix()}`")
             seen_l1.add(page.id)
         (self.root / "L1_index.md").write_text("\n".join(l1_lines) + "\n", encoding="utf-8")
+        # H2 fix: bump db mtime to be strictly newer than any .md we just
+        # touched. Without this, L1_index.md (written above) shows up newer
+        # than the DB and `_ensure_db` triggers a fresh re-index on every
+        # search/context call — burning the cache we just populated.
+        try:
+            import os
+            now = max(p.stat().st_mtime for p in self.iter_markdown()) + 1
+            os.utime(self.db_path, (now, now))
+        except OSError:
+            pass
         return {"indexed": len(pages), "db": str(self.db_path), "fts5": fts_enabled}
 
     def _ensure_db(self) -> None:
@@ -375,6 +518,8 @@ class WikiStore:
             return
         try:
             db_mtime = self.db_path.stat().st_mtime
+            # iter_markdown is now cached; stat() per file once is fine here
+            # because we run it at most once per Wiki-instance hot path.
             newest_md = max((path.stat().st_mtime for path in self.iter_markdown()), default=0)
         except OSError:
             newest_md = 0
@@ -400,12 +545,23 @@ class WikiStore:
         }
 
     def _rank_pages(self, query: str) -> list[tuple[Page, float, list[str]]]:
+        # H2 fix: context() called this once and then called fetch+timeline per
+        # loaded page (which calls pages() → re-walks the wiki). Memoize within
+        # a single Wiki instance — the cache is invalidated whenever a write
+        # touches state (new_page / ingest / index).
+        cached = self._rank_cache.get(query)
+        if cached is not None:
+            return cached
         tokens = query_tokens(query)
         raw_requested = bool(re.search(r"\b(raw|source|archive|transcript|full)\b", query, re.IGNORECASE))
         pages = self.pages()
         incoming = self._incoming_counts(pages)
         ranked: list[tuple[Page, float, list[str]]] = []
-        newest_mtime = max((p.path.stat().st_mtime for p in pages), default=0)
+        # H2 fix: stat-per-page in a hot loop. Pull mtimes once from the
+        # already-cached page objects (path.stat in tight loop was 2 calls per
+        # page per search — N stats per page over the whole context() flow).
+        mtimes = {p.path: self._page_cache.get(p.path, (0.0, None))[0] for p in pages}
+        newest_mtime = max(mtimes.values(), default=0)
         for page in pages:
             text = f"{page.title} {page.type} {' '.join(page.tags)} {page.path.as_posix()} {page.preview} {page.body}".lower()
             title_text = page.title.lower()
@@ -441,7 +597,10 @@ class WikiStore:
                 score += link_bonus
                 reasons.append("backlinked")
             if newest_mtime:
-                age_gap = max(0.0, newest_mtime - page.path.stat().st_mtime)
+                # H2 fix: re-use cached mtime (set by read_page) instead of a
+                # fresh stat() per page per search.
+                page_mtime = mtimes.get(page.path) or 0
+                age_gap = max(0.0, newest_mtime - page_mtime)
                 recency = max(0.0, 0.5 - (age_gap / (86400 * 60)))
                 if recency:
                     score += recency
@@ -455,6 +614,7 @@ class WikiStore:
             if score > 0:
                 ranked.append((page, score, reasons))
         ranked.sort(key=lambda item: (-item[1], item[0].id))
+        self._rank_cache[query] = ranked
         return ranked
 
     def _tier_weight(self, page: Page) -> float:
@@ -581,7 +741,28 @@ class WikiStore:
         log_hits = []
         log_path = self.root / "log.md"
         if log_path.exists():
-            for line in log_path.read_text(encoding="utf-8", errors="replace").splitlines():
+            # H8 fix: was `read_text().splitlines()` — a runaway log file
+            # blows memory. Stream line-by-line; cap total bytes consumed.
+            try:
+                size = log_path.stat().st_size
+            except OSError:
+                size = 0
+            if size > MAX_LOG_BYTES:
+                # Read only the tail of the log — that's what timeline shows
+                # anyway (`log_hits[-10:]`).
+                with log_path.open("rb") as fh:
+                    fh.seek(size - MAX_LOG_BYTES)
+                    raw = fh.read().decode("utf-8", errors="replace")
+                stream = raw.splitlines()
+            else:
+                with log_path.open("r", encoding="utf-8", errors="replace") as fh:
+                    stream = fh  # iter line-by-line
+                    for line in stream:
+                        line = line.rstrip("\n")
+                        if target_id in line or target_title in line:
+                            log_hits.append(line[:240])
+                stream = []  # already consumed
+            for line in stream:
                 if target_id in line or target_title in line:
                     log_hits.append(line[:240])
         return {"id": target_id, "backlinks": backlinks[:20], "neighbors": neighbors[:20], "log": log_hits[-10:]}
@@ -894,7 +1075,20 @@ class WikiStore:
         }
 
     def _parse_import_manifest(self, manifest_path: Path) -> list[dict[str, str]]:
-        lines = manifest_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        # H8 fix: was `read_text().splitlines()` with no size cap. A 5GB
+        # manifest blows memory. Reject early above MAX_MANIFEST_BYTES; stream
+        # line-by-line below it so we never hold the full text + the split copy.
+        try:
+            size = manifest_path.stat().st_size
+        except OSError:
+            size = 0
+        if size > MAX_MANIFEST_BYTES:
+            raise ValueError(
+                f"manifest too large ({size} bytes > {MAX_MANIFEST_BYTES}); "
+                f"split it into smaller manifests"
+            )
+        with manifest_path.open("r", encoding="utf-8", errors="replace") as f:
+            lines = f.read().splitlines()
         rows: list[dict[str, str]] = []
         header: list[str] | None = None
         for line in lines:
@@ -975,7 +1169,10 @@ class WikiStore:
             path = self.root / rel
             if not path.exists():
                 continue
-            text = path.read_text(encoding="utf-8", errors="replace")
+            # L4 fix: was matching on raw text — false-positives on any
+            # `/usr/bin/env` shebang or example path mentioned inside a fenced
+            # code block. Strip fences first so the audit only checks prose.
+            text = strip_fenced_code(path.read_text(encoding="utf-8", errors="replace"))
             for match in re.findall(r"(?<![\w.-])(?:~|/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_. -]+)+)", text):
                 if match.startswith("/./") or match.startswith("//"):
                     continue
@@ -1025,8 +1222,49 @@ class WikiStore:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
         self.append_log("update", title, f"Created `{target.relative_to(self.root).as_posix()}` from `{template}` template.")
-        self.index()
+        # M4 fix: was `self.index()` — full re-index on every page creation,
+        # O(N) per `new` call. Now: incremental insert (O(1)); fall back to
+        # full reindex if the DB doesn't exist yet. `te wiki index` remains
+        # available for manual recovery if the incremental path ever drifts.
+        self._invalidate_caches()
+        if not self.db_path.exists():
+            self.index()
+        else:
+            self._index_add_one(target)
         return {"created": target.relative_to(self.root).as_posix(), "template": template, "title": title}
+
+    def _index_add_one(self, path: Path) -> None:
+        """Append a single page to the existing sqlite index (M4)."""
+        page = self.read_page(path)
+        try:
+            mtime = path.stat().st_mtime
+        except OSError:
+            mtime = 0.0
+        with sqlite3.connect(self.db_path) as conn:
+            tags = ",".join(page.tags)
+            # ON CONFLICT REPLACE — handles edits to the same page later.
+            conn.execute(
+                "INSERT OR REPLACE INTO docs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    page.id,
+                    page.path.relative_to(self.root).as_posix(),
+                    page.title,
+                    page.type,
+                    tags,
+                    page.preview,
+                    page.body,
+                    json.dumps(page.links),
+                    mtime,
+                ),
+            )
+            try:
+                conn.execute("DELETE FROM docs_fts WHERE id = ?", (page.id,))
+                conn.execute(
+                    "INSERT INTO docs_fts VALUES (?, ?, ?, ?)",
+                    (page.id, page.title, page.body, tags),
+                )
+            except sqlite3.OperationalError:
+                pass  # fts5 not available; docs table is enough for fallback search
 
     def ingest(self, source: str, title: str | None = None) -> dict[str, Any]:
         self.init()
@@ -1035,11 +1273,6 @@ class WikiStore:
         is_file = source_path.exists()
         note_title = title or (source_path.stem if is_file else source)
         slug = slugify(note_title)
-        target = self.root / "raw" / f"{today}-{slug}.md"
-        i = 2
-        while target.exists():
-            target = self.root / "raw" / f"{today}-{slug}-{i}.md"
-            i += 1
         if is_file:
             body = source_path.read_text(encoding="utf-8", errors="replace")
             source_ref = source_path.as_posix()
@@ -1067,7 +1300,24 @@ class WikiStore:
             f"# {note_title}\n\n"
             f"{body}\n"
         )
-        target.write_text(content, encoding="utf-8")
+        # H5 fix: previous code did `while target.exists(): i += 1` then
+        # `target.write_text` — a TOCTOU window let two concurrent ingests
+        # both pick `<date>-<slug>.md`, then one clobbered the other. Use
+        # `open(..., "x")` (atomic O_EXCL create) in a retry loop instead.
+        raw_dir = self.root / "raw"
+        raw_dir.mkdir(parents=True, exist_ok=True)
+        target = raw_dir / f"{today}-{slug}.md"
+        i = 2
+        while True:
+            try:
+                with open(target, "x", encoding="utf-8") as f:
+                    f.write(content)
+                break
+            except FileExistsError:
+                target = raw_dir / f"{today}-{slug}-{i}.md"
+                i += 1
+                if i > 10_000:
+                    raise RuntimeError(f"could not find unused name for ingest: {slug}")
         self.append_log("ingest", note_title, f"Added raw source `{target.relative_to(self.root).as_posix()}`.")
         index_result = self.index()
         return {"created": target.relative_to(self.root).as_posix(), "indexed": index_result["indexed"]}

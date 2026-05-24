@@ -104,8 +104,15 @@ def state_dir() -> Path:
 
 
 def state_path(session_id: str) -> Path:
-    sid8 = (session_id or "unknown")[:8] or "unknown"
-    return state_dir() / f"{sid8}.json"
+    # H6 fix: 8-char truncation caused collisions when distinct sessions shared
+    # the same prefix (e.g. two UUIDs starting "a3f0c1d2…"), making one session
+    # overwrite another's state under the same flock. Hash the full session_id
+    # so the filename stays short and filesystem-safe while distinct inputs
+    # remain distinct. (SHA-256 truncated to 16 hex chars: ~2^64 namespace —
+    # collisions are astronomically unlikely for the per-host session count.)
+    sid = session_id or "unknown"
+    sid_hash = hashlib.sha256(sid.encode("utf-8", errors="replace")).hexdigest()[:16]
+    return state_dir() / f"{sid_hash}.json"
 
 
 def gc_old_state(dir_path: Path, now: float) -> int:
@@ -140,19 +147,38 @@ def state_lock(path: Path):
     """Hold an exclusive flock over a sibling lockfile during read+update+write.
     Parallel PreToolUse hooks for parallel tool calls would otherwise race.
     On platforms without fcntl (Windows), or if locking fails, falls through
-    unlocked — better to under-count than to crash the hook."""
+    unlocked — better to under-count than to crash the hook.
+
+    L5 fix: previously `open(lock_path, "a+")` would silently fall through
+    unlocked if the directory was read-only or otherwise unwritable (e.g. when
+    the wider state dir was relocated to a read-only mount). Now we explicitly
+    catch PermissionError / OSError from mkdir + open, log a stderr warning so
+    operators can see it, and *then* fall through unlocked. The hook still
+    yields (and main() continues to load/save best-effort) because the
+    reliability contract requires exit 0 on every input."""
     lock_path = path.with_suffix(path.suffix + ".lock")
     fh = None
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        fh = open(lock_path, "a+")
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+        except (PermissionError, OSError) as e:
+            log_err(f"lock-mkdir-fail dir={path.parent} err={e!r} — proceeding unlocked")
+            yield
+            return
+        try:
+            fh = open(lock_path, "a+")
+        except (PermissionError, OSError) as e:
+            log_err(f"lock-open-fail path={lock_path} err={e!r} — proceeding unlocked")
+            yield
+            return
         try:
             fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
         except (OSError, AttributeError) as e:
             log_err(f"lock-skip path={lock_path} err={e!r}")
         yield
     except Exception as e:
-        log_err(f"lock-open-fail path={lock_path} err={e!r}")
+        # Last-resort guard: never let a lock-layer bug crash the hook.
+        log_err(f"lock-unexpected path={lock_path} err={e!r}")
         yield
     finally:
         if fh is not None:
@@ -160,7 +186,10 @@ def state_lock(path: Path):
                 fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
             except Exception:
                 pass
-            fh.close()
+            try:
+                fh.close()
+            except Exception:
+                pass
 
 
 def load_state(path: Path) -> dict:
@@ -198,12 +227,46 @@ def build_signal(tool_name: str, prev: str, count: int, threshold: int) -> str:
     )
 
 
-def main() -> int:
-    threshold = THRESHOLD_DEFAULT
+def build_deny_reason(tool_name: str, count: int) -> str:
+    """H7 fix: `permissionDecisionReason` should be a single concise line.
+    Multi-paragraph text rendered there gets truncated or displayed poorly in
+    Claude Code's permission UI. Keep the long-form replan text in
+    `additionalContext`; the reason is a one-line summary the user/agent sees
+    in the deny notification."""
+    return (
+        f"loop-breaker: {count}× identical {tool_name} call — "
+        f"change approach (see additionalContext)"
+    )
+
+
+def resolve_threshold() -> int:
+    """M3 fix: explicit validation of LOOP_BREAKER_THRESHOLD with stderr warnings.
+    Previously: `max(2, int(env))` silently clamped THRESHOLD=1 to 2, and any
+    ValueError (empty string, whitespace, non-numeric) was swallowed by a bare
+    `except ValueError: pass`. Now: empty / whitespace / non-numeric falls back
+    to the default with a stderr warning; explicit clamping of values <2 is
+    also warned. Behavioral contract preserved — test.sh case [2] still expects
+    `THRESHOLD=1` to behave as 2 — only the warning is new."""
+    raw = os.environ.get("LOOP_BREAKER_THRESHOLD")
+    if raw is None:
+        return THRESHOLD_DEFAULT
+    s = raw.strip()
+    if not s:
+        log_err(f"threshold-empty: LOOP_BREAKER_THRESHOLD={raw!r} → using default {THRESHOLD_DEFAULT}")
+        return THRESHOLD_DEFAULT
     try:
-        threshold = max(2, int(os.environ.get("LOOP_BREAKER_THRESHOLD", THRESHOLD_DEFAULT)))
+        n = int(s)
     except ValueError:
-        pass
+        log_err(f"threshold-invalid: LOOP_BREAKER_THRESHOLD={raw!r} (not an integer) → using default {THRESHOLD_DEFAULT}")
+        return THRESHOLD_DEFAULT
+    if n < 2:
+        log_err(f"threshold-clamped: LOOP_BREAKER_THRESHOLD={n} too low (min 2) → clamped to 2")
+        return 2
+    return n
+
+
+def main() -> int:
+    threshold = resolve_threshold()
 
     hard_block = os.environ.get("LOOP_BREAKER_HARD_BLOCK") == "1"
     allowlist_raw = os.environ.get("LOOP_BREAKER_ALLOWLIST_TOOLS", "")
@@ -252,21 +315,37 @@ def main() -> int:
     if is_new_session:
         gc_old_state(path.parent, time.time())
 
+    # Two independent paths:
+    #   - SIGNAL (additionalContext) fires only on RISING EDGE (count crosses
+    #     threshold) or ESCALATION (multiple of threshold past). Previous code
+    #     fired on every call past threshold → context polluted with N copies of
+    #     the same warning on legitimate polls / pagination.
+    #   - HARD-BLOCK (permissionDecision: deny) fires on every call past
+    #     threshold when LOOP_BREAKER_HARD_BLOCK=1 — that's its whole purpose.
     if count < threshold:
         return 0
 
-    signal = build_signal(tool_name, state["last_tool_input_preview"], count, threshold)
-    output = {
-        "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "additionalContext": signal,
-        }
-    }
-    if hard_block and count > threshold:
-        output["hookSpecificOutput"]["permissionDecision"] = "deny"
-        output["hookSpecificOutput"]["permissionDecisionReason"] = signal
+    edge = count == threshold
+    escalation = count > threshold and count % threshold == 0
+    deny = hard_block and count > threshold
+    if not (edge or escalation or deny):
+        return 0
 
-    sys.stdout.write(json.dumps(output))
+    signal = build_signal(tool_name, state["last_tool_input_preview"], count, threshold)
+    hook_out: dict = {"hookEventName": "PreToolUse"}
+    if edge or escalation:
+        hook_out["additionalContext"] = signal
+    if deny:
+        # H7 fix: keep the multi-paragraph replan signal in additionalContext
+        # (where multi-line text renders fine) and put a single concise line in
+        # permissionDecisionReason (where the Claude Code permission UI expects
+        # a one-liner — multi-paragraph text gets truncated or rendered poorly).
+        hook_out["permissionDecision"] = "deny"
+        hook_out["permissionDecisionReason"] = build_deny_reason(tool_name, count)
+        if "additionalContext" not in hook_out:
+            hook_out["additionalContext"] = signal
+
+    sys.stdout.write(json.dumps({"hookSpecificOutput": hook_out}))
     sys.stdout.write("\n")
     return 0
 

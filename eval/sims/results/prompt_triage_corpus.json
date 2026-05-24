@@ -1,0 +1,14 @@
+{
+  "skill": "prompt_triage",
+  "shape": "corpus",
+  "elapsed_s": 0.38079309463500977,
+  "passed": true,
+  "summary": {
+    "n": 45,
+    "correct": 45,
+    "accuracy": 1.0,
+    "complex_cases": 11,
+    "complex_misrouted_to_haiku": 0
+  },
+  "findings": []
+}

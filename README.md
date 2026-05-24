@@ -32,7 +32,7 @@ graphify extract .
 
 `./install.sh` pip-installs `graphifyy` from PyPI by default. Opt out with `./install.sh --no-graphify` (the wiki-memory and index-first skills degrade gracefully when the graph isn't present). After bootstrap the stack is on automatically — hooks fire per event, descriptions trigger on prompt shape.
 
-## The catalog (12 skills)
+## The catalog (15 skills)
 
 | Skill | Trigger | Desc tokens | Notes |
 |---|---|---:|---|
@@ -48,8 +48,11 @@ graphify extract .
 | [semantic-diff](skills/semantic-diff/SKILL.md) | file re-read | 99 | AST-node diff. 95.5% measured savings on argparse.py re-reads. |
 | [index-first](skills/index-first/SKILL.md) | "where is X used / what calls Y" | ~110 | Prefer pre-built indexes / composite verbs over grep+read chains. Eval pending. (colbymchenry/codegraph lineage.) |
 | [output-filter](skills/output-filter/SKILL.md) | terminal output hook | 99 | Strip ANSI/progress/dup noise; preserves errors. |
+| [write-gate](skills/write-gate/SKILL.md) | before any persistent write | ~120 | Content-quality gate on durable memory. Signal-score (ogham lineage) + why-clause enforcement (codenamev lineage). Prevents reasonless decisions and recap-style writes. |
+| [memory-decay](skills/memory-decay/SKILL.md) | weekly cron / wiki audit | ~120 | Exponential confidence decay on wiki pages (5%/30d default). Errors / lessons / high-evidence pages protected. Dry-run by default. |
+| [cache-lint](skills/cache-lint/SKILL.md) | before merging hooks/skills, CI | ~110 | Static audit against Anthropic's 6 prompt-cache rules (ussumant lineage). FAIL on dynamic content above breakpoint, prefix mutation by Stop-hooks, etc. |
 
-**Always-resident context tax (12 descriptions): ~1,100 tokens.** Roughly 0.55% of a 200K context window.
+**Always-resident context tax (15 descriptions): ~1,450 tokens.** Roughly 0.7% of a 200K context window.
 
 Full body cost (worst case, all loaded at once): ~6,500 tokens. In practice, only the triggered skill's body loads.
 
@@ -83,7 +86,7 @@ See [eval/results/static_cost.json](eval/results/static_cost.json) for the full 
 | Codex / Cursor / Gemini CLI / Copilot | per-project (no plugin format exists for these) | clone into `<project>/.token-economy`, then `.token-economy/install.sh --host <name>` + symlink — see [Per-project install](#per-project-install-non-claude-code-hosts) |
 | any host (inside the token-economy clone itself, e.g. contributing) | for that clone only | `./install.sh` (all hosts) or `./install.sh --host <name>` |
 
-The plugin (`token-economy` v1.3.0) bundles all 11 skills plus optional `UserPromptSubmit` and `PreCompact` hooks (off by default; toggle in plugin config).
+The plugin (`token-economy` v1.4.0) bundles all 15 skills plus optional `UserPromptSubmit` and `PreCompact` hooks (off by default; toggle in plugin config).
 
 ### Host install matrix
 
@@ -175,7 +178,7 @@ Built on prior work:
 
 ## Status
 
-- 11 skills written and lint-clean.
+- 15 skills written and lint-clean.
 - 4 hosts wired and verified (Claude Code, Codex, Cursor, Gemini CLI).
 - Static-cost measurements published.
 - Live A/B harness ready; needs a healthy Ollama / explicit `ANTHROPIC_API_KEY` / `HF_TOKEN` to run.

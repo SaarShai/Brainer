@@ -123,6 +123,23 @@ The session-replay numbers look bad in isolation. They're honest data; the catal
 
 The takeaway isn't "the catalog saves tokens" or "the catalog costs tokens" — it's **"the catalog moves the per-call output distribution"**: tighter when relevant skills fire, slightly looser when only descriptions are visible. Net depends on workload mix.
 
+## Required controls (must beat these baselines)
+
+Skills that claim a compression / compaction / context-reduction effect must clear two trivial controls before counting as a measured win. If a skill can't beat these, it isn't earning its slot.
+
+| Control | What it does | Why it's required |
+|---|---|---|
+| **Grep + Read** | Plain grep to locate, plain Read on hits | Sets the floor for any retrieval / index skill. `index-first` earns its slot only by beating it; we've measured graphify at −93% vs this baseline. |
+| **Observation masking** | Replace tool outputs in past turns with `[output suppressed]` while keeping the call args + summary | Sets the floor for any compaction skill. On SWE-bench Verified × 5 models, plain masking **halves cost and matches LLM summarization** ([arXiv 2508.21433](https://arxiv.org/abs/2508.21433), Aug 2025). A compression / summarization skill that doesn't beat this is adding complexity for no measured gain. |
+
+Apply to:
+- `semantic-diff` — must beat masking the previously-read file (it does, by reading only the diff vs nothing)
+- `compress-context` — must beat masking the raw context (current N=3 measurement is preliminary)
+- `context-keeper` — must beat masking the pre-compact transcript (sidecar already retains 100% URLs / 67% numbers, which masking cannot)
+- any future compaction / summarization skill
+
+Adding observation-masking as a runnable baseline harness is a separate eval task; until it lands, skills should at minimum *cite the baseline they're competing against* in their EVAL.md.
+
 ## Pending live measurements
 
 | Skill | What to measure | Why |

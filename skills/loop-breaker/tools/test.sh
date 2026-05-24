@@ -36,6 +36,18 @@ bash_payload() {
     "$1" "$(python3 -c 'import json,sys;print(json.dumps(sys.argv[1]))' "$2")"
 }
 
+# Map a session_id to the on-disk filename hook.py uses. Mirrors state_path()
+# in hook.py (sha256(session_id)[:16] + ".json"). Bumped from the prior 8-char
+# truncation (H6 collision fix). When that hash policy changes again, change
+# this helper too — tests that need the literal path use it.
+state_file() {
+  python3 -c '
+import hashlib, sys
+sid = sys.argv[1] or "unknown"
+print(hashlib.sha256(sid.encode("utf-8", errors="replace")).hexdigest()[:16] + ".json")
+' "$1"
+}
+
 payload() {
   # payload <session_id> <tool_name> <tool_input_json>
   printf '{"session_id":"%s","hook_event_name":"PreToolUse","tool_name":"%s","tool_input":%s}' \
@@ -143,12 +155,13 @@ if emitted "$out_b"; then ok "session beta hits 5 independently"; else no "sessi
 echo "[10] Corrupt state file → recovers, no crash"
 SUB=t10
 mkdir -p "$STATE_ROOT/$SUB"
-echo "this is { not json" > "$STATE_ROOT/$SUB/corrupt.json"
+CORRUPT_FILE="$STATE_ROOT/$SUB/$(state_file corrupt)"
+echo "this is { not json" > "$CORRUPT_FILE"
 out=$(call $SUB -- "$(bash_payload corrupt 'echo ok')")
 exit_code=$?
 if [ $exit_code -eq 0 ]; then ok "exit 0 despite corrupt state"; else no "exit 0 despite corrupt state" "got $exit_code"; fi
 # Should have rewritten as valid JSON
-if python3 -c 'import json,sys;json.load(open(sys.argv[1]))' "$STATE_ROOT/$SUB/corrupt.json" 2>/dev/null; then
+if python3 -c 'import json,sys;json.load(open(sys.argv[1]))' "$CORRUPT_FILE" 2>/dev/null; then
   ok "state file recovered to valid JSON"
 else
   no "state file recovered to valid JSON"
@@ -163,7 +176,7 @@ for i in 1 2 3 4 5; do
   out=$(printf '%s' "$P" | env LOOP_BREAKER_STATE_DIR="$STATE_ROOT/$SUB" $HOOK)
 done
 if emitted "$out"; then ok "5th call triggers despite varying description"; else no "5th call triggers despite varying description" "got empty"; fi
-final_count=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["consecutive_count"])' "$STATE_ROOT/$SUB/desc.json")
+final_count=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["consecutive_count"])' "$STATE_ROOT/$SUB/$(state_file desc)")
 if [ "$final_count" = "5" ]; then ok "consecutive_count reached 5"; else no "consecutive_count reached 5" "got $final_count"; fi
 
 echo "[13] Leading-underscore fields stripped from signature"
@@ -207,7 +220,7 @@ for _ in 1 2 3 4 5 6 7 8 9 10; do
   printf '%s' "$PAYLOAD_C" | env LOOP_BREAKER_STATE_DIR="$STATE_ROOT/$SUB" $HOOK > /dev/null &
 done
 wait
-final_count=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["consecutive_count"])' "$STATE_ROOT/$SUB/concur.json")
+final_count=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["consecutive_count"])' "$STATE_ROOT/$SUB/$(state_file concur)")
 if [ "$final_count" = "10" ]; then ok "10 parallel hooks → count=10"; else no "10 parallel hooks → count=10" "got $final_count"; fi
 
 echo "[11] Hard-block exclusivity (no deny at threshold, deny past it)"

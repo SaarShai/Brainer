@@ -1,0 +1,187 @@
+{
+  "n_cases": 19,
+  "crashes": 0,
+  "total_elapsed_s": 0.085,
+  "correctness": {
+    "node_modules_skipped": true,
+    "nested_plugin_discovered": true,
+    "real_dynamic_flagged": true,
+    "malformed_json_no_crash": true,
+    "wrong_type_no_crash": true,
+    "huge_file_under_2s": true,
+    "dos_under_2s": true
+  },
+  "results": [
+    {
+      "case": "empty_claude",
+      "ok": true,
+      "elapsed_ms": 0,
+      "n_targets": 1,
+      "n_findings": 1,
+      "fails": 0,
+      "warns": 0
+    },
+    {
+      "case": "whitespace_only",
+      "ok": true,
+      "elapsed_ms": 0,
+      "n_targets": 1,
+      "n_findings": 2,
+      "fails": 0,
+      "warns": 1
+    },
+    {
+      "case": "bom_prefix",
+      "ok": true,
+      "elapsed_ms": 0,
+      "n_targets": 1,
+      "n_findings": 2,
+      "fails": 0,
+      "warns": 1
+    },
+    {
+      "case": "crlf_lines",
+      "ok": true,
+      "elapsed_ms": 0,
+      "n_targets": 1,
+      "n_findings": 2,
+      "fails": 0,
+      "warns": 1
+    },
+    {
+      "case": "binary_garbage",
+      "ok": true,
+      "elapsed_ms": 0,
+      "n_targets": 1,
+      "n_findings": 2,
+      "fails": 0,
+      "warns": 1
+    },
+    {
+      "case": "latin1_chars",
+      "ok": true,
+      "elapsed_ms": 0,
+      "n_targets": 1,
+      "n_findings": 1,
+      "fails": 0,
+      "warns": 0
+    },
+    {
+      "case": "unicode_cjk",
+      "ok": true,
+      "elapsed_ms": 0,
+      "n_targets": 1,
+      "n_findings": 1,
+      "fails": 0,
+      "warns": 0
+    },
+    {
+      "case": "huge_claude",
+      "ok": true,
+      "elapsed_ms": 34,
+      "n_targets": 1,
+      "n_findings": 2,
+      "fails": 0,
+      "warns": 1
+    },
+    {
+      "case": "malformed_settings",
+      "ok": true,
+      "elapsed_ms": 0,
+      "n_targets": 1,
+      "n_findings": 1,
+      "fails": 0,
+      "warns": 0
+    },
+    {
+      "case": "deep_hooks",
+      "ok": true,
+      "elapsed_ms": 0,
+      "n_targets": 1,
+      "n_findings": 1,
+      "fails": 0,
+      "warns": 0
+    },
+    {
+      "case": "hooks_wrong_type",
+      "ok": true,
+      "elapsed_ms": 0,
+      "n_targets": 1,
+      "n_findings": 1,
+      "fails": 0,
+      "warns": 0
+    },
+    {
+      "case": "just_model",
+      "ok": true,
+      "elapsed_ms": 0,
+      "n_targets": 1,
+      "n_findings": 1,
+      "fails": 0,
+      "warns": 0
+    },
+    {
+      "case": "many_skills",
+      "ok": true,
+      "elapsed_ms": 8,
+      "n_targets": 51,
+      "n_findings": 2,
+      "fails": 0,
+      "warns": 1
+    },
+    {
+      "case": "dos_substitutions",
+      "ok": true,
+      "elapsed_ms": 10,
+      "n_targets": 1,
+      "n_findings": 8,
+      "fails": 5,
+      "warns": 2
+    },
+    {
+      "case": "nested_plugin_claude",
+      "ok": true,
+      "elapsed_ms": 0,
+      "n_targets": 3,
+      "n_findings": 2,
+      "fails": 0,
+      "warns": 1
+    },
+    {
+      "case": "node_modules_skip",
+      "ok": true,
+      "elapsed_ms": 0,
+      "n_targets": 1,
+      "n_findings": 2,
+      "fails": 0,
+      "warns": 1
+    },
+    {
+      "case": "empty_claude_dir",
+      "ok": true,
+      "elapsed_ms": 0,
+      "n_targets": 0,
+      "n_findings": 1,
+      "fails": 0,
+      "warns": 1
+    },
+    {
+      "case": "shell_pipeline",
+      "ok": true,
+      "elapsed_ms": 0,
+      "n_targets": 1,
+      "n_findings": 1,
+      "fails": 0,
+      "warns": 0
+    },
+    {
+      "case": "real_random",
+      "ok": true,
+      "elapsed_ms": 0,
+      "n_targets": 1,
+      "n_findings": 4,
+      "fails": 2,
+      "warns": 1
+    }
+  ]
+}

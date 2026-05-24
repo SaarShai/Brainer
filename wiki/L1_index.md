@@ -10,6 +10,8 @@ Compact pointers. Fetch details on demand.
 - wiki catalog -> `index.md`
 - log -> `log.md`
 - raw sources -> `raw/` (search only; fetch after relevance)
+- L2_facts/20260522-2147-smoke-test-full (page) -> `L2_facts/20260522-2147-smoke-test-full.md`
+- L2_facts/20260522-2149-v1-3-0-merge-smoke (page) -> `L2_facts/20260522-2149-v1-3-0-merge-smoke.md`
 - L4_archive/2026-04-24-handoff-codex-context-refresh (handoff) -> `L4_archive/2026-04-24-handoff-codex-context-refresh.md`
 - L4_archive/2026-04-24-summ-codex-manual (page) -> `L4_archive/2026-04-24-summ-codex-manual.md`
 - L4_archive/2026-05-22-skill-crystallizer/README (project tags=skill,L3-sop,automation) -> `L4_archive/2026-05-22-skill-crystallizer/README.md`

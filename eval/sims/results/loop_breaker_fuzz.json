@@ -1,0 +1,11 @@
+{
+  "skill": "loop_breaker",
+  "shape": "fuzz",
+  "elapsed_s": 3.0377001762390137,
+  "passed": true,
+  "summary": {
+    "n_cases": 11,
+    "failed": 0
+  },
+  "findings": []
+}

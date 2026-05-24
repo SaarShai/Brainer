@@ -9,6 +9,10 @@ Repos and writeups that shaped this catalog or live in adjacent territory. Group
 - [mattpocock/skills](https://github.com/mattpocock/skills) — slash-command skill format. Lineage for [`handoff`](skills/handoff/SKILL.md).
 - [karpathy/LLM-wiki gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) — LLM-maintained markdown wiki as a compounding knowledge base. Lineage for [`wiki-memory`](skills/wiki-memory/SKILL.md).
 - [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) — CLAUDE.md packaging of Karpathy's "think before coding / surgical changes / goal-driven loop" principles. Adjacent to [`plan-first-execute`](skills/plan-first-execute/SKILL.md) and [`lean-execution`](skills/lean-execution/SKILL.md).
+- [ogham-mcp/ogham-mcp](https://github.com/ogham-mcp/ogham-mcp) — explicit **signal-score** boosts memories that mention decisions / errors / architecture / code; FRESH→STABLE→EDITING lifecycle; 5% importance decay per 30 idle days; 91.8% QA / 97.2% R@10 on LongMemEval. Lineage for [`write-gate`](skills/write-gate/SKILL.md) (signal-score) and [`memory-decay`](skills/memory-decay/SKILL.md) (half-life).
+- [codenamev/claude_memory](https://github.com/codenamev/claude_memory) — **why-clause enforcement** (decision/convention facts must embed "because… / so that… / to avoid…" or are rejected); four-way truth-maintenance classifier; 100% on a 100-case FEVER-derived test. Lineage for [`write-gate`](skills/write-gate/SKILL.md)'s why-clause rule.
+- [doobidoo/mcp-memory-service](https://github.com/doobidoo/mcp-memory-service) — protection-class for "high-value mistake notes" that bypass decay; 80.4% R@5 LongMemEval, 91.1% DevBench. Lineage for [`memory-decay`](skills/memory-decay/SKILL.md)'s protection-class.
+- [ussumant/cache-audit](https://github.com/ussumant/cache-audit) — static audit against Anthropic's 6 prompt-cache rules. Lineage for [`cache-lint`](skills/cache-lint/SKILL.md).
 
 ## Code indexing / structural retrieval
 
@@ -16,6 +20,9 @@ Repos and writeups that shaped this catalog or live in adjacent territory. Group
 - [zilliztech/claude-context](https://github.com/zilliztech/claude-context) — MCP semantic code search; hybrid BM25 + dense vector across whole codebases.
 - [tirth8205/code-review-graph](https://github.com/tirth8205/code-review-graph) — tree-sitter graph + blast-radius traversal for code review (claims 8.2× token reduction).
 - [Mibayy/token-savior](https://github.com/Mibayy/token-savior) — MCP: structural code index + memory + bash compactor.
+- [DeusData/codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp) — tree-sitter + LSP-style type resolution; persistent SQLite graph; verbs include `search_graph` / `trace_call_path` / **`detect_changes`** (git-diff → affected symbols + risk class) / `query_graph` / `get_architecture`; background watcher → auto-reindex; 155 languages. **Evidence-parity measurement**: 31 repos at 83% answer-quality with 10× fewer tokens and 2.1× fewer tool calls — the strongest current direct competitor to graphify. Benchmark target for [`index-first`](skills/index-first/SKILL.md).
+- [jgravelle/jcodemunch-mcp](https://github.com/jgravelle/jcodemunch-mcp) — 70+ langs via tree-sitter + optional LSP for interface/trait dispatch; ships `get_blast_radius` (depth-weighted risk scores), `get_call_hierarchy`, `find_references`. Honest A/B methodology isolates 15–25% tool-layer savings from fixed overhead. `get_blast_radius` is the composite verb shape [`index-first`](skills/index-first/SKILL.md) argues for.
+- [cocoindex-io/cocoindex-code](https://cocoindex.io/cocoindex-code/) — AST-aware tree-sitter chunks + embeddings; <1s freshness after save; ~70% fewer tokens/turn with 80–90% cache hits on reindex. Solves graphify's "slow on large repos" weakness.
 
 ## Output / context filters (wrap the agent's pipes)
 
@@ -25,6 +32,12 @@ Repos and writeups that shaped this catalog or live in adjacent territory. Group
 - [mvanhorn/cli-printing-press](https://github.com/mvanhorn/cli-printing-press) — generates "agent-native" CLIs (auto-JSON when piped, typed exit codes, `--compact`, `--dry-run`).
 - [mvanhorn/printing-press-library](https://github.com/mvanhorn/printing-press-library) — companion library to the above.
 - [rtk-ai/rtk](https://github.com/rtk-ai/rtk) — CLI proxy that filters/compresses common dev-command output before it reaches the agent (claims 60-90% reduction).
+- [chopratejas/headroom](https://github.com/chopratejas/headroom) — `ContentRouter` dispatches to 6 specialized compressors (JSON crusher, AST-aware code compressor, custom HF "Kompress-base" trained on agentic traces, image router, **`CacheAligner`** that stabilizes prefixes for cache hits, `IntelligentContext`); reversible (stores originals). **Measured 92% reduction on code-search + SRE-debug with GSM8K 0.870 / TruthfulQA 0.560 preserved.** The CacheAligner mechanism is a clean stand-alone skill candidate.
+- [yvgude/lean-ctx](https://github.com/yvgude/lean-ctx) — 51 MCP tools, 10 read modes (Map / Signatures / lines:N-M / Diff / cached-re-read at ~13 tokens) + 56 shell-pattern modules + tree-sitter AST across 21 langs + session memory. Structural overlap with [`semantic-diff`](skills/semantic-diff/SKILL.md) + [`output-filter`](skills/output-filter/SKILL.md) + [`wiki-memory`](skills/wiki-memory/SKILL.md) — and an argument that those skills belong bundled.
+- [atlassian-labs/mcp-compressor](https://github.com/atlassian-labs/mcp-compressor) — **progressive MCP-tool disclosure**: agent sees compressed wrappers first, fetches full schema only for the picked tool. 4 levels of compression + TOON output mode.
+- [PCIRCLE-AI/toonify-mcp](https://github.com/PCIRCLE-AI/toonify-mcp) — Claude Code plugin trims large JSON / logs / stack traces before context entry; claims 25–66%. Cleanest "TOON for Claude Code" implementation.
+- [toon-format/toon](https://github.com/toon-format/toon) — Token-Oriented Object Notation spec + TS SDK; ~40% fewer tokens than JSON on uniform arrays. Foundational format; headroom and Atlassian compressor both use it.
+- [universal-tool-calling-protocol/code-mode](https://github.com/universal-tool-calling-protocol/code-mode) — agents call MCP/UTCP tools via **code execution** instead of per-tool definitions (Cloudflare Code Mode pattern); ~1k tokens covers 2,500 endpoints. Distinct mechanism class; future skill: `code-mode-shim`.
 
 ## Memory & knowledge systems
 
@@ -34,6 +47,12 @@ Repos and writeups that shaped this catalog or live in adjacent territory. Group
 - [breferrari/obsidian-mind](https://github.com/breferrari/obsidian-mind) — Obsidian vault template as durable agent memory.
 - [rarce/git-wiki](https://github.com/rarce/git-wiki) — self-maintaining knowledge repo in your git repo; hybrid on-device search.
 - [rohitg00 gist](https://gist.github.com/rohitg00/2067ab416f7bbe447c1977edaaa681e2) — extends Karpathy's wiki pattern with lifecycle (confidence, supersession, decay), typed-relationship graphs, BM25+vector+graph hybrid retrieval.
+- [rohitg00/agentmemory](https://github.com/rohitg00/agentmemory) — PostToolUse hook → SHA-256 dedup (5-min window) → privacy filter → LLM compression → BM25+vector+graph fused with **RRF k=60**, session-diversified. **95.2% R@5 / 88.2% MRR on LongMemEval-S** (vs mem0 68.5%). Benchmark target for [`wiki-memory`](skills/wiki-memory/SKILL.md); RRF k=60 + session-diversity cap are porting candidates.
+- [mempalace/mempalace](https://github.com/mempalace/mempalace) — hierarchical store (wings / rooms / drawers) parallels our L0–L4 tiers; pluggable backend; 96.6% R@5 raw on LongMemEval, ≥99% with LLM rerank.
+- [Rememora/rememora](https://github.com/Rememora/rememora) — **AUDN curator** (Add / Update / Delete / Noop) + dual gate (24h + 5-new) + `sigmoid(log1p(access))·exp(-age/half_life)` hotness blend. The AUDN op-set is portable into `/consolidate-memory` as a replacement for time-only triggers.
+- [nemori-ai/nemori](https://github.com/nemori-ai/nemori) — **Predict-Calibrate Principle** (free-energy-inspired): extract memory only when current store mispredicts new observations. arXiv 2508.03341. Principled write-gate alternative to heuristic scoring.
+- [neo4j-labs/agent-memory](https://github.com/neo4j-labs/agent-memory) — `client.consolidation.dedupe_entities(...)` API + explicit audit edges from reasoning steps to entities (graph provenance).
+- [BayramAnnakov/claude-reflect](https://github.com/BayramAnnakov/claude-reflect) — UserPromptSubmit hook auto-detects "no, use X" correction patterns and queues them for CLAUDE.md merge (confidence 0.60–0.95). Real gap in our catalog — sibling to [`compliance-canary`](skills/compliance-canary/SKILL.md) but for capture, not detection. Future skill candidate: `correction-capture`.
 
 ## Token-optimizer projects (overlapping pitches; click through for specifics)
 
@@ -41,6 +60,8 @@ Repos and writeups that shaped this catalog or live in adjacent territory. Group
 - [nadimtuhin/claude-token-optimizer](https://github.com/nadimtuhin/claude-token-optimizer)
 - [alexgreensh/token-optimizer](https://github.com/alexgreensh/token-optimizer)
 - [drona23/claude-token-efficient](https://github.com/drona23/claude-token-efficient)
+- [vnmoorthy/ccmeter](https://github.com/vnmoorthy/ccmeter) — local-first analytics over `~/.claude/projects/*.jsonl`; surfaces per-session cache-bust costs, per-tool cost, model-swap what-ifs, ranked fix suggestions ordered by estimated monthly $$ savings. The telemetry side of the cache story (`cache-lint` is the static side; ccmeter is the dynamic side).
+- [cnighswonger/claude-code-cache-fix](https://github.com/cnighswonger/claude-code-cache-fix) — targeted patch for the March 2026 Anthropic TTL regression (1h → 5m); claims up to 20× cost savings on resumed sessions. Evidence that cache-hygiene skills have real $$ impact.
 
 ## Agent frameworks / skill collections
 
@@ -48,6 +69,9 @@ Repos and writeups that shaped this catalog or live in adjacent territory. Group
 - [crewaiinc/crewai](https://github.com/crewaiinc/crewai) — multi-agent orchestration framework (role-based crews, tasks, processes).
 - [lsdefine/GenericAgent](https://github.com/lsdefine/GenericAgent) — minimal self-evolving agent (~3k LOC core, 9 atomic tools, ~100-line loop) for system-level local control.
 - [ray-amjad/claude-code-workflow-creator](https://github.com/ray-amjad/claude-code-workflow-creator) — meta-skill that authors **workflow scripts** (JavaScript files) for Claude Code's unreleased `Workflow` tool (gated behind `CLAUDE_CODE_WORKFLOWS=1`). Deterministic multi-agent orchestration: `agent()`/`parallel()`/`pipeline()`/`phase()` as plain JS, only leaf `agent()` calls spend tokens, each in its own fresh-context window. Ships an api-reference, a 6-pattern playbook (fan-out, pipeline, barrier-dedup, loop-until-budget, judge panel, nested workflow), runnable examples, and a validator script. Adjacent to our dropped [`delegate`](README.md) skill — when the Workflow tool ships, our [`eval/combos/`](eval/combos/) YAMLs (caveman+lean, triage+caveman+keeper, etc.) could be re-expressed as workflow files for end-users who want a specific stack deployed deterministically.
+- [jeremylongshore/claude-code-plugins-plus-skills](https://github.com/jeremylongshore/claude-code-plugins-plus-skills) (2.2k★) — 425 plugins / 2,810 skills, ships `ccpi` CLI package manager, **100-point marketplace grading** in `skill-creator`. Direct catalog competitor; methodology to study.
+- [disler/claude-code-hooks-mastery](https://github.com/disler/claude-code-hooks-mastery) (3.7k★) — reference implementation covering all 13 hook events including the newer `SubagentStart`, `PostToolUseFailure`, `PermissionRequest`. Hook surface map.
+- [disler/claude-code-hooks-multi-agent-observability](https://github.com/disler/claude-code-hooks-multi-agent-observability) (1.4k★) — wires 12+ hook events to a WebSocket Vue dashboard; multi-session concurrent tracking.
 
 ## Drift mitigation (loop/goal/spec)
 
@@ -77,6 +101,20 @@ Skill-rules fading from effective attention as sessions grow. Distinct from loop
 - arXiv [2411.07037 — LIFBench](https://arxiv.org/abs/2411.07037) — benchmark for instruction-following stability across context length.
 - arXiv [2402.10962](https://arxiv.org/abs/2402.10962) — significant drift within 8 rounds on Llama2-70B / GPT-3.5.
 - arXiv [2512.10172 — Offscript](https://arxiv.org/abs/2512.10172) — auditor LLM identifies adherence failures in 86.4% of conversations (22.2% material). Judge / auditor pattern.
+
+## Skill measurement / benchmarks (new domain)
+
+Public eval harnesses + methodology papers for skills themselves — recently emerging as a separate field from generic agent benchmarks.
+
+- arXiv [2603.29919 — SkillReducer](https://arxiv.org/abs/2603.29919) (Mar 2026) — empirical study of 55,315 public skills: 26.4% lack routing descriptions; >60% of bodies are non-actionable; their two-stage pipeline achieves **48% description / 39% body compression at +2.8% functional quality**, validated across 5 models × 4 families. Direct competitor / target — Token Economy's catalog should be run through their open pipeline as a baseline self-audit.
+- arXiv [2602.12670 — SkillsBench](https://arxiv.org/abs/2602.12670) (Feb 2026) — [code](https://github.com/benchflow-ai/skillsbench): 86 tasks × 11 domains × deterministic verifiers; 7,308 trajectories. Curated skills +16.2pp avg pass rate; **SWE domain only +4.5pp** (the bar coding-focused skills must clear). LLM-self-generated skill bodies showed 0 net benefit.
+- arXiv [2601.16746 — SWE-Pruner](https://arxiv.org/abs/2601.16746) — [code](https://github.com/Ayanami1314/swe-pruner): 0.6B neural skimmer + goal hint; **23–54% token reduction on SWE-bench Verified at iso-pass-rate**. Candidate skill: `neural-skim`.
+- arXiv [2508.21433 — Complexity Trap](https://arxiv.org/abs/2508.21433) (Aug 2025) — on SWE-bench × 5 models, **plain observation masking halves cost and matches LLM summarization.** **Required control** in [`eval/FINDINGS.md`](eval/FINDINGS.md): compression / compaction skills must beat masking to count as a measured win.
+- arXiv [2510.00615 — ACON](https://arxiv.org/abs/2510.00615) — [Microsoft code](https://github.com/microsoft/acon): 26–54% token reduction at 95% accuracy retention; paired-trajectory evaluation recipe worth stealing for compaction skills.
+- arXiv [2604.19572 — TACO](https://arxiv.org/abs/2604.19572) (Apr 2026) — training-free; learns reusable compression rules from trajectories; tested on TerminalBench / SWE-Bench Lite / DevEval.
+- arXiv [2604.10235 — CodeComp](https://arxiv.org/abs/2604.10235) — structural KV-cache compression for agentic coding; uses Code Property Graph priors; reference for the KV-cache mechanism in [`compress-context`](skills/compress-context/SKILL.md).
+- arXiv [2602.12430 — Agent Skills for LLMs: Architecture, Acquisition, Security](https://arxiv.org/abs/2602.12430) — field-defining survey on SKILL.md + progressive context loading + skills/MCP complementarity. Cite as the taxonomy paper Token Economy fits into.
+- arXiv [2602.11988 — Evaluating AGENTS.md](https://arxiv.org/abs/2602.11988) — context files **reduce success rate, +20% cost** across 138 niche Python tasks × 4 frontier models. Contrast with arXiv [2601.20404](https://arxiv.org/abs/2601.20404) (opposite finding on a different set). The contradiction motivates Token Economy's progressive-disclosure design.
 
 ## Prompt engineering & background reading
 

@@ -1,0 +1,127 @@
+---
+name: write-gate
+description: Decide whether a candidate fact deserves persistent memory. Use before writing to wiki-memory, CLAUDE.md, AGENTS.md, or any cross-session store. Scores content on signal (decisions / errors / architecture / code) and rejects reasonless decisions (must embed because… / so that… / to avoid…). Prevents memory pollution at source.
+effort: low
+tools: [Bash, Read, Grep]
+pulse_reminder: before writing durable memory, run write-gate. Reasonless decisions and trivial recaps don't earn a page.
+---
+
+# write-gate
+
+Content-quality gate for persistent memory. Sits between "I think this should be remembered" and the actual write to wiki-memory / CLAUDE.md / any cross-session store.
+
+Two-layer policy:
+
+1. **Execution gate** (existing) — fact came from an action that *executed* and *succeeded*. Plans don't earn pages.
+2. **Content gate** (this skill) — fact has signal AND, if it's a decision/convention, gives a reason.
+
+The execution gate is already enforced by `wiki-memory`'s `tools/wiki.py` and the [`projects/write-gate`](../../wiki/projects/write-gate.md) middleware. This skill adds the content gate.
+
+## When to call
+
+Before any persistent write:
+
+- `python skills/wiki-memory/tools/wiki.py new …` — wiki-memory's own write path
+- direct edits to `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`
+- `mcp__memory__*` writes
+- any "save this for later" action
+
+Trigger phrases: "remember that …", "log this …", "add to memory", "record …", "write a note about …", "this should go in the wiki".
+
+## How it scores
+
+Signal score = sum of weighted features in the candidate text. Threshold defaults to **3.0** (tunable per project in `wiki/L0_rules.md`).
+
+| Feature | Weight | Match |
+|---|---:|---|
+| Decision marker | +2.0 | "we decided", "chose X over Y", "going with", "rejected" |
+| Error / failure | +2.0 | "failed because", "fix:", "bug:", regex `error\|panic\|traceback` in cited evidence |
+| Architecture / system fact | +1.5 | "runs on", "calls", "depends on", named systems / dirs / endpoints |
+| Code block present | +1.0 | text contains a fenced ` ``` ` block |
+| Exact numbers / measurements | +1.0 | regex `\d+(%|ms|s|x|ops|qps|MB|GB|tokens)\b` |
+| Named entity overlap | +0.5 each (capped 1.5) | repeated capitalized identifiers / paths |
+| Filler / recap | −1.5 | "in summary", "to recap", "as I mentioned", "basically what we did" |
+| Speculation | −1.5 | "might", "probably", "I think", "seems like", "could maybe" |
+
+If the text is classified as a **decision or convention** (decision-marker hit OR `kind: decision` frontmatter), it must additionally contain a why-clause:
+
+> `because …` | `so that …` | `to avoid …` | `since …` | `in order to …`
+
+Decisions without why-clauses are rejected outright, regardless of signal score.
+
+Source for the formula: [ogham-mcp/ogham-mcp](https://github.com/ogham-mcp/ogham-mcp) (signal-score lifecycle, 91.8% QA / 97.2% R@10 on LongMemEval). Source for the why-clause requirement: [codenamev/claude_memory](https://github.com/codenamev/claude_memory) (100% on 100-case FEVER-derived test).
+
+## CLI
+
+```bash
+# score a piece of text from stdin or a file
+python skills/write-gate/tools/write_gate.py score --kind fact < candidate.md
+python skills/write-gate/tools/write_gate.py score --kind decision --text "We chose pgvector over Qdrant because dev parity"
+
+# explain why something was rejected
+python skills/write-gate/tools/write_gate.py explain --text "Basically we did some stuff with the database."
+
+# integrate as a precheck in another script
+python skills/write-gate/tools/write_gate.py gate --kind decision --file ./candidate.md && echo "write it" || echo "rejected"
+```
+
+Exit codes:
+- `0` — gate passed (signal ≥ threshold, why-clause present if decision)
+- `1` — rejected (signal below threshold OR missing why-clause)
+- `2` — bad input / usage error
+
+## Protocol
+
+Before persistent write:
+
+1. Run `write_gate.py gate --kind <kind> --file <candidate>`.
+2. On exit 0: proceed with write.
+3. On exit 1: read the explanation. Either revise the candidate (add the reason, cite evidence, drop the filler) or drop the write entirely. Do not bypass.
+4. Bypass is only legitimate when the user explicitly says "save it anyway" or "I know it's thin, save it" — record the override in `wiki/log.md`.
+
+## What this prevents
+
+Without a content gate, memory fills with:
+- "We decided to use library X" with no reason → can't be re-evaluated later
+- Recaps of conversation already in the transcript
+- Speculation cached as fact
+- Trivia inflated into procedures
+
+Result: noisy memory → wrong context injected → worse answers. This skill makes write-side quality the bottleneck instead of post-hoc cleanup.
+
+## Anti-patterns
+
+- Don't gate non-persistent state (todos, scratch pads). The gate is for stuff that will be re-read across sessions.
+- Don't tune the threshold higher than 4.5 — at that point you reject almost everything and the wiki goes stale. Default 3.0 is calibrated to ogham's reported retrieval numbers.
+- Don't combine this gate with an LLM-judge gate in series unless you've measured that the judge actually catches things the rules miss; double-gating doubles latency for marginal gain.
+
+## Related skills
+
+- [`wiki-memory`](../wiki-memory/SKILL.md) — owns the actual write path; this skill is its precheck.
+- [`verify-before-completion`](../verify-before-completion/SKILL.md) — execution-gate sibling; together they enforce "no execution, no memory; no reason, no decision."
+- [`memory-decay`](../memory-decay/SKILL.md) — what happens to memories *after* they pass this gate.
+
+## Configuration
+
+Optional `wiki/write_gate_config.yaml`:
+
+```yaml
+threshold: 3.0
+require_why_for_decisions: true
+weights:
+  decision: 2.0
+  error: 2.0
+  architecture: 1.5
+  code_block: 1.0
+  numbers: 1.0
+filler_phrases:
+  - in summary
+  - to recap
+  - basically what we did
+```
+
+Absent config → defaults above.
+
+## Status
+
+Skill body shipped; signal-score formula and threshold are ogham's published defaults. EVAL.md tracks the project-local A/B once we have writes flowing through it (target: reduce wiki page-creation rate by ≥40% with no drop in retrieval evidence-rate).

@@ -57,7 +57,7 @@ tools/
 ├── hook.sh        # PreToolUse shell shim (settings.json points here)
 ├── hook.py        # detection logic + JSON output (flock-guarded state)
 ├── install.sh     # wires PreToolUse into project-local .claude/
-└── test.sh        # 17-case self-test; run after editing hook.py
+└── test.sh        # 23-case self-test; run after editing hook.py
 ```
 
 ## Reliability contract

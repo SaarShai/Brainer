@@ -47,13 +47,15 @@ Trigger:
 Protocol:
 1. Search existing pages first.
 2. Prefer updating an existing page over creating a new one; fewer rich pages beat many thin one-off pages.
-3. If no page, run `python skills/wiki-memory/tools/wiki.py new --template page --title "<title>" --domain "<domain>"`.
-4. Name new pages at domain/category level, not task-specific bug names.
-5. Fill v2 frontmatter completely.
-6. For procedures/failures, include when it applies and the exact prevention rule.
-7. Add ≥2 useful wikilinks when possible.
-8. Append `wiki/log.md`.
-9. Run `python ... index`; for new v2 pages run `python ... lint --strict`.
+3. **Pre-check the candidate with [`write-gate`](../write-gate/SKILL.md)** — `python skills/write-gate/tools/write_gate.py gate --kind <kind> --file <candidate>`. If it rejects, revise or drop; do not bypass.
+4. If no page, run `python skills/wiki-memory/tools/wiki.py new --template page --title "<title>" --domain "<domain>"`.
+5. Name new pages at domain/category level, not task-specific bug names.
+6. Fill v2 frontmatter completely.
+7. **Why-clause requirement (decisions / conventions):** the page body must contain at least one of `because …`, `so that …`, `to avoid …`, `since …`, `in order to …`. Reasonless decisions are rejected by write-gate. Source: [codenamev/claude_memory](https://github.com/codenamev/claude_memory) (100% on a 100-case FEVER-derived test).
+8. For procedures/failures, include when it applies and the exact prevention rule.
+9. Add ≥2 useful wikilinks when possible.
+10. Append `wiki/log.md`.
+11. Run `python ... index`; for new v2 pages run `python ... lint --strict`.
 
 ## Lint
 
@@ -63,11 +65,21 @@ python3 tools/wiki.py lint [--strict] [--stale-days N] [--hub-threshold N] [--sc
 
 Always-on findings: broken `[[wikilinks]]`, orphans (0 inbound), duplicate titles, stale `verified:` (>`--stale-days`, default 180, with `age_days`), gravity-well hubs (inbound > `--hub-threshold`, default 20). `--scope` adds extra roots so trees outside the wiki (concepts/, runbooks/, designs/foo/ledger.md) participate in the link graph and get hygiene-scanned. `--strict` adds v2-frontmatter enforcement, missing-provenance / missing-backlinks warnings, and supersession-reverse-link checks.
 
-Write-gate (enforced in `tools/wiki.py`):
+Write-gate (two layers):
+
+**Execution gate** (enforced in `tools/wiki.py`):
 - No durable memory from unexecuted plans.
 - No trivial lookups inflated into fake procedures.
 - `wiki/raw/` is immutable after creation.
 - No duplicate page without supersession.
+
+**Content gate** (enforced by [`write-gate`](../write-gate/SKILL.md) skill):
+- Candidate must score above the signal threshold (decisions / errors / architecture / code / numbers, minus filler / speculation).
+- Decisions and conventions must embed a why-clause.
+
+## Aging
+
+Once a page is in the wiki, [`memory-decay`](../memory-decay/SKILL.md) ages its `confidence` field over time (5% per 30 idle days, default). Error / lesson / SOP pages and high-`evidence_count` pages are protected from decay.
 
 ## Tier layout
 
