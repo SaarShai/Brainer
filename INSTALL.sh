@@ -158,23 +158,35 @@ for tool_installer in "$SRC"/*/tools/install.sh; do
 done
 
 install_graphify() {
-  # Best-effort install of the external `graphify` CLI (PyPI: graphifyy).
-  # Paired by default with `index-first` and `wiki-memory` per the
-  # recommended stack (see README.md). Skip with --no-graphify.
+  # Best-effort install of the `graphify` CLI. Paired by default with
+  # `index-first` and `wiki-memory` per the recommended stack (see README.md).
+  # Skip with --no-graphify.
+  #
+  # We install from our maintained fork's combined-patches branch rather than
+  # PyPI. Published `graphifyy` 0.8.17 ships four bugs that affect our skill
+  # flow (affected/benchmark schema crash, cluster-only silent refusal, update
+  # leaving stale nodes, explain truncating connections with no expansion
+  # flag). Each bug has a single-purpose PR open upstream; until merged, our
+  # fork carries all four fixes layered onto v8. See skills/index-first/EVAL.md
+  # for the bug list and measured impact. When upstream catches up, flip
+  # GRAPHIFY_SOURCE back to the PyPI name `graphifyy` and drop the fork pin.
+  local GRAPHIFY_SOURCE="git+https://github.com/SaarShai/graphify@token-economy-patches"
   echo
-  echo "[graphify] external code-graph tool (PyPI: graphifyy)"
+  echo "[graphify] external code-graph tool (fork pin: SaarShai/graphify@token-economy-patches)"
 
   if command -v graphify >/dev/null 2>&1; then
     local ver
     ver=$(graphify --help 2>&1 | head -1 || true)
     echo "  [skip] graphify already on PATH ($ver)"
+    echo "         to upgrade to the patched fork, run:"
+    echo "           pipx install --force '$GRAPHIFY_SOURCE'"
     return 0
   fi
 
   # Try pipx first — cleanest for a CLI install.
   if command -v pipx >/dev/null 2>&1; then
     echo "  installing via pipx..."
-    run "pipx install graphifyy"
+    run "pipx install '$GRAPHIFY_SOURCE'"
     return 0
   fi
 
@@ -186,19 +198,19 @@ install_graphify() {
   if [ -z "$py" ]; then
     echo "  [warn] no python3.10+ on PATH and no pipx — graphify not installed."
     echo "         install pipx (recommended) or python3.10+, then run:"
-    echo "           pipx install graphifyy"
+    echo "           pipx install '$GRAPHIFY_SOURCE'"
     return 0
   fi
 
   echo "  no pipx found; installing via $py -m pip install --user..."
   if [ "$DRY_RUN" = "1" ]; then
-    echo "DRY: $py -m pip install --user graphifyy"
+    echo "DRY: $py -m pip install --user '$GRAPHIFY_SOURCE'"
   else
     # Tolerate failures (--break-system-packages may be needed on some
     # Debian/Ubuntu setups; we don't want to assume that)
-    if ! "$py" -m pip install --user graphifyy 2>&1 | sed 's/^/    /'; then
+    if ! "$py" -m pip install --user "$GRAPHIFY_SOURCE" 2>&1 | sed 's/^/    /'; then
       echo "  [warn] graphify install failed via pip --user."
-      echo "         try: pipx install graphifyy"
+      echo "         try: pipx install '$GRAPHIFY_SOURCE'"
       return 0
     fi
   fi

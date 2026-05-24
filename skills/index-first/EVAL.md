@@ -93,24 +93,21 @@ Harness: [`eval/runner_graphify_combo.py`](../../eval/runner_graphify_combo.py).
 - Graphify alone is the safest *single*-store default: 91.7% across kinds, cheapest, captures both code and the subset of project pages that have matching node labels (e.g. `WriteGate`, `delegate`).
 - This validates the boundary clause already in [`wiki-memory/SKILL.md`](../wiki-memory/SKILL.md): graphify = *what/how/connected*; wiki = *why/decision*. When the first store misses, the **kind** of the question tells you which to try next.
 
-### Issue matrix (status as of 2026-05-23, after upstream fixes applied to local install)
+### Issue matrix (status as of 2026-05-24, after self-contained fork pin)
 
-| Risk | Detection | Status |
+Four upstream bugs were measured during integration. **All four are fixed in the build `./install.sh` installs** — pinned to [`SaarShai/graphify@token-economy-patches`](https://github.com/SaarShai/graphify/tree/token-economy-patches), a combined branch off graphify's `v8` layering all four single-purpose fix branches. Anyone running our installer transparently gets the patched build; no manual venv choreography required. Single-purpose PRs were originally filed and closed when we cut over to the self-contained fork pin — they remain available on the fork's `fix/*` branches and link out from each closure comment.
+
+| Risk | Detection | Status in our build |
 |---|---|---|
-| Stale graph after rename/delete | `update` left old nodes (now eviction by source_file path) | **FIXED locally** in `graphify/watch.py`; staleness probe verdict flipped `staleness_undetectable` → `good_staleness_signal` |
-| `affected` / `benchmark` crash on `extract --no-cluster` graphs | Both expected `links` key, found `edges` | **FIXED locally** in `graphify/affected.py` + `graphify/benchmark.py` with the same edges→links normalization already present in `global_graph.py` |
-| `cluster-only` silently misleads on node-count drift | Printed "graph.json updated" while refusing to write | **FIXED locally** in `graphify/__main__.py`: added `--force` flag, exit code 2 with clear refusal otherwise |
+| Stale graph after rename/delete | `update` left old nodes from re-extracted files | **FIXED** — `watch.py` evicts by source_file unconditionally. Regression test: `test_rebuild_code_full_corpus_evicts_renamed_symbols`. Staleness probe verdict: `good_staleness_signal` |
+| `affected` / `benchmark` crash on `extract --no-cluster` graphs | Both expected `links` key, found `edges` | **FIXED** — same edges→links normalization as `global_graph.py`. Regression test: `test_run_benchmark_handles_edges_schema` |
+| `cluster-only` silently misleads on node-count drift | Printed "graph.json updated" while refusing to write | **FIXED** — added `--force` flag, exit 2 with clear refusal otherwise. Regression test: `test_cluster_only_refuses_overwrite_on_node_drift_and_exits_nonzero` |
+| `explain` truncates connections at 20 with no expansion flag | Agent wasted 2–3 calls hunting for the missing flag | **FIXED** — added `--limit N` and `--full`; truncation footer now hints at the flag. Regression test: `test_explain_full_flag_prints_all_connections` |
 | `query` picks wrong start node on symbol questions | 50% evidence rate in A/B | Open — skill text steers `explain` first; an upstream fix would need NL→symbol resolver work |
 | LLM-extracted concept nodes (when run with a backend) | Not tested here — semantic backend unavailable | Open: re-measure with Anthropic/Gemini key when available |
 | Cost on doc-heavy repos | Not measured (code-only run) | Open: requires working semantic backend |
 
-Upstream PRs filed against [safishamsi/graphify](https://github.com/safishamsi/graphify) for the three FIXED items (each ships a regression test, full 1,261-test suite passes on each branch):
-
-- [#1002](https://github.com/safishamsi/graphify/pull/1002) — `fix: accept "edges" schema in affected and benchmark commands`
-- [#1003](https://github.com/safishamsi/graphify/pull/1003) — `fix(cluster-only): add --force flag + non-zero exit when overwrite refused`
-- [#1004](https://github.com/safishamsi/graphify/pull/1004) — `fix(update): evict nodes from re-extracted files, not just by id-match`
-
-Patches are also applied locally to our `.venvs/graphify/` install until the PRs land.
+Combined fork branch passes the full upstream test suite: **1,270 tests pass, 11 skipped**.
 
 ### Test coverage of the skill-text edits themselves
 

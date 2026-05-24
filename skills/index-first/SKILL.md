@@ -63,7 +63,8 @@ Staleness rule: if the graph is older than the last `git HEAD` move on files you
 
 Known issues (graphify 0.8.17, measured 2026-05-23):
 - `graphify query` (NL) picks weak start nodes for symbol-precision questions (50% evidence rate vs 92% for `explain`) — prefer `explain` whenever the question names a symbol.
-- In published 0.8.17, `affected`/`benchmark` crash on a networkx `edges`/`links` schema mismatch, `cluster-only` silently refuses to overwrite on node-count drift, `update` is additive (doesn't drop renamed/deleted symbols), and `explain` truncates connections at 20 with no expansion flag. All four have upstream PRs ([#1002](https://github.com/safishamsi/graphify/pull/1002), [#1003](https://github.com/safishamsi/graphify/pull/1003), [#1004](https://github.com/safishamsi/graphify/pull/1004), [#1008](https://github.com/safishamsi/graphify/pull/1008)) and are patched locally in `.venvs/graphify/`.
+
+(Four other 0.8.17 bugs that affected this skill — `affected`/`benchmark` schema crash, `cluster-only` silent refusal on node-count drift, `update` not evicting stale nodes, `explain` truncating connections with no expansion flag — are fixed in the build that `./install.sh` installs. See [EVAL.md](EVAL.md) for the bug list, regression tests, and the install source.)
 
 ## Lineage
 
