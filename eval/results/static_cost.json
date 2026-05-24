@@ -12,13 +12,25 @@
     "effort_pin": "low"
   },
   {
+    "name": "compliance-canary",
+    "description_tokens": 72,
+    "description_chars": 340,
+    "body_tokens": 1540,
+    "body_chars": 5964,
+    "tools_bytes": 39063,
+    "tools_kb": 38.1,
+    "has_eval_template": true,
+    "model_pin": "haiku",
+    "effort_pin": "low"
+  },
+  {
     "name": "compress-context",
     "description_tokens": 120,
     "description_chars": 446,
     "body_tokens": 520,
     "body_chars": 1927,
-    "tools_bytes": 144688,
-    "tools_kb": 141.3,
+    "tools_bytes": 979161485,
+    "tools_kb": 956212.4,
     "has_eval_template": true,
     "model_pin": "",
     "effort_pin": "medium"
@@ -27,10 +39,10 @@
     "name": "context-keeper",
     "description_tokens": 55,
     "description_chars": 281,
-    "body_tokens": 304,
-    "body_chars": 1261,
-    "tools_bytes": 14692,
-    "tools_kb": 14.3,
+    "body_tokens": 493,
+    "body_chars": 2088,
+    "tools_bytes": 17066,
+    "tools_kb": 16.7,
     "has_eval_template": true,
     "model_pin": "haiku",
     "effort_pin": "low"
@@ -48,6 +60,30 @@
     "effort_pin": "low"
   },
   {
+    "name": "handoff-from",
+    "description_tokens": 92,
+    "description_chars": 400,
+    "body_tokens": 700,
+    "body_chars": 2792,
+    "tools_bytes": 5951,
+    "tools_kb": 5.8,
+    "has_eval_template": false,
+    "model_pin": "",
+    "effort_pin": "low"
+  },
+  {
+    "name": "index-first",
+    "description_tokens": 107,
+    "description_chars": 469,
+    "body_tokens": 1634,
+    "body_chars": 6657,
+    "tools_bytes": 0,
+    "tools_kb": 0.0,
+    "has_eval_template": true,
+    "model_pin": "",
+    "effort_pin": "low"
+  },
+  {
     "name": "lean-execution",
     "description_tokens": 51,
     "description_chars": 222,
@@ -60,13 +96,25 @@
     "effort_pin": "low"
   },
   {
+    "name": "loop-breaker",
+    "description_tokens": 76,
+    "description_chars": 362,
+    "body_tokens": 976,
+    "body_chars": 4003,
+    "tools_bytes": 22940,
+    "tools_kb": 22.4,
+    "has_eval_template": true,
+    "model_pin": "haiku",
+    "effort_pin": "low"
+  },
+  {
     "name": "output-filter",
     "description_tokens": 70,
     "description_chars": 347,
     "body_tokens": 308,
     "body_chars": 1294,
-    "tools_bytes": 16161,
-    "tools_kb": 15.8,
+    "tools_bytes": 16353,
+    "tools_kb": 16.0,
     "has_eval_template": true,
     "model_pin": "",
     "effort_pin": "low"
@@ -89,8 +137,8 @@
     "description_chars": 311,
     "body_tokens": 871,
     "body_chars": 3226,
-    "tools_bytes": 21657,
-    "tools_kb": 21.1,
+    "tools_bytes": 21704,
+    "tools_kb": 21.2,
     "has_eval_template": true,
     "model_pin": "",
     "effort_pin": "low"
@@ -101,10 +149,22 @@
     "description_chars": 348,
     "body_tokens": 427,
     "body_chars": 1695,
-    "tools_bytes": 35338,
-    "tools_kb": 34.5,
+    "tools_bytes": 147674560,
+    "tools_kb": 144213.4,
     "has_eval_template": true,
     "model_pin": "",
+    "effort_pin": "low"
+  },
+  {
+    "name": "skill-pulse",
+    "description_tokens": 69,
+    "description_chars": 346,
+    "body_tokens": 1539,
+    "body_chars": 6085,
+    "tools_bytes": 22589,
+    "tools_kb": 22.1,
+    "has_eval_template": true,
+    "model_pin": "haiku",
     "effort_pin": "low"
   },
   {
@@ -123,10 +183,10 @@
     "name": "wiki-memory",
     "description_tokens": 90,
     "description_chars": 378,
-    "body_tokens": 682,
-    "body_chars": 2673,
-    "tools_bytes": 63308,
-    "tools_kb": 61.8,
+    "body_tokens": 1026,
+    "body_chars": 3948,
+    "tools_bytes": 68608,
+    "tools_kb": 67.0,
     "has_eval_template": true,
     "model_pin": "",
     "effort_pin": "low"

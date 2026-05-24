@@ -112,6 +112,19 @@ Upstream PRs filed against [safishamsi/graphify](https://github.com/safishamsi/g
 
 Patches are also applied locally to our `.venvs/graphify/` install until the PRs land.
 
+### Test coverage of the skill-text edits themselves
+
+Distinct from testing graphify-the-tool. The integration changes prose in two SKILL.md files; we measured what they cost and whether they steer.
+
+| Aspect | How tested | Result |
+|---|---|---|
+| Always-resident token tax | Re-ran [`eval/static_cost.py`](../../eval/static_cost.py) before/after the graphify edits | **+0 tokens** — descriptions in both `index-first` and `wiki-memory` are unchanged |
+| Triggered-body token cost | Same | `index-first` body 840 → 1634 (+794), `wiki-memory` body 844 → 1026 (+182). Paid only when those skills load |
+| Wiki retrieval regression | Ran `WikiStore.search()` deterministically against the 8 baseline questions from [`eval/runner_wiki.py`](../../eval/runner_wiki.py) | Bit-identical hit IDs + scores — the boundary-clause edit is prose only, no code path touched |
+| Does the new recipe steer an agent? | Spawned a fresh subagent (no prior context) with the edited [SKILL.md](SKILL.md) + the graph + a real question | **Yes**: agent reached for `graphify explain` first, no grep. ~2.4K tokens for the graphify path (n=1, directional only — not an N=50 measurement) |
+| End-to-end stack across all axes | Not run | Open — would need a multi-skill harness that fires output + routing + retrieval + memory together against a mixed-prompt corpus |
+| Side finding | Subagent ran into `graphify explain` truncating connections with no flag to expand | Not yet filed upstream; tracked here as the next candidate PR |
+
 ### Ship gate
 
 Per the integration plan's decision gates:
