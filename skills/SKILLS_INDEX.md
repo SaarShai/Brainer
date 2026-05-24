@@ -46,7 +46,7 @@ The eight slots below cover the measured-win axes (output × routing × memory �
 | Terminal output | [`output-filter`](output-filter/SKILL.md) | −88.8% bytes, errors preserved |
 | Claims of done | [`verify-before-completion`](verify-before-completion/SKILL.md) | −33.5% output, evidence-first |
 
-Bootstrap once per project: `python3 skills/wiki-memory/tools/wiki.py init && pipx install graphifyy && graphify extract .`
+Bootstrap once per project: `python3 skills/wiki-memory/tools/wiki.py init && graphify extract .` (graphify is auto-installed by `./install.sh`; pass `--no-graphify` to opt out).
 
 ## Prime directive
 

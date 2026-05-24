@@ -26,11 +26,11 @@ Bootstrap once per project:
 ```bash
 # wiki-memory needs a wiki/ tree:
 python3 ~/.local/share/token-economy/skills/wiki-memory/tools/wiki.py init
-# graphify owns the code graph (external; one-time install):
-pipx install graphifyy && graphify extract .
+# graphify owns the code graph (auto-installed by ./install.sh; build per repo):
+graphify extract .
 ```
 
-After that the stack is on automatically — hooks fire per event, descriptions trigger on prompt shape.
+`./install.sh` pip-installs `graphifyy` from PyPI by default. Opt out with `./install.sh --no-graphify` (the wiki-memory and index-first skills degrade gracefully when the graph isn't present). After bootstrap the stack is on automatically — hooks fire per event, descriptions trigger on prompt shape.
 
 ## The catalog (12 skills)
 
