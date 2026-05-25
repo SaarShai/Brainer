@@ -53,9 +53,12 @@ verified: YYYY-MM-DD
 sources: []
 supersedes: []
 superseded-by:
+contradicts: []
 tags: []
 ---
 ```
+
+`contradicts:` is optional. Use `[[other-page]]` entries to flag two pages that make incompatible claims about the same subject. Lint surfaces these so an agent resolves them rather than retrieving both as truth.
 
 Legacy v1 pages remain readable. Strict lint emits migration warnings for v1 pages and enforces v2 fields on v2/template-generated pages.
 
@@ -896,6 +899,16 @@ class WikiStore:
             if "supersedes" in p.frontmatter or "superseded-by" in p.frontmatter:
                 supersession.append(p.id)
             if strict:
+                contradicts_value = p.frontmatter.get("contradicts", "")
+                for target in re.findall(r"\[\[([^\]]+)\]\]", contradicts_value):
+                    target_id = target.removesuffix(".md")
+                    candidate = next((page for page in pages if page.id == target_id or Path(page.id).name == Path(target_id).name), None)
+                    if candidate is None:
+                        continue
+                    warnings.append({"code": "contradiction", "page": p.id, "target": candidate.id})
+                    if p.id not in candidate.frontmatter.get("contradicts", ""):
+                        warnings.append({"code": "contradiction_missing_reverse", "page": p.id, "target": candidate.id})
+            if strict:
                 if is_v2_page(p.frontmatter):
                     self._lint_v2_page(p, ids, stems, errors, warn)
                     if p.frontmatter.get("type") not in {"raw", "source-summary", "handoff"} and not listish_has_value(p.frontmatter.get("sources", "")):
@@ -1024,6 +1037,11 @@ class WikiStore:
                 target_id = target.removesuffix(".md")
                 if target_id not in ids and Path(target_id).name not in stems:
                     errors.append({"code": "broken_supersession", "page": page.id, "target": target})
+        contradicts_value = fm.get("contradicts", "")
+        for target in re.findall(r"\[\[([^\]]+)\]\]", contradicts_value):
+            target_id = target.removesuffix(".md")
+            if target_id not in ids and Path(target_id).name not in stems:
+                errors.append({"code": "broken_contradiction", "page": page.id, "target": target})
 
     def import_audit(self, manifest: str | Path) -> dict[str, Any]:
         manifest_path = Path(manifest).expanduser()
@@ -1295,6 +1313,7 @@ class WikiStore:
             f"sources: [\"{safe_source}\"]\n"
             "supersedes: []\n"
             "superseded-by:\n"
+            "contradicts: []\n"
             "tags: [ingest, raw]\n"
             "---\n\n"
             f"# {note_title}\n\n"

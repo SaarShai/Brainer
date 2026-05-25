@@ -110,6 +110,77 @@ def test_lint_extra_roots_picks_up_outside_tree(tmp_path):
     assert not any("orphan-out" in b["to"] for b in r2["broken_links"]), r2["broken_links"]
 
 
+def _v2_page(title: str, slug: str, verified: str, contradicts: list[str] | None = None, links: list[str] | None = None) -> str:
+    contradicts_yaml = "[" + ", ".join(f"[[{c}]]" for c in (contradicts or [])) + "]"
+    fm = (
+        "---\n"
+        "schema_version: 2\n"
+        f"title: {title}\n"
+        "type: fact\n"
+        "domain: test\n"
+        "tier: semantic\n"
+        "confidence: 0.8\n"
+        f"created: {verified}\n"
+        f"updated: {verified}\n"
+        f"verified: {verified}\n"
+        "sources: [\"unit-test\"]\n"
+        "supersedes: []\n"
+        "superseded-by:\n"
+        f"contradicts: {contradicts_yaml}\n"
+        "tags: []\n"
+        "---\n"
+    )
+    link_str = ", ".join(f"[[{l}]]" for l in (links or []))
+    return f"{fm}\n# {title}\n\nBody.\n{link_str}\n"
+
+
+def test_contradicts_flagged_and_reverse_required(tmp_path):
+    fresh = date.today().isoformat()
+    _write(tmp_path / "index.md", "# Index\n")
+    _write(tmp_path / "log.md", "# Log\n")
+    _write(tmp_path / "schema.md", "# Schema\n")
+    _write(tmp_path / "L0_rules.md", "# L0\n")
+    _write(tmp_path / "L1_index.md", "# L1\n")
+    # A contradicts B; B does NOT contradict A back.
+    _write(tmp_path / "L2_facts/a.md", _v2_page("A", "a", fresh, contradicts=["L2_facts/b"], links=["b"]))
+    _write(tmp_path / "L2_facts/b.md", _v2_page("B", "b", fresh, links=["a"]))
+    store = WikiStore(tmp_path)
+    r = store.lint_pages(strict=True)
+    codes = [w["code"] for w in r["warnings"]]
+    assert "contradiction" in codes, r["warnings"]
+    assert "contradiction_missing_reverse" in codes, r["warnings"]
+
+
+def test_contradicts_broken_target_errors(tmp_path):
+    fresh = date.today().isoformat()
+    _write(tmp_path / "index.md", "# Index\n")
+    _write(tmp_path / "log.md", "# Log\n")
+    _write(tmp_path / "schema.md", "# Schema\n")
+    _write(tmp_path / "L0_rules.md", "# L0\n")
+    _write(tmp_path / "L1_index.md", "# L1\n")
+    _write(tmp_path / "L2_facts/a.md", _v2_page("A", "a", fresh, contradicts=["L2_facts/ghost"], links=["index"]))
+    store = WikiStore(tmp_path)
+    r = store.lint_pages(strict=True)
+    codes = [e["code"] for e in r["errors"]]
+    assert "broken_contradiction" in codes, r["errors"]
+
+
+def test_contradicts_symmetric_pair_no_reverse_warning(tmp_path):
+    fresh = date.today().isoformat()
+    _write(tmp_path / "index.md", "# Index\n")
+    _write(tmp_path / "log.md", "# Log\n")
+    _write(tmp_path / "schema.md", "# Schema\n")
+    _write(tmp_path / "L0_rules.md", "# L0\n")
+    _write(tmp_path / "L1_index.md", "# L1\n")
+    _write(tmp_path / "L2_facts/a.md", _v2_page("A", "a", fresh, contradicts=["L2_facts/b"], links=["b"]))
+    _write(tmp_path / "L2_facts/b.md", _v2_page("B", "b", fresh, contradicts=["L2_facts/a"], links=["a"]))
+    store = WikiStore(tmp_path)
+    r = store.lint_pages(strict=True)
+    codes = [w["code"] for w in r["warnings"]]
+    assert "contradiction" in codes, r["warnings"]
+    assert "contradiction_missing_reverse" not in codes, r["warnings"]
+
+
 def test_lint_no_false_positives_on_clean_wiki(tmp_path):
     fresh = date.today().isoformat()
     _write(tmp_path / "index.md", "# Index\n")
@@ -138,4 +209,10 @@ if __name__ == "__main__":
         test_lint_extra_roots_picks_up_outside_tree(Path(td))
     with tempfile.TemporaryDirectory() as td:
         test_lint_no_false_positives_on_clean_wiki(Path(td))
+    with tempfile.TemporaryDirectory() as td:
+        test_contradicts_flagged_and_reverse_required(Path(td))
+    with tempfile.TemporaryDirectory() as td:
+        test_contradicts_broken_target_errors(Path(td))
+    with tempfile.TemporaryDirectory() as td:
+        test_contradicts_symmetric_pair_no_reverse_warning(Path(td))
     print("ok")
