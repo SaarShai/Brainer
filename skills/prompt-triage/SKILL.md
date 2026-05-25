@@ -64,7 +64,6 @@ Type `NO TRIAGE` anywhere in the prompt → hook exits silently → main model h
 ## Environment vars
 
 - `AGENTS_TRIAGE_NO_OLLAMA=1` — skip Ollama fallback, regex-only.
-- `AGENTS_TRIAGE_LOG=/path` — log every classification.
 
 ## Cost math (informal)
 

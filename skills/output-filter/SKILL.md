@@ -33,7 +33,27 @@ Optional session-aware suppression (suppresses lines already seen in the current
 
 ## Hook wiring (Claude Code)
 
-Add to `.claude/settings.json` under `PostToolUse` with `matcher: Bash` to filter all Bash output.
+No installer ships yet — wire by hand. Add to `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ./.claude/skills/output-filter/tools/filter.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Or apply the pipe form per-invocation by appending `| bash skills/output-filter/tools/filter.sh` to noisy commands.
 
 ## Files
 

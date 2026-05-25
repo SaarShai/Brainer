@@ -236,6 +236,16 @@ def decay_all(wiki_root: Path, halflife_days: float, today: dt.date,
 
     for p in sorted(wiki_root.rglob("*.md")):
         res = PageResult(path=str(p.relative_to(wiki_root)))
+        # Capture mtime BEFORE reading so the concurrent-write race window only
+        # covers the read itself, not the entire decay-compute phase. Previous
+        # code captured mtime after rewriting the temp file, by which point a
+        # concurrent edit could have happened mid-compute and gone undetected.
+        try:
+            pre_mtime = p.stat().st_mtime
+        except OSError as e:
+            res.error = f"stat: {e}"
+            report.pages.append(res)
+            continue
         try:
             text = p.read_text(errors="ignore")
         except Exception as e:
@@ -286,17 +296,14 @@ def decay_all(wiki_root: Path, halflife_days: float, today: dt.date,
                 res.error = "rewrite failed (could not locate confidence field)"
             else:
                 try:
-                    mtime = p.stat().st_mtime
                     # Atomic write: write to sibling temp + rename. Prevents the
                     # partial-write window where a concurrent reader sees half
-                    # the file. Also detects concurrent writers via mtime check
-                    # before rename — if another process touched the file
-                    # between our read and our write, abort cleanly (lost-update
-                    # is better than wrong-value-update).
+                    # the file. Uses pre_mtime captured BEFORE the read so the
+                    # race window covers read+compute+write, not just the write.
                     tmp = p.with_suffix(p.suffix + f".decay.{os.getpid()}.tmp")
-                    tmp.write_text(new_text)
+                    tmp.write_text(new_text, encoding="utf-8")
                     current_mtime = p.stat().st_mtime
-                    if current_mtime != mtime:
+                    if current_mtime != pre_mtime:
                         tmp.unlink(missing_ok=True)
                         res.error = (
                             f"concurrent-write detected (mtime changed during decay); "
@@ -304,7 +311,7 @@ def decay_all(wiki_root: Path, halflife_days: float, today: dt.date,
                         )
                     else:
                         os.replace(tmp, p)
-                        os.utime(p, (mtime, mtime))  # preserve mtime
+                        os.utime(p, (pre_mtime, pre_mtime))  # preserve mtime
                 except Exception as e:
                     res.error = f"write: {e}"
 

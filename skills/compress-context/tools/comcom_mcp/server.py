@@ -139,9 +139,18 @@ def comcom_estimate_cost(n_calls: int, avg_input_tokens: int,
     Returns:
       JSON string with baseline_cost, comcom_cost, saved_usd, percent_saved.
     """
-    from scripts.cost_estimator import estimate
-    out = estimate(n_calls, avg_input_tokens, avg_output_tokens, model,
-                    savings_rate, verify_overhead_tokens)
+    # scripts/ is a sibling of this package under tools/; tools/ is on sys.path
+    # but scripts/ has no __init__.py, so import via a path-injected module.
+    import importlib.util
+    here = Path(__file__).resolve()
+    estimator_path = here.parent.parent / "scripts" / "cost_estimator.py"
+    spec = importlib.util.spec_from_file_location("comcom_cost_estimator", estimator_path)
+    if spec is None or spec.loader is None:
+        return json.dumps({"error": f"cost_estimator not found at {estimator_path}"})
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    out = mod.estimate(n_calls, avg_input_tokens, avg_output_tokens, model,
+                       savings_rate, verify_overhead_tokens)
     return json.dumps(out)
 
 

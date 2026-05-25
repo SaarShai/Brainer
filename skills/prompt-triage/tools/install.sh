@@ -20,7 +20,11 @@ REPO="$(cd "$TOOLS_DIR/../../.." && pwd)"
 SKILL_DIR="$REPO/.claude/skills"
 AGENT_DIR="$REPO/.claude/agents"
 SETTINGS="$REPO/.claude/settings.json"
-HOOK_CMD="bash $TOOLS_DIR/hook.sh"
+# Repo-relative hook path — matches the convention used by every other
+# hook-shipping skill (compliance-canary, context-keeper, loop-breaker,
+# skill-pulse). An absolute machine-local path breaks if the repo moves
+# or if .claude/settings.json is committed and shared across machines.
+HOOK_CMD="bash ./.claude/skills/prompt-triage/tools/hook.sh"
 AGENTS=(wiki-note quick-fix local-ollama research-lite kaggle-feeder)
 
 merge_settings() {
@@ -86,7 +90,6 @@ Override per-prompt: include "NO TRIAGE" anywhere in your message.
 
 Env:
   AGENTS_TRIAGE_NO_OLLAMA=1     disable Ollama fallback (regex-only)
-  AGENTS_TRIAGE_LOG=/path/log    log every classification
 
 Test the classifier:
   python3 $TOOLS_DIR/classify.py "add a note to the wiki about X"

@@ -34,18 +34,22 @@ Signal score = sum of weighted features in the candidate text. Threshold default
 
 | Feature | Weight | Match |
 |---|---:|---|
-| Decision marker | +2.0 | "we decided", "chose X over Y", "going with", "rejected" |
-| Error / failure | +2.0 | "failed because", "fix:", "bug:", regex `error\|panic\|traceback` in cited evidence |
-| Architecture / system fact | +1.5 | "runs on", "calls", "depends on", named systems / dirs / endpoints |
-| Code block present | +1.0 | text contains a fenced ` ``` ` block |
-| Exact numbers / measurements | +1.0 | regex `\d+(%|ms|s|x|ops|qps|MB|GB|tokens)\b` |
+| Decision marker | +2.0 (cap ×2) | "we decided", "chose X over Y", "going with", "rejected", etc. |
+| Error / failure | +2.0 (cap ×2) | "failed because", "fix:", "bug:", regex `error\|panic\|traceback` in cited evidence |
+| Architecture / system fact | +1.5 (cap ×2) | "runs on", "calls", "depends on", named systems / dirs / endpoints |
+| Code block present | +1.0 (cap ×2) | fenced ` ``` ` block; inline `` ` `` ticks count at half-weight |
+| Exact numbers / measurements | +1.0 (cap ×2) | regex `\d+(%|ms|s|x|ops|qps|MB|GB|tokens)\b` |
+| Why-clause present | +1.0 | one of the why-clause phrases below appears in prose (not inside a code fence) |
+| Procedure (≥2 ordered steps) | +2.0 | numbered/bulleted lines (`1. …` / `- …`) — SOP signature |
 | Named entity overlap | +0.5 each (capped 1.5) | repeated capitalized identifiers / paths |
-| Filler / recap | −1.5 | "in summary", "to recap", "as I mentioned", "basically what we did" |
-| Speculation | −1.5 | "might", "probably", "I think", "seems like", "could maybe" |
+| Filler / recap | −1.5 each | "in summary", "to recap", "as I mentioned", "basically what we did" |
+| Speculation | −1.5 each | "might", "probably", "I think", "seems like", "could maybe" |
 
-If the text is classified as a **decision or convention** (decision-marker hit OR `kind: decision` frontmatter), it must additionally contain a why-clause:
+If the text is classified as a **decision or convention** (decision-marker hit OR `kind: decision` frontmatter), it must additionally contain a why-clause. Accepted phrases:
 
-> `because …` | `so that …` | `to avoid …` | `since …` | `in order to …`
+> `because …` | `so that …` | `to avoid …` | `in order to …` | `due to …` | `in favor of …` | `rather than …` | `the reason …`
+
+Note: `since` is intentionally absent — it's overwhelmingly temporal in practice ("tracked since yesterday") and was bypassing the gate as a pseudo-causal token. Use `because` or `in order to` instead.
 
 Decisions without why-clauses are rejected outright, regardless of signal score.
 

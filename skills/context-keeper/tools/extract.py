@@ -15,7 +15,7 @@ Schema (stable — pre-registered):
   - pending_todos    unchecked items from TodoWrite (if present)
 
 Usage:
-  python3 extract.py <transcript.jsonl> [--out path.md] [--llm gemma4:31b]
+  python3 extract.py <transcript.jsonl> [--out path.md] [--llm qwen3:8b]
 """
 import argparse, json, os, re, sys, time, urllib.request
 from collections import defaultdict
@@ -29,7 +29,7 @@ IMPERATIVE_RE = re.compile(r"^(?:build|make|create|fix|find|implement|add|run|te
 
 
 def iter_events(path):
-    with open(path) as f:
+    with open(path, encoding="utf-8", errors="replace") as f:
         for line in f:
             try: yield json.loads(line)
             except: continue
@@ -154,7 +154,7 @@ def regex_extract(events):
     return result
 
 
-def llm_extract(events, model="gemma4:31b"):
+def llm_extract(events, model="qwen3:8b"):
     """Local LLM pass: ask a model to extract decisions + failed-attempts with rationale."""
     # Take last ~50 turns of readable text (cap at ~8K tokens input)
     text_blobs = []
@@ -262,7 +262,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("transcript")
     ap.add_argument("--out", default=None)
-    ap.add_argument("--llm", default=None, help="Ollama model for extraction (e.g. gemma4:31b)")
+    ap.add_argument("--llm", default=None, help="Ollama model for extraction (e.g. qwen3:8b)")
     ap.add_argument("--session-id", default=None)
     ap.add_argument("--pointer-only", action="store_true", help="print terse pointer to stdout for hook use")
     args = ap.parse_args()
@@ -278,7 +278,7 @@ def main():
     repo_root = Path(os.environ.get("TOKEN_ECONOMY_ROOT", Path.cwd()))
     out_path = Path(args.out) if args.out else repo_root / ".token-economy" / "sessions" / f"{time.strftime('%Y-%m-%d-%H%M', time.gmtime())}-{sid[:8]}.md"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(md)
+    out_path.write_text(md, encoding="utf-8")
 
     # Terse pointer for PreCompact hook: gets injected into compaction context
     n_files = len(regex_out.get("files_touched", []))

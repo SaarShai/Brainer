@@ -115,7 +115,10 @@ DYNAMIC_PATTERNS = [
     (re.compile(r"\b(?:datetime\.now|time\.time|Date\.now|new Date\(\))\b"), "wall-clock call"),
     (re.compile(r"\$RANDOM|os\.urandom|secrets\.token"), "RNG call"),
     (re.compile(r"^\s*timestamp\s*[:=]", re.I | re.M), "timestamp field"),
-    (re.compile(r"\b[A-Za-z]+-[a-f0-9]{8,}\b"), "session/uuid-shaped token"),
+    # session/uuid-shaped token. Must start with `(?:session|sid|trace|req|run)`
+    # so we don't false-flag git commit refs (`abc-1234567890`), container ids,
+    # or lockfile hashes that share the `<word>-<hex>` shape.
+    (re.compile(r"\b(?:session|sid|trace|req|run|conv)[A-Za-z0-9]{0,12}-[a-f0-9]{8,}\b", re.I), "session/uuid-shaped token"),
     # NB: `hostname` (backticked) is intentionally NOT checked — same
     # Markdown-typography ambiguity as command-substitution. The bare env-var
     # and Python-call forms are unambiguous.
@@ -176,13 +179,6 @@ def _inside_fence_fast(fence_positions: list[int], pos: int) -> bool:
     return bisect.bisect_right(fence_positions, pos) % 2 == 1
 
 
-def _inside_fence(text: str, pos: int) -> bool:
-    """True if pos is inside a triple-backtick code fence."""
-    fences = [m.start() for m in re.finditer(r"```", text)]
-    count_before = sum(1 for f in fences if f < pos)
-    return count_before % 2 == 1
-
-
 def _inside_inline_code(text: str, pos: int) -> bool:
     """True if pos sits inside `…` inline code (single backticks, not triple).
 
@@ -236,7 +232,11 @@ def check_sizing(report: Report, root: Path) -> None:
 
 # --- Rule 4: model switching ---------------------------------------------
 
-MODEL_FIELDS = re.compile(r'"model"\s*:\s*"([^"]+)"|"(haiku|sonnet|opus)"', re.I)
+# Only match an actual `"model": "..."` JSON key — the previous bare
+# `"haiku"|"sonnet"|"opus"` alternation false-flagged any string anywhere in a
+# settings file (descriptions, comments, tool-use prose) that happened to
+# include a model name.
+MODEL_FIELDS = re.compile(r'"(?:model|model_id|defaultModel)"\s*:\s*"([^"]+)"', re.I)
 
 
 def check_model_switching(report: Report, files: list[Path]) -> None:
@@ -249,7 +249,7 @@ def check_model_switching(report: Report, files: list[Path]) -> None:
         except Exception:
             continue
         for m in MODEL_FIELDS.finditer(text):
-            model = (m.group(1) or m.group(2) or "").lower()
+            model = (m.group(1) or "").lower()
             if not model:
                 continue
             seen_models.setdefault(model, []).append(str(p))
@@ -280,9 +280,15 @@ INLINE_WRITE_RE = re.compile(
     r"open\([^)]*['\"]\s*[wa]['\"]|"
     r"\.(?:write_text|write|append_text|writeFileSync|appendFileSync))"
 )
-# Detect a hook command that invokes an executable script we can read
+# Detect a hook command that invokes an executable script we can read.
+# Two shapes:
+#   1. interpreter + script    — `python foo.py`, `node bar.mjs`, `bash baz.sh`,
+#      `npx tsx foo.ts`, `ts-node foo.ts`, `uv run x.py`, `deno run foo.ts`, etc.
+#   2. direct script invocation — `./script.sh`, `/abs/path/x.py`, `./run.mjs`
 SCRIPT_INVOKE_RE = re.compile(
-    r"\b(?:python3?|node|bash|sh|deno|bun)\s+([^\s'\"&|;]+\.(?:py|js|mjs|ts|sh|bash))"
+    r"\b(?:python3?|node|bash|sh|deno(?:\s+run)?|bun|npx\s+tsx|ts-node|tsx|uv\s+run|pnpm\s+(?:dlx|exec))"
+    r"\s+([^\s'\"&|;]+\.(?:py|js|mjs|cjs|ts|tsx|sh|bash))"
+    r"|(?<![\w-])((?:\./|/)[^\s'\"&|;]+\.(?:py|js|mjs|cjs|ts|tsx|sh|bash))(?=\s|$)"
 )
 
 
@@ -362,9 +368,12 @@ def check_fork_safety(report: Report, files: list[Path]) -> None:
                         "SessionStart instead, or write to a sidecar."
                     ),
                 ))
-            # Script-following: open invoked scripts and grep for prefix writes
+            # Script-following: open invoked scripts and grep for prefix writes.
+            # group(1) = interpreter+script form; group(2) = direct ./ or /abs path.
             for script_match in SCRIPT_INVOKE_RE.finditer(blob):
-                token = script_match.group(1)
+                token = script_match.group(1) or script_match.group(2)
+                if not token:
+                    continue
                 script = _resolve_script(token, p)
                 if not script:
                     continue
@@ -443,11 +452,19 @@ def check_ordering_and_tools(report: Report, root: Path) -> None:
     fp_path = root / FINGERPRINT_NAME
     new_fp = compute_fingerprint(root)
     if not fp_path.exists():
-        # first run — just write the baseline
+        # First run — write the baseline. If the directory is read-only (CI
+        # checkouts often are), surface that loudly: silently swallowing the
+        # write means rules 1 + 3 silently report "initialized" forever and
+        # never detect a real drift.
         try:
             fp_path.write_text(json.dumps(new_fp, indent=2, sort_keys=True))
-        except Exception:
-            pass
+        except OSError as e:
+            report.add(Finding(
+                rule=1, severity="WARN",
+                title=f"could not persist {FINGERPRINT_NAME} baseline ({e})",
+                detail="Rules 1 and 3 require a writable project root. Re-run from a writable checkout, or run as a user with write access.",
+            ))
+            return
         report.add(Finding(
             rule=1, severity="OK",
             title="ordering/tool fingerprint initialized (no prior baseline)",
@@ -478,11 +495,16 @@ def check_ordering_and_tools(report: Report, root: Path) -> None:
             detail="Each description change re-keys the cache for any prompt that loaded that skill.",
         ))
 
-    # update baseline
+    # Update baseline. Surface write failures (read-only checkout) so the next
+    # run doesn't silently use stale comparison data.
     try:
         fp_path.write_text(json.dumps(new_fp, indent=2, sort_keys=True))
-    except Exception:
-        pass
+    except OSError as e:
+        report.add(Finding(
+            rule=1, severity="WARN",
+            title=f"could not update {FINGERPRINT_NAME} ({e})",
+            detail="Future runs will compare against the previous (now-stale) baseline until the file is writable.",
+        ))
 
 
 # --- Driver ---------------------------------------------------------------

@@ -60,7 +60,7 @@ Protocol:
 ## Lint
 
 ```
-python3 tools/wiki.py lint [--strict] [--stale-days N] [--hub-threshold N] [--scope PATH ...]
+python3 skills/wiki-memory/tools/wiki.py lint [--strict] [--stale-days N] [--hub-threshold N] [--scope PATH ...]
 ```
 
 Always-on findings: broken `[[wikilinks]]`, orphans (0 inbound), duplicate titles, stale `verified:` (>`--stale-days`, default 180, with `age_days`), gravity-well hubs (inbound > `--hub-threshold`, default 20). `--scope` adds extra roots so trees outside the wiki (concepts/, runbooks/, designs/foo/ledger.md) participate in the link graph and get hygiene-scanned. `--strict` adds v2-frontmatter enforcement, missing-provenance / missing-backlinks warnings, and supersession-reverse-link checks.
@@ -120,7 +120,9 @@ When writing a new page, first run `graphify query "<topic>"` (or grep `graphify
 tools/
 ├── wiki.py            # search/fetch/timeline/new/index/lint
 ├── code_map.py        # symbol-level navigation aid
-├── write_gate.py      # gate library (no execution, no memory)
+├── config.py          # path + threshold defaults
+├── tokens.py          # shared token estimator
 ├── wiki_mcp/          # optional MCP server
-└── INSTALL.md
+├── test_lint_hygiene.py
+└── README.md
 ```

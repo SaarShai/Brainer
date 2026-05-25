@@ -12,7 +12,7 @@ verified: "{{date}}"
 sources: []
 supersedes: []
 superseded-by:
-tags: [handoff, context-refresh]
+tags: [handoff]
 context-pct-at-refresh: "{{context_pct}}"
 next-mode: plan-first
 ---

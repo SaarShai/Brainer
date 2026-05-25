@@ -81,7 +81,7 @@ python skills/cache-lint/tools/cache_lint.py audit . --list-targets
 ## Related
 
 - [`verify-before-completion`](../verify-before-completion/SKILL.md) — same shape: evidence before claims, run before merging.
-- [`compliance-canary`](../compliance-canary/SKILL.md) — `drift_probes.json` here lets the canary scan recent sessions for cache-bust smells without re-running the full audit.
+- [`compliance-canary`](../compliance-canary/SKILL.md) — complementary live-session monitor; pair with `cache-lint` for static + dynamic coverage.
 - [`prompt-triage`](../prompt-triage/SKILL.md) — routes to cheaper models, but routing decisions on the *hot path* (Rule 4) are cache-busts. cache-lint flags this conflict.
 
 ## Status

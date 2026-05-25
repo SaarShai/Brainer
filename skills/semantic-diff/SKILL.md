@@ -36,14 +36,17 @@ Once installed, agents call `read_file_smart(path)` instead of regular Read. Fir
 Clear the cache when you want a fresh full read:
 
 ```python
-snapshot_clear(path)
+snapshot_clear(session_id="default")     # drop all cached snapshots for session
 ```
 
 Inspect cache state:
 
 ```python
-snapshot_status()  # → {file_count, total_nodes_cached, oldest_snapshot_at}
+snapshot_status(session_id="default")    # returns a text summary of cached files
 ```
+
+Both tools accept a `session_id` (default `"default"`) and return a human-readable
+text string. See `tools/semdiff_mcp/server.py` for the exact signatures.
 
 ## Files
 
@@ -51,7 +54,7 @@ snapshot_status()  # → {file_count, total_nodes_cached, oldest_snapshot_at}
 tools/
 ├── semdiff/          # AST diff library
 ├── semdiff_mcp/      # MCP server
-├── plugin/           # CC plugin wrapper (.mcp.json)
+├── plugin/           # CC plugin wrapper (.claude-plugin/, .mcp.json)
 ├── tests/
 ├── install.sh
 └── INSTALL.md        # per-host install

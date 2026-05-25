@@ -21,7 +21,7 @@ Do NOT use this for:
 
 ## Strict trigger gate
 
-Fires **only** when the user's most recent message starts with the literal token `/handoff-from` (case-insensitive). Otherwise **exit silently** — do not write a file, do not mention this skill.
+Fires **only** when the user's most recent message starts with the literal token `/handoff-from` (case-insensitive) followed by whitespace or end-of-line. Otherwise **exit silently** — do not write a file, do not mention this skill.
 
 ## Usage
 

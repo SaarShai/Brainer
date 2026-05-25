@@ -11,7 +11,7 @@ disable-model-invocation: true
 
 ## Strict trigger gate
 
-Fires **only** when the user's most recent message starts with the literal token `/handoff` (case-insensitive). If the message doesn't start with `/handoff`, **exit silently** — do not write a file, do not propose a handoff, do not mention this skill.
+Fires **only** when the user's most recent message starts with the literal token `/handoff` (case-insensitive) followed by whitespace, end-of-line, or `--`. **Do not fire on `/handoff-from…`** — that's a different skill. If the message doesn't match, **exit silently** — do not write a file, do not propose a handoff, do not mention this skill.
 
 ## Three modes
 

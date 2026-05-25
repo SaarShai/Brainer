@@ -60,7 +60,7 @@ def find_transcript(query: str, tdir: Path) -> Path | None:
 def count_events(path: Path) -> int:
     n = 0
     try:
-        with open(path) as f:
+        with open(path, encoding="utf-8", errors="replace") as f:
             for _ in f:
                 n += 1
     except OSError:
@@ -109,6 +109,11 @@ def main() -> int:
         return fail(
             f"extract.py did not produce sidecar at {out} "
             f"(rc={proc.returncode}, stderr={proc.stderr[:200]!r})"
+        )
+    if proc.returncode != 0:
+        return fail(
+            f"extract.py exited rc={proc.returncode} (sidecar may be partial); "
+            f"stderr={proc.stderr[:200]!r}"
         )
 
     age = time.time() - tpath.stat().st_mtime

@@ -23,6 +23,7 @@ the user's prompt.
 from __future__ import annotations
 
 import fcntl
+import hashlib
 import json
 import os
 import re
@@ -48,12 +49,21 @@ def state_dir() -> Path:
     override = os.environ.get("SKILL_PULSE_STATE_DIR")
     if override:
         return Path(override)
-    return Path(".token-economy/skill-pulse")
+    # Anchor to CLAUDE_PROJECT_DIR — process cwd isn't stable across hook calls
+    # (the agent can `cd` mid-session), and a cwd-relative path silently
+    # fragments per-session state across directories.
+    project = os.environ.get("CLAUDE_PROJECT_DIR")
+    base = Path(project) if project else Path.cwd()
+    return base / ".token-economy" / "skill-pulse"
 
 
 def state_path(session_id: str) -> Path:
-    sid8 = (session_id or "unknown")[:8] or "unknown"
-    return state_dir() / f"{sid8}.json"
+    # SHA-256 truncated to 16 hex chars: ~2^64 namespace, collision-safe even
+    # across long-lived multi-project setups. Previous 8-char raw prefix could
+    # collide for sessions whose ids shared a prefix.
+    sid = session_id or "unknown"
+    sid_hash = hashlib.sha256(sid.encode("utf-8", errors="replace")).hexdigest()[:16]
+    return state_dir() / f"{sid_hash}.json"
 
 
 def skills_root() -> Path:

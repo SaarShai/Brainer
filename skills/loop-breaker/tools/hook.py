@@ -100,7 +100,14 @@ def state_dir() -> Path:
     override = os.environ.get("LOOP_BREAKER_STATE_DIR")
     if override:
         return Path(override)
-    return Path(".token-economy/loop-breaker")
+    # Anchor to the project dir Claude Code reports — process cwd is NOT stable
+    # across tool calls (the agent can `cd` mid-session), and a relative state
+    # path would silently fragment the per-session counter across multiple
+    # directories. CLAUDE_PROJECT_DIR is set by Claude Code for every hook
+    # invocation. Fall back to cwd if it's missing (other hosts / tests).
+    project = os.environ.get("CLAUDE_PROJECT_DIR")
+    base = Path(project) if project else Path.cwd()
+    return base / ".token-economy" / "loop-breaker"
 
 
 def state_path(session_id: str) -> Path:

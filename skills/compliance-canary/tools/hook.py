@@ -28,6 +28,7 @@ the user.
 from __future__ import annotations
 
 import fcntl
+import hashlib
 import json
 import os
 import re
@@ -67,12 +68,20 @@ def state_dir() -> Path:
     override = os.environ.get("COMPLIANCE_CANARY_STATE_DIR")
     if override:
         return Path(override)
-    return Path(".token-economy/compliance-canary")
+    # Anchor to CLAUDE_PROJECT_DIR — process cwd isn't stable across hook
+    # invocations, and a cwd-relative path silently fragments per-session
+    # state across directories the agent has cd'd into.
+    project = os.environ.get("CLAUDE_PROJECT_DIR")
+    base = Path(project) if project else Path.cwd()
+    return base / ".token-economy" / "compliance-canary"
 
 
 def state_path(session_id: str) -> Path:
-    sid8 = (session_id or "unknown")[:8] or "unknown"
-    return state_dir() / f"{sid8}.json"
+    # 16-hex SHA prefix: collision-safe even when distinct sessions share the
+    # same 8-char id prefix (previous bug — overwrote each other's state).
+    sid = session_id or "unknown"
+    sid_hash = hashlib.sha256(sid.encode("utf-8", errors="replace")).hexdigest()[:16]
+    return state_dir() / f"{sid_hash}.json"
 
 
 def skills_root() -> Path:
@@ -313,7 +322,11 @@ def detect_claim_without_evidence(probe: dict, messages: list[dict], tool_uses: 
         "verify_keywords",
         ["test", "pytest", "make", "build", "check", "lint", "curl", "verify"],
     )]
-    lookback = int(probe.get("lookback_tool_uses", 5))
+    try:
+        lookback = int(probe.get("lookback_tool_uses", 5))
+    except (TypeError, ValueError):
+        log_err(f"bad-lookback probe={probe.get('_probe_id')} value={probe.get('lookback_tool_uses')!r}")
+        lookback = 5
     for tu in tool_uses[-lookback:]:
         if tu["name"] not in verify_tools:
             continue

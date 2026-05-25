@@ -24,9 +24,14 @@ Sample size is small. Promote to default after N≥50 on Kaggle T4.
 
 ## Usage (Python)
 
+The skill directory name has a hyphen, so it isn't importable as a Python
+package. Add `tools/` to `sys.path` and import the modules directly:
+
 ```python
-from skills.compress_context.tools.pipeline_v2 import compress
-from skills.compress_context.tools.verify import escalate_gen
+import sys
+sys.path.insert(0, "skills/compress-context/tools")
+from pipeline_v2 import compress
+from verify import escalate_gen
 
 def my_gen(ctx):
     return call_model(prompt=build_prompt(ctx, question))
@@ -37,7 +42,8 @@ answer, meta = escalate_gen(question, context, my_gen, rates=(0.5, 0.7, None))
 
 ## MCP
 
-`tools/comcom_mcp/` exposes `compress_prompt` and `verify_and_generate` as MCP tools for use from any MCP-aware host.
+`tools/comcom_mcp/` exposes four MCP tools — `comcom_compress`, `comcom_verify`,
+`comcom_skip_check`, `comcom_estimate_cost` — for use from any MCP-aware host.
 
 ## Install
 

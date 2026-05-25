@@ -44,7 +44,7 @@ def write_doc(goal: str, out: Path | None) -> Path:
         / f"handoff-{datetime.now().strftime('%Y%m%d-%H%M%S')}.md"
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(packet)
+    out_path.write_text(packet, encoding="utf-8")
     return out_path
 
 
@@ -54,16 +54,40 @@ def route_to_wiki(packet_path: Path, goal: str) -> Path | None:
     Conservative: writes ONE small markdown file per handoff with the
     extracted facts. Does not modify existing wiki pages. The slug uses
     the focus argument so multiple handoffs in a day don't collide.
+
+    Emits v2 frontmatter so `wiki.py lint --strict` accepts the page
+    (missing_v2_field / legacy_missing_frontmatter / missing_provenance
+    would otherwise fire on every routed handoff).
     """
     wiki_root = REPO_ROOT / "wiki" / "L2_facts"
     wiki_root.mkdir(parents=True, exist_ok=True)
-    packet_text = packet_path.read_text()
+    packet_text = packet_path.read_text(encoding="utf-8", errors="replace")
     facts = extract_transcript_facts(packet_text)
     if not any(facts.values()):
         return None
     slug = re.sub(r"[^a-zA-Z0-9]+", "-", (goal or "session").lower()).strip("-")[:40] or "session"
+    today = datetime.now().strftime("%Y-%m-%d")
     out = wiki_root / f"{datetime.now().strftime('%Y%m%d-%H%M')}-{slug}.md"
+    title = (goal or slug).replace('"', '\\"')[:80]
+    packet_ref = str(packet_path).replace('"', '\\"')
     lines = [
+        "---",
+        "schema_version: 2",
+        f'title: "Handoff facts — {title}"',
+        "type: handoff",
+        "domain: framework",
+        "tier: episodic",
+        "confidence: 0.7",
+        f"created: {today}",
+        f"updated: {today}",
+        f"verified: {today}",
+        f'sources: ["{packet_ref}"]',
+        "supersedes: []",
+        "superseded-by:",
+        "contradicts: []",
+        "tags: [handoff, routed]",
+        "---",
+        "",
         f"# Handoff facts — {slug}",
         f"_source: {packet_path}_",
         "",
@@ -75,7 +99,7 @@ def route_to_wiki(packet_path: Path, goal: str) -> Path | None:
         for it in items[:30]:
             lines.append(f"- {it}")
         lines.append("")
-    out.write_text("\n".join(lines))
+    out.write_text("\n".join(lines), encoding="utf-8")
     return out
 
 

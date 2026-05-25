@@ -437,9 +437,6 @@ class WikiStore:
             "projects/context-keeper/README",
             "projects/context-keeper/SKILL",
             "projects/context-keeper-v2/README",
-            "projects/context-refresh/README",
-            "projects/context-refresh/host-context-controls",
-            "projects/delegate-router/README",
             "projects/semdiff/README",
             "projects/skill-crystallizer/README",
             "projects/wiki-search/README",
@@ -857,12 +854,15 @@ class WikiStore:
         missing_provenance = []
         missing_backlinks = []
         errors = []
-        warnings = []
-        class _NoOpWarnings(list[dict[str, Any]]):
-            def append(self, item: dict[str, Any]) -> None:  # legacy-corpus policy: keep evidence, skip warning spam
-                return None
-
-        warn: list[dict[str, Any]] = _NoOpWarnings() if strict else warnings
+        warnings: list[dict[str, Any]] = []
+        # Every strict-mode warning path below already gates on `if strict:`,
+        # so a single binding is correct. The earlier `_NoOpWarnings` shim
+        # silently swallowed 11 codes (duplicate_title / stale_index /
+        # legacy_missing_frontmatter / missing_provenance / missing_backlinks /
+        # supersession_missing_reverse / legacy_frontmatter_v1 / raw_type_not_raw /
+        # orphan / stale_verified / hub_gravity_well) so `result["warnings"]`
+        # only ever surfaced the two contradiction codes.
+        warn: list[dict[str, Any]] = warnings
         title_seen: dict[str, str] = {}
         for p in pages:
             title_key = p.title.strip().lower()
@@ -1213,6 +1213,7 @@ class WikiStore:
         template_map = {
             "page": ("templates/page.template.md", "concepts"),
             "decision": ("templates/decision.template.md", "queries"),
+            "handoff": ("templates/handoff.template.md", "L2_facts"),
             "source-summary": ("templates/source-summary.template.md", "raw"),
             "import-manifest": ("templates/import-manifest.template.md", "raw"),
         }
