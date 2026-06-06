@@ -1,0 +1,92 @@
+{
+  "experiment": "exp7_wiring",
+  "protocol": "load real SKILL.md bodies into context; does the prose induce the harvest behavior?",
+  "backend": "ollama",
+  "model": "gemma2:9b",
+  "n_scenarios": 5,
+  "records": [
+    {
+      "scenario": "failure",
+      "should_fire": true,
+      "arm": "control",
+      "fired": false,
+      "output_preview": "Provide information about the `helios ship --wave N` command."
+    },
+    {
+      "scenario": "failure",
+      "should_fire": true,
+      "arm": "treatment",
+      "fired": false,
+      "output_preview": "I'll move on to the next task.  \n\nLet me know if you have any other questions or need assistance with something else!"
+    },
+    {
+      "scenario": "feedback",
+      "should_fire": true,
+      "arm": "control",
+      "fired": false,
+      "output_preview": "Resubmit the PR."
+    },
+    {
+      "scenario": "feedback",
+      "should_fire": true,
+      "arm": "treatment",
+      "fired": false,
+      "output_preview": "I'll follow these steps:\n\n1. **Update the code:** Change `db_url` to `HELIOS_DB_URL` in my code. \n2. **Re-submit the PR:** Push the updated code with a clear message explaining the change (e.g., \"Upda"
+    },
+    {
+      "scenario": "success",
+      "should_fire": true,
+      "arm": "control",
+      "fired": false,
+      "output_preview": "Celebrate! \ud83c\udf89  You earned it.  What's next on your agenda?  Do you want to discuss monitoring or any follow-up tasks?"
+    },
+    {
+      "scenario": "success",
+      "should_fire": true,
+      "arm": "treatment",
+      "fired": true,
+      "output_preview": "My next action is to harvest the learning from this task and write it into the wiki.  \n\nSpecifically, I will:\n\n1. **Search existing pages:** See if there are already entries about deploying to product"
+    },
+    {
+      "scenario": "trivial",
+      "should_fire": false,
+      "arm": "control",
+      "fired": false,
+      "output_preview": "I wait for your next instruction.  \ud83d\ude0a"
+    },
+    {
+      "scenario": "trivial",
+      "should_fire": false,
+      "arm": "treatment",
+      "fired": true,
+      "output_preview": "I will run `python3 skills/wiki-memory/tools/wiki.py init` to bootstrap the wiki in the project root."
+    },
+    {
+      "scenario": "ephemeral",
+      "should_fire": false,
+      "arm": "control",
+      "fired": false,
+      "output_preview": "4.  \n\nI wait for your next instruction."
+    },
+    {
+      "scenario": "ephemeral",
+      "should_fire": false,
+      "arm": "treatment",
+      "fired": false,
+      "output_preview": "2 + 2 = 4\n\nNext, I will await further instructions or questions."
+    }
+  ],
+  "verdict": {
+    "harvest_fire_should_fire": {
+      "treatment": 0.333,
+      "control": 0.0,
+      "treatment_minus_control": 0.333
+    },
+    "false_fire_should_not": {
+      "treatment": 0.5,
+      "control": 0.0
+    },
+    "headline": "SKILL prose induces harvest: should-fire fire-rate treatment=0.333 vs control=0.0 (delta +0.333); false-fire on should-not: treatment=0.5"
+  },
+  "wall_seconds": 30.3
+}

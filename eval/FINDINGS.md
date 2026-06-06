@@ -151,7 +151,27 @@ The required compaction control, made runnable (was only cited; arXiv 2508.21433
 
 context-keeper wins compression + its *target* fact-types (URLs, numbers); masking wins files/cmds/errors because it keeps 16× more raw text (all call-args + assistant text verbatim). **Not a clean sweep — a real trade.** This *corrects a prior FINDINGS overclaim* ("100% URLs, which masking cannot" — masking actually gets 54.5%). ¹ "16.8× smaller" compares an 11 KB sidecar to a 192 KB masked transcript — different compaction regimes, not like-for-like budgets.
 
-**Combined:** memory is robust to *unrelated* GROWTH (Exp6) and recovers from CHANGE *if you reconcile* (Exp4); confident FALSE memories flip it (Exp5) and the write-gate is the wrong defense layer — `provenance.py` recovers the coexistence case *given a verifier* but not the verifier-less poison-only case; the SKILL prose does induce the harvest (Exp7). **Portfolio caveat (audit):** every number here is **single model (qwen2.5:7b), single run, temp 0, tiny binary N (3–5)** — no confidence intervals, several flip on one trial. Cross-model replication (different family) + the Kaggle N=50 run are the variance backstops, in progress.
+**Combined:** memory is robust to *unrelated* GROWTH (Exp6) and recovers from CHANGE *if you reconcile* (Exp4); confident FALSE memories flip it (Exp5) and the write-gate is the wrong defense layer — `provenance.py` recovers the coexistence case *given a verifier* but not the verifier-less poison-only case; the SKILL prose does induce the harvest (Exp7).
+
+### Cross-model replication — 3 families (`qwen2.5:7b` · `llama3.1:8b` · `gemma2:9b`)
+
+The N-gap backstop: every experiment re-run on three different-vendor families (Alibaba · Meta · Google), all local, temp 0. Are the findings general or qwen-specific?
+
+| finding | qwen2.5:7b | llama3.1:8b | gemma2:9b | verdict |
+|---|---|---|---|---|
+| exp1 memory−cold lift (dependent) | +0.571 | +1.0 | +0.714 | **robust** — always large-positive |
+| exp4 reconcile / stale (current-fact acc) | 1.0 / 0.0 | 1.0 / 0.0 | 1.0 / 0.0 | **robust** — identical |
+| exp5 gate passes adversarial poison | 8/8 | 8/8 | 8/8 | **robust** (deterministic gate) |
+| exp5 poison flips answer (both-arm acc) | 0.5 | 0.25 | 0.0 | **robust** direction; gemma worst-hit |
+| exp5 defense recovers coexistence | 0.5→1.0 | 0.25→1.0 | 0.0→1.0 | **robust** — always →1.0 |
+| exp6 retrieval hit@3 @405 pages | 1.0 | 1.0 | 1.0 | **robust** (gemma gen-acc dipped to 0.8) |
+| exp7 harvest-fire delta (treat−ctl) | +1.0 | +1.0 | +0.333 | **model-dependent** |
+| exp7 false-fire on should-not | 0.0 | 0.5 | 0.5 | **model-dependent** — over-fires |
+
+- **Robust across all three families:** the memory *mechanisms* — compounding lift, contradiction-recovery via reconcile, the gate's truth-blindness, poison degradation, the trust defense (always recovers coexistence to 1.0), and retrieval hit@3 at scale. **These are not qwen artifacts.**
+- **The fragile layer is Exp7 (the trigger prose), and only cross-model exposed it:** the harvest reflex fires reliably on qwen/llama (+1.0) but weakly on gemma (+0.333 — fired on 1 of 3 should-fire), and *over*-fires on trivial prompts on both llama and gemma (false-fire 0.5). So "the prose induces the behavior" holds in spirit but **trigger discipline is model-dependent and imperfect** — it both misses real harvest moments (gemma under-fire) and fires on noise (llama/gemma over-fire). The should-fire condition needs sharpening before the harvest reflex is reliable across models. (2nd-model attempt on `qwen3.6:35b-a3b` was discarded — the reasoning model returned empty outputs via `/api/generate`; `gemma4:26b` was an unusable orphaned manifest.)
+
+**Portfolio caveat:** still single-run, temp 0, tiny binary N (3–5) per experiment, so no CIs — but the 3-family replication removes the "single-model artifact" risk for every finding except Exp7, whose model-dependence is now itself a documented result. The Kaggle N=50 discipline run remains the within-model variance backstop.
 
 ## Per-skill measured wins (live A/B)
 

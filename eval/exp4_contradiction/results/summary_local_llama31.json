@@ -1,0 +1,611 @@
+{
+  "experiment": "exp4_contradiction",
+  "protocol": "intro(v1) -> change(v2 contradicts) -> post-change dependent question",
+  "backend": "ollama",
+  "model": "llama3.1:8b",
+  "n_topics": 3,
+  "arms": [
+    "cold",
+    "stale",
+    "append",
+    "reconcile"
+  ],
+  "per_arm": {
+    "cold": {
+      "n_dependent": 3,
+      "accuracy_current": 0.0,
+      "stale_answer_rate": 0.667,
+      "records": [
+        {
+          "arm": "cold",
+          "task_index": 0,
+          "role": "intro",
+          "slug": "helios-deploy",
+          "retrieved_ids": [],
+          "correct": null,
+          "served_stale": null,
+          "wrote": false,
+          "action": "skip",
+          "gate_score": null
+        },
+        {
+          "arm": "cold",
+          "task_index": 1,
+          "role": "intro",
+          "slug": "helios-config-prefix",
+          "retrieved_ids": [],
+          "correct": null,
+          "served_stale": null,
+          "wrote": false,
+          "action": "skip",
+          "gate_score": null
+        },
+        {
+          "arm": "cold",
+          "task_index": 2,
+          "role": "intro",
+          "slug": "helios-retry",
+          "retrieved_ids": [],
+          "correct": null,
+          "served_stale": null,
+          "wrote": false,
+          "action": "skip",
+          "gate_score": null
+        },
+        {
+          "arm": "cold",
+          "task_index": 3,
+          "role": "change",
+          "slug": "helios-deploy",
+          "retrieved_ids": [],
+          "correct": null,
+          "served_stale": null,
+          "wrote": false,
+          "action": "skip",
+          "gate_score": null
+        },
+        {
+          "arm": "cold",
+          "task_index": 4,
+          "role": "change",
+          "slug": "helios-config-prefix",
+          "retrieved_ids": [],
+          "correct": null,
+          "served_stale": null,
+          "wrote": false,
+          "action": "skip",
+          "gate_score": null
+        },
+        {
+          "arm": "cold",
+          "task_index": 5,
+          "role": "change",
+          "slug": "helios-retry",
+          "retrieved_ids": [],
+          "correct": null,
+          "served_stale": null,
+          "wrote": false,
+          "action": "skip",
+          "gate_score": null
+        },
+        {
+          "arm": "cold",
+          "task_index": 6,
+          "role": "dep",
+          "slug": "helios-deploy",
+          "retrieved_ids": [],
+          "correct": false,
+          "served_stale": false,
+          "tokens": 81,
+          "output_preview": "`ph deploy --wave=3`",
+          "gold_new": "helios launch --wave 3",
+          "gold_old": "helios ship --wave 3"
+        },
+        {
+          "arm": "cold",
+          "task_index": 7,
+          "role": "dep",
+          "slug": "helios-config-prefix",
+          "retrieved_ids": [],
+          "correct": false,
+          "served_stale": true,
+          "tokens": 69,
+          "output_preview": "HELIOS_DB_URL",
+          "gold_new": "HLX_DB_URL",
+          "gold_old": "HELIOS_DB_URL"
+        },
+        {
+          "arm": "cold",
+          "task_index": 8,
+          "role": "dep",
+          "slug": "helios-retry",
+          "retrieved_ids": [],
+          "correct": false,
+          "served_stale": true,
+          "tokens": 75,
+          "output_preview": "max_retries=5",
+          "gold_new": "max_retries=2",
+          "gold_old": "max_retries=5"
+        }
+      ]
+    },
+    "stale": {
+      "n_dependent": 3,
+      "accuracy_current": 0.0,
+      "stale_answer_rate": 1.0,
+      "records": [
+        {
+          "arm": "stale",
+          "task_index": 0,
+          "role": "intro",
+          "slug": "helios-deploy",
+          "retrieved_ids": [
+            "templates/page.template",
+            "schema"
+          ],
+          "correct": null,
+          "served_stale": null,
+          "wrote": true,
+          "action": "create",
+          "gate_score": null
+        },
+        {
+          "arm": "stale",
+          "task_index": 1,
+          "role": "intro",
+          "slug": "helios-config-prefix",
+          "retrieved_ids": [
+            "concepts/helios-deploy",
+            "log",
+            "templates/source-summary.template"
+          ],
+          "correct": null,
+          "served_stale": null,
+          "wrote": true,
+          "action": "create",
+          "gate_score": null
+        },
+        {
+          "arm": "stale",
+          "task_index": 2,
+          "role": "intro",
+          "slug": "helios-retry",
+          "retrieved_ids": [
+            "concepts/helios-config-prefix",
+            "concepts/helios-deploy",
+            "log"
+          ],
+          "correct": null,
+          "served_stale": null,
+          "wrote": true,
+          "action": "create",
+          "gate_score": null
+        },
+        {
+          "arm": "stale",
+          "task_index": 3,
+          "role": "change",
+          "slug": "helios-deploy",
+          "retrieved_ids": [
+            "concepts/helios-deploy",
+            "concepts/helios-retry",
+            "concepts/helios-config-prefix"
+          ],
+          "correct": null,
+          "served_stale": null,
+          "wrote": false,
+          "action": "skip",
+          "gate_score": null
+        },
+        {
+          "arm": "stale",
+          "task_index": 4,
+          "role": "change",
+          "slug": "helios-config-prefix",
+          "retrieved_ids": [
+            "concepts/helios-config-prefix",
+            "concepts/helios-retry",
+            "concepts/helios-deploy"
+          ],
+          "correct": null,
+          "served_stale": null,
+          "wrote": false,
+          "action": "skip",
+          "gate_score": null
+        },
+        {
+          "arm": "stale",
+          "task_index": 5,
+          "role": "change",
+          "slug": "helios-retry",
+          "retrieved_ids": [
+            "concepts/helios-retry",
+            "concepts/helios-config-prefix",
+            "concepts/helios-deploy"
+          ],
+          "correct": null,
+          "served_stale": null,
+          "wrote": false,
+          "action": "skip",
+          "gate_score": null
+        },
+        {
+          "arm": "stale",
+          "task_index": 6,
+          "role": "dep",
+          "slug": "helios-deploy",
+          "retrieved_ids": [
+            "concepts/helios-deploy",
+            "concepts/helios-retry",
+            "concepts/helios-config-prefix"
+          ],
+          "correct": false,
+          "served_stale": true,
+          "tokens": 357,
+          "output_preview": "helios ship --wave 3",
+          "gold_new": "helios launch --wave 3",
+          "gold_old": "helios ship --wave 3"
+        },
+        {
+          "arm": "stale",
+          "task_index": 7,
+          "role": "dep",
+          "slug": "helios-config-prefix",
+          "retrieved_ids": [
+            "concepts/helios-config-prefix",
+            "concepts/helios-retry",
+            "concepts/helios-deploy"
+          ],
+          "correct": false,
+          "served_stale": true,
+          "tokens": 347,
+          "output_preview": "HELIOS_DB_URL",
+          "gold_new": "HLX_DB_URL",
+          "gold_old": "HELIOS_DB_URL"
+        },
+        {
+          "arm": "stale",
+          "task_index": 8,
+          "role": "dep",
+          "slug": "helios-retry",
+          "retrieved_ids": [
+            "concepts/helios-retry",
+            "concepts/helios-config-prefix",
+            "concepts/helios-deploy"
+          ],
+          "correct": false,
+          "served_stale": true,
+          "tokens": 352,
+          "output_preview": "max_retries=5",
+          "gold_new": "max_retries=2",
+          "gold_old": "max_retries=5"
+        }
+      ]
+    },
+    "append": {
+      "n_dependent": 3,
+      "accuracy_current": 1.0,
+      "stale_answer_rate": 0.0,
+      "records": [
+        {
+          "arm": "append",
+          "task_index": 0,
+          "role": "intro",
+          "slug": "helios-deploy",
+          "retrieved_ids": [
+            "templates/page.template",
+            "schema"
+          ],
+          "correct": null,
+          "served_stale": null,
+          "wrote": true,
+          "action": "create",
+          "gate_score": 4.5
+        },
+        {
+          "arm": "append",
+          "task_index": 1,
+          "role": "intro",
+          "slug": "helios-config-prefix",
+          "retrieved_ids": [
+            "concepts/helios-deploy",
+            "log",
+            "templates/source-summary.template"
+          ],
+          "correct": null,
+          "served_stale": null,
+          "wrote": true,
+          "action": "create",
+          "gate_score": 4.5
+        },
+        {
+          "arm": "append",
+          "task_index": 2,
+          "role": "intro",
+          "slug": "helios-retry",
+          "retrieved_ids": [
+            "concepts/helios-config-prefix",
+            "concepts/helios-deploy",
+            "log"
+          ],
+          "correct": null,
+          "served_stale": null,
+          "wrote": true,
+          "action": "create",
+          "gate_score": 6.0
+        },
+        {
+          "arm": "append",
+          "task_index": 3,
+          "role": "change",
+          "slug": "helios-deploy",
+          "retrieved_ids": [
+            "concepts/helios-deploy",
+            "concepts/helios-retry",
+            "concepts/helios-config-prefix"
+          ],
+          "correct": null,
+          "served_stale": null,
+          "wrote": true,
+          "action": "create",
+          "gate_score": 6.5
+        },
+        {
+          "arm": "append",
+          "task_index": 4,
+          "role": "change",
+          "slug": "helios-config-prefix",
+          "retrieved_ids": [
+            "concepts/helios-config-prefix",
+            "concepts/helios-deploy-v2",
+            "concepts/helios-retry"
+          ],
+          "correct": null,
+          "served_stale": null,
+          "wrote": true,
+          "action": "create",
+          "gate_score": 6.5
+        },
+        {
+          "arm": "append",
+          "task_index": 5,
+          "role": "change",
+          "slug": "helios-retry",
+          "retrieved_ids": [
+            "concepts/helios-retry",
+            "concepts/helios-config-prefix-v2",
+            "concepts/helios-deploy-v2"
+          ],
+          "correct": null,
+          "served_stale": null,
+          "wrote": true,
+          "action": "create",
+          "gate_score": 8.5
+        },
+        {
+          "arm": "append",
+          "task_index": 6,
+          "role": "dep",
+          "slug": "helios-deploy",
+          "retrieved_ids": [
+            "concepts/helios-deploy-v2",
+            "concepts/helios-deploy",
+            "concepts/helios-retry-v2"
+          ],
+          "correct": true,
+          "served_stale": false,
+          "tokens": 375,
+          "output_preview": "helios launch --wave 3",
+          "gold_new": "helios launch --wave 3",
+          "gold_old": "helios ship --wave 3"
+        },
+        {
+          "arm": "append",
+          "task_index": 7,
+          "role": "dep",
+          "slug": "helios-config-prefix",
+          "retrieved_ids": [
+            "concepts/helios-config-prefix-v2",
+            "concepts/helios-config-prefix",
+            "concepts/helios-retry-v2"
+          ],
+          "correct": true,
+          "served_stale": false,
+          "tokens": 361,
+          "output_preview": "HLX_DB_URL",
+          "gold_new": "HLX_DB_URL",
+          "gold_old": "HELIOS_DB_URL"
+        },
+        {
+          "arm": "append",
+          "task_index": 8,
+          "role": "dep",
+          "slug": "helios-retry",
+          "retrieved_ids": [
+            "concepts/helios-retry-v2",
+            "concepts/helios-retry",
+            "concepts/helios-config-prefix-v2"
+          ],
+          "correct": true,
+          "served_stale": false,
+          "tokens": 359,
+          "output_preview": "max_retries=2",
+          "gold_new": "max_retries=2",
+          "gold_old": "max_retries=5"
+        }
+      ]
+    },
+    "reconcile": {
+      "n_dependent": 3,
+      "accuracy_current": 1.0,
+      "stale_answer_rate": 0.0,
+      "records": [
+        {
+          "arm": "reconcile",
+          "task_index": 0,
+          "role": "intro",
+          "slug": "helios-deploy",
+          "retrieved_ids": [
+            "templates/page.template",
+            "schema"
+          ],
+          "correct": null,
+          "served_stale": null,
+          "wrote": true,
+          "action": "create",
+          "gate_score": 4.5
+        },
+        {
+          "arm": "reconcile",
+          "task_index": 1,
+          "role": "intro",
+          "slug": "helios-config-prefix",
+          "retrieved_ids": [
+            "concepts/helios-deploy",
+            "log",
+            "templates/source-summary.template"
+          ],
+          "correct": null,
+          "served_stale": null,
+          "wrote": true,
+          "action": "create",
+          "gate_score": 4.5
+        },
+        {
+          "arm": "reconcile",
+          "task_index": 2,
+          "role": "intro",
+          "slug": "helios-retry",
+          "retrieved_ids": [
+            "concepts/helios-config-prefix",
+            "concepts/helios-deploy",
+            "log"
+          ],
+          "correct": null,
+          "served_stale": null,
+          "wrote": true,
+          "action": "create",
+          "gate_score": 6.0
+        },
+        {
+          "arm": "reconcile",
+          "task_index": 3,
+          "role": "change",
+          "slug": "helios-deploy",
+          "retrieved_ids": [
+            "concepts/helios-deploy",
+            "concepts/helios-retry",
+            "concepts/helios-config-prefix"
+          ],
+          "correct": null,
+          "served_stale": null,
+          "wrote": true,
+          "action": "replace",
+          "gate_score": 6.5
+        },
+        {
+          "arm": "reconcile",
+          "task_index": 4,
+          "role": "change",
+          "slug": "helios-config-prefix",
+          "retrieved_ids": [
+            "concepts/helios-config-prefix",
+            "concepts/helios-deploy",
+            "concepts/helios-retry"
+          ],
+          "correct": null,
+          "served_stale": null,
+          "wrote": true,
+          "action": "replace",
+          "gate_score": 6.5
+        },
+        {
+          "arm": "reconcile",
+          "task_index": 5,
+          "role": "change",
+          "slug": "helios-retry",
+          "retrieved_ids": [
+            "concepts/helios-retry",
+            "concepts/helios-config-prefix",
+            "concepts/helios-deploy"
+          ],
+          "correct": null,
+          "served_stale": null,
+          "wrote": true,
+          "action": "replace",
+          "gate_score": 8.5
+        },
+        {
+          "arm": "reconcile",
+          "task_index": 6,
+          "role": "dep",
+          "slug": "helios-deploy",
+          "retrieved_ids": [
+            "concepts/helios-deploy",
+            "concepts/helios-retry",
+            "concepts/helios-config-prefix"
+          ],
+          "correct": true,
+          "served_stale": false,
+          "tokens": 372,
+          "output_preview": "helios launch --wave 3",
+          "gold_new": "helios launch --wave 3",
+          "gold_old": "helios ship --wave 3"
+        },
+        {
+          "arm": "reconcile",
+          "task_index": 7,
+          "role": "dep",
+          "slug": "helios-config-prefix",
+          "retrieved_ids": [
+            "concepts/helios-config-prefix",
+            "concepts/helios-retry",
+            "concepts/helios-deploy"
+          ],
+          "correct": true,
+          "served_stale": false,
+          "tokens": 361,
+          "output_preview": "HLX_DB_URL",
+          "gold_new": "HLX_DB_URL",
+          "gold_old": "HELIOS_DB_URL"
+        },
+        {
+          "arm": "reconcile",
+          "task_index": 8,
+          "role": "dep",
+          "slug": "helios-retry",
+          "retrieved_ids": [
+            "concepts/helios-retry",
+            "concepts/helios-config-prefix",
+            "concepts/helios-deploy"
+          ],
+          "correct": true,
+          "served_stale": false,
+          "tokens": 367,
+          "output_preview": "max_retries=2",
+          "gold_new": "max_retries=2",
+          "gold_old": "max_retries=5"
+        }
+      ]
+    }
+  },
+  "verdict": {
+    "accuracy_current": {
+      "cold": 0.0,
+      "stale": 0.0,
+      "append": 1.0,
+      "reconcile": 1.0
+    },
+    "stale_answer_rate": {
+      "cold": 0.667,
+      "stale": 1.0,
+      "append": 0.0,
+      "reconcile": 0.0
+    },
+    "reconcile_minus_stale": 1.0,
+    "reconcile_minus_append": 0.0,
+    "stale_minus_cold": 0.0,
+    "headline": "post-change CURRENT-fact accuracy \u2014 cold=0.0, stale=0.0, append=1.0, reconcile=1.0; stale-answer rate stale=1.0 append=0.0 reconcile=0.0"
+  },
+  "wall_seconds": 15.4
+}

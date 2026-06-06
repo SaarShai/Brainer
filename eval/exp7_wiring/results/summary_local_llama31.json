@@ -1,0 +1,92 @@
+{
+  "experiment": "exp7_wiring",
+  "protocol": "load real SKILL.md bodies into context; does the prose induce the harvest behavior?",
+  "backend": "ollama",
+  "model": "llama3.1:8b",
+  "n_scenarios": 5,
+  "records": [
+    {
+      "scenario": "failure",
+      "should_fire": true,
+      "arm": "control",
+      "fired": false,
+      "output_preview": "Update the documentation to reflect the correct command for deployment."
+    },
+    {
+      "scenario": "failure",
+      "should_fire": true,
+      "arm": "treatment",
+      "fired": true,
+      "output_preview": "Run `python skills/wiki-memory/tools/wiki.py new --template page --title \"helios-deploy-fail\" --domain \"infrastructure\"` to create a new wiki page documenting the mistake and its resolution."
+    },
+    {
+      "scenario": "feedback",
+      "should_fire": true,
+      "arm": "control",
+      "fired": false,
+      "output_preview": "Update the code to use the correct environment variable name (`HELIOS_DB_URL`) and commit the change with a message indicating that this is a fix for the review comment, e.g., \"Fixed: Use project conv"
+    },
+    {
+      "scenario": "feedback",
+      "should_fire": true,
+      "arm": "treatment",
+      "fired": true,
+      "output_preview": "# Harvest the learning\n\nRun `python skills/wiki-memory/tools/wiki.py new --template page --title \"convention: HELIOS_ prefix\" --domain \"envvars\"` \n\nThis will create a new page in the wiki with the tit"
+    },
+    {
+      "scenario": "success",
+      "should_fire": true,
+      "arm": "control",
+      "fired": false,
+      "output_preview": "Next, I'll update the deployment documentation and commit the changes to the version control system (e.g., Git) with a descriptive commit message."
+    },
+    {
+      "scenario": "success",
+      "should_fire": true,
+      "arm": "treatment",
+      "fired": true,
+      "output_preview": "Run: `wiki-memory tools/wiki.py new --template page --title \"Deploy Success\" --domain \"prod-deploy\"` and fill in the why-clause requirement (e.g., \"because we used `helios ship` with `max_retries=5`\")"
+    },
+    {
+      "scenario": "trivial",
+      "should_fire": false,
+      "arm": "control",
+      "fired": false,
+      "output_preview": "I'll wait in standby mode until you need assistance again."
+    },
+    {
+      "scenario": "trivial",
+      "should_fire": false,
+      "arm": "treatment",
+      "fired": true,
+      "output_preview": "I will create a new page in the `wiki/L2_facts/` directory to record the lesson learned from this task. I'll run the gated write using the `write-gate` skill to ensure the page meets the quality and t"
+    },
+    {
+      "scenario": "ephemeral",
+      "should_fire": false,
+      "arm": "control",
+      "fired": false,
+      "output_preview": "The answer to 2 + 2 is 4.\n\nNext, I'll wait for further instructions or questions from you."
+    },
+    {
+      "scenario": "ephemeral",
+      "should_fire": false,
+      "arm": "treatment",
+      "fired": false,
+      "output_preview": "The answer to the quick sanity check is indeed 4.\n\nNext, I will run a verification fresh and report the exact command + output + remaining risk as per the `verify-before-completion` skill."
+    }
+  ],
+  "verdict": {
+    "harvest_fire_should_fire": {
+      "treatment": 1.0,
+      "control": 0.0,
+      "treatment_minus_control": 1.0
+    },
+    "false_fire_should_not": {
+      "treatment": 0.5,
+      "control": 0.0
+    },
+    "headline": "SKILL prose induces harvest: should-fire fire-rate treatment=1.0 vs control=0.0 (delta +1.0); false-fire on should-not: treatment=0.5"
+  },
+  "wall_seconds": 20.6
+}

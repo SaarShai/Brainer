@@ -1,0 +1,298 @@
+{
+  "experiment": "exp6_retrieval_scale",
+  "protocol": "5 needles + D distractors; hit@k and accuracy vs distractor count",
+  "backend": "ollama",
+  "model": "gemma2:9b",
+  "k": 3,
+  "n_needles": 5,
+  "sweep": [
+    0,
+    25,
+    100,
+    400
+  ],
+  "points": [
+    {
+      "hit_at_3": 1.0,
+      "accuracy": 1.0,
+      "records": [
+        {
+          "slug": "n-deploy",
+          "hit_at_k": true,
+          "correct": true,
+          "rank": 1,
+          "retrieved_ids": [
+            "concepts/n-deploy",
+            "concepts/n-cache",
+            "concepts/n-log"
+          ],
+          "output_preview": "```\nhelios ship --wave 3\n```"
+        },
+        {
+          "slug": "n-dburl",
+          "hit_at_k": true,
+          "correct": true,
+          "rank": 1,
+          "retrieved_ids": [
+            "concepts/n-dburl",
+            "concepts/n-cache",
+            "concepts/n-log"
+          ],
+          "output_preview": "HELIOS_DB_URL"
+        },
+        {
+          "slug": "n-retry",
+          "hit_at_k": true,
+          "correct": true,
+          "rank": 1,
+          "retrieved_ids": [
+            "concepts/n-retry",
+            "concepts/n-cache",
+            "concepts/n-log"
+          ],
+          "output_preview": "max_retries=5"
+        },
+        {
+          "slug": "n-log",
+          "hit_at_k": true,
+          "correct": true,
+          "rank": 1,
+          "retrieved_ids": [
+            "concepts/n-log",
+            "log",
+            "schema"
+          ],
+          "output_preview": "/var/helios/run.log"
+        },
+        {
+          "slug": "n-cache",
+          "hit_at_k": true,
+          "correct": true,
+          "rank": 1,
+          "retrieved_ids": [
+            "concepts/n-cache",
+            "concepts/n-dburl",
+            "concepts/n-log"
+          ],
+          "output_preview": "HELIOS_CACHE_TTL"
+        }
+      ],
+      "distractors": 0,
+      "store_size": 5
+    },
+    {
+      "hit_at_3": 1.0,
+      "accuracy": 1.0,
+      "records": [
+        {
+          "slug": "n-deploy",
+          "hit_at_k": true,
+          "correct": true,
+          "rank": 1,
+          "retrieved_ids": [
+            "concepts/n-deploy",
+            "concepts/d-status-dashboard-0024",
+            "concepts/d-auth-broker-0023"
+          ],
+          "output_preview": "helios ship --wave 3"
+        },
+        {
+          "slug": "n-dburl",
+          "hit_at_k": true,
+          "correct": true,
+          "rank": 1,
+          "retrieved_ids": [
+            "concepts/n-dburl",
+            "concepts/d-status-dashboard-0024",
+            "concepts/d-auth-broker-0023"
+          ],
+          "output_preview": "HELIOS_DB_URL"
+        },
+        {
+          "slug": "n-retry",
+          "hit_at_k": true,
+          "correct": true,
+          "rank": 1,
+          "retrieved_ids": [
+            "concepts/n-retry",
+            "concepts/d-status-dashboard-0024",
+            "concepts/d-auth-broker-0023"
+          ],
+          "output_preview": "max_retries=5"
+        },
+        {
+          "slug": "n-log",
+          "hit_at_k": true,
+          "correct": true,
+          "rank": 1,
+          "retrieved_ids": [
+            "concepts/n-log",
+            "log",
+            "schema"
+          ],
+          "output_preview": "/var/helios/run.log"
+        },
+        {
+          "slug": "n-cache",
+          "hit_at_k": true,
+          "correct": true,
+          "rank": 1,
+          "retrieved_ids": [
+            "concepts/n-cache",
+            "concepts/n-dburl",
+            "concepts/d-status-dashboard-0024"
+          ],
+          "output_preview": "HELIOS_CACHE_TTL"
+        }
+      ],
+      "distractors": 25,
+      "store_size": 30
+    },
+    {
+      "hit_at_3": 1.0,
+      "accuracy": 1.0,
+      "records": [
+        {
+          "slug": "n-deploy",
+          "hit_at_k": true,
+          "correct": true,
+          "rank": 1,
+          "retrieved_ids": [
+            "concepts/n-deploy",
+            "concepts/d-sprite-packer-0099",
+            "concepts/d-locale-resolver-0098"
+          ],
+          "output_preview": "helios ship --wave 3"
+        },
+        {
+          "slug": "n-dburl",
+          "hit_at_k": true,
+          "correct": true,
+          "rank": 1,
+          "retrieved_ids": [
+            "concepts/n-dburl",
+            "concepts/d-sprite-packer-0099",
+            "concepts/d-locale-resolver-0098"
+          ],
+          "output_preview": "HELIOS_DB_URL"
+        },
+        {
+          "slug": "n-retry",
+          "hit_at_k": true,
+          "correct": true,
+          "rank": 1,
+          "retrieved_ids": [
+            "concepts/n-retry",
+            "concepts/d-sprite-packer-0099",
+            "concepts/d-locale-resolver-0098"
+          ],
+          "output_preview": "max_retries=5"
+        },
+        {
+          "slug": "n-log",
+          "hit_at_k": true,
+          "correct": true,
+          "rank": 1,
+          "retrieved_ids": [
+            "concepts/n-log",
+            "log",
+            "schema"
+          ],
+          "output_preview": "/var/helios/run.log"
+        },
+        {
+          "slug": "n-cache",
+          "hit_at_k": true,
+          "correct": true,
+          "rank": 1,
+          "retrieved_ids": [
+            "concepts/n-cache",
+            "concepts/n-dburl",
+            "concepts/d-sprite-packer-0099"
+          ],
+          "output_preview": "HELIOS_CACHE_TTL"
+        }
+      ],
+      "distractors": 100,
+      "store_size": 105
+    },
+    {
+      "hit_at_3": 1.0,
+      "accuracy": 0.8,
+      "records": [
+        {
+          "slug": "n-deploy",
+          "hit_at_k": true,
+          "correct": true,
+          "rank": 1,
+          "retrieved_ids": [
+            "concepts/n-deploy",
+            "concepts/d-sprite-packer-0399",
+            "concepts/d-locale-resolver-0398"
+          ],
+          "output_preview": "helios ship --wave 3"
+        },
+        {
+          "slug": "n-dburl",
+          "hit_at_k": true,
+          "correct": true,
+          "rank": 1,
+          "retrieved_ids": [
+            "concepts/n-dburl",
+            "concepts/d-sprite-packer-0399",
+            "concepts/d-locale-resolver-0398"
+          ],
+          "output_preview": "HELIOS_DB_URL"
+        },
+        {
+          "slug": "n-retry",
+          "hit_at_k": true,
+          "correct": true,
+          "rank": 1,
+          "retrieved_ids": [
+            "concepts/n-retry",
+            "concepts/d-sprite-packer-0399",
+            "concepts/d-locale-resolver-0398"
+          ],
+          "output_preview": "max_retries=5"
+        },
+        {
+          "slug": "n-log",
+          "hit_at_k": true,
+          "correct": false,
+          "rank": 1,
+          "retrieved_ids": [
+            "concepts/n-log",
+            "log",
+            "schema"
+          ],
+          "output_preview": "```"
+        },
+        {
+          "slug": "n-cache",
+          "hit_at_k": true,
+          "correct": true,
+          "rank": 1,
+          "retrieved_ids": [
+            "concepts/n-cache",
+            "concepts/n-dburl",
+            "concepts/d-sprite-packer-0399"
+          ],
+          "output_preview": "HELIOS_CACHE_TTL"
+        }
+      ],
+      "distractors": 400,
+      "store_size": 405
+    }
+  ],
+  "verdict": {
+    "hit_at_k_start": 1.0,
+    "hit_at_k_end": 1.0,
+    "accuracy_start": 1.0,
+    "accuracy_end": 0.8,
+    "hit_decay": 0.0,
+    "accuracy_decay": 0.2,
+    "headline": "retrieval hit@3 1.0\u21921.0 and accuracy 1.0\u21920.8 as the store grows from 5 to 405 pages (decay: hit +0.0, acc +0.2)"
+  },
+  "wall_seconds": 88.0
+}
