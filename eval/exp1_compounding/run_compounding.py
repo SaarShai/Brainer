@@ -65,6 +65,18 @@ RESULTS_DIR = HERE / "results"
 
 OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
 
+# Reasoning models (qwen3.*, deepseek-r1) wrap a scratchpad in <think>…</think> that would
+# pollute substring scoring (the gold/poison token can appear in the reasoning even when the
+# final answer differs). Strip it before scoring. No-op on non-reasoning models (qwen2.5),
+# so already-committed qwen2.5 results are unaffected.
+_THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+
+
+def strip_think(text: str) -> str:
+    cleaned = _THINK_RE.sub(" ", text).strip()
+    return cleaned if cleaned else text.strip()
+
+
 ARMS = ("cold", "memory", "poisoned")
 
 # Low-signal noise the `poisoned` arm seeds before the sequence starts. These are
@@ -106,7 +118,7 @@ def call_ollama(model: str, system: str, prompt: str) -> dict[str, Any]:
         return {"output": "", "latency_ms": int((time.time() - t0) * 1000),
                 "prompt_eval_count": 0, "eval_count": 0, "error": str(detail)}
     return {
-        "output": data.get("response", ""),
+        "output": strip_think(data.get("response", "")),
         "latency_ms": int((time.time() - t0) * 1000),
         "prompt_eval_count": data.get("prompt_eval_count", 0),
         "eval_count": data.get("eval_count", 0),
