@@ -1,0 +1,15 @@
+{
+  "id": "saarshai/token-economy-eval-ollama-t4",
+  "title": "token-economy eval ollama T4",
+  "code_file": "kaggle_notebook_ollama.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [
+    "saarshai/token-economy-eval-consolidated"
+  ],
+  "competition_sources": [],
+  "kernel_sources": []
+}
