@@ -26,3 +26,12 @@ Do not claim:
 - delegated work is correct without inspecting result/diff
 
 If verification is impossible, say what was not verified and why.
+
+## Harvest the learning (before you call it done)
+
+Completion is also the moment experience compounds. Before the final claim, harvest any lesson this task produced into [`wiki-memory`](../wiki-memory/SKILL.md) via [`write-gate`](../write-gate/SKILL.md):
+- **failure / bug** hit and fixed → the prevention rule;
+- **feedback / correction** received (user, review, red test) → the corrected rule + why;
+- **reusable success** → the procedure.
+
+Unharvested experience doesn't compound: a verified-done task whose lesson was never written teaches nothing for next time. Skip only when nothing non-trivial happened. (The harvest logic lives in `wiki-memory`; this is the reflex that fires it — including on quick, unplanned tasks that `plan-first-execute` never sees.)

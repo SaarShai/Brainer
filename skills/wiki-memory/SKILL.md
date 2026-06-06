@@ -37,12 +37,13 @@ Never:
 
 ## Write
 
-Trigger:
-- verified finding
-- user-confirmed decision
-- source ingested
-- reusable procedure discovered
-- non-trivial failure lesson worth preventing later
+**Trigger — the self-improvement sources (harvest a lesson from each):**
+- **failure / bug / issue** — a non-trivial failure, wrong approach, or bug. Record what went wrong + the exact prevention rule (error/lesson page; decay-protected).
+- **feedback / correction** — the user corrected you, a review rejected an approach, or a test/tool signal contradicted your plan. Record the corrected rule and *why* the original was wrong.
+- **successful execution** — a non-trivial task solved with a reusable procedure. Distill the playbook (SOP/procedure page).
+- also: verified finding · user-confirmed decision · source ingested.
+
+**Reflexive harvest (close the loop):** self-improvement compounds only if lessons get *written*, not merely write-able. At the **end of any non-trivial task** — and right after a failure, a correction, or a clean success — actively run the gated write for whichever sources fired. This is a reflex at the task boundary, not an optional afterthought; [`verify-before-completion`](../verify-before-completion/SKILL.md) triggers it. (Adopts the post-session learning-extraction intent of EveryInc ce-compound / kw-compound, now in scope under the project's explicit self-improvement goal; `write-gate` keeps the harvest from polluting.)
 
 Protocol:
 1. Search existing pages first.
