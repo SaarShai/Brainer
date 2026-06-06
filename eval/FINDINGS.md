@@ -131,10 +131,11 @@ D well-formed distractors (distinct Helios-ish subjects), sweep D ∈ {0,10,25,5
 
 ### Exp7 — live-trigger wiring (`eval/exp7_wiring/`)
 
-Exp1/4 test the python; this tests whether the SKILL.md **prose**, loaded into a model's context, *induces* the harvest behavior. 5 scenarios (failure/feedback/success = should-fire; trivial/ephemeral = should-not), treatment (real `verify-before-completion` + `wiki-memory` bodies in system) vs control (bare).
+Exp1/4 test the python; this tests whether the SKILL.md **prose**, loaded into context, makes a model decide to harvest *correctly*. **Detector v2 (after the audit):** the model must emit an explicit `HARVEST: yes|no` line and we parse THAT — the original keyword detector (sniffing for "wiki"/"write-gate") was an artifact, because a model *declining* to harvest still says those words while discussing the loaded skills. 10 scenarios (5 should-fire: failure/feedback/success/build-fix/decision; 5 should-not: thanks/arithmetic/greeting/general-knowledge/date), treatment (real `verify-before-completion`+`wiki-memory` bodies) vs control (bare one-line definition).
 
-- **harvest-fire rate: treatment 1.0 vs control 0.0 (delta +1.0), false-fire 0.0** — qwen2.5:7b, **n=3 should-fire / n=2 should-not, single run, temp 0**.
-- Audit caveat: the fire-detector keys on the same `wiki` / `write-gate` vocabulary the treatment prompt is saturated with, so the delta is *partly tautological with the scorer* — it shows the prose surfaces the right vocabulary/intent, a necessary but not sufficient proof of correct behavior. Also unmeasured: the same prose triggered a spurious verify reflex on "what is 2+2" (over-firing on trivial prompts is a real failure mode no experiment scores yet).
+- **Decision accuracy (treatment): qwen2.5:7b 0.8, llama3.1:8b 0.8, gemma2:9b 1.0**; vs control (one-liner) 0.9 / 1.0 / 0.9 — i.e. **the elaborate prose does not beat a one-line rule for the WHEN decision** (a lean signal — the prose earns its keep on the *sources* + *how*, not the binary trigger).
+- **False-fire = 0.0 on all three families.** The earlier "over-fire on trivial prompts" was **purely a detector artifact** — corrected. With an explicit decision, no model spuriously harvested thanks/arithmetic/greeting/date. The skills do **not** pollute memory with junk.
+- **Residual, model-dependent:** gemma 10/10 perfect; qwen declined 2 raw should-fire (`failure`, `success` — read "I fixed my script" as one-off, arguably defensible); llama got every *decision* right but **abstained 5×** (ignored the format marker under the long skill context). So the real weaknesses are *conservative under-firing* + *format non-compliance under long context*, not over-firing. Single run, temp 0, n=10.
 
 ### Observation-masking baseline (`eval/baselines/observation_masking.py`)
 
@@ -165,11 +166,11 @@ The N-gap backstop: every experiment re-run on three different-vendor families (
 | exp5 poison flips answer (both-arm acc) | 0.5 | 0.25 | 0.0 | **robust** direction; gemma worst-hit |
 | exp5 defense recovers coexistence | 0.5→1.0 | 0.25→1.0 | 0.0→1.0 | **robust** — always →1.0 |
 | exp6 retrieval hit@3 @405 pages | 1.0 | 1.0 | 1.0 | **robust** (gemma gen-acc dipped to 0.8) |
-| exp7 harvest-fire delta (treat−ctl) | +1.0 | +1.0 | +0.333 | **model-dependent** |
-| exp7 false-fire on should-not | 0.0 | 0.5 | 0.5 | **model-dependent** — over-fires |
+| exp7 harvest decision-accuracy (treat) | 0.8 | 0.8 | 1.0 | skill ≈ control (no clear win) |
+| exp7 false-fire on should-not | 0.0 | 0.0 | 0.0 | **robust** — no over-firing (artifact corrected) |
 
 - **Robust across all three families:** the memory *mechanisms* — compounding lift, contradiction-recovery via reconcile, the gate's truth-blindness, poison degradation, the trust defense (always recovers coexistence to 1.0), and retrieval hit@3 at scale. **These are not qwen artifacts.**
-- **The fragile layer is Exp7 (the trigger prose), and only cross-model exposed it:** the harvest reflex fires reliably on qwen/llama (+1.0) but weakly on gemma (+0.333 — fired on 1 of 3 should-fire), and *over*-fires on trivial prompts on both llama and gemma (false-fire 0.5). So "the prose induces the behavior" holds in spirit but **trigger discipline is model-dependent and imperfect** — it both misses real harvest moments (gemma under-fire) and fires on noise (llama/gemma over-fire). The should-fire condition needs sharpening before the harvest reflex is reliable across models. (2nd-model attempt on `qwen3.6:35b-a3b` was discarded — the reasoning model returned empty outputs via `/api/generate`; `gemma4:26b` was an unusable orphaned manifest.)
+- **Exp7 is the soft spot, but milder than first reported.** The original cross-model read claimed over-firing (false-fire 0.5 on llama/gemma); a follow-up with an explicit-decision detector showed that was a **measurement artifact** — true false-fire is 0.0 everywhere. The genuine residuals are *conservative under-firing* (qwen declines some raw should-fire) and *format non-compliance under long context* (llama abstains), and the elaborate harvest prose doesn't beat a one-line decision rule. Model-dependent, but not the "pollutes memory" failure first feared. (2nd-model attempt on `qwen3.6:35b-a3b` was discarded — reasoning model returned empty outputs via `/api/generate`; `gemma4:26b` was an unusable orphaned manifest; `gemma2:9b` pulled fresh.)
 
 **Portfolio caveat:** still single-run, temp 0, tiny binary N (3–5) per experiment, so no CIs — but the 3-family replication removes the "single-model artifact" risk for every finding except Exp7, whose model-dependence is now itself a documented result. The Kaggle N=50 discipline run remains the within-model variance backstop.
 

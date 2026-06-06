@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -41,18 +42,28 @@ SKILL_PATHS = {
     "wiki-memory": REPO_ROOT / "skills/wiki-memory/SKILL.md",
 }
 
-# Signals that the model proposed harvesting the lesson into durable memory. Kept memory/
-# wiki/gate-specific so a generic "ok, noted" does NOT count as a fire.
-HARVEST_SIGNALS = (
-    "wiki", "write-gate", "write_gate", "write gate", "persist", "to memory",
-    "into memory", "memory store", "record the lesson", "record this lesson",
-    "save the lesson", "store the lesson", "add a lesson", "capture the lesson",
-    "save this to", "store this in", "write this down in", "add to the wiki",
-    "log this lesson", "remember this for future",
+# Explicit decision marker. The model MUST end with `HARVEST: yes|no`; we parse THAT, not
+# harvest vocabulary. A keyword detector mis-fires badly (cross-model finding): a model
+# DECLINING to harvest still says "wiki"/"write-gate" because it's discussing the loaded
+# skills — so vocabulary-presence ≠ a harvest decision. Asking for an explicit decision and
+# parsing the last marker measures the harvest JUDGEMENT cleanly.
+DECISION_SUFFIX = (
+    "\n\nFINAL LINE REQUIRED: after your reply, output exactly one line — "
+    "`HARVEST: yes` if this task produced a durable, project-specific lesson worth saving "
+    "to long-term project memory, or `HARVEST: no` otherwise."
 )
+_HARVEST_RE = re.compile(r"harvest:\s*(yes|no)\b", re.IGNORECASE)
+
+
+def parse_harvest_decision(output: str):
+    """True (yes) / False (no) / None (no marker) from the LAST `HARVEST:` line."""
+    matches = _HARVEST_RE.findall(output or "")
+    if not matches:
+        return None
+    return matches[-1].lower() == "yes"
 
 SCENARIOS = [
-    # should-fire: the three learning sources
+    # should-fire: durable, project-specific lessons (the three learning sources + a decision)
     {"id": "failure", "should_fire": True,
      "text": "I just ran `helios deploy` and it failed: 'unknown subcommand: deploy'. "
              "After digging in, the real command is `helios ship --wave N`. I fixed my script. "
@@ -64,11 +75,23 @@ SCENARIOS = [
     {"id": "success", "should_fire": True,
      "text": "Finally got the deploy working end-to-end — the trick was `helios ship --wave 3` "
              "with `max_retries=5`. Shipped successfully to prod. What do you do next?"},
-    # should-not-fire: nothing durable to learn
+    {"id": "failure2", "should_fire": True,
+     "text": "The Helios build kept OOM-ing during webpack until I set "
+             "`NODE_OPTIONS=--max-old-space-size=4096`; now it builds clean. What do you do next?"},
+    {"id": "decision", "should_fire": True,
+     "text": "We decided to back the Helios ledger with Postgres instead of Mongo because we "
+             "need real ACID transactions across accounts. Locked in. What do you do next?"},
+    # should-not-fire: nothing durable / project-specific to learn
     {"id": "trivial", "should_fire": False,
      "text": "Thanks, that's everything for now. What do you do next?"},
     {"id": "ephemeral", "should_fire": False,
      "text": "Quick sanity check: what is 2 + 2? What do you do next?"},
+    {"id": "greeting", "should_fire": False,
+     "text": "Hey, are you there? What do you do next?"},
+    {"id": "general_knowledge", "should_fire": False,
+     "text": "Out of curiosity, what is the capital of France? What do you do next?"},
+    {"id": "ephemeral2", "should_fire": False,
+     "text": "What's today's date? What do you do next?"},
 ]
 
 
@@ -80,45 +103,45 @@ def load_skill_bodies() -> str:
     return "\n\n---\n\n".join(blocks)
 
 
-def harvest_fired(output: str) -> bool:
-    o = output.lower()
-    return any(sig in o for sig in HARVEST_SIGNALS)
-
-
 SYSTEM_BARE = "You are a helpful coding assistant. Answer concisely with your next action."
 
 
 def generate(backend: str, model: str, system: str, prompt: str, treated: bool, should_fire: bool) -> dict[str, Any]:
     if backend == "stub":
-        # deterministic: treatment fires iff the skill prose would apply (should_fire);
-        # control never proposes persisting to memory.
-        if treated and should_fire:
-            out = "This is a durable lesson. I'll run it through write-gate and persist it to the wiki."
-        elif treated and not should_fire:
-            out = "Nothing durable to record here. Done."
+        # deterministic: treatment decides correctly (skill guidance present); control,
+        # with only the bare one-line definition, decides conservatively "no".
+        if treated:
+            out = ("Considered. " + ("HARVEST: yes" if should_fire else "HARVEST: no"))
         else:
-            out = "Done."
+            out = "Noted.\nHARVEST: no"
         return {"output": out, "latency_ms": 1, "prompt_eval_count": 1, "eval_count": 1}
     return call_ollama(model, system, prompt)
 
 
 def run(backend: str, model: str) -> dict[str, Any]:
     skill_body = load_skill_bodies()
-    system_treated = (SYSTEM_BARE + "\n\n# Active skills (follow their guidance):\n\n" + skill_body)
+    # both arms must emit the decision marker; treatment additionally carries the skill's
+    # WHEN-to-harvest guidance, control gets only the bare one-line definition in the suffix.
+    system_treated = (SYSTEM_BARE + "\n\n# Active skills (follow their guidance):\n\n"
+                      + skill_body + DECISION_SUFFIX)
+    system_control = SYSTEM_BARE + DECISION_SUFFIX
     records: list[dict[str, Any]] = []
     for sc in SCENARIOS:
         for treated in (False, True):
-            system = system_treated if treated else SYSTEM_BARE
+            system = system_treated if treated else system_control
             gen = generate(backend, model, system, sc["text"], treated, sc["should_fire"])
-            fired = harvest_fired(gen["output"])
+            decision = parse_harvest_decision(gen["output"])
+            fired = decision is True
+            correct = (fired == sc["should_fire"])
             records.append({
                 "scenario": sc["id"], "should_fire": sc["should_fire"],
                 "arm": "treatment" if treated else "control",
-                "fired": fired, "output_preview": gen["output"][:200],
+                "decision": decision, "fired": fired, "correct": correct,
+                "output_preview": gen["output"][:200],
             })
-            flag = "FIRE" if fired else "----"
-            print(f"  [{'TRT' if treated else 'CTL'}] {sc['id']:<10} should_fire={int(sc['should_fire'])} "
-                  f"{flag}  {gen['output'][:60]!r}", flush=True)
+            flag = "FIRE" if fired else ("----" if decision is False else "????")
+            print(f"  [{'TRT' if treated else 'CTL'}] {sc['id']:<16} should_fire={int(sc['should_fire'])} "
+                  f"{flag} {'OK' if correct else 'XX'}  {gen['output'][:50]!r}", flush=True)
     return {"records": records}
 
 
@@ -127,23 +150,35 @@ def build_summary(data: dict, backend: str, model: str, wall_s: float) -> dict:
     def rate(arm: str, should_fire: bool) -> float:
         sub = [r for r in recs if r["arm"] == arm and r["should_fire"] == should_fire]
         return round(sum(r["fired"] for r in sub) / max(len(sub), 1), 3)
-    trt_fire = rate("treatment", True)     # want high
-    ctl_fire = rate("control", True)       # want low
-    trt_false = rate("treatment", False)   # want low (false-fire)
+    def acc(arm: str) -> float:
+        sub = [r for r in recs if r["arm"] == arm]
+        return round(sum(r["correct"] for r in sub) / max(len(sub), 1), 3)
+    def abstain(arm: str) -> float:
+        sub = [r for r in recs if r["arm"] == arm]
+        return round(sum(r["decision"] is None for r in sub) / max(len(sub), 1), 3)
+    trt_fire = rate("treatment", True)     # should-fire → decided yes (want high)
+    ctl_fire = rate("control", True)
+    trt_false = rate("treatment", False)   # should-not → decided yes = false-fire (want low)
     ctl_false = rate("control", False)
+    trt_acc, ctl_acc = acc("treatment"), acc("control")
     verdict = {
+        "decision_accuracy": {"treatment": trt_acc, "control": ctl_acc,
+                              "treatment_minus_control": round(trt_acc - ctl_acc, 3)},
         "harvest_fire_should_fire": {"treatment": trt_fire, "control": ctl_fire,
                                      "treatment_minus_control": round(trt_fire - ctl_fire, 3)},
         "false_fire_should_not": {"treatment": trt_false, "control": ctl_false},
-        "headline": (f"SKILL prose induces harvest: should-fire fire-rate treatment={trt_fire} vs "
-                     f"control={ctl_fire} (delta {round(trt_fire-ctl_fire,3):+}); "
-                     f"false-fire on should-not: treatment={trt_false}"),
+        "abstain_rate": {"treatment": abstain("treatment"), "control": abstain("control")},
+        "headline": (f"harvest DECISION accuracy (explicit HARVEST: yes/no marker): "
+                     f"treatment={trt_acc} vs control={ctl_acc} (delta {round(trt_acc-ctl_acc,3):+}); "
+                     f"should-fire fire-rate treatment={trt_fire}; "
+                     f"false-fire on should-not treatment={trt_false}"),
     }
     return {
         "experiment": "exp7_wiring",
-        "protocol": "load real SKILL.md bodies into context; does the prose induce the harvest behavior?",
+        "protocol": "load real SKILL.md bodies; model emits explicit HARVEST: yes/no; measure decision accuracy vs control (bare definition)",
         "backend": backend, "model": model,
-        "n_scenarios": len(SCENARIOS), "records": recs,
+        "n_scenarios": len(SCENARIOS), "n_should_fire": sum(s["should_fire"] for s in SCENARIOS),
+        "records": recs,
         "verdict": verdict, "wall_seconds": round(wall_s, 1),
     }
 

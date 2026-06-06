@@ -29,9 +29,15 @@ If verification is impossible, say what was not verified and why.
 
 ## Harvest the learning (before you call it done)
 
-Completion is also the moment experience compounds. Before the final claim, harvest any lesson this task produced into [`wiki-memory`](../wiki-memory/SKILL.md) via [`write-gate`](../write-gate/SKILL.md):
-- **failure / bug** hit and fixed → the prevention rule;
-- **feedback / correction** received (user, review, red test) → the corrected rule + why;
-- **reusable success** → the procedure.
+Completion is also the moment experience compounds. Before the final claim, decide whether to harvest with this **one-line test**:
 
-Unharvested experience doesn't compound: a verified-done task whose lesson was never written teaches nothing for next time. Skip only when nothing non-trivial happened. (The harvest logic lives in `wiki-memory`; this is the reflex that fires it — including on quick, unplanned tasks that `plan-first-execute` never sees.)
+> **Harvest IFF the task produced a _durable, project-specific_ lesson you would want a FUTURE session to recall.**
+
+**Fire the harvest** — write the lesson to [`wiki-memory`](../wiki-memory/SKILL.md) via [`write-gate`](../write-gate/SKILL.md) — when ANY of these is true:
+- **failure / bug** hit and fixed → the prevention rule;
+- **feedback / correction** received (user, review, red test) → the corrected rule + *why*;
+- **reusable success** → a non-trivial procedure worth repeating.
+
+**Do NOT harvest** (this is the discipline cross-model testing showed models get wrong — both over- and under-firing): plain acknowledgements/thanks, ephemeral or general-knowledge questions (arithmetic, definitions, one-off lookups), chit-chat, or any task that produced **no new project-specific fact**. When unsure, re-apply the one-line test — if you would not retrieve this next session, skip.
+
+Both directions are failures: an un-harvested genuine lesson doesn't compound, and a spurious harvest pollutes memory (and `write-gate` only filters *low-signal* noise, not *off-topic* writes). The one-line test is the gate. (Harvest logic lives in `wiki-memory`; this is the reflex that fires it — including on quick, unplanned tasks `plan-first-execute` never sees.)

@@ -46,6 +46,11 @@ rsync -a --exclude '.venv/' --exclude '__pycache__/' --exclude '*.pyc' \
   "$SRC/skills/wiki-memory/tools/" "$STAGE/skills/wiki-memory/tools/"
 rsync -a --exclude '.venv/' --exclude '__pycache__/' --exclude '*.pyc' \
   "$SRC/skills/write-gate/tools/" "$STAGE/skills/write-gate/tools/"
+# wiki-memory templates — `wiki.py new` reads skills/wiki-memory/templates/page.template.md;
+# without these the Kaggle exp1 run dies with FileNotFoundError on the first page write
+# (root cause of the 2026-06-06 kernel failure). provenance.py rides along under tools/.
+rsync -a --exclude '.venv/' --exclude '__pycache__/' --exclude '*.pyc' \
+  "$SRC/skills/wiki-memory/templates/" "$STAGE/skills/wiki-memory/templates/"
 
 cp "$(dirname "$0")/dataset-metadata.json" "$STAGE/dataset-metadata.json"
 
