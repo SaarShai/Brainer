@@ -2,7 +2,7 @@
   "baseline": "observation-masking",
   "source": "arXiv 2508.21433",
   "transcript": "/Users/za/.claude/projects/-Users-za-Documents-token-economy/7523878a-45a4-4402-b4f1-2021683b7d51.jsonl",
-  "mask_ms": 11,
+  "mask_ms": 10,
   "raw_chars": 505552,
   "masked_chars": 192528,
   "compression_ratio": 0.3808,
@@ -14,18 +14,18 @@
     "files": 264,
     "cmds": 87,
     "errors": 111,
-    "urls": 22,
+    "urls": 11,
     "nums": 63
   },
   "recall": {
     "files_recall": 0.455,
     "cmds_recall": 1.0,
     "errors_recall": 0.387,
-    "urls_recall": 0.727,
+    "urls_recall": 0.545,
     "nums_recall": 0.317
   },
   "context_keeper": {
-    "extract_ms": 975,
+    "extract_ms": 945,
     "extracted_chars": 11486,
     "compression_ratio": 0.0227,
     "recall": {

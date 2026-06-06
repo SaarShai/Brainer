@@ -39,6 +39,23 @@ sys.path.insert(0, str(EVAL_DIR))
 from runner_keeper import ground_truth, extracted_recall, iter_events, extract_text  # noqa: E402
 
 
+def _dedupe_nested(items: set[str]) -> set[str]:
+    """Drop any string that is a strict substring of another in the set.
+
+    runner_keeper's URL_RE is greedy and trailing-junk-sensitive, so it stores prefix-nested
+    near-duplicates (…/mcp, …/mcp/, …/mcp/x) as DISTINCT gold items; `x in md` substring
+    scoring then trivially credits all the shorter prefixes when the longest is recalled,
+    inflating BOTH arms' denominators. Deduping before scoring removes that artifact (flagged
+    by the exp-findings audit). Applied symmetrically to masking and context-keeper.
+    """
+    ordered = sorted(items, key=len, reverse=True)
+    kept: list[str] = []
+    for it in ordered:
+        if not any(it != other and it in other for other in kept):
+            kept.append(it)
+    return set(kept)
+
+
 def mask_transcript(jsonl_path: Path) -> dict:
     """Produce the observation-masked view: keep text + tool-call args, suppress outputs."""
     parts: list[str] = []
@@ -92,6 +109,10 @@ def main() -> int:
 
     print(f"[1/3] ground truth from {transcript.name}")
     gt = ground_truth(transcript)
+    n_urls_raw = len(gt["urls"])
+    gt["urls"] = _dedupe_nested(gt["urls"])  # remove prefix-nested URL gold (scoring artifact)
+    if len(gt["urls"]) != n_urls_raw:
+        print(f"      [dedup] urls {n_urls_raw} -> {len(gt['urls'])} (dropped prefix-nested)")
     print(f"      events={gt['events']} raw_chars={gt['raw_chars']} "
           f"files={len(gt['files'])} cmds={len(gt['cmds'])} errors={len(gt['errors'])} "
           f"urls={len(gt['urls'])} nums={len(gt['nums'])}")

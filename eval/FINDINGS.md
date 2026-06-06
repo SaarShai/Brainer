@@ -70,10 +70,12 @@ Validates pillars 3+4 (wiki-memory framework + learning). Protocol borrowed from
 
 The failure source was **+0.0** before the `write_gate.py` `ERROR_MARKERS` fix (prose failure-lessons scored below the 3.0 threshold and were never written). After the fix it is **+0.5**, visible in-trace: `helios-retry-constant` cleared the gate at **5.0**, `helios-deploy-command` at **4.5**, both retrieved downstream. The eval harness caught this defect and the fix closed it — a genuine repair of the "learn from failures" pillar, confirmed on a real model.
 
-**Caveats (honest):**
-1. **Small N** — 2–3 dependents per source. Direction is clean; CIs are not tight. The Kaggle N=50 discipline run is the variance backstop.
-2. **Poison did not degrade** (Δ +0.0 vs gated memory). Good — the gate + retrieval ranking shrugged off the injected `misc-thoughts-three` — but at this N it is "no harm observed," not "proven robust."
-3. **Memory costs ~5× tokens** (6,358 vs 1,276): the accuracy is bought with retrieval-injection context. Real win, real price.
+**Caveats (honest — sharpened after an adversarial audit of this harness, `verify-memory-findings`):**
+1. **Small N, no CI** — failure n=2, feedback n=3, success n=2 dependents. The per-source point estimates reproduce but at n≤3 they have **no meaningful confidence interval** — read them as direction, not magnitude.
+2. **The poison arm here is NOT a robustness result — claim struck.** Its `NOISE_PAGES` are inert filler with no competing wrong answer, so the "poisoned does not degrade (Δ +0.0)" outcome is *true by construction*, not earned. The ungated poisoned arm tying gated memory exactly (both 0.857) means the write-gate made **zero outcome difference** in this experiment — so this run does **not** show "the gate earns its slot." The gate's real job is filtering low-signal noise (exp3), not truth/poison defense. The genuine adversarial-poison test is **Exp5**, where confident poison *does* flip the answer.
+3. **Mechanism is "introducer convention propagates," not "every task teaches."** Most *dependent*-task lessons are gate-rejected; the lift comes from retrieving the *introducer* lessons (gate 3.5–5.0). Real compounding, narrower than the phrase suggests.
+4. **Memory costs ~5× tokens** (6,358 vs 1,276): accuracy bought with retrieval-injection context. Real win, real price.
+5. **Substring scoring slightly *under*-states the lift** — cold's `project_helios_queue_name` is credited against gold `HELIOS_QUEUE_NAME`, inflating the cold baseline, so the true memory−cold lift is **≥ +0.571** (the artifact works against the claim).
 
 ## Memory robustness sweep — contradiction / adversarial poison / scale (Exp4–6)
 
@@ -96,8 +98,8 @@ enough to clear the write-gate so the test isolates update-handling, not gate sc
 | reconcile (wiki-refresh *Replace*) | **1.0** | 0.0 |
 
 - **Stale memory is the failure mode**: 0% correct AND serves the OLD value 100% of the time — *confidently* wrong. (Cold is also 0% but merely guesses; it doesn't assert a remembered-but-wrong fact.) So un-refreshed memory is arguably worse than none.
-- **Reconcile (Replace the stale page) recovers the current fact 100%**: reconcile − stale = **+1.0**. This is the first passing reading for the previously-untested `wiki-refresh` (Replace) + `memory-decay` skills, implemented here via the `wiki overlap` dedup-at-write primitive.
-- **Append also hit 1.0** — the real model read the recency cues in the v2 lessons ("BREAKING CHANGE", "moved to", "now") and picked the new fact even with the old still retrievable. Honest caveat: append's success *depends* on the contradicting lesson carrying explicit supersession cues; reconcile is robust regardless (it removes the stale page) and costs fewer retrieval tokens (one page, not two).
+- **Reconcile (Replace the stale page) recovers the current fact 3/3**: reconcile − stale = **+1.0** (on 3 binary trials — read as direction, not a tight 100%). First passing reading for the previously-untested `wiki-refresh` (Replace) + `memory-decay` skills, via the `wiki overlap` dedup-at-write primitive. Verified by the audit: `replace_lesson` genuinely deletes the v1 text from disk, and dep prompts leak no gold.
+- **Append also hit 3/3** — the real model read the supersession cues in the v2 lessons (`moved to` / `migrated to` / `now` / `lowered to`) and picked the new fact even with the old still retrievable. Honest caveat: append's success *depends* on the contradicting lesson carrying explicit recency cues; reconcile is robust regardless (it removes the stale page) and costs fewer retrieval tokens (one page, not two).
 
 ### Exp5 — adversarial poison (`eval/exp5_adversarial/`)
 
@@ -106,18 +108,50 @@ confident, well-formed, WRONG lesson. 4 topics; the correct and adversarial less
 **form-matched** (identical structure, differ only in the value).
 
 - **The write-gate is NOT a truth filter: 8/8 confident-wrong lessons PASSED, mean gate score 4.88** — *identical* to their correct twins. The gate scores signal/form, not truth, by construction.
-- True-fact accuracy: **clean=1.0, poison-only=0.0** (serves the planted wrong value 100%), **both-present=0.5** (truth + poison coexisting → coin flip). poison − clean = **−1.0**.
+- True-fact accuracy: **clean=1.0, poison-only=0.0** (serves the planted wrong value 100%), **both-present=0.5** (truth + poison coexisting). poison − clean = **−1.0**. (N=4 per arm; the 0.5 is partly a BM25 retrieval-order coin-flip, not a stable robustness number.)
 - **Implication (a real, named limitation):** a single well-formed false memory fully flips the answer, and the quality gate offers *zero* defense. Poisoning defense must come from a different layer — provenance / verification / recency / source-trust — not from `write-gate`, which is correctly doing its actual job (filter low-signal noise, not adjudicate truth).
+
+**The defense (`skills/wiki-memory/tools/provenance.py`): trust tiers + conflict-aware write + hedged retrieval.** Two `defended-*` arms run the same scenarios through it (real qwen2.5:7b):
+
+| case | undefended | defended | what the defense did |
+|---|---|---|---|
+| coexistence (truth+poison stored) | acc 0.5, poison-served 0.5 | **acc 1.0, poison-served 0.0** | rejected the lower-trust poison at write; only truth reached the model |
+| poison-only (no truth ever learned) | poison-served 1.0 | poison-served 1.0, **flagged-unverified 1.0** | can't recover truth it never had; flags 100% as unverified instead of asserting |
+
+- **Honest scope (audit-flagged):** the "verified" trust tier that beats the poison is assigned by `verify_against_oracle`, and in this harness the oracle is the **answer key** (the true Helios facts). So defended-both 0.5→1.0 proves *trust-tiered routing works given a sound verifier* — not that the layer can verify truth on its own. In production the verifier is the filesystem / code / a test run (cf. `wiki audit-refs`); where no verifier exists, the layer falls back to corroboration + the hedge. Honest, not magic.
+- The poison-only "flagged-unverified" win is a *framing* win (model output unchanged, still emits the value) — it stops the lie being served as *confident* truth, nothing more.
 
 ### Exp6 — retrieval at scale (`eval/exp6_retrieval_scale/`)
 
 Does top-k retrieval keep finding the right lesson as the store grows? 5 needle lessons +
 D well-formed distractors (distinct Helios-ish subjects), sweep D ∈ {0,10,25,50,100,200,400}.
 
-- **hit@3 = 1.0 and accuracy = 1.0 at EVERY point**, store 5 → 405 pages. **Zero decay.** The wiki's SQLite-FTS retrieval keeps the needle in the top-3 against 400 distractors and the model answers correctly.
-- Honest caveat: distractors are on *distinct* subjects (lexically separable). The harder frontier — near-duplicate distractors sharing the needle's keywords but carrying different values — is exactly the same-topic collision case that Exp5's `both` arm exposed (co-located truth+poison → 0.5). So "retrieval scales" holds for *unrelated* growth; *same-topic* collisions remain the open risk.
+- **Robust to UNRELATED store growth: hit@3 = 1.0 and accuracy = 1.0 from 5 → 405 pages, zero decay.** But this is the *easy case* (audit-flagged): the distractors share only the token "helios" while each needle query carries 4–6 unique discriminators, so at D=400 the needle scores 10–14 vs distractors 3–6.5 and stays rank 1. It measures retrieval against *lexically-separable* noise.
+- The harder frontier — near-duplicate distractors sharing the needle's keywords but carrying different values — is the same-topic collision Exp5's `both` arm exposed (co-located truth+poison → 0.5). So "retrieval scales" holds for *unrelated* growth; *same-topic* collisions remain the open risk.
 
-**Combined:** the memory system is robust to GROWTH (Exp6) and recovers from CHANGE *if you reconcile* (Exp4), but is NOT robust to confident FALSE memories (Exp5) — and the write-gate is the wrong layer to expect that defense from. Small N (3–5 topics per experiment) — direction is clean, magnitudes are not tight CIs.
+### Exp7 — live-trigger wiring (`eval/exp7_wiring/`)
+
+Exp1/4 test the python; this tests whether the SKILL.md **prose**, loaded into a model's context, *induces* the harvest behavior. 5 scenarios (failure/feedback/success = should-fire; trivial/ephemeral = should-not), treatment (real `verify-before-completion` + `wiki-memory` bodies in system) vs control (bare).
+
+- **harvest-fire rate: treatment 1.0 vs control 0.0 (delta +1.0), false-fire 0.0** — qwen2.5:7b, **n=3 should-fire / n=2 should-not, single run, temp 0**.
+- Audit caveat: the fire-detector keys on the same `wiki` / `write-gate` vocabulary the treatment prompt is saturated with, so the delta is *partly tautological with the scorer* — it shows the prose surfaces the right vocabulary/intent, a necessary but not sufficient proof of correct behavior. Also unmeasured: the same prose triggered a spurious verify reflex on "what is 2+2" (over-firing on trivial prompts is a real failure mode no experiment scores yet).
+
+### Observation-masking baseline (`eval/baselines/observation_masking.py`)
+
+The required compaction control, made runnable (was only cited; arXiv 2508.21433). Same 972-event transcript + same recall probes as context-keeper; URL gold deduped (prefix-nested URLs were over-credited by substring scoring — audit fix).
+
+| | masking (keeps args, suppresses outputs) | context-keeper sidecar | winner |
+|---|---:|---:|---|
+| size vs raw | 38.1% | **2.3%** (16.8× smaller¹) | CK |
+| urls | 54.5% | **100%** | CK |
+| nums | 31.7% | **66.7%** | CK |
+| files | **45.5%** | 24.6% | masking |
+| cmds | **100%** | 46.0% | masking |
+| errors | **38.7%** | 25.2% | masking |
+
+context-keeper wins compression + its *target* fact-types (URLs, numbers); masking wins files/cmds/errors because it keeps 16× more raw text (all call-args + assistant text verbatim). **Not a clean sweep — a real trade.** This *corrects a prior FINDINGS overclaim* ("100% URLs, which masking cannot" — masking actually gets 54.5%). ¹ "16.8× smaller" compares an 11 KB sidecar to a 192 KB masked transcript — different compaction regimes, not like-for-like budgets.
+
+**Combined:** memory is robust to *unrelated* GROWTH (Exp6) and recovers from CHANGE *if you reconcile* (Exp4); confident FALSE memories flip it (Exp5) and the write-gate is the wrong defense layer — `provenance.py` recovers the coexistence case *given a verifier* but not the verifier-less poison-only case; the SKILL prose does induce the harvest (Exp7). **Portfolio caveat (audit):** every number here is **single model (qwen2.5:7b), single run, temp 0, tiny binary N (3–5)** — no confidence intervals, several flip on one trial. Cross-model replication (different family) + the Kaggle N=50 run are the variance backstops, in progress.
 
 ## Per-skill measured wins (live A/B)
 
