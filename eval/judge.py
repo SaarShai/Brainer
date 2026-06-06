@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import statistics
 import sys
 import time
@@ -20,6 +21,26 @@ from typing import Any
 
 
 OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
+
+_THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+
+
+def _extract_score(raw: str) -> int | None:
+    """First leading-digit line of the response, AFTER stripping <think>…</think>.
+
+    Reasoning models (qwen3.*, deepseek-r1) wrap their scratchpad in <think> blocks that
+    can contain digit-led lines (e.g. "12/12 passed") which would otherwise be grabbed as
+    the score. Strip the block first, then take the first line that starts with a digit.
+    """
+    cleaned = _THINK_RE.sub(" ", raw)
+    for line in cleaned.splitlines():
+        line = line.strip()
+        if line and line[0].isdigit():
+            try:
+                return int(line[0])
+            except ValueError:
+                pass
+    return None
 
 DEFAULT_RUBRIC = """\
 Rate the candidate output from 0 to 5 on whether it addresses the task correctly and concisely.
@@ -54,16 +75,7 @@ def judge_ollama(model: str, task_prompt: str, candidate: str, rubric: str) -> d
     with urllib.request.urlopen(req, timeout=300) as resp:
         data = json.loads(resp.read())
     out = data.get("response", "").strip()
-    score = None
-    for line in out.splitlines():
-        line = line.strip()
-        if line and line[0].isdigit():
-            try:
-                score = int(line[0])
-                break
-            except ValueError:
-                pass
-    return {"score": score, "raw": out, "latency_ms": int((time.time() - t0) * 1000)}
+    return {"score": _extract_score(out), "raw": out, "latency_ms": int((time.time() - t0) * 1000)}
 
 
 def judge_mimo(model: str, task_prompt: str, candidate: str, rubric: str) -> dict[str, Any]:
@@ -96,16 +108,7 @@ def judge_mimo(model: str, task_prompt: str, candidate: str, rubric: str) -> dic
     with urllib.request.urlopen(req, timeout=120) as resp:
         data = json.loads(resp.read())
     out = data["choices"][0]["message"]["content"].strip()
-    score = None
-    for line in out.splitlines():
-        line = line.strip()
-        if line and line[0].isdigit():
-            try:
-                score = int(line[0])
-                break
-            except ValueError:
-                pass
-    return {"score": score, "raw": out, "latency_ms": int((time.time() - t0) * 1000)}
+    return {"score": _extract_score(out), "raw": out, "latency_ms": int((time.time() - t0) * 1000)}
 
 
 def judge_hf(model: str, task_prompt: str, candidate: str, rubric: str) -> dict[str, Any]:
@@ -124,16 +127,7 @@ def judge_hf(model: str, task_prompt: str, candidate: str, rubric: str) -> dict[
     with urllib.request.urlopen(req, timeout=300) as resp:
         data = json.loads(resp.read())
     out = (data[0]["generated_text"] if isinstance(data, list) else data.get("generated_text", "")).strip()
-    score = None
-    for line in out.splitlines():
-        line = line.strip()
-        if line and line[0].isdigit():
-            try:
-                score = int(line[0])
-                break
-            except ValueError:
-                pass
-    return {"score": score, "raw": out, "latency_ms": int((time.time() - t0) * 1000)}
+    return {"score": _extract_score(out), "raw": out, "latency_ms": int((time.time() - t0) * 1000)}
 
 
 def judge_results(results_path: Path, model: str, backend: str) -> dict[str, Any]:

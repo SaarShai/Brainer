@@ -75,6 +75,50 @@ The failure source was **+0.0** before the `write_gate.py` `ERROR_MARKERS` fix (
 2. **Poison did not degrade** (Δ +0.0 vs gated memory). Good — the gate + retrieval ranking shrugged off the injected `misc-thoughts-three` — but at this N it is "no harm observed," not "proven robust."
 3. **Memory costs ~5× tokens** (6,358 vs 1,276): the accuracy is bought with retrieval-injection context. Real win, real price.
 
+## Memory robustness sweep — contradiction / adversarial poison / scale (Exp4–6)
+
+Exp1 proved memory *helps* on the happy path. These three stress the failure modes. All
+on ollama `qwen2.5:7b-instruct`, local, temp 0. Plumbing first validated offline via each
+harness's `--stub` mode before the real run.
+
+### Exp4 — contradiction / update (`eval/exp4_contradiction/`)
+
+When a remembered fact CHANGES (command renamed, config prefix renamed, `max_retries`
+lowered after an incident), does memory serve the CURRENT fact or a stale one? 3 topics,
+sequence intro(v1) → change(v2 contradicts) → post-change question. Lessons written rich
+enough to clear the write-gate so the test isolates update-handling, not gate scoring.
+
+| arm | current-fact acc | stale-answer rate |
+|---|---:|---:|
+| cold (no memory) | 0.0 | 0.0 |
+| stale (memory, never updated) | **0.0** | **1.0** |
+| append (write v2 as new page, keep v1) | 1.0 | 0.0 |
+| reconcile (wiki-refresh *Replace*) | **1.0** | 0.0 |
+
+- **Stale memory is the failure mode**: 0% correct AND serves the OLD value 100% of the time — *confidently* wrong. (Cold is also 0% but merely guesses; it doesn't assert a remembered-but-wrong fact.) So un-refreshed memory is arguably worse than none.
+- **Reconcile (Replace the stale page) recovers the current fact 100%**: reconcile − stale = **+1.0**. This is the first passing reading for the previously-untested `wiki-refresh` (Replace) + `memory-decay` skills, implemented here via the `wiki overlap` dedup-at-write primitive.
+- **Append also hit 1.0** — the real model read the recency cues in the v2 lessons ("BREAKING CHANGE", "moved to", "now") and picked the new fact even with the old still retrievable. Honest caveat: append's success *depends* on the contradicting lesson carrying explicit supersession cues; reconcile is robust regardless (it removes the stale page) and costs fewer retrieval tokens (one page, not two).
+
+### Exp5 — adversarial poison (`eval/exp5_adversarial/`)
+
+Exp1's "poisoned" arm used vague benign noise (Δ +0.0 = no harm). The real test is a
+confident, well-formed, WRONG lesson. 4 topics; the correct and adversarial lessons are
+**form-matched** (identical structure, differ only in the value).
+
+- **The write-gate is NOT a truth filter: 8/8 confident-wrong lessons PASSED, mean gate score 4.88** — *identical* to their correct twins. The gate scores signal/form, not truth, by construction.
+- True-fact accuracy: **clean=1.0, poison-only=0.0** (serves the planted wrong value 100%), **both-present=0.5** (truth + poison coexisting → coin flip). poison − clean = **−1.0**.
+- **Implication (a real, named limitation):** a single well-formed false memory fully flips the answer, and the quality gate offers *zero* defense. Poisoning defense must come from a different layer — provenance / verification / recency / source-trust — not from `write-gate`, which is correctly doing its actual job (filter low-signal noise, not adjudicate truth).
+
+### Exp6 — retrieval at scale (`eval/exp6_retrieval_scale/`)
+
+Does top-k retrieval keep finding the right lesson as the store grows? 5 needle lessons +
+D well-formed distractors (distinct Helios-ish subjects), sweep D ∈ {0,10,25,50,100,200,400}.
+
+- **hit@3 = 1.0 and accuracy = 1.0 at EVERY point**, store 5 → 405 pages. **Zero decay.** The wiki's SQLite-FTS retrieval keeps the needle in the top-3 against 400 distractors and the model answers correctly.
+- Honest caveat: distractors are on *distinct* subjects (lexically separable). The harder frontier — near-duplicate distractors sharing the needle's keywords but carrying different values — is exactly the same-topic collision case that Exp5's `both` arm exposed (co-located truth+poison → 0.5). So "retrieval scales" holds for *unrelated* growth; *same-topic* collisions remain the open risk.
+
+**Combined:** the memory system is robust to GROWTH (Exp6) and recovers from CHANGE *if you reconcile* (Exp4), but is NOT robust to confident FALSE memories (Exp5) — and the write-gate is the wrong layer to expect that defense from. Small N (3–5 topics per experiment) — direction is clean, magnitudes are not tight CIs.
+
 ## Per-skill measured wins (live A/B)
 
 Headline numbers with the skill active. Different metrics per skill type — see Harness column.

@@ -16,6 +16,9 @@ bench/data/
 # Eval run-logs (replayable from scripts; results JSONs are committed)
 eval/results/runlog/
 eval/results/_smoke_*.json
+# regeneratable raw copy made for re-judging (cp of verify-before-completion.json);
+# the small .ollama.judged.json result IS committed
+eval/results/verify-before-completion.ollama.json
 
 # semdiff session cache
 .cache/semdiff/
