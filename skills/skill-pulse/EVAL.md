@@ -1,6 +1,6 @@
 # skill-pulse — eval status
 
-**Status:** v1.5.0. Hook correctness verified by [tools/test.sh](tools/test.sh); in-the-wild compliance-uplift measurement pending.
+**Status:** v1.5.0. Hook correctness verified by [tools/test.sh](tools/test.sh) (24/24 cases, including corrupt-state recovery and flock-safe concurrent invocations — both read state by the hook's SHA-256(session_id)[:16] filename); in-the-wild compliance-uplift measurement pending.
 
 ## Empirical basis (not our measurement — published)
 

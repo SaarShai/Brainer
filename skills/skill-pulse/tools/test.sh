@@ -172,11 +172,13 @@ if [ $ec -eq 0 ]; then ok "malformed stdin exit 0"; else no "malformed stdin exi
 echo "[12] Corrupt state file → recover"
 SUB=sp12
 mkdir -p "$STATE_ROOT/$SUB"
-echo 'not { json' > "$STATE_ROOT/$SUB/s12.json"
+# hook.py names state files by SHA-256(session_id)[:16].json, not the raw id
+sid_hash=$(python3 -c "import hashlib;print(hashlib.sha256('s12'.encode('utf-8',errors='replace')).hexdigest()[:16])")
+echo 'not { json' > "$STATE_ROOT/$SUB/$sid_hash.json"
 out=$(call $SUB sk1 -- s12)
 ec=$?
 if [ $ec -eq 0 ]; then ok "corrupt state → exit 0"; else no "corrupt state → exit 0" "got $ec"; fi
-if python3 -c 'import json,sys;json.load(open(sys.argv[1]))' "$STATE_ROOT/$SUB/s12.json" 2>/dev/null; then
+if python3 -c 'import json,sys;json.load(open(sys.argv[1]))' "$STATE_ROOT/$SUB/$sid_hash.json" 2>/dev/null; then
   ok "state file recovered to valid JSON"
 else
   no "state file recovered to valid JSON"
@@ -220,7 +222,9 @@ for _ in 1 2 3 4 5 6 7 8 9 10; do
   printf '%s' "$PAYLOAD" | env SKILL_PULSE_STATE_DIR="$STATE_ROOT/$SUB" SKILL_PULSE_SKILLS_ROOT="$SKILLS_ROOT/sk1" $HOOK > /dev/null &
 done
 wait
-turn_after=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["turn_count"])' "$STATE_ROOT/$SUB/concur.json")
+# hook.py names state files by SHA-256(session_id)[:16].json, not the raw id
+sid_hash=$(python3 -c "import hashlib;print(hashlib.sha256('concur'.encode('utf-8',errors='replace')).hexdigest()[:16])")
+turn_after=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["turn_count"])' "$STATE_ROOT/$SUB/$sid_hash.json")
 if [ "$turn_after" = "10" ]; then ok "10 parallel hooks → turn_count=10"; else no "10 parallel hooks → turn_count=10" "got $turn_after"; fi
 
 # -----------------------------------------------------------------------------

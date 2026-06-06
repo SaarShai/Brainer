@@ -222,8 +222,9 @@ for _ in 1 2 3 4 5 6 7 8 9 10; do
   printf '%s' "$PAYLOAD" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc17" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk17" $HOOK > /dev/null &
 done
 wait
-turn_after=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["turn_count"])' "$STATE_ROOT/cc17/cc-concu.json" 2>/dev/null \
-           || python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["turn_count"])' "$STATE_ROOT/cc17/cc-concur.json")
+# hook.py names state files by SHA-256(session_id)[:16].json, not the raw id
+sid_hash=$(python3 -c "import hashlib;print(hashlib.sha256('cc-concur'.encode('utf-8',errors='replace')).hexdigest()[:16])")
+turn_after=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["turn_count"])' "$STATE_ROOT/cc17/$sid_hash.json")
 if [ "$turn_after" = "10" ]; then ok "10 parallel → turn_count=10"; else no "10 parallel → turn_count=10" "got $turn_after"; fi
 
 echo "[18] State GC: 8-day-old state files purged at session-start"
