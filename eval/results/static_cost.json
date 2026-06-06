@@ -180,6 +180,18 @@
     "effort_pin": "low"
   },
   {
+    "name": "session-recall",
+    "description_tokens": 96,
+    "description_chars": 437,
+    "body_tokens": 2272,
+    "body_chars": 9102,
+    "tools_bytes": 38110,
+    "tools_kb": 37.2,
+    "has_eval_template": true,
+    "model_pin": "",
+    "effort_pin": "medium"
+  },
+  {
     "name": "skill-pulse",
     "description_tokens": 69,
     "description_chars": 346,

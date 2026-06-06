@@ -38,6 +38,7 @@ notice when context matches one (e.g. `wiki-memory` for "have we done X").
 - `plan-first-execute` — Plan before executing non-trivial tasks
 - `prompt-triage` — Use on every UserPromptSubmit (pre-model hook) to classify the prompt and emit a directive telling the main model which subagent/model should handle it
 - `semantic-diff` — AST-node-level diff for file re-reads
+- `session-recall` — Search and synthesize across ALL prior local agent sessions (Claude Code, Codex, Cursor) to answer "have we done X", "how did we investigate Y", "what was tried before", "what failed last time", or any question about past attempts/decisions — when no handoff doc exists
 - `skill-pulse` — UserPromptSubmit hook that periodically re-injects active skill rules to fight instruction drift
 - `verify-before-completion` — Use before claiming work is done, fixed, passing, committed, or ready
 - `wiki-memory` — Repo-local markdown wiki with progressive retrieval (search → timeline → fetch) and gated writes (verified facts only)
