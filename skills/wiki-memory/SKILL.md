@@ -46,7 +46,7 @@ Trigger:
 
 Protocol:
 1. Search existing pages first.
-2. Prefer updating an existing page over creating a new one; fewer rich pages beat many thin one-off pages.
+2. Prefer updating an existing page over creating a new one; fewer rich pages beat many thin one-off pages. **Dedup-at-write:** `python skills/wiki-memory/tools/wiki.py overlap --title "<title>" --tags "a,b" [--body-file <draft>]`. `high` → update the reported `best_match` instead of creating (two pages on one subject inevitably drift apart). `moderate` → create, but it's a Consolidate candidate for [`wiki-refresh`](../wiki-refresh/SKILL.md). `low` → create.
 3. **Pre-check the candidate with [`write-gate`](../write-gate/SKILL.md)** — `python skills/write-gate/tools/write_gate.py gate --kind <kind> --file <candidate>`. If it rejects, revise or drop; do not bypass.
 4. If no page, run `python skills/wiki-memory/tools/wiki.py new --template page --title "<title>" --domain "<domain>"`.
 5. Name new pages at domain/category level, not task-specific bug names.
@@ -77,9 +77,11 @@ Write-gate (two layers):
 - Candidate must score above the signal threshold (decisions / errors / architecture / code / numbers, minus filler / speculation).
 - Decisions and conventions must embed a why-clause.
 
-## Aging
+## Aging & reconcile
 
-Once a page is in the wiki, [`memory-decay`](../memory-decay/SKILL.md) ages its `confidence` field over time (5% per 30 idle days, default). Error / lesson / SOP pages and high-`evidence_count` pages are protected from decay.
+Once a page is in the wiki, two companions maintain it:
+- [`memory-decay`](../memory-decay/SKILL.md) ages its `confidence` field over time (5% per 30 idle days, default). Error / lesson / SOP pages and high-`evidence_count` pages are protected from decay.
+- [`wiki-refresh`](../wiki-refresh/SKILL.md) reconciles pages against the *current codebase* (Keep/Update/Consolidate/Replace/Delete) and emits typed `contradicts:` edges. Drift signal: `python skills/wiki-memory/tools/wiki.py audit-refs [--code-root PATH]` lists pages whose cited code paths no longer exist. Run decay weekly (cheap), refresh monthly or after a refactor/rename (costs reads).
 
 ## Tier layout
 
