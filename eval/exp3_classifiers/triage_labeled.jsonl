@@ -1,0 +1,48 @@
+{"prompt": "fix this typo in the readme", "expected_tier": "simple", "expected_model": "haiku", "expect_bypass": false, "source": "triage_corpus.py"}
+{"prompt": "commit and push", "expected_tier": "simple", "expected_model": "haiku", "expect_bypass": false, "source": "triage_corpus.py"}
+{"prompt": "what is the gini coefficient", "expected_tier": "simple", "expected_model": "haiku", "expect_bypass": false, "source": "triage_corpus.py"}
+{"prompt": "add a note to wiki that we use pgvector", "expected_tier": "simple", "expected_model": "haiku", "expect_bypass": false, "source": "triage_corpus.py"}
+{"prompt": "install ruff", "expected_tier": "simple", "expected_model": "haiku", "expect_bypass": false, "source": "triage_corpus.py"}
+{"prompt": "summarize this paragraph for me", "expected_tier": "simple", "expected_model": "local:qwen3:8b", "expect_bypass": false, "source": "triage_corpus.py"}
+{"prompt": "git stash", "expected_tier": "simple", "expected_model": "haiku", "expect_bypass": false, "source": "triage_corpus.py"}
+{"prompt": "use ollama to translate this string", "expected_tier": "simple", "expected_model": "local:qwen3:8b", "expect_bypass": false, "source": "triage_corpus.py"}
+{"prompt": "refactor the auth module across all services", "expected_tier": "hard", "expected_model": "opus", "expect_bypass": false, "source": "triage_corpus.py"}
+{"prompt": "design the new event-bus architecture for our backend", "expected_tier": "hard", "expected_model": "opus", "expect_bypass": false, "source": "triage_corpus.py"}
+{"prompt": "write me a comprehensive markdown audit of my codebase", "expected_tier": null, "expected_model": "not_haiku", "expect_bypass": false, "source": "triage_corpus.py"}
+{"prompt": "review and critique the PR I just opened", "expected_tier": null, "expected_model": "not_haiku", "expect_bypass": false, "source": "triage_corpus.py"}
+{"prompt": "debug why the production queue is hanging", "expected_tier": null, "expected_model": "not_haiku", "expect_bypass": false, "source": "triage_corpus.py"}
+{"prompt": "do a thorough analysis of the failure modes in our auth flow", "expected_tier": null, "expected_model": "not_haiku", "expect_bypass": false, "source": "triage_corpus.py"}
+{"prompt": "investigate the root cause of the data inconsistency", "expected_tier": null, "expected_model": "not_haiku", "expect_bypass": false, "source": "triage_corpus.py"}
+{"prompt": "research the best vector DB options for our scale", "expected_tier": "medium", "expected_model": "sonnet", "expect_bypass": false, "source": "triage_corpus.py"}
+{"prompt": "tldr this log please", "expected_tier": "simple", "expected_model": "local:qwen3:8b", "expect_bypass": false, "source": "triage_corpus.py"}
+{"prompt": "condense this article", "expected_tier": "simple", "expected_model": "local:qwen3:8b", "expect_bypass": false, "source": "triage_corpus.py"}
+{"prompt": "What is a binary search tree?", "expected_tier": "simple", "expected_model": "haiku", "expect_bypass": false, "source": "triage-corpus.yaml"}
+{"prompt": "Summarize this short paragraph: Foo. Bar. Baz.", "expected_tier": "simple", "expected_model": "local:qwen3:8b", "expect_bypass": false, "source": "triage-corpus.yaml"}
+{"prompt": "Commit the staged files with message 'wip'.", "expected_tier": "simple", "expected_model": "haiku", "expect_bypass": false, "source": "triage-corpus.yaml"}
+{"prompt": "Define 'idempotent'.", "expected_tier": "simple", "expected_model": "haiku", "expect_bypass": false, "source": "triage-corpus.yaml"}
+{"prompt": "Research the current state of LLM prompt compression in 2026.", "expected_tier": "medium", "expected_model": "sonnet", "expect_bypass": false, "source": "triage-corpus.yaml"}
+{"prompt": "Survey GitHub for repos that implement RAG over markdown notes.", "expected_tier": "medium", "expected_model": "sonnet", "expect_bypass": false, "source": "triage-corpus.yaml"}
+{"prompt": "Design a multi-tenant storage architecture for our SaaS.", "expected_tier": "hard", "expected_model": "opus", "expect_bypass": false, "source": "triage-corpus.yaml"}
+{"prompt": "Implement a distributed lock service across three microservices.", "expected_tier": "hard", "expected_model": "opus", "expect_bypass": false, "source": "triage-corpus.yaml"}
+{"prompt": "fix this NO TRIAGE", "expected_tier": null, "expected_model": null, "expect_bypass": true, "source": "triage_corpus.py"}
+{"prompt": "NO-TRIAGE just run", "expected_tier": null, "expected_model": null, "expect_bypass": true, "source": "triage_corpus.py"}
+{"prompt": "/opus help me think", "expected_tier": null, "expected_model": null, "expect_bypass": true, "source": "triage_corpus.py"}
+{"prompt": "git log /opus/file.md", "expected_tier": "simple", "expected_model": null, "expect_bypass": false, "source": "triage_corpus.py"}
+{"prompt": "see https://x.com/opus/page", "expected_tier": null, "expected_model": null, "expect_bypass": false, "source": "triage_corpus.py"}
+{"prompt": "fix the import in utils.py", "expected_tier": "simple", "expected_model": "haiku", "expect_bypass": false, "source": "authored"}
+{"prompt": "who is Ada Lovelace", "expected_tier": "simple", "expected_model": "haiku", "expect_bypass": false, "source": "authored"}
+{"prompt": "git add -A and commit", "expected_tier": "simple", "expected_model": "haiku", "expect_bypass": false, "source": "authored"}
+{"prompt": "rewrite this sentence to be shorter", "expected_tier": "simple", "expected_model": "local:qwen3:8b", "expect_bypass": false, "source": "authored"}
+{"prompt": "configure pre-commit hooks", "expected_tier": "simple", "expected_model": "haiku", "expect_bypass": false, "source": "authored"}
+{"prompt": "do this on a cheap local model, no api", "expected_tier": "simple", "expected_model": "local:qwen3:8b", "expect_bypass": false, "source": "authored"}
+{"prompt": "abstract the key points from this transcript", "expected_tier": "simple", "expected_model": "local:qwen3:8b", "expect_bypass": false, "source": "authored"}
+{"prompt": "investigate which dependency bumped our bundle size", "expected_tier": null, "expected_model": "not_haiku", "expect_bypass": false, "source": "authored"}
+{"prompt": "find repos that benchmark llama.cpp throughput", "expected_tier": "medium", "expected_model": "sonnet", "expect_bypass": false, "source": "authored"}
+{"prompt": "migrate the whole billing service from REST to gRPC", "expected_tier": null, "expected_model": "not_haiku", "expect_bypass": false, "source": "authored"}
+{"prompt": "architect a sharded queue for 1M events/sec", "expected_tier": "hard", "expected_model": "opus", "expect_bypass": false, "source": "authored"}
+{"prompt": "do an in-depth security review of the auth flow", "expected_tier": null, "expected_model": "not_haiku", "expect_bypass": false, "source": "authored"}
+{"prompt": "trace the root-cause of the intermittent 502s in production", "expected_tier": null, "expected_model": "not_haiku", "expect_bypass": false, "source": "authored"}
+{"prompt": "please NO_TRIAGE here", "expected_tier": null, "expected_model": null, "expect_bypass": true, "source": "authored"}
+{"prompt": "   /opus do the thing", "expected_tier": null, "expected_model": null, "expect_bypass": true, "source": "authored"}
+{"prompt": "open ./opus.txt", "expected_tier": null, "expected_model": null, "expect_bypass": false, "source": "authored"}
+{"prompt": "the word slashopus is not a bypass", "expected_tier": null, "expected_model": null, "expect_bypass": false, "source": "authored"}

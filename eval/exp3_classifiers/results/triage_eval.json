@@ -1,0 +1,58 @@
+{
+  "eval": "prompt_triage_routing",
+  "data": "eval/exp3_classifiers/triage_labeled.jsonl",
+  "n_cases": 48,
+  "from_corpora": 31,
+  "authored": 17,
+  "deterministic_regex_only": {
+    "use_ollama": false,
+    "routing_accuracy": 1.0,
+    "routing_total": 39,
+    "routing_correct": 39,
+    "tier_accuracy": 0.9677,
+    "tier_total": 31,
+    "tier_correct": 30,
+    "tier_confusion": {
+      "simple": {
+        "simple": 21,
+        "unknown": 1
+      },
+      "hard": {
+        "hard": 5
+      },
+      "medium": {
+        "medium": 4
+      }
+    },
+    "bypass_accuracy": 1.0,
+    "bypass_total": 48,
+    "bypass_correct": 48,
+    "fastpath_split": {
+      "regex": 22,
+      "regex-low-conf": 10,
+      "default": 11
+    },
+    "complex_cases": 18,
+    "complex_misrouted_to_haiku": 0
+  },
+  "misclassified_routing": [],
+  "misclassified_tier": [
+    {
+      "prompt": "git log /opus/file.md",
+      "source": "triage_corpus.py",
+      "expect_bypass": false,
+      "actual_bypass": false,
+      "bypass_correct": true,
+      "expected_tier": "simple",
+      "actual_tier": "unknown",
+      "tier_correct": false,
+      "expected_model": null,
+      "actual_model": "opus",
+      "model_correct": null,
+      "classify_source": "default",
+      "confidence": 0.0,
+      "graded": "routing"
+    }
+  ],
+  "bypass_errors": []
+}

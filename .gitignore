@@ -20,6 +20,11 @@ eval/results/_smoke_*.json
 # semdiff session cache
 .cache/semdiff/
 
+# DeepEval telemetry/cache (created by eval/exp2_retrieval runs)
+.deepeval/
+.deepeval_telemetry.txt
+eval/*/output/
+
 # Token Economy runtime state
 .token-economy/
 .token-economy-profile
