@@ -38,7 +38,7 @@ Skills compound across axes (output × input × routing × memory) but **diminis
 
 | Metric | Value | Source |
 |---|---|---|
-| Always-on context tax (11 skill descriptions, v1.3.0) | **801 tokens** (~0.4% of 200K) | `eval/results/static_cost.json` |
+| Always-on context tax (20 skill descriptions) | **1546 tokens** (~0.8% of 200K) | `eval/results/static_cost.json` |
 | Best per-call output reduction (caveman-ultra) | **−86.4%** output (N=50), **+0.13 judge** (prior N=15) | `eval/results/caveman-ultra.json` + `.judged.json` |
 | Best discipline combo (caveman + lean) | **−87.7%** output | `eval/results/caveman+lean.json` |
 | End-to-end routing savings (prompt-triage, N=13 mixed prompts) | **−20.9%** total tokens, 100% classification accuracy | `eval/results/prompt-triage.json` |

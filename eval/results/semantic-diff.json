@@ -1,6 +1,6 @@
 {
   "harness": "runner_semdiff.py",
-  "n_files": 3,
+  "n_files": 2,
   "results": [
     {
       "file": "skills/semantic-diff/tools/semdiff/core.py",
@@ -20,32 +20,15 @@
       }
     },
     {
-      "file": "skills/context-refresh/tools/context.py",
-      "baseline_chars": 23076,
-      "step1_full_read_chars": 23076,
-      "step2_unchanged_chars": 310,
-      "step2_savings_pct": 98.7,
-      "step3_added_function_chars": 408,
-      "step3_savings_pct": 98.2,
-      "step4_two_edits_chars": 1131,
-      "step4_savings_pct": 95.1,
-      "modes": {
-        "step1": "full",
-        "step2": "diff",
-        "step3": "diff",
-        "step4": "diff"
-      }
-    },
-    {
       "file": "skills/prompt-triage/tools/classify.py",
-      "baseline_chars": 6142,
-      "step1_full_read_chars": 6142,
-      "step2_unchanged_chars": 240,
-      "step2_savings_pct": 96.1,
-      "step3_added_function_chars": 338,
-      "step3_savings_pct": 94.5,
-      "step4_two_edits_chars": 1659,
-      "step4_savings_pct": 73.0,
+      "baseline_chars": 14223,
+      "step1_full_read_chars": 14223,
+      "step2_unchanged_chars": 286,
+      "step2_savings_pct": 98.0,
+      "step3_added_function_chars": 384,
+      "step3_savings_pct": 97.3,
+      "step4_two_edits_chars": 2657,
+      "step4_savings_pct": 81.3,
       "modes": {
         "step1": "full",
         "step2": "diff",
@@ -55,8 +38,8 @@
     }
   ],
   "summary": {
-    "step2_unchanged_savings_pct_mean": 97.5,
-    "step3_added_function_savings_pct_mean": 96.5,
-    "step4_two_edits_savings_pct_mean": 86.0
+    "step2_unchanged_savings_pct_mean": 97.8,
+    "step3_added_function_savings_pct_mean": 97.0,
+    "step4_two_edits_savings_pct_mean": 85.5
   }
 }
