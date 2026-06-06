@@ -39,6 +39,14 @@ done < <(find "$SRC/skills" -name SKILL.md -not -path '*/.venv/*' -not -path '*/
 rsync -a --exclude '.venv/' --exclude '__pycache__/' --exclude '*.pyc' \
   "$SRC/skills/prompt-triage/tools/" "$STAGE/skills/prompt-triage/tools/"
 
+# wiki-memory + write-gate tools — exp1_compounding's run_compounding.py shells out
+# to wiki.py (init/new/search/fetch/index) and write_gate.py (gate). Without these
+# the compounding experiment can't run on Kaggle (the discipline eval didn't need them).
+rsync -a --exclude '.venv/' --exclude '__pycache__/' --exclude '*.pyc' \
+  "$SRC/skills/wiki-memory/tools/" "$STAGE/skills/wiki-memory/tools/"
+rsync -a --exclude '.venv/' --exclude '__pycache__/' --exclude '*.pyc' \
+  "$SRC/skills/write-gate/tools/" "$STAGE/skills/write-gate/tools/"
+
 cp "$(dirname "$0")/dataset-metadata.json" "$STAGE/dataset-metadata.json"
 
 echo "SKILL.md count: $(find "$STAGE/skills" -name SKILL.md | wc -l | tr -d ' ')"

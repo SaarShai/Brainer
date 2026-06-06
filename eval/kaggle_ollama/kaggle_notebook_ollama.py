@@ -134,11 +134,30 @@ def run_step(label: str, cmd: list[str], env: dict | None = None) -> None:
 
 def install_ollama() -> None:
     print("\n=== install ollama ===", flush=True)
-    try:
-        run(["bash", "-c", "curl -fsSL https://ollama.com/install.sh | sh"])
-    except subprocess.CalledProcessError as e:
-        print("ollama install via script failed, output:", e.output[-1500:] if e.output else e, flush=True)
-        raise
+    # Kaggle's base image lacks zstd, which ollama's installer needs to unpack
+    # its bundle (it errors with "install zstd"). Install it first.
+    subprocess.run(
+        ["bash", "-c", "(apt-get update -y && apt-get install -y zstd) >/tmp/apt.log 2>&1 || true"],
+    )
+    r = subprocess.run(
+        ["bash", "-c", "curl -fsSL https://ollama.com/install.sh | sh"],
+        text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+    )
+    print((r.stdout or "")[-1500:], flush=True)
+    have = subprocess.run(["bash", "-c", "command -v ollama"], stdout=subprocess.DEVNULL).returncode == 0
+    if not have:
+        print("installer did not yield an ollama binary; direct-tarball fallback", flush=True)
+        rc = subprocess.run(
+            ["bash", "-c",
+             "set -e; "
+             "curl -fsSL https://ollama.com/download/ollama-linux-amd64.tgz -o /tmp/ol.tgz; "
+             "mkdir -p /usr/local; tar -xzf /tmp/ol.tgz -C /usr/local; "
+             "ln -sf /usr/local/bin/ollama /usr/bin/ollama; ollama --version"],
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        )
+        print((rc.stdout or "")[-1500:], flush=True)
+        if rc.returncode != 0:
+            raise RuntimeError("ollama install failed (installer + direct tarball)")
 
 
 def serve_ollama() -> subprocess.Popen:
