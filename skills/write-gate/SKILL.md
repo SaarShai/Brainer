@@ -15,7 +15,7 @@ Two-layer policy:
 1. **Execution gate** (existing) — fact came from an action that *executed* and *succeeded*. Plans don't earn pages.
 2. **Content gate** (this skill) — fact has signal AND, if it's a decision/convention, gives a reason.
 
-The execution gate is already enforced by `wiki-memory`'s `tools/wiki.py` and the [`projects/write-gate`](../../wiki/projects/write-gate.md) middleware. This skill adds the content gate.
+The execution gate is the job of [`verify-before-completion`](../verify-before-completion/SKILL.md) (evidence-first: a fact only earns a page once the action that produced it ran and passed). This skill adds the **content gate**. Both are **procedure gates** — agent steps in `wiki-memory`'s write protocol (`SKILL.md` step 3 instructs running `write_gate.py gate` before a write), not code auto-invoked by `wiki.py`. So the gate fires when the protocol is followed; it is a manual/CLI gate, not enforced inside the write path.
 
 ## When to call
 

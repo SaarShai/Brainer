@@ -8,7 +8,7 @@ pulse_reminder: a wiki page whose cited code paths are gone is drifting against 
 
 # wiki-refresh
 
-Ground-truth maintenance for `wiki-memory`. Where [`memory-decay`](../memory-decay/SKILL.md) ages a page's `confidence` by *time*, this reconciles a page against the *current codebase* and takes an action. Lineage: EveryInc compound-engineering `ce-compound-refresh`, grafted onto this wiki's typed-edge + decay substrate.
+Ground-truth maintenance for `wiki-memory`. Where [`memory-decay`](../memory-decay/SKILL.md) ages a page's `confidence` by *time*, this reconciles a page against the *current codebase* and takes an action. Lineage: [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) `plugins/compound-engineering/skills/ce-compound-refresh`, grafted onto this wiki's typed-edge + decay substrate.
 
 Division of labor:
 - `write-gate` — what enters the wiki.
@@ -61,6 +61,8 @@ Match depth to specificity: a page citing exact paths + snippets needs more veri
 | **Delete** | code gone **and** problem domain gone **and** no substantive inbound links | delete the file |
 
 **Update vs Replace boundary (the rule that matters):** if you find yourself rewriting the *claim/solution* section, it's Replace, not Update. Update only touches references.
+
+**Retrieval-Value Test (the Consolidate gate):** before merging two *correct, overlapping* pages, ask — *would a maintainer searching 6 months out be better served by two separately-findable pages, or by one (and merely spared the drift risk between them)?* Consolidate only when one genuinely subsumes the other, or the split adds drift risk without distinct retrieval value. Keep them separate when each answers a different query a future searcher would actually issue. Prevents both over-consolidating distinct sub-problems and under-consolidating true duplicates. (Port of EveryInc ce-compound-refresh Phase 1.75.)
 
 **Before Delete, three gates (all must hold):**
 1. implementation gone (cited code absent),

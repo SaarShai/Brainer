@@ -13,6 +13,10 @@ arXiv [2510.07777](https://arxiv.org/html/2510.07777), "Drift No More?", tests r
 
 The paper does NOT compare cadences (only tests turns 4 + 7), does NOT compare formats (only "restate the goal"), and does NOT test rotated phrasings. The v1 defaults here (cadence=4, fixed text) are the most paper-validated configuration.
 
+## Posture: opt-in, do not re-promote without a measured cadence sweep (2026-06-06 SOTA scan)
+
+skill-pulse is the **unconditional-periodic** anti-drift pattern. A SOTA scan (see `wiki/log.md`) found the practitioner/vendor consensus is **reactive > periodic**: Claude Code's own drift defense fires on conversation-state conditions, not a fixed cadence ([michaellivs.com teardown](https://michaellivs.com/blog/system-reminders-steering-agents/)), and Anthropic's guidance is to *curate/shrink* context, not blanket-re-inject ([effective context engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)). Worse, the host **already** ships a periodic `<system-reminder>` task-nudge, so skill-pulse partially duplicates a built-in (and over-injection is a filed anti-pattern). Context-rot + lost-in-the-middle findings say the active ingredient is *recency-slot placement*, not periodicity. **Therefore:** keep opt-in (`auto-install: false`); re-promote only after a measured cadence sweep on THIS catalog beats the host baseline. Leaner alternative on the table: fold the rule-re-anchoring into `compliance-canary` as a *reactive* "rule-staleness" probe (one reactive hook instead of two). The reactive hooks (`loop-breaker`, `compliance-canary`) are the better-shaped anti-drift bets — `compliance-canary` should run its `measure.py` on ~20 real >20-turn transcripts before re-promotion.
+
 ## What to measure in this catalog
 
 Compliance decay is a session-length phenomenon — most sessions are too short for it to matter. The measurement plan:
