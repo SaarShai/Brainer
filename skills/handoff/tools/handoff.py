@@ -26,6 +26,25 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[2]
+
+
+def wiki_facts_root() -> Path:
+    """Resolve <project>/wiki/L2_facts the same way the wiki reader does.
+
+    Mirrors wiki-memory's `_cli_default_root()` exactly: `$WIKI_ROOT` if set,
+    else `<cwd>/wiki`. Keeping the handoff writer and the wiki reader pointed
+    at the same store is the whole fix — the old code used REPO_ROOT (the
+    __file__-derived install dir), so `handoff.py --full` from another project
+    silently wrote that project's facts into token-economy's own wiki. We do
+    NOT fall back to the install wiki: that fallback re-introduced the bug for
+    a project that has no wiki/ yet. An explicit `--full` creates `<cwd>/wiki`.
+    """
+    env = os.environ.get("WIKI_ROOT")
+    if env:
+        return Path(env).expanduser().resolve() / "L2_facts"
+    return (Path.cwd() / "wiki" / "L2_facts").resolve()
+
+
 sys.path.insert(0, str(HERE / "_lib"))
 
 from context import (  # noqa: E402
@@ -59,7 +78,7 @@ def route_to_wiki(packet_path: Path, goal: str) -> Path | None:
     (missing_v2_field / legacy_missing_frontmatter / missing_provenance
     would otherwise fire on every routed handoff).
     """
-    wiki_root = REPO_ROOT / "wiki" / "L2_facts"
+    wiki_root = wiki_facts_root()
     wiki_root.mkdir(parents=True, exist_ok=True)
     packet_text = packet_path.read_text(encoding="utf-8", errors="replace")
     facts = extract_transcript_facts(packet_text)

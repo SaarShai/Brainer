@@ -34,6 +34,8 @@ Skills compound across axes (output × input × routing × memory) but **diminis
 
 **Workload-aware install:** keep the hook skills (`prompt-triage`, `context-keeper`, `output-filter`) and `caveman-ultra` everywhere; trim the discipline skills (`plan-first-execute`, `lean-execution`, `verify-before-completion`) on machines that mostly do quick imperative work.
 
+**Default install path (since the opt-in demotion):** three skills carry `auto-install: false` so `./install.sh` does not run their `tools/install.sh` — `compress-context` (heavy torch+llmlingua dep for a −36% gain that barely beats free observation-masking, and whose 44.9%/SQuAD number is not reproduced in `eval/results`), `skill-pulse` and `compliance-canary` (anti-drift UserPromptSubmit hooks with zero in-repo token A/B that fire every turn and overlap each other). They stay symlinked and listed; enable explicitly with `bash skills/<name>/tools/install.sh`. The default UserPromptSubmit path keeps only `prompt-triage` (measured −20.9%); `loop-breaker` (PreToolUse) and `context-keeper` (PreCompact) remain auto-wired (cheap / measured).
+
 ## Headline numbers
 
 | Metric | Value | Source |
@@ -50,7 +52,7 @@ Headline numbers with the skill active. Different metrics per skill type — see
 
 | Skill | Headline | Judge | N | Harness |
 |---|---:|---:|---:|---|
-| **semantic-diff** | **97.5% / 96.5% / 86.0%** on unchanged / +fn / 2-edit re-reads | — | 3 source files | `runner_semdiff.py` |
+| **semantic-diff** | **97.8% / 97.0% / 85.5%** on unchanged / +fn / 2-edit re-reads | — | 2 source files | `runner_semdiff.py` |
 | **output-filter** | **−88.8%** bytes, 5/5 error lines preserved | — | 4 noisy samples | `runner_filter.py` |
 | **context-keeper** | **97.7%** transcript compression, 100% URL / 67% measurement recall | — | 1 transcript | `runner_keeper.py` |
 | caveman-ultra | **−86.4%** output | +0.13 (prior N=15) | **50 × 5** | `runner.py` |
@@ -59,8 +61,8 @@ Headline numbers with the skill active. Different metrics per skill type — see
 | verify-before-completion | **−33.5%** output | n/a (judge pending) ⚠ | **50 × 5** | `runner.py` |
 | **compress-context** | **−35.6%** mean token reduction (n=3 long contexts) | — | 3 samples | `runner_compress.py` |
 | prompt-triage | **−20.9%** total tokens, 100% routing accuracy | — | 1 × 13 | `runner_triage.py` |
-| plan-first-execute | **−20.45%** output | +0.20 (prior N=15) | **50 × 5** | `runner.py` |
-| **handoff** | 3/3 integration pass, 4/4 sections, 39 ms / call, ~2.5 KB doc | — | 3 focus arguments | `runner_handoff.py` |
+| plan-first-execute | **−20.45%** output | +0.20 (prior N=15) | **3 × 5** | `runner.py` |
+| **handoff** | 3/3 integration pass, 4/4 sections, ~50 ms / call, ~2.5 KB doc | — | 3 focus arguments | `runner_handoff.py` |
 
 ⚠ The verify-before-completion judge column is `n/a (pending)` because the N=50 run with the new executable-prompt YAML (`eval/tasks/verify-before-completion.yaml`, commit `caf0400`) produced the output deltas but the judge pass failed mid-batch on `MiMo 402: Insufficient balance`. Prior to the prompt rework, this skill judged at `−0.40` on the old "I just did X, is it done?" prompts — a known rubric artifact (judge scored "demands fresh evidence" lower than "affirms confidently"). The new prompts embed verification artifacts (test output, build log, install record, env state, migration log) so the rubric can fairly score "examined the evidence + named the gap" vs. "trusted the artifact" — but the judge needs to be re-run on a non-MiMo backend (e.g. `judge.py --backend ollama --model qwen3.6:35b-a3b-q4km`) before the rubric question is settled.
 

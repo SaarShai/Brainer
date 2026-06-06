@@ -1,7 +1,7 @@
 {
   "skill": "loop_breaker",
   "shape": "fuzz",
-  "elapsed_s": 3.389287233352661,
+  "elapsed_s": 3.263735055923462,
   "passed": true,
   "summary": {
     "n_cases": 11,

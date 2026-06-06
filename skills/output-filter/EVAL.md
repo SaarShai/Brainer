@@ -12,15 +12,16 @@
 
 agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K context window).
 
-## A/B savings (measured, N=? × 0 prompts, model=?)
+## Savings (measured, N=4 noisy samples — deterministic, no LLM)
 
-| metric | without skill | with skill | Δ | 95% CI |
-|---|---|---|---|---|
-| input tokens (mean)  | — | — | — | n/a |
-| output tokens (mean) | — | — | — | n/a |
-| latency (ms)         | — | — | n/a | n/a |
-| judge score (0–5)    | —   |   |   |   |
+output-filter is a byte-level tool-stdout filter, not an LLM A/B, so the metric is **bytes filtered + error-line fidelity**, not token deltas. Re-run live via `python3 eval/runner_filter.py` (RC=0, byte-identical to committed).
 
+| metric | raw | filtered | Δ |
+|---|---|---|---|
+| total bytes | 6074 | 679 | **−88.8%** |
+| error lines preserved | 5 | 5 | **5/5 verbatim** |
+
+Per-sample: ansi_progress −89.9% · ci_log −84.9% · dup_stdout −97.1% · mixed_signal −83.1%.
 
 Raw: [`eval/results/output-filter.json`](../../eval/results/output-filter.json)
 
