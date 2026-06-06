@@ -48,4 +48,4 @@ User provided a long article claiming a drop from `$4,200/month` to `$312/month`
 - [[projects/delegate-router/README]]
 - [[concepts/prefix-caching]]
 - [[concepts/local-model-setup]]
-- [[projects/agents-triage/SKILL]]
+- `skills/prompt-triage/SKILL.md` (formerly agents-triage)

@@ -488,16 +488,9 @@ class WikiStore:
             "README",
             "ROADMAP",
             "bench/README",
-            "projects/agents-triage/SKILL",
             "projects/compound-compression-pipeline/RESULTS",
             "projects/context-keeper/README",
             "projects/context-keeper/SKILL",
-            "projects/context-keeper-v2/README",
-            "projects/semdiff/README",
-            "projects/skill-crystallizer/README",
-            "projects/wiki-search/README",
-            "projects/write-gate/README",
-            "skills/token-economy-external-adoption/SKILL",
             "stable/AGENT_PROMPT",
             "stable/README",
         }
@@ -1268,8 +1261,9 @@ class WikiStore:
     # across five dimensions (subject / tags / content / refs / links) so the
     # writer can update-not-create when a near-duplicate already exists, instead
     # of letting duplicate pages drift apart and contradict each other later.
-    # Lineage: EveryInc compound-engineering ce-compound overlap assessment,
-    # grafted onto this wiki's typed-edge substrate.
+    # Lineage: EveryInc/compound-engineering-plugin (plugins/compound-engineering/
+    # skills/ce-compound) overlap assessment, grafted onto this wiki's
+    # typed-edge substrate.
     OVERLAP_DIMENSIONS = ("subject", "tags", "content", "refs", "links")
 
     def overlap(

@@ -6,8 +6,8 @@ domain: framework
 tier: semantic
 confidence: 0.75
 created: 2026-04-25
-updated: 2026-04-25
-verified: 2026-04-25
+updated: 2026-06-06
+verified: 2026-06-06
 sources: [https://github.com/obra/superpowers, raw/2026-04-17-research-brief.md, raw/2026-04-18-karpathy-wiki-spinoffs.md]
 supersedes: []
 superseded-by:
@@ -31,10 +31,10 @@ Superpowers is useful to Token Economy less as a dependency and more as a workfl
 
 ## Applied In This Repo
 
-- `start.md` points to skills on demand instead of loading every workflow.
-- `skills/context-refresh/SKILL.md` and `prompts/summ.md` keep handoff behavior behind a trigger.
-- `prompts/subagents/repo-maintainer.prompt.md` and `prompts/subagents/wiki-documenter.prompt.md` use compact result packets instead of transcripts.
-- `tests/test_universal_framework.py` pins startup and prompt contracts so workflow drift is caught.
+- The skills catalog (`skills/SKILLS_INDEX.md`) points to skills on demand instead of loading every workflow.
+- `skills/handoff/SKILL.md` keeps handoff behavior behind a trigger.
+- `skills/lean-execution/SKILL.md` enforces compact result packets instead of transcripts for delegated workers.
+- Per-skill test suites (e.g. `skills/wiki-memory/tools/test_refresh.py`) pin contracts so workflow drift is caught.
 
 ## Still Useful To Import
 
@@ -47,4 +47,4 @@ Superpowers is useful to Token Economy less as a dependency and more as a workfl
 - [[raw/2026-04-17-research-brief]]
 - [[raw/2026-04-18-karpathy-wiki-spinoffs]]
 - [[concepts/wiki-governance]]
-- [[projects/delegate-router/README]]
+- [[projects/delegate-router]]

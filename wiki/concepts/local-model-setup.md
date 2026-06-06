@@ -6,9 +6,9 @@ domain: ai-setup
 tier: working
 confidence: 0.9
 created: 2026-04-25
-updated: 2026-04-25
-verified: 2026-04-25
-sources: [concepts/devices-inventory.md, token_economy/delegate.py, projects/agents-triage/SKILL.md, projects/context-keeper/README.md, projects/semdiff/README.md, skills/context-refresh/SKILL.md, skills/verification-before-completion/SKILL.md, start.md]
+updated: 2026-06-06
+verified: 2026-06-06
+sources: [concepts/devices-inventory.md, skills/prompt-triage/SKILL.md, skills/context-keeper/SKILL.md, skills/semantic-diff/SKILL.md, skills/handoff/SKILL.md, skills/verify-before-completion/SKILL.md]
 supersedes: []
 superseded-by:
 tags: [infra, devices, models, routing, harnesses]
@@ -16,7 +16,7 @@ tags: [infra, devices, models, routing, harnesses]
 
 # Local model setup matrix
 
-M2 is the control plane. See [[concepts/devices-inventory]] for the current cluster map and [[projects/delegate-router/README]] for the routing policy. M1 and M1B are local inference peers. M1B should not be treated as worker-only; it should mirror M1's task-ready model set and be able to take bounded tasks directly.
+M2 is the control plane. See [[concepts/devices-inventory]] for the current cluster map and [[projects/delegate-router]] for the routing policy. M1 and M1B are local inference peers. M1B should not be treated as worker-only; it should mirror M1's task-ready model set and be able to take bounded tasks directly.
 
 ## Shared on all three
 
@@ -32,24 +32,21 @@ M2 is the control plane. See [[concepts/devices-inventory]] for the current clus
 
 ## Skills to keep reachable
 
-- [[skills/caveman-ultra/SKILL]]
-- [[skills/plan-first-execute/SKILL]]
-- [[skills/wiki-retrieve/SKILL]]
-- [[skills/wiki-write/SKILL]]
-- [[skills/context-refresh/SKILL]]
-- [[skills/verification-before-completion/SKILL]]
-- [[skills/subagent-orchestrator/SKILL]]
-- [[skills/personal-assistant/SKILL]]
-- [[skills/token-economy-external-adoption/SKILL]] on maintainer repos only
+- `skills/caveman-ultra/SKILL.md`
+- `skills/plan-first-execute/SKILL.md`
+- `skills/wiki-memory/SKILL.md` — wiki retrieval + gated writes
+- `skills/handoff/SKILL.md` and `skills/context-keeper/SKILL.md` — context refresh + state preservation
+- `skills/verify-before-completion/SKILL.md`
+- `skills/prompt-triage/SKILL.md` — delegation routing
 
 ## M2: orchestration and measurement
 
 Set up:
 
-- [[projects/compound-compression-pipeline/RESULTS|ComCom]]
-- [[projects/semdiff/README|semdiff]] MCP/plugin
-- [[projects/context-keeper/README|context-keeper]] PreCompact hook
-- [[projects/agents-triage/SKILL|agents-triage]] hook and bundled subagents
+- `skills/compress-context/SKILL.md` (ComCom input compression)
+- `skills/semantic-diff/SKILL.md` MCP/plugin
+- `skills/context-keeper/SKILL.md` PreCompact hook
+- `skills/prompt-triage/SKILL.md` triage hook and bundled subagents
 - output-filter
 - benchmark suite
 - `./te profile show`
@@ -69,11 +66,10 @@ Use for:
 How to install:
 
 ```bash
-./INSTALL.sh --dry-run
-./INSTALL.sh --scope project
-bash projects/agents-triage/install.sh --project
-bash projects/context-keeper/install.sh --project
-bash projects/semdiff/install.sh --project
+./install.sh
+bash skills/prompt-triage/tools/install.sh
+bash skills/context-keeper/tools/install.sh
+bash skills/semantic-diff/tools/install.sh
 ```
 
 ## M1 and M1B: task-capable local inference
@@ -133,5 +129,5 @@ On M1B, mirror M1's live `ollama list` / `curl http://<host>:11434/api/tags` out
 
 - [[concepts/turboquant-kv-cache]]
 - [[concepts/framework-hardening-adoption]]
-- [[projects/context-refresh/host-context-controls]]
-- [[skills/verification-before-completion/SKILL]]
+- [[projects/context-refresh]]
+- `skills/verify-before-completion/SKILL.md`

@@ -18,4 +18,4 @@ tags: [structured-outputs, tokens]
 
 Structured outputs reduce reasoning/output waste by constraining response shape. Use schemas, compact result packets, or tool-call contracts when free-form prose would bloat context.
 
-Related: [[prompts/subagents/wiki-documenter.prompt]], [[prompts/subagents/repo-maintainer.prompt]]
+Related: [[raw/2026-04-17-research-brief]]

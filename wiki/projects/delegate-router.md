@@ -33,8 +33,7 @@ Model-agnostic routing policy for subagents and cheaper models.
 ./te delegate cost-check "task"  # compatibility alias
 ```
 
-Implementation lives in `token_economy/delegate.py`.
-Local cost discipline lives in `token_economy/cost.py`.
+Routing/classification now lives in `skills/prompt-triage/SKILL.md`; delegation pruning in `skills/lean-execution/SKILL.md`. (The `./te delegate`/`./te cost` commands above reflect the former Token Economy CLI surface.)
 
 ## Cost preflight
 

@@ -37,7 +37,7 @@ evidence_count: 0
     └── YYYY-MM/<session-id>.md.gz
 ```
 
-## Write gate (see [[projects/write-gate/README]])
+## Write gate (see `skills/write-gate/SKILL.md`)
 
 "**No execution, no memory.**" Only extractions from successful tool calls write to L2/L3. Plans or rationales without executed evidence stay in L4 archive.
 

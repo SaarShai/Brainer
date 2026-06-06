@@ -55,7 +55,6 @@ Token Economy should treat plans, context, delegation, and process artifacts as 
 
 ## Related
 
-- [[start]]
 - [[L0_rules]]
 - [[concepts/caveman-output-compression]]
 - [[concepts/framework-hardening-adoption]]

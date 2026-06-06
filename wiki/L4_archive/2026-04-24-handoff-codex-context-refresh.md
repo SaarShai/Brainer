@@ -59,7 +59,7 @@ Continue Token Economy framework work from the new canonical local folder `/User
 
 ## 7. Wiki pages updated
 
-- `[[projects/context-refresh/host-context-controls]]`
+- `projects/context-refresh/host-context-controls`
 
 ## 8. Open questions
 

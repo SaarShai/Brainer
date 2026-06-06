@@ -17,7 +17,7 @@ Fresh-context workflow for preventing context rot.
 - Default trigger: `refresh_threshold: 0.20`.
 - At threshold, run `./te context checkpoint`.
 - On manual `summ`, split lean handoff from durable wiki memory.
-- Durable wiki memory is handled by a lightweight documenter using `prompts/subagents/wiki-documenter.prompt.md`; this is the documentation lifecycle routing layer.
+- Durable wiki memory is handled by a lightweight documentation worker (see `skills/wiki-memory/SKILL.md`); this is the documentation lifecycle routing layer.
 - If the host can clear context natively, use that control after creating the handoff. Claude Code's `/clear` is the known manual clear path.
 - Codex current-thread clearing is not solved in the tested environment; App Server current-thread compact failed with `tools.defer_loading`. Use a fresh successor thread only as a clean-continuation workaround, not as a claim that the old visible context was cleared.
 

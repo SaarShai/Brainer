@@ -22,7 +22,7 @@ python, javascript, typescript, rust (tree-sitter grammars).
 
 ## Usage
 ```bash
-python3 -m semdiff.cli read path/to/file.py --session my-session
+python3 -m semdiff.cli read <file.py> --session my-session
 ```
 
 Or as library:
@@ -54,11 +54,11 @@ text, meta = read_smart("foo.py", session_id="s1")
 Unique combo: (a) per-session AST snapshot (b) node-granularity diff on re-read (c) pluggable CLI/MCP.
 
 ## Distribution (built 2026-04-17)
-- **MCP server** at `semdiff_mcp/server.py` — works with Claude Code, Cursor, Cline, Zed, Windsurf, any MCP client.
+- **MCP server** at `skills/semantic-diff/tools/semdiff_mcp/server.py` — works with Claude Code, Cursor, Cline, Zed, Windsurf, any MCP client.
 - Tools exposed: `read_file_smart`, `snapshot_clear`, `snapshot_status`.
 - **Claude Code plugin** wrapper at `plugin/` — one-command install for CC users.
 - Protocol roundtrip tested: initialize, tools/list, tools/call all pass.
-- Install guide: [[INSTALL]]
+- Install guide: `skills/semantic-diff/tools/INSTALL.md`
 
 ## Next
 - Publish plugin to marketplace (requires git repo + manifest registration).

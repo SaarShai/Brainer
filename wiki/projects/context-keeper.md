@@ -19,10 +19,10 @@ Before compaction (PreCompact hook):
 
 ## Files
 ```
-projects/context-keeper/extract.py   # the work
-projects/context-keeper/SKILL.md
-projects/context-keeper/hook.sh
-projects/context-keeper/install.sh
+skills/context-keeper/tools/extract.py   # the work
+skills/context-keeper/SKILL.md
+skills/context-keeper/tools/hook.sh
+skills/context-keeper/tools/install.sh
 ```
 
 ## Activation
@@ -30,7 +30,7 @@ projects/context-keeper/install.sh
 Project-local install helper:
 
 ```bash
-bash projects/context-keeper/install.sh --project
+bash skills/context-keeper/tools/install.sh
 ```
 
 If you need to chain it manually, project-local `.claude/settings.json` can add a PreCompact hook when the host supports project settings:
@@ -39,7 +39,7 @@ If you need to chain it manually, project-local `.claude/settings.json` can add 
 ```json
 "PreCompact": [{
   "matcher": "*",
-  "hooks": [{"type":"command","command":"bash ./.claude/skills/context-keeper/hook.sh"}]
+  "hooks": [{"type":"command","command":"bash skills/context-keeper/tools/hook.sh"}]
 }]
 ```
 
@@ -48,7 +48,7 @@ If you need to chain it manually, project-local `.claude/settings.json` can add 
 "PreCompact": [{
   "matcher": "*",
   "hooks": [
-    {"type":"command","command":"bash ./.claude/skills/context-keeper/hook.sh"}
+    {"type":"command","command":"bash skills/context-keeper/tools/hook.sh"}
   ]
 }]
 ```
