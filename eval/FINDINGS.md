@@ -46,6 +46,35 @@ Skills compound across axes (output × input × routing × memory) but **diminis
 | End-to-end routing savings (prompt-triage, N=13 mixed prompts) | **−20.9%** total tokens, 100% classification accuracy | `eval/results/prompt-triage.json` |
 | Memory compression (context-keeper, real 970-event transcript) | sidecar = **2.3% of raw transcript** (44× smaller), 100% URL recall, 67% numbers recall | `eval/results/context-keeper.json` |
 
+## Self-improvement: compounding memory (Exp1, real-model)
+
+Validates pillars 3+4 (wiki-memory framework + learning). Protocol borrowed from StreamBench: 12 sequential tasks, retrieve-before / gated-write-after each, longitudinal success curve. 5 introducer tasks teach a fact about fictional "Project Helios" (absent from pretraining); 7 dependent tasks can only be answered correctly by recalling a prior lesson. Three arms: **cold** (no memory), **memory** (gated wiki via `write_gate.py` + `wiki.py`), **poisoned** (ungated writes + injected garbage concepts). Each task tagged by learning source — `failure | feedback | success`.
+
+**Backend: ollama `qwen2.5:7b-instruct`, local, temp 0, 30.5s wall** (`eval/exp1_compounding/results/summary_local_qwen25.json`). Non-reasoning model chosen to avoid `<think>` confound.
+
+| arm | dependent acc | total acc | tokens | curve sum |
+|---|---:|---:|---:|---:|
+| cold (no memory) | **0.286** (2/7) | 0.50 | 1,276 | 6/12 |
+| memory (gated wiki) | **0.857** (6/7) | 0.833 | 6,358 | 10/12 |
+| poisoned (ungated + garbage) | 0.857 (6/7) | 0.833 | 5,709 | 10/12 |
+
+**Memory beats cold on lesson-dependent tasks: 0.286 → 0.857, lift +0.571.** Introducer accuracy identical across all arms (0.80) — correct sanity check; tasks with no dependency must not move.
+
+**Per-source memory−cold lift (the three learning sources, each independently positive):**
+
+| source | cold dep acc | memory dep acc | lift | n_dep |
+|---|---:|---:|---:|---:|
+| failure | 0.0 | 0.5 | **+0.5** | 2 |
+| feedback | 0.333 | 1.0 | **+0.667** | 3 |
+| success | 0.5 | 1.0 | **+0.5** | 2 |
+
+The failure source was **+0.0** before the `write_gate.py` `ERROR_MARKERS` fix (prose failure-lessons scored below the 3.0 threshold and were never written). After the fix it is **+0.5**, visible in-trace: `helios-retry-constant` cleared the gate at **5.0**, `helios-deploy-command` at **4.5**, both retrieved downstream. The eval harness caught this defect and the fix closed it — a genuine repair of the "learn from failures" pillar, confirmed on a real model.
+
+**Caveats (honest):**
+1. **Small N** — 2–3 dependents per source. Direction is clean; CIs are not tight. The Kaggle N=50 discipline run is the variance backstop.
+2. **Poison did not degrade** (Δ +0.0 vs gated memory). Good — the gate + retrieval ranking shrugged off the injected `misc-thoughts-three` — but at this N it is "no harm observed," not "proven robust."
+3. **Memory costs ~5× tokens** (6,358 vs 1,276): the accuracy is bought with retrieval-injection context. Real win, real price.
+
 ## Per-skill measured wins (live A/B)
 
 Headline numbers with the skill active. Different metrics per skill type — see Harness column.
