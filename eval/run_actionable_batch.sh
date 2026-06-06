@@ -70,7 +70,6 @@ run_step "judge: plan-first-execute" \
 run_step "static_cost" bash -c \
   "python3 eval/static_cost.py --json > eval/results/static_cost.json"
 run_step "populate EVAL.md per skill" python3 eval/populate_eval_md.py
-run_step "rebuild SKILLS_INDEX_RATED.md" python3 eval/build_rated_index.py
 
 echo
 echo "==== actionable batch complete ===="

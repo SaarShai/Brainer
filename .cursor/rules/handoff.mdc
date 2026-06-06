@@ -1,5 +1,5 @@
 ---
-description: Fires on the literal token "/handoff" in the user's message (with or without a focus argument after it; e.g. "/handoff" or "/handoff fixing the auth race"). Do NOT fire on any other input. Writes a handoff document summarising the current conversation so a fresh agent can continue the work. Saves to the OS temp dir, not the workspace. Suggests 1–3 skills the successor should invoke first. References existing artifacts; doesn't duplicate them. Redacts secrets. Pure write-doc — no successor launch.
+description: Fires on the literal token "/handoff" in the user's message. Do NOT fire on any other input. Writes a markdown handoff document summarising the current conversation so a fresh agent can continue the work. Three modes — default (write doc to OS temp dir), --full (also route durable facts into wiki/L2_facts/), --ask (query the most recent handoff for one specific fact). Pure local — no successor launch, no API calls. Replaces the older `context-refresh` skill; manual launch is the contract for now.
 globs: ["**/*"]
 alwaysApply: false
 ---

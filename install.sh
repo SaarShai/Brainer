@@ -103,6 +103,24 @@ skill_is_slash_only() {
   grep -q '^disable-model-invocation: *true' "$file"
 }
 
+# Opt-in skills (frontmatter `auto-install: false`) are still symlinked and
+# listed in the resident catalog, but their per-skill tools/install.sh is NOT
+# run by a bare ./install.sh — so they never auto-wire a hook or pull a heavy
+# dependency. Enable one explicitly with: bash skills/<name>/tools/install.sh
+# Rationale: only measured-win or cheap load-bearing skills belong on the
+# default install path (see eval/FINDINGS.md). Unmeasured-in-repo or
+# heavy-dependency skills (compress-context, skill-pulse, compliance-canary)
+# are opt-in.
+# NOTE: per-skill installers MERGE into .claude/settings.json (append-only) —
+# they never delete a hook. So if you previously opted into skill-pulse or
+# compliance-canary, re-running ./install.sh will NOT remove their
+# UserPromptSubmit hooks; drop the stale entry from .claude/settings.json by
+# hand to disable them.
+skill_is_optin() {
+  local file="$1"
+  grep -q '^auto-install: *false' "$file"
+}
+
 render_skills_catalog() {
   printf '%s\n' "$CATALOG_START"
   cat <<'HEADER'
@@ -331,6 +349,11 @@ echo "[skill-tools] running per-skill installers (Python deps, MCP servers)"
 for tool_installer in "$SRC"/*/tools/install.sh; do
   [ -f "$tool_installer" ] || continue
   skill_name="$(basename "$(dirname "$(dirname "$tool_installer")")")"
+  skill_md="$(dirname "$(dirname "$tool_installer")")/SKILL.md"
+  if [ -f "$skill_md" ] && skill_is_optin "$skill_md"; then
+    echo "  → $skill_name [skip] opt-in (auto-install: false) — enable with: bash $tool_installer"
+    continue
+  fi
   echo "  → $skill_name"
   if [ "$DRY_RUN" = "1" ]; then
     echo "    DRY: bash $tool_installer"

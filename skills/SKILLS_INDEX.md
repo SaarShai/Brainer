@@ -1,10 +1,10 @@
 # Token Economy Skills
 
-Lean, token/context-efficient skills for AI coding agents (Claude Code · Codex · Cursor · Gemini · Copilot).
+Lean skills for AI coding agents (Claude Code · Codex · Cursor · Gemini · Copilot) across four pillars: **(1)** token-use optimization, **(2)** context-window optimization & management, **(3)** LLM wiki-memory framework, **(4)** self-improvement & learning.
 
 This replaces the old `start.md` boot doc. Each skill is a self-contained folder under `skills/<name>/`. Skill descriptions are the only thing always resident in the agent's context; full bodies load on trigger.
 
-For ratings and measured deltas see [`SKILLS_INDEX_RATED.md`](SKILLS_INDEX_RATED.md).
+For measured per-skill deltas and the live A/B table see [`eval/FINDINGS.md`](../eval/FINDINGS.md); each skill also ships its own `EVAL.md`.
 
 ## Catalog
 
@@ -19,19 +19,22 @@ For ratings and measured deltas see [`SKILLS_INDEX_RATED.md`](SKILLS_INDEX_RATED
 | [handoff-from](handoff-from/SKILL.md) | Inverse of `/handoff` — pulls a previous/parallel session's state into *this* new session. Use when the source session is blocked/waiting and you can't `/handoff` from it. |
 | [prompt-triage](prompt-triage/SKILL.md) | Pre-model classifier hook; routes simple tasks to cheap models. |
 | [context-keeper](context-keeper/SKILL.md) | PreCompact hook: structured memory before compaction. |
-| [compress-context](compress-context/SKILL.md) | LLMLingua-based compound compression with self-verify (opt-in). |
+| [session-recall](session-recall/SKILL.md) | Synthesize across ALL prior local sessions (Claude Code/Codex/Cursor) for "have we done X / what was tried before" when no handoff doc exists. Filters MB-scale transcripts to scratch + dispatches a synthesis subagent; raw transcripts never enter orchestrator context. Pull-many complement to handoff/handoff-from. **Opt-in** (`auto-install: false`) — guardrail+smoke verified; A/B unmeasured. Lineage: [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) (`ce-sessions`). |
+| [compress-context](compress-context/SKILL.md) | LLMLingua-based compound compression with self-verify. **Opt-in** (`auto-install: false`) — heavy torch+llmlingua dep; not auto-installed. |
 | [semantic-diff](semantic-diff/SKILL.md) | AST-node diff on file re-reads (95%+ savings; opt-in MCP). |
 | [index-first](index-first/SKILL.md) | Prefer pre-built indexes / composite verbs over grep+read chains; batch N related lookups into one capped call. |
 | [output-filter](output-filter/SKILL.md) | Strip ANSI/progress/dup noise from terminal output. |
 | [loop-breaker](loop-breaker/SKILL.md) | PreToolUse hook: detects N consecutive identical tool calls, injects replan signal. Drift-mitigation. |
-| [skill-pulse](skill-pulse/SKILL.md) | UserPromptSubmit hook: every N user turns (default 4) re-injects active skills' `pulse_reminder` rules to fight compliance decay. Paper-calibrated (arXiv 2510.07777). |
-| [compliance-canary](compliance-canary/SKILL.md) | UserPromptSubmit hook: per-skill `drift_probes.json` scan recent assistant messages for filler regex / word-count creep / claim-without-evidence; injects targeted correctives. Ships an offline `measure.py` analyzer. Symptomatic complement to `skill-pulse`. |
+| [skill-pulse](skill-pulse/SKILL.md) | UserPromptSubmit hook: every N user turns (default 4) re-injects active skills' `pulse_reminder` rules to fight compliance decay. Paper-calibrated (arXiv 2510.07777). **Opt-in** (`auto-install: false`) — unmeasured in-repo; hook not auto-wired. |
+| [compliance-canary](compliance-canary/SKILL.md) | UserPromptSubmit hook: per-skill `drift_probes.json` scan recent assistant messages for filler regex / word-count creep / claim-without-evidence; injects targeted correctives. Ships an offline `measure.py` analyzer. Symptomatic complement to `skill-pulse`. **Opt-in** (`auto-install: false`) — unmeasured in-repo; hook not auto-wired. |
 | [write-gate](write-gate/SKILL.md) | Content-quality gate before persistent writes. Signal-score (decisions / errors / architecture / code / numbers, minus filler / speculation) + why-clause enforcement for decisions. Lineage: ogham-mcp + codenamev/claude_memory. |
 | [memory-decay](memory-decay/SKILL.md) | Exponential confidence decay for wiki-memory pages (5%/30d default). Errors / lessons / SOPs / high-evidence pages bypass decay (protection class). Dry-run by default. Lineage: ogham-mcp + doobidoo/mcp-memory-service. |
-| [wiki-refresh](wiki-refresh/SKILL.md) | Reconcile wiki pages against the current codebase (Keep/Update/Consolidate/Replace/Delete); code-grounded via `audit-refs`, emits typed `contradicts:` edges. Companion to memory-decay (time) — this is ground-truth. Lineage: EveryInc compound-engineering ce-compound-refresh. |
+| [wiki-refresh](wiki-refresh/SKILL.md) | Reconcile wiki pages against the current codebase (Keep/Update/Consolidate/Replace/Delete); code-grounded via `audit-refs`, emits typed `contradicts:` edges. Companion to memory-decay (time) — this is ground-truth. Lineage: [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) (`plugins/compound-engineering/skills/ce-compound-refresh`). |
 | [cache-lint](cache-lint/SKILL.md) | Static audit against Anthropic's 6 prompt-cache rules — dynamic content above breakpoint, prefix mutation by Stop-hooks, model switching, breakpoint sizing. Lineage: ussumant/cache-audit. |
 
-20 skills total. Removed after measurement: `personal-assistant` / `memory-api` / `skill-creator` (v1.1.0, redundancy), `delegate` (v1.2.0, zero measured gain — auto-routing via `prompt-triage` already covers the use case), `context-refresh` (v1.3.0, merged into `handoff` — its only unique piece was the auto-launcher which never worked reliably; the rest is now `/handoff --full` and `/handoff --ask`).
+21 skills total — **17 default-installed, 4 opt-in** (`compress-context`, `skill-pulse`, `compliance-canary`, `session-recall`, marked `auto-install: false`: a bare `./install.sh` symlinks and lists them but does **not** run their `tools/install.sh`, so no heavy dep is pulled and no hook is auto-wired). Enable one with `bash skills/<name>/tools/install.sh`. Rationale: only measured-win or cheap load-bearing skills sit on the default install path; unmeasured-in-repo or heavy-dependency skills are opt-in (see [`eval/FINDINGS.md`](../eval/FINDINGS.md)).
+
+Removed after measurement: `personal-assistant` / `memory-api` / `skill-creator` (v1.1.0, redundancy), `delegate` (v1.2.0, zero measured gain — auto-routing via `prompt-triage` already covers the use case), `context-refresh` (v1.3.0, merged into `handoff` — its only unique piece was the auto-launcher which never worked reliably; the rest is now `/handoff --full` and `/handoff --ask`).
 
 External integrations: [`index-first`](index-first/SKILL.md) and [`wiki-memory`](wiki-memory/SKILL.md) recognize [graphify](https://github.com/safishamsi/graphify) (`graphify-out/graph.json`) when present — graphify owns the auto-extracted *what/how/connected* layer; wiki-memory owns the curated *why/decision* layer. See each skill's body for the exact protocol.
 
@@ -72,4 +75,4 @@ Stacking, anti-patterns, and workload guidance live in [`eval/FINDINGS.md`](../e
 
 ## Status
 
-Each skill ships an `EVAL.md` with measured token/context deltas. Skills claiming >20% savings get N≥50 Kaggle-T4 verification before being promoted to default. Opt-in skills are flagged in their SKILL.md frontmatter.
+Each skill ships an `EVAL.md` with measured token/context deltas. Skills claiming >20% savings get N≥50 Kaggle-T4 verification before being promoted to default. Opt-in skills carry `auto-install: false` in their SKILL.md frontmatter; `install.sh` skips their `tools/install.sh` so they never auto-wire a hook or pull a heavy dependency. To **disable** one you previously enabled: per-skill installers append to `.claude/settings.json` and never delete, so remove the stale hook entry from `.claude/settings.json` by hand.

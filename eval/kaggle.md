@@ -30,5 +30,4 @@ Download `eval-results/` from the notebook and copy back into `eval/results/`. T
 
 ```bash
 python3 eval/populate_eval_md.py     # refresh EVAL.md per skill with measured numbers
-python3 eval/build_rated_index.py    # rebuild SKILLS_INDEX_RATED.md
 ```
