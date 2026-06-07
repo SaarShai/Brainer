@@ -61,6 +61,25 @@ Trimmed the unproven-gain tail. Principle: a skill stays only if it's either **m
 
 Effect: always-on tax 1642 → **998 (−39.2%)**; `eval/exp8_trigger/` top-1 fidelity was measured at the 19-skill snapshot (corpus since trimmed to the live set). Installer (`install.sh`) now prunes broken symlinks + orphan cursor rules on re-install, so cuts self-heal instead of stranding dangling links.
 
+## Gap-closure & long-run tests (2026-06-07)
+
+Closing the "what's NOT tested" column from the catalog table, plus multi-hour cross-model runs on networked Apple-silicon nodes.
+
+### Deterministic scale tests (M3 host, local, no model)
+
+| Skill | Gap it had | New test | Result |
+|---|---|---|---|
+| `semantic-diff` | "only ~2 source files" | full multi-lang suite — Python/JS/TS/Rust + rename / syntax-error / whitespace / realistic | **6/6 pass**; realistic re-read savings **99.4%** (`skills/semantic-diff/tools/tests/`) |
+| `output-filter` | "N=4 samples" | **exp12**: 40 generated noisy samples, error lines embedded at *adversarial* positions (inside dup-spam + progress bars) with known ground truth | error preservation **50/50 = 100% verbatim**; byte reduction mean **−89.9%** (range −79.6…−95.5%) (`eval/exp12_filter_scale/`) |
+| `wiki-refresh` | "tiny N (reconcile 3/3)" | **exp14**: 30 pages, known citation health (incl. paths to skills deleted this session); score `audit-refs` drift detection | drift **P/R/F1 = 1.0**; all/some-refs-gone signal **18/18**. (Reconcile *decision* Keep/Update/Replace/Delete remains model-judgment — only the deterministic detection core is scaled here.) (`eval/exp14_wiki_refresh_scale/`) |
+| `prompt-triage` | "N=13" | already validated at **N=48** (exp3 labeled corpus) — re-ran | routing **100%**, tier **96.8%**, and **0/18 complex prompts misrouted to a cheap model** (the safety property). The table's "N=13" was the stale end-to-end token figure. (`eval/exp3_classifiers/`) |
+| `cache-lint` | "in-distribution corpus" | **exp13**: new-shape OOD fixtures built *blind to the detector regexes* + a run on this repo's **real** configs | precision **1.0**, recall **0.6** OOD; **0 false-FAILs on the real repo**. The 4 OOD non-fires are by-design conservatism, not defects: backtick content is markdown *inline code* (correctly static); bare `$VAR`/`${VAR}`/raw-jinja are ambiguous-with-prose (`$500`, `$variable`) or inert unless the host template-substitutes context files. cache-lint fires on high-confidence injection (`$(…)`, `{{env.…}}`, interpolation) and stays silent elsewhere to hold precision. Documented limit. (`eval/exp13_cache_lint_ood/`) |
+
+### Cross-model long-run (networked Apple-silicon nodes, local ollama, multi-hour)
+
+- **M1** (`192.168.1.22`, Apple M1 Max, **gemma4:26b**): 6-hour driver (`eval/longrun/longrun.py`) looping **exp9 drift** (4 arms) + **exp1 compounding** (3 arms) — a model family/size distinct from the original qwen2.5 + MiMo runs. Closes the "2nd model" caveat on `skill-pulse`, `compliance-canary`, and wiki-memory compounding. Aggregated via `analyze.py` (mean ± 95% CI across reps). _Run in progress — gemma4:26b is verbose (~30–40 min/rep) → ~9–10 reps; results appended below when collected._
+- **M2** (`192.168.1.92`, Apple M2 Pro, 17 GB): **UNAVAILABLE** — severe memory pressure (compressor holding ~26 GB-equivalent, ~14 MB free); a single 8-token generation timed out at >180 s. An honest non-result, not a skipped test. (Earlier `ollama: absent` reports were a non-interactive-SSH `PATH` artifact — ollama is present on both nodes; M2 simply can't serve inference in its current state.)
+
 ## Self-improvement: compounding memory (Exp1, real-model)
 
 Validates pillars 3+4 (wiki-memory framework + learning). Protocol borrowed from StreamBench: 12 sequential tasks, retrieve-before / gated-write-after each, longitudinal success curve. 5 introducer tasks teach a fact about fictional "Project Helios" (absent from pretraining); 7 dependent tasks can only be answered correctly by recalling a prior lesson. Three arms: **cold** (no memory), **memory** (gated wiki via `write_gate.py` + `wiki.py`), **poisoned** (ungated writes + injected garbage concepts). Each task tagged by learning source — `failure | feedback | success`.
