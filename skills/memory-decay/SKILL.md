@@ -1,6 +1,6 @@
 ---
 name: memory-decay
-description: Use weekly/monthly (or before a wiki audit) to apply time-based confidence decay to wiki-memory pages. Triggers on "/decay", "audit the wiki", "are these facts stale?". Old unverified facts should not be retrieved with the same weight as fresh ones. Errors / lessons-learned / high-evidence pages bypass decay (protection class). Dry-run by default; apply only with --apply.
+description: Apply time-based confidence decay to wiki-memory pages (weekly/monthly or before a wiki audit). Triggers on "/decay", "audit the wiki", "are these facts stale?". Old unverified facts shouldn't be retrieved as if fresh; errors / lessons / high-evidence pages are protected. Dry-run by default; apply only with --apply.
 effort: low
 tools: [Bash, Read, Glob]
 pulse_reminder: stale facts retrieved as fresh are worse than missing facts. Decay weekly; protect error notes.

@@ -1,6 +1,6 @@
 ---
 name: session-recall
-description: Search and synthesize across ALL prior local agent sessions (Claude Code, Codex, Cursor) to answer "have we done X", "how did we investigate Y", "what was tried before", "what failed last time", or any question about past attempts/decisions — when no handoff doc exists. Pulls cross-session, not just one. Filters MB-scale transcripts to scratch and dispatches a synthesis-only subagent; raw transcripts never enter orchestrator context.
+description: Search and synthesize across ALL prior local agent sessions (Claude Code, Codex, Cursor) to answer "have we done X", "how did we investigate Y", "what was tried before", "what failed last time", or any question about past attempts/decisions — when no handoff doc exists. Pulls cross-session, not just one; raw transcripts never enter orchestrator context.
 effort: medium
 tools: [Bash, Read, Agent]
 auto-install: false
