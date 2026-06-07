@@ -37,9 +37,9 @@ graphify extract .
 
 `./install.sh` installs `graphify` from our maintained fork ([SaarShai/graphify@token-economy-patches](https://github.com/SaarShai/graphify/tree/token-economy-patches)) — published `graphifyy` 0.8.17 ships four bugs that affect our skill flow (see [skills/index-first/EVAL.md](skills/index-first/EVAL.md) for the bug list and impact). The installer prefers `pipx` and falls back to `python3 -m pip install --user`. Opt out with `./install.sh --no-graphify` (the wiki-memory and index-first skills degrade gracefully when the graph isn't present). After bootstrap the stack is on automatically — hooks fire per event, descriptions trigger on prompt shape.
 
-## The catalog (16 skills)
+## The catalog (15 skills)
 
-**14 default-installed, 2 opt-in** (`skill-pulse`, `compliance-canary` carry `auto-install: false` — `./install.sh` symlinks and lists them but does not run their `tools/install.sh`, so no hook is auto-wired). Enable one with `bash skills/<name>/tools/install.sh`.
+**13 default-installed, 2 opt-in** (`skill-pulse`, `compliance-canary` carry `auto-install: false` — `./install.sh` symlinks and lists them but does not run their `tools/install.sh`, so no hook is auto-wired). Enable one with `bash skills/<name>/tools/install.sh`.
 
 | Skill | Trigger | Desc tokens | Notes |
 |---|---|---:|---|
@@ -48,7 +48,6 @@ graphify extract .
 | [lean-execution](skills/lean-execution/SKILL.md) | "simplify / lean / prune" | 63 | Pruning rule. |
 | [verify-before-completion](skills/verify-before-completion/SKILL.md) | before any "done" claim | 49 | Evidence-first. |
 | [wiki-memory](skills/wiki-memory/SKILL.md) | retrieve OR write durable | 108 | Tier-aware (L0–L4) repo-local markdown wiki. |
-| [handoff](skills/handoff/SKILL.md) | explicit `/handoff` (+ `--full`, `--ask`) | ~150 | Unified session handoff. Three modes: write doc to $TMPDIR / write doc + route facts to wiki / query last handoff. Replaces `context-refresh`; manual successor launch only. |
 | [prompt-triage](skills/prompt-triage/SKILL.md) | UserPromptSubmit hook | 89 | Pre-model regex+Ollama classifier; routes simple tasks to cheap models. |
 | [context-keeper](skills/context-keeper/SKILL.md) | PreCompact hook | 80 | Structured memory before compaction. |
 | [semantic-diff](skills/semantic-diff/SKILL.md) | file re-read | 99 | AST-node diff. 95.5% measured savings on argparse.py re-reads. |
@@ -81,7 +80,13 @@ See [eval/results/static_cost.json](eval/results/static_cost.json) for the full 
 - `delegate` — orchestration contract with no per-call gain; `prompt-triage` already automates the cheap-model routing it advised manually. Subagent lifecycle prose folded into `prompts/` if needed for downstream use.
 
 **v1.3.0** (merged, not dropped):
-- `context-refresh` — its only unique piece beyond `handoff` was the auto-launcher (`context.py relay --execute`), which never worked reliably. The other useful bits (`checkpoint` doc-write, `extract_transcript_facts`, `ask_old_from_transcript`) live on inside `skills/handoff/tools/_lib/context.py` and surface as `/handoff` modes (`--full`, `--ask`). Manual successor launch is the contract now — paste the handoff path into a fresh session yourself.
+- `context-refresh` — merged into `handoff` (which was itself later removed; see v1.6.1). Its only unique piece was the auto-launcher (`context.py relay --execute`), which never worked reliably.
+
+**v1.6.0** (the unproven-gain tail + dead weight):
+- `handoff-from` + `memory-decay` (redundant / verified no-op), and `compress-context` + `session-recall` + `loop-breaker` (each ❌/🟡 on measured gain and redundant with a kept skill). See [`eval/FINDINGS.md`](eval/FINDINGS.md) "Catalog cuts".
+
+**v1.6.1** (covered by the host):
+- `handoff` — operational-only session-handoff command, no measured token/quality gain. The host's `/compact` + the `context-keeper` PreCompact hook now cover session continuity; durable facts still route through `wiki-memory` + `write-gate`.
 
 ## Install
 
@@ -94,7 +99,7 @@ See [eval/results/static_cost.json](eval/results/static_cost.json) for the full 
 | Codex / Cursor / Gemini CLI / Copilot | per-project (no plugin format exists for these) | clone into `<project>/.token-economy`, then `.token-economy/install.sh --host <name>` + symlink — see [Per-project install](#per-project-install-non-claude-code-hosts) |
 | any host (inside the token-economy clone itself, e.g. contributing) | for that clone only | `./install.sh` (all hosts) or `./install.sh --host <name>` |
 
-The plugin (`token-economy` v1.6.0) bundles all 16 skills plus optional `UserPromptSubmit` and `PreCompact` hooks (off by default; toggle in plugin config).
+The plugin (`token-economy` v1.6.1) bundles all 15 skills plus optional `UserPromptSubmit` and `PreCompact` hooks (off by default; toggle in plugin config).
 
 ### Host install matrix
 
@@ -185,7 +190,7 @@ Built on prior work:
 
 ## Status
 
-- 16 skills written and lint-clean.
+- 15 skills written and lint-clean.
 - 4 hosts wired and verified (Claude Code, Codex, Cursor, Gemini CLI).
 - Static-cost measurements published.
 - Live A/B harness ready; needs a healthy Ollama / explicit `ANTHROPIC_API_KEY` / `HF_TOKEN` to run.

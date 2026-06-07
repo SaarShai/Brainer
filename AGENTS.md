@@ -9,15 +9,16 @@ Each skill loads on its own trigger; full bodies are not in the boot context. Ru
 
 Skill bodies under `skills/<name>/` lazy-load on trigger. The names + 1-line
 descriptions below are kept in this resident doc so a freshly booted (or
-post-compaction) agent still knows what's available — without this list, a
-user typing `/handoff` looks like noise instead of a dispatch token.
+post-compaction) agent still knows what's available — so a model-invokable
+trigger (e.g. `wiki-memory` for "have we done X") is recognised on sight
+rather than re-derived from scratch.
 
 ### Slash-triggered (user types literally; model cannot auto-invoke)
 
 When the user's message starts with one of these literal tokens, dispatch to
 the named skill rather than improvising a hand-rolled equivalent:
 
-- `/handoff` — Writes a markdown handoff doc summarising THIS session so the next/fresh agent can continue — outbound
+_(none currently)_
 
 ### Model-invokable (host fires on matching context)
 

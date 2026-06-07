@@ -48,18 +48,6 @@
     "effort_pin": "low"
   },
   {
-    "name": "handoff",
-    "description_tokens": 73,
-    "description_chars": 310,
-    "body_tokens": 774,
-    "body_chars": 3099,
-    "tools_bytes": 30690,
-    "tools_kb": 30.0,
-    "has_eval_template": true,
-    "model_pin": "",
-    "effort_pin": "low"
-  },
-  {
     "name": "index-first",
     "description_tokens": 81,
     "description_chars": 342,

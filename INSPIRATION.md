@@ -6,7 +6,7 @@ Repos and writeups that shaped this catalog or live in adjacent territory. Group
 
 - [colbymchenry/codegraph](https://github.com/colbymchenry/codegraph) — pre-indexed code graph (tree-sitter + SQLite + MCP). Lineage for [`index-first`](skills/index-first/SKILL.md).
 - [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) — terse output style. Lineage for [`caveman-ultra`](skills/caveman-ultra/SKILL.md).
-- [mattpocock/skills](https://github.com/mattpocock/skills) — slash-command skill format. Lineage for [`handoff`](skills/handoff/SKILL.md).
+- [mattpocock/skills](https://github.com/mattpocock/skills) — slash-command skill format. Lineage for `handoff` (built then **cut v1.6.1** — session continuity left to host `/compact` + `context-keeper`).
 - [karpathy/LLM-wiki gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) — LLM-maintained markdown wiki as a compounding knowledge base. Lineage for [`wiki-memory`](skills/wiki-memory/SKILL.md).
 - [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) — CLAUDE.md packaging of Karpathy's "think before coding / surgical changes / goal-driven loop" principles. Adjacent to [`plan-first-execute`](skills/plan-first-execute/SKILL.md) and [`lean-execution`](skills/lean-execution/SKILL.md).
 - [ogham-mcp/ogham-mcp](https://github.com/ogham-mcp/ogham-mcp) — explicit **signal-score** boosts memories that mention decisions / errors / architecture / code; FRESH→STABLE→EDITING lifecycle; 5% importance decay per 30 idle days; 91.8% QA / 97.2% R@10 on LongMemEval. Lineage for [`write-gate`](skills/write-gate/SKILL.md) (signal-score). (The half-life idea seeded the since-removed `memory-decay` skill — cut as a verified no-op.)

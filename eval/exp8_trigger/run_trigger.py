@@ -42,7 +42,6 @@ SHOULD_FIRE = [
     ("the terminal output is full of ANSI codes and progress bars — clean it up", "output-filter"),
     ("I'm re-reading a file I already opened; just show me what changed", "semantic-diff"),
     ("audit this project's prompt-cache hygiene before we ship the new hooks", "cache-lint"),
-    ("write a handoff doc so a fresh session can pick up where I left off", "handoff"),
     ("classify this incoming prompt and route it to the cheapest capable model", "prompt-triage"),
     ("extract the key state from this transcript before it gets compacted", "context-keeper"),
 ]

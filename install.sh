@@ -62,7 +62,7 @@ link() {
 
 # --- Resident skills catalog ---------------------------------------------
 # Skill bodies are lazy-loaded on trigger, which means a freshly booted (or
-# post-compaction) agent doesn't know a skill like `/handoff` even exists —
+# post-compaction) agent doesn't know a model-invokable skill (say `wiki-memory`) even exists —
 # so it can't recognize the trigger. We fix this by compiling a 1-line-per-
 # skill catalog and injecting it between sentinels into each host's
 # always-resident doc (CLAUDE.md / AGENTS.md / GEMINI.md / cursor rule).
@@ -127,8 +127,9 @@ render_skills_catalog() {
 
 Skill bodies under `skills/<name>/` lazy-load on trigger. The names + 1-line
 descriptions below are kept in this resident doc so a freshly booted (or
-post-compaction) agent still knows what's available — without this list, a
-user typing `/handoff` looks like noise instead of a dispatch token.
+post-compaction) agent still knows what's available — so a model-invokable
+trigger (e.g. `wiki-memory` for "have we done X") is recognised on sight
+rather than re-derived from scratch.
 
 ### Slash-triggered (user types literally; model cannot auto-invoke)
 
@@ -247,10 +248,15 @@ inject_catalog_into_doc() {
 prune_stale_skill_links() {
   local dir="$1"; [ -d "$dir" ] || return 0
   local l
-  while IFS= read -r l; do
-    if [ "$DRY_RUN" = "1" ]; then echo "DRY: prune stale link $l"
-    else rm -f "$l"; echo "    [prune] $(basename "$l") (removed from catalog)"; fi
-  done < <(find "$dir" -maxdepth 1 -xtype l 2>/dev/null)
+  # Portable broken-symlink detection: -L (is a symlink) AND ! -e (target does
+  # not resolve). NOT `find -xtype l` — that is a GNU extension and silently
+  # errors out on BSD/macOS find, which would make this prune a no-op.
+  for l in "$dir"/*; do
+    if [ -L "$l" ] && [ ! -e "$l" ]; then
+      if [ "$DRY_RUN" = "1" ]; then echo "DRY: prune stale link $l"
+      else rm -f "$l"; echo "    [prune] $(basename "$l") (removed from catalog)"; fi
+    fi
+  done
 }
 
 install_claude_code() {

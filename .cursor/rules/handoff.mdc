@@ -1,7 +1,0 @@
----
-description: Fires on the literal token "/handoff". Do NOT fire on any other input. Writes a markdown handoff doc summarising THIS session so the next/fresh agent can continue — outbound. Modes: default (temp-dir doc), --full (also route durable facts to wiki), --ask (query the most recent handoff). Pure local, no launch.
-globs: ["**/*"]
-alwaysApply: false
----
-
-@skills/handoff/SKILL.md
