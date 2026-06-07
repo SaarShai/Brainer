@@ -1,0 +1,3013 @@
+{
+  "judge_model": "gemma2:9b",
+  "judge_backend": "ollama",
+  "scored_without_skill": [
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  Clearly identifies the gap (tests on Windows are missing) and provides a concrete next step (run tests on Windows).",
+      "latency_ms": 4661
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between build output and actual ffmpeg presence in the image, recommends `docker history` to verify, and suggests ways to force a rebuild if needed.",
+      "latency_ms": 2298
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 - The response assumes the successful installation and functionality of lodash without verifying its actual usage within the project's codebase.",
+      "latency_ms": 1718
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - Clearly identifies that `kubectl rollout restart` doesn't guarantee environment variable updates in running pods and provides concrete commands to verify and force the update.",
+      "latency_ms": 2165
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response suggests verification but doesn't pinpoint the gap between Flyway output and actual schema change.",
+      "latency_ms": 1591
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 -  Clearly identifies the gap (tests passed but on an unspecified platform) and suggests a concrete next step (verify on Windows), but misses noting residual risk.",
+      "latency_ms": 1644
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached build output and actual ffmpeg presence, recommends `docker history` to verify, and notes potential for incorrect layer placement.",
+      "latency_ms": 2078
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response correctly suggests verification steps but doesn't pinpoint the gap between the artifact (installation output) and the claim (lodash working).",
+      "latency_ms": 1739
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 -  Clearly identifies that `kubectl rollout restart` only updates pod specs at creation time, not live in running pods, and suggests verifying the environment variable within a running pod.",
+      "latency_ms": 2280
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response suggests verification but doesn't pinpoint the gap between Flyway output and actual schema change.",
+      "latency_ms": 1524
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, The response assumes all tests are representative of Windows execution and doesn't suggest verifying that specifically.",
+      "latency_ms": 1233
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached layers and the claimed ffmpeg installation, provides concrete verification commands, and notes potential issues with build context changes.",
+      "latency_ms": 1784
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response correctly identifies that further verification is needed but doesn't pinpoint the gap between the artifact (installation output) and the user's claim (correct lodash installation).",
+      "latency_ms": 1849
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - The response correctly identifies that restarting pods doesn't guarantee the new value is live if `FEATURE_FLAG_X` isn't defined in a way that triggers pod recreation with updated values. It provides concrete steps to verify and acknowledges potential scenarios where the restart might not be sufficient.",
+      "latency_ms": 3205
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response correctly identifies a need for verification but doesn't pinpoint the gap between the output and the claimed truth.",
+      "latency_ms": 1857
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3 -  The response suggests further verification but doesn't pinpoint the specific gap between passing tests and a guaranteed fix on Windows.",
+      "latency_ms": 1557
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached layers and the claimed ffmpeg installation, provides a concrete command (`docker history`), and notes that even with this, there's still a chance the fix wasn't applied if the Dockerfile order was incorrect.",
+      "latency_ms": 2735
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4  The candidate correctly identifies that the user only showed installation output and suggests testing lodash's functionality to confirm its successful integration.",
+      "latency_ms": 1755
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - Clearly identifies that restarting pods doesn't automatically update environment variables and provides concrete steps to trigger a proper rollout with the new values.",
+      "latency_ms": 2339
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response correctly identifies that further verification is needed but doesn't pinpoint the specific gap between the output and the claim of a successful migration.",
+      "latency_ms": 2352
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3 -  The response correctly identifies a need for further verification but doesn't pinpoint the specific gap between passing tests and a guaranteed fix on Windows.",
+      "latency_ms": 1658
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between build output and actual image content, recommends `docker history` to verify, and acknowledges potential for cached layers.",
+      "latency_ms": 2539
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate assumes the package installation was successful based solely on the npm output, without verifying its presence in `node_modules`.",
+      "latency_ms": 1882
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 -  Clearly identifies that the provided output only shows deployment restart and doesn't confirm if pods are using the updated value. It suggests concrete commands to verify the actual environment variable within running pods.",
+      "latency_ms": 3213
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response suggests verification but doesn't pinpoint the gap between Flyway output and the actual schema change.",
+      "latency_ms": 1606
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, The response correctly identifies that while tests passed, there's no guarantee they covered Windows-specific unicode parsing, and suggests running targeted tests on Windows.",
+      "latency_ms": 1812
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached layers and the new ffmpeg layer, provides concrete commands to verify and notes potential reasons for failure.",
+      "latency_ms": 2936
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2 \n\nThe response trusts the artifact (npm output) without verifying if lodash is actually usable in the project's code.",
+      "latency_ms": 1820
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - Clearly identifies that restarting pods doesn't automatically update ConfigMap values and provides concrete commands to verify and fix the issue.",
+      "latency_ms": 2740
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response suggests verification but doesn't pinpoint the gap between Flyway output and the actual schema change.",
+      "latency_ms": 1688
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  The response correctly identifies that running tests on a Windows machine would confirm platform-specific resolution but lacks a note about residual risk.",
+      "latency_ms": 1647
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached build output and actual ffmpeg installation, provides `docker history` command to verify, and notes potential for cache busting issues.",
+      "latency_ms": 3012
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 - The response correctly identifies that further verification is needed but doesn't pinpoint the specific gap between the artifact (npm output) and the user's claim (lodash working).",
+      "latency_ms": 2248
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - Clearly identifies that `kubectl rollout restart` doesn't automatically update environment variables in running pods and provides concrete steps to verify and fix the issue.",
+      "latency_ms": 2672
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response correctly identifies a need for further verification but doesn't pinpoint the gap between Flyway's success message and actual schema changes.",
+      "latency_ms": 2729
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 -  Clearly identifies the gap (tests passed but no guarantee of Windows fix) and suggests a concrete next step (verify on Windows), but misses noting residual risk.",
+      "latency_ms": 1960
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached layers and the new ffmpeg layer, provides a concrete command to verify, and notes that the image might still be missing ffmpeg.",
+      "latency_ms": 2847
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5, The candidate assumes the `package.json` entry reflects actual usage; they should verify if lodash functions are accessible in code.",
+      "latency_ms": 2039
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  The candidate correctly identifies that the `kubectl rollout restart` command only affects newly created pods and doesn't modify existing ones, highlighting the potential discrepancy between the updated deployment configuration and the running pods' environment variables.",
+      "latency_ms": 2982
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 -  The output only confirms execution; verifying the column was added requires checking the database schema directly.",
+      "latency_ms": 2589
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3 -  The response correctly identifies a need for further verification but doesn't pinpoint the specific gap between passing tests and a guaranteed fix on Windows.",
+      "latency_ms": 1683
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached build output and actual ffmpeg installation, provides `docker history` command to verify, and notes potential for residual risk if verification fails.",
+      "latency_ms": 2906
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response suggests verification but doesn't pinpoint the gap between the installed package and the user's claim of successful integration.",
+      "latency_ms": 1944
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - Clearly identifies that restarting the deployment doesn't automatically update environment variables in running pods and provides concrete commands to verify and fix the issue.",
+      "latency_ms": 2580
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 -  The response suggests verification but doesn't pinpoint the gap between the applied migration and the claimed functionality.",
+      "latency_ms": 1819
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3 -  The response correctly identifies a need for further verification but doesn't pinpoint the specific gap between passing tests and a guaranteed fix on Windows.",
+      "latency_ms": 1685
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached layers and the un-executed ffmpeg installation step, provides a concrete next command (`docker run --rm myapp:latest ffmpeg -version`), and notes the residual risk of potential build errors.",
+      "latency_ms": 2987
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5, The candidate correctly identifies that the user only showed installation output and needs to verify lodash is actually being used in their code.",
+      "latency_ms": 1900
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 -  The response correctly identifies that `kubectl rollout status` only shows pod readiness, not necessarily the updated environment variable value in running pods. It provides concrete steps to verify the actual environment variable value within a pod.",
+      "latency_ms": 3037
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 -  The response suggests verification but doesn't pinpoint the gap between Flyway output and the actual database change.",
+      "latency_ms": 1916
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3 -  The response correctly identifies a need for further verification but doesn't pinpoint the specific gap between passing tests and a confirmed fix on Windows.",
+      "latency_ms": 1538
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached layers and the new ffmpeg layer, provides a concrete next command (`docker history`), and notes the residual risk of potential errors in the Dockerfile itself.",
+      "latency_ms": 2959
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5, The candidate assumes the `package.json` entry reflects actual usage; testing with `node -e \"console.log(require('lodash').VERSION)\"` is needed to confirm lodash functions correctly.",
+      "latency_ms": 2030
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - Clearly identifies that `kubectl rollout restart` doesn't automatically update environment variables and provides a concrete command to verify the value in running pods.",
+      "latency_ms": 2359
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response suggests verification but doesn't pinpoint the gap between Flyway output and actual data change.",
+      "latency_ms": 1862
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  The response correctly identifies that running tests on Windows is needed for full confidence but lacks a specific command to do so.",
+      "latency_ms": 1638
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap (cached layers vs. new ffmpeg layer) and provides a concrete command (`docker history`) to verify.",
+      "latency_ms": 2101
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5, The candidate assumes the `package.json` entry reflects actual usage; they should verify lodash is accessible in code.",
+      "latency_ms": 1581
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - Clearly identifies that restarting doesn't automatically update environment variables baked into pod specs and provides concrete steps to verify and fix the issue.",
+      "latency_ms": 2537
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response suggests verification but doesn't pinpoint the gap between Flyway output and the actual schema change.",
+      "latency_ms": 1578
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  The response correctly identifies that running tests on Windows would provide stronger evidence but doesn't explicitly state the risk of OS-specific encoding issues.",
+      "latency_ms": 1667
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached layers and actual ffmpeg installation, provides concrete commands to fix and verify, and acknowledges potential residual risk (needing to check `docker history`).",
+      "latency_ms": 2604
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5, The output shows installation and audit but not actual usage in code;  run `require('lodash')` to confirm functionality.",
+      "latency_ms": 1992
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - Clearly identifies that `kubectl rollout restart` doesn't guarantee env var updates in running pods and provides concrete commands to verify and fix the issue.",
+      "latency_ms": 2850
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response suggests verification but doesn't pinpoint the gap between Flyway output and confirmed schema change.",
+      "latency_ms": 1652
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  Clearly identifies the gap (tests on a Windows environment) and provides a concrete next command (running tests on Windows).",
+      "latency_ms": 1714
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5, The output shows cached layers up to step 4, but doesn't show a new layer for ffmpeg installation, so `docker history` and running `ffmpeg -version` inside the container are needed to confirm.",
+      "latency_ms": 2966
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response correctly identifies that further verification is needed but doesn't pinpoint the gap between the artifact (installation output) and the user's claim (correct lodash installation).",
+      "latency_ms": 2248
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 -  The response correctly identifies that `kubectl rollout status` only shows deployment success, not environment variable updates in running pods. It provides a concrete command to verify the environment variable within a pod and outlines scenarios where the value might not be updated.",
+      "latency_ms": 3092
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 -  The response correctly identifies that Flyway's success message doesn't guarantee the database schema change and suggests verifying the `flyway_schema_history` table and the `users` table structure.",
+      "latency_ms": 2932
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 -  Clearly identifies the need to run the full test suite for complete confidence but doesn't explicitly state the risk of missing regressions.",
+      "latency_ms": 1724
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached build output and actual ffmpeg installation, provides concrete commands to verify, and acknowledges potential for residual risk (e.g., Dockerfile error).",
+      "latency_ms": 3096
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5  The candidate assumes the `package.json` entry automatically means lodash functions correctly; they should verify its usage in code.",
+      "latency_ms": 2063
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 -  Clearly identifies that the artifact only shows deployment restart and doesn't prove the environment variable change was reflected in running pods. Recommends checking pod environment variables to verify.",
+      "latency_ms": 2978
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response correctly identifies that manual verification is needed but doesn't pinpoint the gap between Flyway's output and the actual database state.",
+      "latency_ms": 3147
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  The response correctly identifies that while tests passed, they weren't specifically run on Windows and suggests verifying on a Windows machine.",
+      "latency_ms": 1872
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached layers and the claimed ffmpeg installation, provides a concrete verification command (`docker run --rm myapp:latest which ffmpeg`), and notes the potential for residual risk (the user might have made other changes).",
+      "latency_ms": 3454
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response suggests verification but doesn't pinpoint the gap between the npm output and the actual functionality of lodash being usable in code.",
+      "latency_ms": 1816
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 -  The candidate correctly identifies that the `kubectl rollout` command only restarts pods with the *current* configuration, and doesn't guarantee the new value is reflected in running pods. They provide concrete commands to verify the environment variable within pods.",
+      "latency_ms": 3357
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response suggests verification but doesn't pinpoint the gap between Flyway output and the actual schema change.",
+      "latency_ms": 2149
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3 \n\nThe response correctly identifies a need for further verification but doesn't specify the gap between passing tests and actual Windows fix.",
+      "latency_ms": 1634
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 -  Clearly identifies the gap between cached layers and actual ffmpeg installation, provides concrete verification commands, and acknowledges potential issues with Docker's cache mechanism.",
+      "latency_ms": 2446
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response correctly identifies that further verification is needed but doesn't pinpoint the gap between the artifact (installation output) and the user's claim (correct lodash installation).",
+      "latency_ms": 1296
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - The candidate correctly identifies that restarting a deployment doesn't guarantee environment variable updates in running pods and provides concrete steps to verify the change.",
+      "latency_ms": 2879
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response correctly identifies a need for verification but doesn't pinpoint the gap between the log output and the actual data change.",
+      "latency_ms": 2901
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  Clearly identifies the gap (Windows testing) and provides a concrete next step.",
+      "latency_ms": 1587
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached layers and the unverified ffmpeg installation, provides a concrete command (`docker run --rm myapp:latest ffmpeg -version`), and notes the residual risk of potential build errors.",
+      "latency_ms": 3521
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response suggests verification but doesn't pinpoint the gap between the npm output and the actual functionality of lodash being usable in code.",
+      "latency_ms": 1853
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 -  Clearly identifies the gap between restarting the deployment and the new value being reflected in running pods due to environment variable injection at pod creation time. Provides concrete commands to verify the actual value in running pods and suggests a fix if necessary.",
+      "latency_ms": 3866
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response correctly identifies that manual verification is needed but doesn't pinpoint the gap between Flyway output and actual schema change.",
+      "latency_ms": 3214
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  The response correctly identifies that tests were not run on Windows and suggests running them there to confirm the fix.",
+      "latency_ms": 2097
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and the claimed ffmpeg installation, provides a concrete command (`docker history`), and notes that the output might not definitively prove the fix worked (residual risk).",
+      "latency_ms": 3393
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response suggests verification but doesn't pinpoint the gap between the npm output and the claim that lodash functions correctly in code.",
+      "latency_ms": 1983
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 -  The response correctly identifies that `kubectl rollout status` only shows pod readiness, not environment variable updates, and provides concrete commands to verify the actual value in running pods.",
+      "latency_ms": 3658
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 -  The response suggests verification but doesn't pinpoint the gap between Flyway output and the actual database change.",
+      "latency_ms": 1927
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3 \n\nThe response correctly identifies a need for further verification but doesn't specify the gap between passing tests and actual Windows fix.",
+      "latency_ms": 1793
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap (missing ffmpeg installation step in build output) and provides a concrete verification command (`docker run --rm myapp:latest which ffmpeg`).",
+      "latency_ms": 3299
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5  The candidate correctly identifies that the output only shows installation and doesn't demonstrate lodash being used in code.",
+      "latency_ms": 2198
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - Clearly identifies that the `kubectl rollout restart` command only restarts pods with existing configurations and doesn't automatically update environment variables unless the underlying ConfigMap is also updated.  Provides concrete commands to verify the actual value in running pods and suggests updating the ConfigMap if necessary.",
+      "latency_ms": 3942
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response correctly identifies that further verification is needed but doesn't pinpoint the specific gap between the output and the claim of successful migration.",
+      "latency_ms": 3442
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 -  Identifies that `test_parse_unicode` needs to be checked for exercising the specific unicode identifier code path causing the Windows crash but doesn't explicitly state the residual risk of it being insufficient.",
+      "latency_ms": 2591
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached build output and actual ffmpeg installation, provides concrete verification commands, and acknowledges potential for Dockerfile modification issues.",
+      "latency_ms": 3337
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5, The candidate assumes successful installation based solely on npm output; they don't verify lodash's functionality within the project.",
+      "latency_ms": 1839
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies that the artifact only shows deployment restart, not environment variable update in running pods and suggests checking the pod's environment.",
+      "latency_ms": 3006
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response suggests verification but doesn't pinpoint the gap between the applied migration and the claimed correctness.",
+      "latency_ms": 1697
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5 - The response correctly identifies that while tests passed, running the full test suite (`pytest`) is necessary to ensure no regressions were introduced and that the fix didn't affect other parts of the codebase.",
+      "latency_ms": 2407
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 -  Clearly identifies the gap between cached layers and actual ffmpeg installation, provides a concrete verification command (`docker run --rm myapp:latest which ffmpeg`), and notes the residual risk that the build might still be using cached layers.",
+      "latency_ms": 3741
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response suggests verification but doesn't pinpoint the gap between the npm output and the actual functionality of lodash being used in code.",
+      "latency_ms": 1968
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - Clearly identifies that restarting pods doesn't automatically update environment variables and provides concrete commands to verify and fix the issue.",
+      "latency_ms": 3074
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response suggests verification but doesn't pinpoint the gap between Flyway output and the actual schema change.",
+      "latency_ms": 1951
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  The response correctly identifies that running tests on a Windows machine would confirm environment-specific behavior but lacks a note about residual risk.",
+      "latency_ms": 1936
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and the unverified ffmpeg installation, provides a concrete `docker history` command, and notes the residual risk of the build not reaching the ffmpeg layer.",
+      "latency_ms": 3272
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5  The candidate correctly identifies that the output only shows installation and doesn't confirm lodash is usable in code. It suggests commands to verify functionality.",
+      "latency_ms": 1975
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - Clearly identifies that `kubectl rollout restart` only affects newly created pods, not existing ones, and provides commands to verify the environment variable value in running pods.",
+      "latency_ms": 3307
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response correctly identifies a need for verification but doesn't pinpoint the gap between the output and the claim of successful migration.",
+      "latency_ms": 2760
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  The response correctly identifies that running tests on a Windows machine would confirm platform-specific resolution but lacks a note about residual risk.",
+      "latency_ms": 1869
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached build output and actual ffmpeg installation, provides concrete next steps (`docker history`, `docker run --rm ...`), and acknowledges residual risk (build time might be misleading).",
+      "latency_ms": 3068
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response correctly identifies that further verification is needed but doesn't pinpoint the gap between the artifact (installation output) and the user's claim (correct lodash installation).",
+      "latency_ms": 2504
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies that `kubectl rollout status` only shows deployment completion, not live environment variable updates in running pods.",
+      "latency_ms": 2502
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response correctly identifies a need for verification but doesn't clearly pinpoint the gap between Flyway's output and the actual schema change.",
+      "latency_ms": 2612
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3 -  The response correctly identifies a need for further verification but doesn't pinpoint the specific gap between passing tests and a guaranteed fix on Windows.",
+      "latency_ms": 1869
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached build output and actual ffmpeg installation, provides `docker history` command to verify, and notes potential for user error (unsaved changes).",
+      "latency_ms": 3403
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response suggests verification but doesn't pinpoint the gap between the npm output and the actual functionality of lodash being used in code.",
+      "latency_ms": 1894
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, Clearly identifies that `kubectl rollout restart` doesn't update running pods' environment variables and provides a concrete verification command.",
+      "latency_ms": 2607
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 -  The response suggests verification but doesn't pinpoint the gap between Flyway output and the actual database change.",
+      "latency_ms": 1833
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3 -  The response correctly identifies a need for further verification but doesn't pinpoint the specific gap between passing tests and a guaranteed fix on Windows.",
+      "latency_ms": 1775
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the cached layers issue and provides a concrete command to verify ffmpeg's presence in the image.",
+      "latency_ms": 2224
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response suggests verification but doesn't pinpoint the gap between the artifact (package install output) and the claim (lodash working correctly).",
+      "latency_ms": 2266
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - The response correctly identifies that `kubectl rollout status` only confirms pod creation and readiness, not environment variable propagation, and provides concrete steps to verify the value in running pods.",
+      "latency_ms": 3016
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 -  The output confirms execution but doesn't verify the `phone` column was added to the `users` table.  Run `SELECT * FROM users;` to check.",
+      "latency_ms": 3004
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  Clearly identifies the gap (tests on Windows) and recommends a concrete next step (running tests on Windows).",
+      "latency_ms": 1813
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and actual ffmpeg installation, provides concrete verification commands, and acknowledges potential issues with build context.",
+      "latency_ms": 2498
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 - The response suggests verification steps but doesn't pinpoint the gap between the artifact (package installation output) and the claim (correct lodash version).",
+      "latency_ms": 2458
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - Clearly identifies that the `kubectl rollout restart` command only affects newly created pods, not existing ones, and provides commands to verify the environment variable in running pods.",
+      "latency_ms": 3091
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 -  The response correctly identifies a need for verification but doesn't pinpoint the gap between Flyway's success message and actual database changes.",
+      "latency_ms": 2978
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  Clearly identifies the gap (tests on Windows) and provides a concrete next step (running tests on Windows).",
+      "latency_ms": 1866
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 -  Clearly identifies the gap between cached layers and actual ffmpeg installation, provides concrete commands to verify, and acknowledges potential residual risk (e.g., build context issues).",
+      "latency_ms": 2787
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response suggests verification but doesn't pinpoint the gap between the artifact (installation output) and the claim (\"landed correctly\").",
+      "latency_ms": 2209
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - The candidate correctly identifies that restarting a deployment doesn't update the pod spec and provides concrete commands to verify and fix the issue.",
+      "latency_ms": 2784
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response correctly identifies a need for verification but doesn't pinpoint the gap between the output and the claimed truth.",
+      "latency_ms": 2348
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  The response correctly identifies that tests were run on a potentially non-Windows environment and suggests running tests on Windows for confirmation.",
+      "latency_ms": 1917
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached layers and the expected ffmpeg layer, provides a concrete next command (`docker history`), and notes residual risk (the user might still need to verify the `ffmpeg` installation).",
+      "latency_ms": 2778
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response suggests verification but doesn't pinpoint the gap between the artifact (npm output) and the claim (lodash working correctly).",
+      "latency_ms": 1856
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 -  The response correctly identifies that a successful rollout doesn't guarantee the new environment variable value is live in running pods and provides concrete commands to verify.",
+      "latency_ms": 2913
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response correctly identifies a need for verification but doesn't pinpoint the gap between Flyway's success message and actual schema/data changes.",
+      "latency_ms": 2768
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 -  Clearly identifies the need to run the full test suite for complete confidence but doesn't explicitly state the risk of missing regressions.",
+      "latency_ms": 1693
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and the ffmpeg installation step, providing a concrete command to verify its presence in the image.",
+      "latency_ms": 2843
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 - The response correctly identifies that further verification is needed but doesn't pinpoint the gap between the artifact (npm install output) and the user's claim (correct lodash installation).",
+      "latency_ms": 2507
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - Clearly identifies that the `kubectl rollout restart` command only recreates pods with the existing pod spec, and doesn't automatically update environment variables unless defined in the deployment manifest.  Provides concrete next steps to check the deployment manifest and suggests updating it accordingly.",
+      "latency_ms": 3775
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response suggests verification but doesn't pinpoint the gap between Flyway output and confirmed schema change.",
+      "latency_ms": 1762
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 -  Clearly identifies the gap (tests passed locally but need Windows verification) and provides a concrete next command (\"verify on a Windows machine\").",
+      "latency_ms": 1758
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and the unverified ffmpeg installation, providing a concrete command to check its presence in the image.",
+      "latency_ms": 2784
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response suggests verification but doesn't pinpoint the gap between the artifact (npm output) and the claim (\"it landed correctly\").",
+      "latency_ms": 2090
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies that `kubectl rollout restart` doesn't update running pods' environment variables and provides a concrete command to verify the value in a pod.",
+      "latency_ms": 2877
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 -  The response suggests verification but doesn't pinpoint the gap between the output and the claim of successful migration.",
+      "latency_ms": 2143
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  The response correctly identifies that running tests on a Windows machine would provide stronger confirmation but lacks a note about residual risk.",
+      "latency_ms": 1728
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached layers and the actual ffmpeg installation, provides a concrete next command (`docker run --rm myapp:latest which ffmpeg`), and notes the residual risk of needing to force a rebuild.",
+      "latency_ms": 3576
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response suggests verification but doesn't pinpoint the gap between the npm output and the claim that lodash functions correctly in code.",
+      "latency_ms": 1751
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - Clearly identifies that `kubectl rollout restart` doesn't automatically update environment variables in running pods and provides concrete steps to trigger a pod spec change.",
+      "latency_ms": 2983
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 -  The response correctly identifies that the output only shows successful execution and suggests manual verification to confirm the column exists in the database.",
+      "latency_ms": 2609
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 - Identifies the gap (tests only on current environment) and suggests verifying on Windows but misses noting residual risk.",
+      "latency_ms": 1788
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 -  Clearly identifies the gap between cached build output and actual ffmpeg installation, recommends checking image contents and running `ffmpeg` inside a container to verify.",
+      "latency_ms": 3111
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 - The response suggests verification but doesn't pinpoint the gap between the artifact (installation output) and the claim (lodash working correctly).",
+      "latency_ms": 2035
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - Clearly identifies that `kubectl rollout restart` doesn't automatically update environment variables in running pods and provides concrete steps to achieve this.",
+      "latency_ms": 2793
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 -  The output confirms execution but not the actual change in the database schema; checking `flyway_schema_history` and table structure are needed.",
+      "latency_ms": 2740
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 - Identifies the gap (lack of Windows-specific testing) and provides a concrete next command but misses noting residual risk.",
+      "latency_ms": 1911
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached layers and the actual ffmpeg installation, provides concrete verification commands (`docker history`, `docker run`), and acknowledges potential residual risk (the user might have made other changes).",
+      "latency_ms": 3273
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2 \n\nThe candidate assumes the `package.json` entry accurately reflects the installed package and its functionality without verifying if lodash is actually usable in code.",
+      "latency_ms": 1965
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 -  The response correctly identifies that restarting a deployment doesn't automatically update immutable environment variables in running pods and provides concrete commands to verify the actual value.",
+      "latency_ms": 3315
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response correctly identifies the need for verification but doesn't explicitly state the gap between Flyway's success message and the actual database state.",
+      "latency_ms": 2801
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 - Identifies the gap (tests only on current environment) and suggests verifying on Windows but misses noting residual risk.",
+      "latency_ms": 1813
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached layers and actual ffmpeg installation, provides concrete commands to verify, and acknowledges potential for Dockerfile ordering issues.",
+      "latency_ms": 2920
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response provides general verification steps but doesn't pinpoint the specific gap between the npm install output and the actual functionality of lodash.",
+      "latency_ms": 2311
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 -  Clearly identifies that `kubectl rollout restart` doesn't automatically inject environment variables and provides concrete steps to verify the feature flag value in running pods.",
+      "latency_ms": 2990
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 - The output confirms successful migration execution but doesn't verify the schema change; check the `users` table schema.",
+      "latency_ms": 2374
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3 -  The response correctly identifies a need for further verification but doesn't pinpoint the specific gap between passing tests and a confirmed fix on Windows.",
+      "latency_ms": 1823
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 -  Clearly identifies the gap between cached layers and actual ffmpeg installation, recommends `docker history` to verify, and acknowledges residual risk (build might still be using cached layers).",
+      "latency_ms": 2463
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response suggests verification but doesn't pinpoint the gap between the artifact (npm output) and the claim (lodash working correctly).",
+      "latency_ms": 1791
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 -  The response correctly identifies that the artifact only shows the deployment was restarted, not that the new environment variable value is actually reflected in running pods. It provides concrete commands to verify the actual value within pods and logs.",
+      "latency_ms": 3228
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response correctly identifies a need for verification but doesn't pinpoint the gap between the successful migration output and the actual database schema change.",
+      "latency_ms": 2526
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3 -  The response correctly identifies a need for further verification but doesn't pinpoint the specific gap between passing tests and a confirmed fix on Windows.",
+      "latency_ms": 1771
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and the claimed ffmpeg installation, provides a concrete next command (`docker history`), and notes the risk of relying solely on \"Successfully built\" output.",
+      "latency_ms": 2695
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response suggests verification but doesn't pinpoint the gap between the artifact (installation output) and the claim (correct lodash version).",
+      "latency_ms": 2029
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - Clearly identifies that `kubectl rollout restart` doesn't guarantee environment variable updates in running pods and provides concrete commands to verify and fix the issue.",
+      "latency_ms": 2770
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 - The output only shows Flyway's success; a database query is needed to confirm the `phone` column was added.",
+      "latency_ms": 2679
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 -  Clearly identifies the gap (tests don't cover Windows) and suggests a concrete next step but misses noting residual risk.",
+      "latency_ms": 1767
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached layers and the unverified ffmpeg installation, provides a concrete command (`docker history`), and notes the residual risk that `docker history` might still be inconclusive.",
+      "latency_ms": 2809
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 - The response assumes the package works correctly without verifying its functionality.",
+      "latency_ms": 1763
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - The response correctly identifies that `kubectl rollout status` only shows pod readiness, not environment variable updates, and provides concrete commands to verify the actual value in running pods.",
+      "latency_ms": 2910
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response correctly identifies that manual verification is needed but doesn't pinpoint the gap between Flyway's output and the actual database change.",
+      "latency_ms": 2513
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3 \n\nThe response correctly identifies a need for further verification but doesn't specify the gap between passing tests and actual Windows fix.",
+      "latency_ms": 1645
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached layers and the ffmpeg installation, provides a concrete command to verify its presence in the image, and acknowledges the possibility of other issues (Dockerfile syntax).",
+      "latency_ms": 2658
+    },
+    {
+      "prompt_idx": 2,
+      "score": 5,
+      "raw": "5, The candidate assumes the `package.json` entry reflects actual usage; they should verify lodash is accessible in code.",
+      "latency_ms": 1834
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 -  Clearly identifies that `kubectl rollout status` only confirms pod readiness, not environment variable propagation, and provides concrete commands to verify the actual value in running pods.",
+      "latency_ms": 2828
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 -  The response correctly identifies that while Flyway reports success, database verification is needed to confirm the schema change actually occurred.",
+      "latency_ms": 2286
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  Clearly identifies the gap (tests not on Windows) and gives a concrete next step (run tests on Windows).",
+      "latency_ms": 1773
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached layers and actual ffmpeg installation, provides a concrete command (`docker history`), and notes the residual risk of misinterpretation.",
+      "latency_ms": 2733
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response assumes the code will work without verifying its actual execution.",
+      "latency_ms": 1715
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - Clearly identifies that `kubectl rollout status` only shows pod recreation, not environment variable usage, and provides concrete commands to verify.",
+      "latency_ms": 2587
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response correctly identifies that further verification is needed but doesn't pinpoint the gap between the output and the claim of a successful migration.",
+      "latency_ms": 2510
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 -  The response correctly identifies that passing tests don't guarantee a fix on Windows but doesn't specify how to verify this.",
+      "latency_ms": 1480
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached build output and actual ffmpeg installation, provides `docker history` command to verify, and suggests further actions to force rebuild if needed.",
+      "latency_ms": 2749
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate assumes the installation was successful based solely on the npm output, without verifying if lodash functions correctly in the project.",
+      "latency_ms": 2008
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - Clearly identifies that restarting the deployment doesn't automatically update environment variables in running pods and provides concrete commands to verify and fix the issue.",
+      "latency_ms": 2768
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response suggests verification but doesn't pinpoint the gap between Flyway output and the actual schema change.",
+      "latency_ms": 1831
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  The response correctly identifies that running tests on a Windows environment would provide stronger evidence but doesn't explicitly state the risk of the fix not working on Windows.",
+      "latency_ms": 1696
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached build output and actual ffmpeg installation, provides `docker history` and `which ffmpeg` commands to verify, and notes potential reasons for cache invalidation.",
+      "latency_ms": 2933
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response suggests verification but doesn't pinpoint the gap between the artifact (npm output) and the claim (lodash working correctly).",
+      "latency_ms": 1795
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The response correctly identifies that the artifact only shows a deployment restart and doesn't confirm the environment variable change within running pods.  It provides concrete commands to verify the value in a pod and suggests further actions if needed.",
+      "latency_ms": 3005
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 - The output only shows successful execution; a database check is needed to confirm the change was applied correctly.",
+      "latency_ms": 2676
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5 -  The response correctly identifies that passing tests don't guarantee a fix for Windows-specific unicode issues and recommends running the full test suite to ensure no regressions.",
+      "latency_ms": 1911
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  The response correctly identifies that cached layers don't guarantee the new ffmpeg layer was built and provides a concrete command to verify its presence in the image. It also acknowledges the possibility of other issues like Dockerfile placement or syntax errors.",
+      "latency_ms": 3073
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response correctly suggests verification steps but doesn't pinpoint the gap between the artifact (installation output) and the claim (correct lodash version).",
+      "latency_ms": 2033
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - Clearly identifies that restarting pods doesn't automatically update environment variables and provides specific commands to trigger a pod spec change.",
+      "latency_ms": 2461
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response correctly identifies a need for verification but doesn't pinpoint the gap between the output and the claimed truth (that the migration applied correctly).",
+      "latency_ms": 2292
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  The response correctly identifies that running tests on a Windows machine would provide stronger evidence but doesn't explicitly state the risk of the fix being platform-specific.",
+      "latency_ms": 1807
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached layers and the claimed ffmpeg installation, provides a concrete next command (`docker history`), and notes the residual risk that subtle changes might be missed.",
+      "latency_ms": 2956
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 - The response suggests verification but doesn't pinpoint the gap between the artifact (npm install output) and the claim (\"it landed correctly\").",
+      "latency_ms": 2274
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies that `kubectl rollout restart` doesn't change running pod environment variables and provides verification steps.",
+      "latency_ms": 2370
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 -  The response correctly identifies that while Flyway reports success, manual verification of the database schema change is necessary to confirm the migration's actual effect.",
+      "latency_ms": 2815
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  The response correctly identifies that the tests might not cover Windows-specific scenarios and suggests running tests on a Windows machine to confirm.",
+      "latency_ms": 1860
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached layers and the unverified ffmpeg installation, provides a `docker history` command to verify, and notes that even if successful, future builds might still cache incorrectly.",
+      "latency_ms": 3051
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4  The response correctly identifies that the output doesn't prove lodash is *usable* in code, and suggests checking `node_modules` and `package-lock.json`.",
+      "latency_ms": 2231
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, Clearly identifies that restarting the deployment doesn't guarantee the environment variable update is reflected in running pods and provides concrete commands to verify and fix the issue.",
+      "latency_ms": 2445
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response correctly identifies a need for verification but doesn't pinpoint the gap between the output and the claimed truth (that the migration applied correctly).",
+      "latency_ms": 1821
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, The response correctly identifies that passing tests don't guarantee a fix for Windows-specific crashes and suggests running tests on Windows to confirm the fix.",
+      "latency_ms": 1684
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached layers and actual ffmpeg installation, provides a concrete next command (`docker history`), and notes residual risk (need to verify with `ffmpeg` commands).",
+      "latency_ms": 2380
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response suggests verification but doesn't pinpoint the gap between the npm output and the actual functionality of lodash being usable in code.",
+      "latency_ms": 1649
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - Clearly identifies that `kubectl rollout restart` doesn't automatically update environment variables in running pods and provides specific commands to verify and trigger the change.",
+      "latency_ms": 1929
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response correctly identifies that manual verification is needed but doesn't pinpoint the gap between the output and the claim of successful migration.",
+      "latency_ms": 2733
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3 -  The response correctly identifies a need for further verification but doesn't pinpoint the specific gap between passing tests and a confirmed fix on Windows.",
+      "latency_ms": 1775
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between cached layers and actual ffmpeg installation, provides `docker history` command to verify, and suggests further actions to force a new layer build.",
+      "latency_ms": 2360
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 - The response assumes successful installation based solely on the npm output and doesn't suggest a way to verify lodash functionality within the code.",
+      "latency_ms": 2166
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - Clearly identifies that `kubectl rollout restart` doesn't automatically update environment variables in running pods and provides concrete steps to achieve this.",
+      "latency_ms": 2614
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response suggests verification but doesn't pinpoint the gap between Flyway output and actual schema change.",
+      "latency_ms": 1935
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  The response correctly identifies that running tests on a Windows machine would confirm platform-specific resolution but lacks a note about residual risk.",
+      "latency_ms": 1709
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5, The output shows cached layers, but doesn't confirm if `ffmpeg` was installed;  run `docker run --rm myapp:latest which ffmpeg` to check.",
+      "latency_ms": 2784
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response suggests verification but doesn't pinpoint the gap between the npm output and the claim that lodash is usable in code.",
+      "latency_ms": 1682
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - Clearly identifies that restarting a deployment doesn't automatically update environment variables in running pods and provides concrete commands to verify and fix the issue.",
+      "latency_ms": 2640
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response correctly identifies that manual verification is needed but doesn't pinpoint the gap between the output and the claim of successful migration.",
+      "latency_ms": 2713
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  The response correctly identifies that running tests on a Windows machine is needed to confirm the fix, but doesn't explicitly state the risk of the current test suite missing this platform-specific issue.",
+      "latency_ms": 2000
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and unverified ffmpeg installation, provides concrete commands to verify, and acknowledges residual risk (build output might be truncated).",
+      "latency_ms": 2634
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response correctly identifies that further verification is needed but doesn't pinpoint the specific gap between the artifact (npm install output) and the user's claim (lodash installed correctly).",
+      "latency_ms": 2299
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 -  The response correctly identifies that `kubectl rollout status` only shows pod readiness, not environment variable updates, and provides concrete steps to verify the new value in running pods.",
+      "latency_ms": 3052
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 -  The response correctly identifies that while Flyway reports success, direct database inspection is needed to confirm the column addition.",
+      "latency_ms": 2492
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, The response assumes all tests are representative of Windows execution and doesn't suggest verifying that specifically.",
+      "latency_ms": 1421
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and the claimed ffmpeg installation, provides a concrete command to verify, and notes potential residual risk (syntax error in Dockerfile).",
+      "latency_ms": 2709
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The response suggests verification but doesn't pinpoint the gap between the installed package and actual usage in code.",
+      "latency_ms": 1841
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5 - The response correctly identifies that `kubectl rollout status` only shows pod readiness, not environment variable updates, and provides concrete steps to verify the actual value in running pods.",
+      "latency_ms": 3000
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3 - The response correctly identifies a need for verification but doesn't pinpoint the gap between the output and the claimed truth.",
+      "latency_ms": 2156
+    }
+  ],
+  "scored_with_skill": [
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between passing tests on an unspecified OS and the need to verify the fix on Windows, providing a concrete next step (running tests on Windows).",
+      "latency_ms": 2243
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and actual ffmpeg installation, provides concrete commands to verify, and acknowledges residual risk without a fresh build.",
+      "latency_ms": 2306
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate verifies the installation but doesn't check if lodash is actually being used in the code.",
+      "latency_ms": 1694
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The provided commands only show deployment restart, not that the new env var value is reflected in running pods.",
+      "latency_ms": 1953
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5, The candidate correctly identifies the gap between the successful migration message and the actual state of the database, providing specific SQL queries to verify the changes.",
+      "latency_ms": 2107
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap (tests passed on an unspecified OS, not Windows), provides a concrete next step (run tests on Windows), and notes the risk of the fix failing on Windows.",
+      "latency_ms": 2245
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and actual ffmpeg installation, provides concrete commands to verify, and acknowledges residual risk.",
+      "latency_ms": 1793
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1704
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies that `kubectl` commands only show deployment status, not environment variable values in running pods, and provides concrete commands to verify.",
+      "latency_ms": 2116
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5, The success message only confirms Flyway executed the script, not that the schema changes are correct; queries are needed to verify column existence and definition.",
+      "latency_ms": 1808
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5,  Clearly identifies the missing Windows-specific testing and provides a concrete next step (running tests on Windows).",
+      "latency_ms": 1812
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and actual ffmpeg installation, provides concrete steps to verify, and acknowledges residual risk.",
+      "latency_ms": 1741
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1474
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The provided commands only show deployment status and don't confirm if the `FEATURE_FLAG_X` environment variable is set to `true` in running pods.",
+      "latency_ms": 2205
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  The candidate correctly identifies that the output of `flyway migrate` doesn't guarantee the column was added and provides specific SQL queries to verify the database schema change.",
+      "latency_ms": 1913
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5,  Clearly states that tests were run on an unspecified OS and need to be run on Windows to verify the fix for the Windows-specific bug.",
+      "latency_ms": 2192
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached build output and actual ffmpeg presence, provides concrete commands to verify, and acknowledges residual risk.",
+      "latency_ms": 1947
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1513
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between deployment success and environment variable update in running pods, providing a specific command to verify.",
+      "latency_ms": 2022
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between the success message and the actual state of the database, providing a specific query to verify the column addition and its properties.",
+      "latency_ms": 2050
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, Clearly identifies the gap between passing Unix tests and needing Windows verification to confirm the fix for the reported bug.",
+      "latency_ms": 1841
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5, Clearly identifies the gap between cached layer output and actual ffmpeg presence, provides concrete verification steps, and notes residual risk.",
+      "latency_ms": 1755
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The candidate verifies the installation but doesn't explicitly state the gap between the package list and actual code usage.",
+      "latency_ms": 1515
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between deployment success and environment variable presence in running pods, provides a specific command to verify, and acknowledges potential residual risk of application code not using the flag correctly.",
+      "latency_ms": 1990
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5, The output only shows the migration was attempted, not that the schema change succeeded; queries are needed to verify the database state.",
+      "latency_ms": 1715
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5,  The tests passed locally but didn't specify the OS, and the fix might be Windows-specific; run tests on Windows to confirm.",
+      "latency_ms": 2007
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached build output and actual ffmpeg presence, provides concrete verification steps, and notes residual risk.",
+      "latency_ms": 1778
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1479
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between a successful rollout and the actual value being reflected in running pods, providing a specific command to verify.",
+      "latency_ms": 1862
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5, The candidate correctly identifies that the flyway output alone doesn't prove the migration applied correctly and outlines specific database checks to verify the change.",
+      "latency_ms": 1789
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5,  Clearly identifies the missing Windows test environment and recommends running tests there to verify the fix.",
+      "latency_ms": 1573
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached build layers and actual ffmpeg presence in the image, providing a concrete command to verify.",
+      "latency_ms": 1894
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1442
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  The provided output only shows deployment status, not the actual environment variable value in running pods.",
+      "latency_ms": 1888
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between the success message and actual database changes, providing specific SQL queries to verify.",
+      "latency_ms": 1828
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, Clearly identifies the missing Windows test and recommends running tests there to verify the fix.",
+      "latency_ms": 1582
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between build output and actual ffmpeg presence, provides concrete verification steps, and notes residual risk.",
+      "latency_ms": 1712
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 \n\nThe candidate verifies the package is listed but doesn't check if it's actually being used in the code.",
+      "latency_ms": 1741
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The provided output only shows deployment restart success, not the actual environment variable value in running pods.",
+      "latency_ms": 1654
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5, The output only shows the migration was recorded, not that the schema change actually succeeded; queries are needed to verify the column exists and its definition matches the migration.",
+      "latency_ms": 1925
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5,  Clearly identifies the missing Windows-specific test coverage and recommends running tests on a Windows machine to verify the fix.",
+      "latency_ms": 1877
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and actual ffmpeg installation, provides concrete steps to verify, and acknowledges residual risk.",
+      "latency_ms": 1716
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 - The candidate verifies the installation but doesn't directly check if lodash is usable in code.",
+      "latency_ms": 1404
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  The rollout status only confirms deployment completion, not that the environment variable was updated in running pods.",
+      "latency_ms": 1907
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between the migration success message and the actual database schema change, providing a specific SQL query to verify the column addition and definition.",
+      "latency_ms": 2033
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, Clearly identifies the gap between passing tests and a Windows-specific fix, provides concrete next steps, and acknowledges residual risk.",
+      "latency_ms": 1836
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and actual ffmpeg installation, provides concrete commands to verify, and acknowledges residual risk.",
+      "latency_ms": 1688
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1464
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The provided commands only show deployment status, not if the environment variable change is reflected in running pods.",
+      "latency_ms": 2009
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap (artifact shows success message, but database state needs verification) and provides concrete SQL queries to bridge that gap.",
+      "latency_ms": 1506
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap (tests don't cover Windows) and provides a concrete next step (run tests on Windows).  Also notes the residual risk of the fix potentially still failing on Windows.",
+      "latency_ms": 2167
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and actual ffmpeg installation, provides concrete steps to verify, and notes residual risk.",
+      "latency_ms": 1975
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually used in the code.",
+      "latency_ms": 1390
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The provided output only shows deployment restart success, not that the environment variable change is reflected in running pods.",
+      "latency_ms": 1968
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  The candidate correctly identifies that the output of `flyway migrate` doesn't guarantee the column was added and provides specific SQL queries to verify the database schema change and migration history.",
+      "latency_ms": 2074
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  Clearly identifies the missing Windows testing and provides a concrete next step.",
+      "latency_ms": 1510
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between build output and actual ffmpeg presence in the image, and provides concrete next steps to verify.",
+      "latency_ms": 2232
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate verifies the installation but doesn't check if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1425
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies that `kubectl` commands only show deployment status, not environment variable values in running pods.",
+      "latency_ms": 1722
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  The candidate correctly identifies that the output of `flyway migrate` doesn't guarantee the column was added and provides specific SQL queries to verify the database schema change.",
+      "latency_ms": 1791
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, Clearly identifies the missing Windows testing and provides concrete next steps to address it.",
+      "latency_ms": 1639
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and actual ffmpeg installation, provides concrete steps to verify, and acknowledges residual risk.",
+      "latency_ms": 1735
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 - The candidate verifies the package installation but doesn't check if lodash is actually being used in the code.",
+      "latency_ms": 1712
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between deployment success and env var value in running pods, provides a concrete command to check, and notes the risk of inconsistent values across replicas.",
+      "latency_ms": 2294
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between successful migration output and actual database change, providing specific SQL queries to verify.",
+      "latency_ms": 1568
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5,  Clearly identifies the missing Windows test and provides a concrete next step to address the gap.",
+      "latency_ms": 1673
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between build output and actual ffmpeg presence, provides concrete verification steps, and acknowledges residual risk.",
+      "latency_ms": 1683
+    },
+    {
+      "prompt_idx": 2,
+      "score": 4,
+      "raw": "4 - The candidate verifies the package listing but doesn't check if lodash is actually being used in the code.",
+      "latency_ms": 1656
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  The provided commands only show deployment restart status, not if the environment variable was updated in running pods.",
+      "latency_ms": 1424
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  The candidate correctly identifies that the output of `flyway migrate` doesn't guarantee the column was added and provides specific SQL queries to verify the database schema change.",
+      "latency_ms": 1875
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap (tests only on Unix-like systems) and recommends running tests on Windows to verify the fix.",
+      "latency_ms": 1896
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between build output and actual ffmpeg presence, provides specific next steps to verify, and acknowledges potential for missing installation step.",
+      "latency_ms": 1775
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The candidate verifies the installation but doesn't directly address whether lodash is actually usable in code.",
+      "latency_ms": 1524
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The provided output only shows deployment restart success, not the actual environment variable value in running pods.",
+      "latency_ms": 2007
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between the migration success message and the actual database schema change, providing a specific SQL query to verify the column addition and its definition.",
+      "latency_ms": 1815
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5,  Clearly states that tests were run on an unspecified OS and need to be run on Windows to confirm the fix.",
+      "latency_ms": 1809
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between build output and actual ffmpeg presence, provides concrete verification steps, and notes residual risk.",
+      "latency_ms": 1716
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1493
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between deployment restart and actual environment variable update in running pods, providing concrete commands to verify.",
+      "latency_ms": 1759
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  The candidate correctly identifies that the output of `flyway migrate` doesn't guarantee the column was added and provides specific SQL queries to verify the database schema change.",
+      "latency_ms": 1782
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, Clearly identifies the gap between passing tests and verifying a Windows-specific crash fix, and provides concrete next steps with residual risk noted.",
+      "latency_ms": 1933
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5, Clearly identifies the gap between cached build layers and actual ffmpeg installation, provides concrete steps to verify, and acknowledges residual risk.",
+      "latency_ms": 1867
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1469
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The provided output only shows deployment completion, not the actual environment variable value in running pods.",
+      "latency_ms": 1924
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5, The candidate correctly identifies that the `flyway` output only shows attempt, not success, and demands concrete database checks to verify schema change.",
+      "latency_ms": 1801
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, Clearly identifies the missing Windows test coverage and recommends a concrete next step to address it.",
+      "latency_ms": 1696
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the missing `ffmpeg` install command and how to verify its presence in the image.",
+      "latency_ms": 1676
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1479
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The rollout status only confirms deployment restart, not that the environment variable was updated in running pods.",
+      "latency_ms": 1996
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5, The output only shows the migration was attempted, not that it successfully updated the database schema.  The candidate correctly identifies this gap and provides SQL queries to verify the changes in the `users` table and the migration history.",
+      "latency_ms": 2182
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between passing tests on a likely Unix system and the unverified Windows-specific fix.",
+      "latency_ms": 1877
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5, Clearly identifies the gap between build output and actual ffmpeg presence in the image, provides concrete next steps to verify, and acknowledges residual risk.",
+      "latency_ms": 1812
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The output shows lodash installed but doesn't confirm its usage in the code.",
+      "latency_ms": 1244
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies that `kubectl` commands only show deployment status, not environment variable value in running pods.",
+      "latency_ms": 2107
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between the success message and actual database changes, providing specific SQL queries to verify.",
+      "latency_ms": 1583
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5,  Clearly identifies the missing Windows testing and provides actionable steps to address it.",
+      "latency_ms": 1713
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and actual ffmpeg installation, provides concrete next steps to verify, and acknowledges residual risk (build might still be incomplete).",
+      "latency_ms": 2008
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 914
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  The provided commands only show deployment status, not if the environment variable change is reflected in running pods.",
+      "latency_ms": 1654
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between the migration success message and the actual state of the database, providing a specific query to verify the column addition and its properties.",
+      "latency_ms": 1717
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5,  Clearly identifies the missing Windows test environment and recommends running tests there to verify the fix.",
+      "latency_ms": 1613
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and actual ffmpeg installation, provides concrete commands to verify, and acknowledges residual risk.",
+      "latency_ms": 1646
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1542
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The provided commands only show deployment status, not if the environment variable is reflected in running pods.",
+      "latency_ms": 1598
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5 -  The success message only confirms Flyway executed the script, not that the schema change took effect; database queries are needed to verify.",
+      "latency_ms": 1635
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, Clearly identifies the gap in testing (Windows-specific) and provides a concrete next step (running tests on Windows).",
+      "latency_ms": 1780
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between build output and actual ffmpeg presence in the image, provides concrete verification steps, and acknowledges residual risk.",
+      "latency_ms": 1789
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 - The candidate verifies the package listing but doesn't check if lodash is actually being used in the code.",
+      "latency_ms": 1320
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The provided output only shows deployment restart success, not the actual environment variable value in running pods.",
+      "latency_ms": 1317
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between successful migration output and actual database change, providing specific SQL queries to verify.",
+      "latency_ms": 1464
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, Clearly identifies the missing Windows test environment and provides a concrete next step to address this gap.",
+      "latency_ms": 1518
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between build output and actual ffmpeg presence in the image, provides concrete verification steps, and acknowledges residual risk.",
+      "latency_ms": 1653
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually used in the code.",
+      "latency_ms": 1301
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between deployment status and actual env var value in running pods, provides a concrete command to check, and acknowledges potential residual risk of app not reading the env var.",
+      "latency_ms": 2058
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between Flyway's success message and actual schema change, providing specific SQL queries to verify.",
+      "latency_ms": 1792
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5,  Clearly identifies the missing Windows test and recommends a concrete next step with residual risk noted.",
+      "latency_ms": 1514
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and actual ffmpeg installation, provides concrete commands to verify, and notes residual risk.",
+      "latency_ms": 1674
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The candidate verifies installation but doesn't check if lodash functions are usable in code.",
+      "latency_ms": 1353
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The rollout status only confirms deployment completion, not the environment variable's value in running pods; inspecting pod logs or using a command to extract env vars is needed.",
+      "latency_ms": 2085
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5, The provided output only shows Flyway attempted the migration; database verification is needed to confirm success.",
+      "latency_ms": 1749
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5,  Clearly identifies the missing Windows testing and provides concrete next steps to address it.",
+      "latency_ms": 1417
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between build output and actual ffmpeg presence, provides concrete verification steps, and notes residual risk.",
+      "latency_ms": 1642
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1338
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies that `kubectl` commands only show deployment status, not environment variable value in running pods, and provides a concrete command to check.",
+      "latency_ms": 1899
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  The candidate correctly identifies that the output of `flyway migrate` doesn't guarantee the column was added and provides specific SQL queries to verify the database schema change.",
+      "latency_ms": 1745
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap (tests don't run on Windows) and provides a concrete next step (run tests on Windows).",
+      "latency_ms": 1748
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between build output and actual ffmpeg presence, provides concrete verification steps, and acknowledges residual risk.",
+      "latency_ms": 1664
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1393
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies that `kubectl` commands only show deployment status, not environment variable value in running pods.",
+      "latency_ms": 1859
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  The candidate correctly identifies that the output of `flyway migrate` doesn't guarantee the column was added and provides specific SQL queries to verify the database state.",
+      "latency_ms": 1697
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, Clearly identifies the missing Windows test and recommends running tests there to verify the fix.",
+      "latency_ms": 1497
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached build output and actual ffmpeg presence, provides concrete commands to verify, and acknowledges residual risk.",
+      "latency_ms": 1790
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 865
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The rollout status only confirms deployment completion, not that the environment variable is set in running pods.",
+      "latency_ms": 1770
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between flyway output and actual database state, providing specific SQL queries to verify.",
+      "latency_ms": 1808
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, Clearly identifies the missing Windows-specific testing and provides a concrete next step to address it.",
+      "latency_ms": 1593
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between build output and actual ffmpeg presence, provides concrete verification steps, and notes residual risk.",
+      "latency_ms": 1667
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 865
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between deployment success and environment variable update in running pods, providing a specific command to verify.",
+      "latency_ms": 1735
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between the success message and actual database changes, providing specific SQL queries to verify.",
+      "latency_ms": 1269
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, Clearly identifies the missing Windows-specific testing and provides a concrete next step to address it.",
+      "latency_ms": 1532
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached build output and actual ffmpeg presence, provides concrete commands to verify, and acknowledges residual risk.",
+      "latency_ms": 1756
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The candidate verifies the installation but doesn't directly address whether lodash is actually usable in code.",
+      "latency_ms": 1316
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between deployment success and environment variable value in running pods, provides concrete verification commands, and notes the risk of outdated values.",
+      "latency_ms": 2018
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between Flyway's success message and the actual database state, providing specific SQL queries to verify the migration's outcome.",
+      "latency_ms": 1854
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  Clearly identifies the gap (tests on Windows are missing) and suggests running tests there.",
+      "latency_ms": 1584
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5, Clearly identifies the gap between build output and actual ffmpeg presence in the image, provides concrete steps to verify, and notes the risk of assuming ffmpeg is installed.",
+      "latency_ms": 1981
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 867
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies that `kubectl` commands only show deployment status, not environment variable values in running pods.",
+      "latency_ms": 1867
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between the success message and actual database changes, providing specific SQL queries to verify.",
+      "latency_ms": 1476
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4  Clearly identifies the gap (tests lack Windows verification) and suggests a concrete next step (run tests on Windows).",
+      "latency_ms": 1790
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and actual ffmpeg installation, provides concrete next steps to verify, and acknowledges residual risk (build might still be incomplete).",
+      "latency_ms": 1849
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1401
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between successful rollout and actual flag value in running pods, provides a specific command to check, and acknowledges potential residual risk of application restart.",
+      "latency_ms": 2175
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5 -  The success message only confirms Flyway executed the script, not that the schema change took effect; database queries are needed to verify.",
+      "latency_ms": 1630
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5,  Clearly identifies the missing Windows testing and provides a concrete next step to address it.",
+      "latency_ms": 1607
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and actual ffmpeg installation, provides concrete steps to verify, and acknowledges residual risk.",
+      "latency_ms": 1646
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The candidate verifies the installation but doesn't directly address whether lodash is actually usable in code.",
+      "latency_ms": 779
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies that `kubectl` commands only show deployment status, not environment variable values in running pods, and provides concrete commands to verify.",
+      "latency_ms": 1770
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  The candidate correctly identifies that the output of `flyway migrate` doesn't guarantee the column was added and provides specific SQL queries to verify the database schema change and migration history.",
+      "latency_ms": 1850
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap (tests only on Unix-like systems) and recommends running tests on Windows to verify the fix.",
+      "latency_ms": 1926
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  The build output only shows cached layers, so a fresh build with `--no-cache` and `docker history` are needed to confirm if the ffmpeg layer was actually added.",
+      "latency_ms": 2040
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1475
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies that `kubectl` commands only show deployment status, not environment variable presence in running pods.",
+      "latency_ms": 1746
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5, The output only shows the migration was attempted, not that it successfully added the column and recorded in history.",
+      "latency_ms": 1551
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, Clearly identifies the missing Windows test coverage and recommends running tests there to verify the fix.",
+      "latency_ms": 1655
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between build log and actual ffmpeg presence in the image, provides concrete verification steps, and notes residual risk.",
+      "latency_ms": 1776
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1652
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The provided commands only show deployment status and don't verify if the new environment variable value is reflected in running pods.",
+      "latency_ms": 1642
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5 - The output only confirms execution, not schema change; queries are needed to verify the database and migration history.",
+      "latency_ms": 2013
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, Clearly identifies the missing Windows-specific testing and provides a concrete next step (running tests on Windows).",
+      "latency_ms": 1820
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached build output and actual ffmpeg presence, provides concrete verification steps, and acknowledges residual risk.",
+      "latency_ms": 1759
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1437
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The rollout status only confirms deployment success, not the environment variable's value in running pods; inspect pod environments directly.",
+      "latency_ms": 2021
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5 - Clearly identifies the gap between the flyway output and the actual database state, providing specific SQL queries to verify the column addition and migration history.",
+      "latency_ms": 1483
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, Clearly identifies the missing Windows testing and provides concrete next steps to address this gap.",
+      "latency_ms": 1831
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and actual ffmpeg installation, provides concrete steps to verify, and acknowledges residual risk.",
+      "latency_ms": 1697
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1456
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The provided commands only show deployment status, not if the environment variable change is reflected in running pods.",
+      "latency_ms": 1867
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  The candidate correctly identifies that the output of `flyway migrate` doesn't guarantee the column was added and provides specific SQL queries to verify the database schema change.",
+      "latency_ms": 1828
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5,  Clearly identifies the missing Windows testing and provides concrete recommendations to address it.",
+      "latency_ms": 1799
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and actual ffmpeg installation, provides concrete commands to verify, and acknowledges residual risk.",
+      "latency_ms": 1672
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1450
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The provided commands only show deployment status, not if the environment variable change is reflected in running pods.",
+      "latency_ms": 1625
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between successful migration output and actual database change, providing specific SQL queries to verify.",
+      "latency_ms": 1527
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, Clearly identifies the missing Windows test and provides actionable next steps.",
+      "latency_ms": 1508
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5, Clearly identifies the gap between build output and actual ffmpeg presence in the image, provides concrete next steps to verify, and acknowledges residual risk.",
+      "latency_ms": 1629
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 -  The candidate verifies the installation but doesn't directly address whether lodash is actually usable in code.",
+      "latency_ms": 804
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between deployment restart and environment variable presence in running pods, providing a specific command to verify.",
+      "latency_ms": 1514
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between the success message and actual database changes, providing specific SQL queries to verify.",
+      "latency_ms": 800
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, Clearly identifies the gap between passing tests on an unspecified OS and the need to verify the fix on Windows, providing a concrete next step with residual risk noted.",
+      "latency_ms": 1982
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and actual ffmpeg installation, provides concrete commands to verify, and acknowledges residual risk.",
+      "latency_ms": 1683
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 \n\nThe candidate verifies the package is listed but doesn't check if it's actually usable in the project's code.",
+      "latency_ms": 1518
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The provided output only shows deployment success, not the actual environment variable value in running pods.",
+      "latency_ms": 1928
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5, The success message only confirms Flyway executed the script, not that the schema changes took effect; SQL queries are needed to verify the column addition and its definition.",
+      "latency_ms": 1827
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5,  Clearly identifies the missing Windows-specific test coverage and recommends running tests on that platform.",
+      "latency_ms": 1765
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and actual ffmpeg installation, provides concrete commands to verify, and acknowledges residual risk.",
+      "latency_ms": 1682
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually used in the code.",
+      "latency_ms": 1358
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies that `kubectl` commands only show deployment status, not environment variable values in running pods.",
+      "latency_ms": 1932
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  The candidate correctly identifies that the output of `flyway migrate` doesn't guarantee the column was added and provides specific SQL queries to verify the database schema change and migration history.",
+      "latency_ms": 1824
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, Clearly identifies the missing Windows-specific testing and recommends concrete actions to address this gap.",
+      "latency_ms": 1591
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached layers and actual ffmpeg installation, provides concrete commands to verify, and acknowledges residual risk.",
+      "latency_ms": 1676
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 - The candidate verifies the package installation but doesn't check if lodash is actually being used in the code.",
+      "latency_ms": 1652
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The provided output only shows deployment restart success, not the actual environment variable value in running pods.",
+      "latency_ms": 1547
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between the success message and actual database changes, providing specific SQL queries to verify.",
+      "latency_ms": 1753
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5,  Clearly identifies the missing Windows-specific test and recommends running tests on that platform.",
+      "latency_ms": 1502
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between build output and actual ffmpeg presence, provides concrete verification steps, and notes residual risk.",
+      "latency_ms": 1718
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1437
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The provided output only shows deployment restart success, not the actual environment variable value in running pods.",
+      "latency_ms": 1444
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between the success message and actual database changes, providing specific SQL queries to verify.",
+      "latency_ms": 1741
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, Clearly identifies the gap between passing Unix tests and unverified Windows fix, recommends running tests on Windows, and notes the risk of the bug persisting.",
+      "latency_ms": 1912
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between build output and actual ffmpeg presence in the image, provides concrete next steps to verify, and acknowledges residual risk.",
+      "latency_ms": 1891
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1439
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between successful deployment and actual environment variable update in running pods, providing concrete commands to verify.",
+      "latency_ms": 1583
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between attempted migration and actual schema change, providing specific SQL queries to verify.",
+      "latency_ms": 1758
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, Clearly identifies the gap between passing tests and verifying Windows-specific fix, provides a concrete next step (running tests on Windows), and notes the residual risk of the bug persisting on that platform.",
+      "latency_ms": 2179
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached build output and actual ffmpeg installation, providing concrete commands to verify.",
+      "latency_ms": 1670
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 - The candidate verifies the package installation but doesn't check if lodash is actually being used in the code.",
+      "latency_ms": 1308
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The provided commands only show deployment restart and status, not the actual environment variable value in running pods.",
+      "latency_ms": 2030
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  The candidate correctly identifies that the flyway output alone doesn't prove the migration applied correctly and outlines specific database checks to verify the change.",
+      "latency_ms": 1783
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5,  Clearly identifies the missing Windows verification and recommends specific steps to address it.",
+      "latency_ms": 1646
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5, Clearly identifies the gap between build output and actual ffmpeg presence in the image, provides concrete next steps to verify, and acknowledges residual risk.",
+      "latency_ms": 1773
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 - The candidate verifies the installation but doesn't directly check if lodash is usable in code.",
+      "latency_ms": 6930
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies that `kubectl` commands only show deployment status, not environment variable values in running pods.",
+      "latency_ms": 2730
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5, The candidate correctly identifies that the flyway output alone doesn't prove the migration applied correctly and outlines specific database checks to verify the change.",
+      "latency_ms": 2920
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5,  Clearly identifies that tests are missing Windows verification and provides specific steps to address this gap.",
+      "latency_ms": 2913
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between build output and ffmpeg presence in the image, provides concrete verification steps, and acknowledges residual risk.",
+      "latency_ms": 3529
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 2503
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The rollout status only confirms deployment completion, not the environment variable's value in running pods; inspecting pod environments is needed.",
+      "latency_ms": 2827
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between the success message and actual database changes, providing specific SQL queries to verify.",
+      "latency_ms": 2467
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, Clearly identifies the missing Windows-specific testing and provides a concrete next step (running tests on Windows).",
+      "latency_ms": 2772
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between build output and actual ffmpeg presence, provides concrete verification steps, and notes residual risk.",
+      "latency_ms": 2713
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1475
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies that `kubectl rollout` commands don't guarantee environment variable update and provides specific verification steps.",
+      "latency_ms": 2679
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between the success message and the actual database state, providing specific SQL queries to verify the changes.",
+      "latency_ms": 2570
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, Clearly identifies the missing Windows test environment and recommends running tests there to verify the fix.",
+      "latency_ms": 2079
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between cached build output and actual ffmpeg presence, provides concrete commands to verify, and acknowledges residual risk.",
+      "latency_ms": 2658
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 1711
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5, The rollout status only confirms the deployment restarted; it doesn't guarantee the environment variable update in running pods.  The candidate correctly identifies this gap and provides a command to inspect the actual environment variable values within the pods.",
+      "latency_ms": 3417
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between the success message and the actual database state, providing specific SQL queries to verify the changes.",
+      "latency_ms": 1415
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5,  Clearly identifies the missing Windows-specific testing and provides a concrete next step (running tests on Windows).",
+      "latency_ms": 2391
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5, Clearly identifies the gap between cached build output and actual ffmpeg presence in the image, providing concrete steps to verify.",
+      "latency_ms": 2426
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2  The candidate trusts the output of `npm list` without verifying if the lodash dependency is actually being used in the code.",
+      "latency_ms": 2182
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between successful rollout and actual environment variable value in running pods, providing a concrete command to verify and outlining potential risks if unverified.",
+      "latency_ms": 3536
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  Clearly identifies the gap between successful migration output and actual database change, providing specific SQL queries to verify.",
+      "latency_ms": 2284
+    },
+    {
+      "prompt_idx": 0,
+      "score": 5,
+      "raw": "5, Clearly identifies the missing Windows-specific testing and recommends concrete actions to address the gap.",
+      "latency_ms": 2326
+    },
+    {
+      "prompt_idx": 1,
+      "score": 5,
+      "raw": "5, Clearly identifies the gap between cached layers and actual ffmpeg installation, provides a concrete next command (`docker build --no-cache`), and notes residual risk.",
+      "latency_ms": 2774
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3 - The candidate verifies the package is installed and listed in `package.json`, but doesn't check if it's actually being used in the code.",
+      "latency_ms": 3383
+    },
+    {
+      "prompt_idx": 3,
+      "score": 5,
+      "raw": "5,  The provided commands only show deployment status, not if the environment variable is reflected in running pods.",
+      "latency_ms": 2487
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5,  The candidate correctly identifies that the output of `flyway migrate` doesn't guarantee the column was added and provides specific SQL queries to verify the database schema change.",
+      "latency_ms": 2763
+    }
+  ],
+  "judge_summary": {
+    "without_mean": 4.088,
+    "with_mean": 4.456,
+    "delta": 0.3680000000000003
+  }
+}

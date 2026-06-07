@@ -50,9 +50,21 @@ DECISION_MARKERS = (
     "migrated to", "deprecated in favor", "selected ", "opted for",
 )
 ERROR_MARKERS = (
+    # literal log / stacktrace signal
     "failed because", "fix:", "bug:", "broke when", "regression:",
     "fixed by", "root cause", "panic", "traceback",
     "error:", "crashes when", "throws when", "hangs on", "leaks",
+    # natural-language failure-lesson phrasings. A failure lesson written in prose
+    # ("X fails with Y", "caused repeated failures", "the fix is Z") is exactly what
+    # wiki-memory's "non-trivial failure lesson" trigger is meant to capture — the
+    # gate must credit it, not only literal stacktraces. Added 2026-06-06 after
+    # exp1_compounding surfaced that prose failure lessons were gate-rejected
+    # (memory−cold lift +0.0 on the failure source); re-validated against the exp3
+    # write_gate labeled corpus to confirm precision (zero false-keeps) held.
+    "fails with", "fails when", "failed with", "failed when", "failing",
+    "the fix", "regression", "rate-limit", "rate limit", "times out",
+    "timed out", "timeout", "incident", "deadlock", "out of memory",
+    "non-zero exit", "exit status", "stack trace", "rejected with",
 )
 ARCH_MARKERS = (
     "runs on", "calls ", "depends on", "talks to", "writes to",

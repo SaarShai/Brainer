@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Finalize an eval pass: re-populate EVAL.md per skill and rebuild SKILLS_INDEX_RATED.md.
+# Finalize an eval pass: re-populate per-skill EVAL.md from the results JSON.
 # Run this AFTER eval/runner.py has produced eval/results/<task>.json files.
 # Optionally also runs the judge if a backend is reachable.
 #
@@ -36,7 +36,3 @@ python3 eval/static_cost.py | tail -5
 echo
 echo "=== repopulate per-skill EVAL.md ==="
 python3 eval/populate_eval_md.py
-
-echo
-echo "=== rebuild SKILLS_INDEX_RATED.md ==="
-python3 eval/build_rated_index.py

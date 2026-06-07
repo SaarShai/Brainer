@@ -29,7 +29,6 @@ from semdiff import read_smart  # noqa: E402
 
 SAMPLE_FILES = [
     REPO_ROOT / "skills/semantic-diff/tools/semdiff/core.py",
-    REPO_ROOT / "skills/context-refresh/tools/context.py",
     REPO_ROOT / "skills/prompt-triage/tools/classify.py",
 ]
 

@@ -1,0 +1,212 @@
+{
+  "experiment": "exp7_wiring",
+  "protocol": "load real SKILL.md bodies; model emits explicit HARVEST: yes/no; measure decision accuracy vs control (bare definition)",
+  "backend": "ollama",
+  "model": "llama3.1:8b",
+  "n_scenarios": 10,
+  "n_should_fire": 5,
+  "records": [
+    {
+      "scenario": "failure",
+      "should_fire": true,
+      "arm": "control",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "Update the project's documentation to reflect the correct command for deployment.\n\nHARVEST: yes"
+    },
+    {
+      "scenario": "failure",
+      "should_fire": true,
+      "arm": "treatment",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "Run a fresh verification to ensure the fix was correct:\n\n```bash\npython skills/wiki-memory/tools/wiki.py search \"helios deploy\"\n```\n\nThen report the exact output and any remaining risk.\n\nHARVEST: yes"
+    },
+    {
+      "scenario": "feedback",
+      "should_fire": true,
+      "arm": "control",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "I will update the code to reflect the correct environment variable name, which is now `HELIOS_DB_URL`. \n\nHARVEST: yes"
+    },
+    {
+      "scenario": "feedback",
+      "should_fire": true,
+      "arm": "treatment",
+      "decision": null,
+      "fired": false,
+      "correct": false,
+      "output_preview": "Run a fresh verification command to ensure the correction was successful:\n\n```bash\npython skills/wiki-memory/tools/wiki.py search \"env var db_url\"\n```\n\nReport the exact output and any remaining risk."
+    },
+    {
+      "scenario": "success",
+      "should_fire": true,
+      "arm": "control",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "I'll document the solution in a project wiki or knowledge base for future reference, including the specific command and its parameters that resolved the issue.\n\nHARVEST: yes"
+    },
+    {
+      "scenario": "success",
+      "should_fire": true,
+      "arm": "treatment",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "Run `python skills/wiki-memory/tools/wiki.py new --template page --title \"prod-deploy-trick\" --domain \"deployment\"` and fill in the v2 frontmatter, including a why-clause explaining the trick with `he"
+    },
+    {
+      "scenario": "failure2",
+      "should_fire": true,
+      "arm": "control",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "I will update the project's configuration to include the `NODE_OPTIONS` environment variable with the increased max old space size, so that future builds don't require manual intervention.\n\nHARVEST: y"
+    },
+    {
+      "scenario": "failure2",
+      "should_fire": true,
+      "arm": "treatment",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "Run the following command to verify that the fix is correct and the issue is resolved:\n\n```bash\nnode --max-old-space-size=4096 -e \"console.log(process.memoryUsage())\"\n```\n\nThis will run a fresh Node.j"
+    },
+    {
+      "scenario": "decision",
+      "should_fire": true,
+      "arm": "control",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "I'll update the database schema and migration scripts to reflect the change from MongoDB to PostgreSQL, ensuring that all necessary tables and relationships are recreated for a seamless transition.\n\nH"
+    },
+    {
+      "scenario": "decision",
+      "should_fire": true,
+      "arm": "treatment",
+      "decision": null,
+      "fired": false,
+      "correct": false,
+      "output_preview": "Run a fresh verification command and quote its exact output:\n\n```bash\npython skills/wiki-memory/tools/wiki.py new --template decision --title \"Helios Ledger Database Choice\" --domain \"infrastructure\"\n"
+    },
+    {
+      "scenario": "trivial",
+      "should_fire": false,
+      "arm": "control",
+      "decision": false,
+      "fired": false,
+      "correct": true,
+      "output_preview": "I'll save the conversation details and wait for your next question or task. \n\nHARVEST: no"
+    },
+    {
+      "scenario": "trivial",
+      "should_fire": false,
+      "arm": "treatment",
+      "decision": false,
+      "fired": false,
+      "correct": true,
+      "output_preview": "I will wait for the next task or question from you. \n\nHARVEST: no"
+    },
+    {
+      "scenario": "ephemeral",
+      "should_fire": false,
+      "arm": "control",
+      "decision": null,
+      "fired": false,
+      "correct": true,
+      "output_preview": "The answer is 4.\n\nNext, I will calculate the square of 4 (4^2)."
+    },
+    {
+      "scenario": "ephemeral",
+      "should_fire": false,
+      "arm": "treatment",
+      "decision": null,
+      "fired": false,
+      "correct": true,
+      "output_preview": "The answer is 4.\n\nNext, I will run the verification fresh and report the exact command + output + remaining risk as per the \"Verify Before Completion\" rule. \n\n`python skills/wiki-memory/tools/wiki.py "
+    },
+    {
+      "scenario": "greeting",
+      "should_fire": false,
+      "arm": "control",
+      "decision": null,
+      "fired": false,
+      "correct": true,
+      "output_preview": "I'm here and ready to help! Next, I'll ask for clarification on the task at hand. Can you please provide more details about what you need assistance with?"
+    },
+    {
+      "scenario": "greeting",
+      "should_fire": false,
+      "arm": "treatment",
+      "decision": null,
+      "fired": false,
+      "correct": true,
+      "output_preview": "I'll run the verification fresh and report exact command + output + remaining risk for the task at hand.\n\nNext action: Run a fresh verification command to ensure the work is correct before claiming co"
+    },
+    {
+      "scenario": "general_knowledge",
+      "should_fire": false,
+      "arm": "control",
+      "decision": null,
+      "fired": false,
+      "correct": true,
+      "output_preview": "The capital of France is Paris.\n\nI will look up more information about Paris and its significance in French culture."
+    },
+    {
+      "scenario": "general_knowledge",
+      "should_fire": false,
+      "arm": "treatment",
+      "decision": false,
+      "fired": false,
+      "correct": true,
+      "output_preview": "This question does not produce a durable, project-specific lesson worth saving to long-term project memory.\n\nHARVEST: no"
+    },
+    {
+      "scenario": "ephemeral2",
+      "should_fire": false,
+      "arm": "control",
+      "decision": null,
+      "fired": false,
+      "correct": true,
+      "output_preview": "I'll check the system date and time.\n\nNext, I will output the current date in the format \"YYYY-MM-DD\"."
+    },
+    {
+      "scenario": "ephemeral2",
+      "should_fire": false,
+      "arm": "treatment",
+      "decision": null,
+      "fired": false,
+      "correct": true,
+      "output_preview": "Today's date is not specified in the conversation.\n\nNext, I will run the verification fresh and report exact command + output + remaining risk as per the \"Verify Before Completion\" rule."
+    }
+  ],
+  "verdict": {
+    "decision_accuracy": {
+      "treatment": 0.8,
+      "control": 1.0,
+      "treatment_minus_control": -0.2
+    },
+    "harvest_fire_should_fire": {
+      "treatment": 0.6,
+      "control": 1.0,
+      "treatment_minus_control": -0.4
+    },
+    "false_fire_should_not": {
+      "treatment": 0.0,
+      "control": 0.0
+    },
+    "abstain_rate": {
+      "treatment": 0.5,
+      "control": 0.4
+    },
+    "headline": "harvest DECISION accuracy (explicit HARVEST: yes/no marker): treatment=0.8 vs control=1.0 (delta -0.2); should-fire fire-rate treatment=0.6; false-fire on should-not treatment=0.0"
+  },
+  "wall_seconds": 28.3
+}

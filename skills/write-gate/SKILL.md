@@ -15,7 +15,7 @@ Two-layer policy:
 1. **Execution gate** (existing) — fact came from an action that *executed* and *succeeded*. Plans don't earn pages.
 2. **Content gate** (this skill) — fact has signal AND, if it's a decision/convention, gives a reason.
 
-The execution gate is already enforced by `wiki-memory`'s `tools/wiki.py` and the [`projects/write-gate`](../../wiki/projects/write-gate.md) middleware. This skill adds the content gate.
+The execution gate is the job of [`verify-before-completion`](../verify-before-completion/SKILL.md) (evidence-first: a fact only earns a page once the action that produced it ran and passed). This skill adds the **content gate**. Both are **procedure gates** — agent steps in `wiki-memory`'s write protocol (`SKILL.md` step 3 instructs running `write_gate.py gate` before a write), not code auto-invoked by `wiki.py`. So the gate fires when the protocol is followed; it is a manual/CLI gate, not enforced inside the write path.
 
 ## When to call
 
@@ -103,29 +103,8 @@ Result: noisy memory → wrong context injected → worse answers. This skill ma
 
 - [`wiki-memory`](../wiki-memory/SKILL.md) — owns the actual write path; this skill is its precheck.
 - [`verify-before-completion`](../verify-before-completion/SKILL.md) — execution-gate sibling; together they enforce "no execution, no memory; no reason, no decision."
-- [`memory-decay`](../memory-decay/SKILL.md) — what happens to memories *after* they pass this gate.
+- [`wiki-refresh`](../wiki-refresh/SKILL.md) — reconciles stored memories against the codebase after they pass this gate.
 
 ## Configuration
 
-Optional `wiki/write_gate_config.yaml`:
-
-```yaml
-threshold: 3.0
-require_why_for_decisions: true
-weights:
-  decision: 2.0
-  error: 2.0
-  architecture: 1.5
-  code_block: 1.0
-  numbers: 1.0
-filler_phrases:
-  - in summary
-  - to recap
-  - basically what we did
-```
-
-Absent config → defaults above.
-
-## Status
-
-Skill body shipped; signal-score formula and threshold are ogham's published defaults. EVAL.md tracks the project-local A/B once we have writes flowing through it (target: reduce wiki page-creation rate by ≥40% with no drop in retrieval evidence-rate).
+Optional `wiki/write_gate_config.yaml` overrides `threshold` (default 3.0), `require_why_for_decisions`, and any of the `weights` / `filler_phrases` from *How it scores* above. Absent → defaults. Measured: f1 0.96 (precision 1.0) on a 56-case labeled set (`eval/exp3_classifiers/`).

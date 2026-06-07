@@ -18,10 +18,6 @@ Runners executed (covers every >=20% claim in eval/FINDINGS.md):
                                                                 plan, verify,
                                                                 triage corpus,
                                                                 combos)
-  - runner_compress.py    --max-samples 50                     (mechanical)
-  - runner_compress_quality.py --n 50                          (SQuAD A/B
-                                                                with MiMo
-                                                                target+judge)
   - runner_wiki.py        --n 50                                (wiki-memory)
   - runner_triage.py      --corpus prompt-triage-corpus.yaml --n 50
   - runner_semdiff.py                                           (fixtures)
@@ -107,15 +103,6 @@ def main() -> int:
         ])
 
     # 2) Specialty runners — each measures a different surface.
-    run_step("runner_compress.py mechanical (N=50)", [
-        PY, f"{repo_dir}/eval/runner_compress.py",
-        "--max-samples", N, "--rate", "0.5",
-    ])
-    run_step("runner_compress_quality.py SQuAD A/B (N=50, MiMo judge)", [
-        PY, f"{repo_dir}/eval/runner_compress_quality.py",
-        "--n", N, "--rate", "0.5",
-        "--target", "mimo-v2-flash", "--judge", "mimo-v2-flash",
-    ])
     run_step("runner_wiki.py (N=50)", [
         PY, f"{repo_dir}/eval/runner_wiki.py",
         "--n", N, "--model", "mimo-v2-flash",

@@ -1,0 +1,212 @@
+{
+  "experiment": "exp7_wiring",
+  "protocol": "load real SKILL.md bodies; model emits explicit HARVEST: yes/no; measure decision accuracy vs control (bare definition)",
+  "backend": "ollama",
+  "model": "gemma2:9b",
+  "n_scenarios": 10,
+  "n_should_fire": 5,
+  "records": [
+    {
+      "scenario": "failure",
+      "should_fire": true,
+      "arm": "control",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "Provide guidance on how to determine the correct value for `N` in `helios ship --wave N`. \n\nHARVEST: yes"
+    },
+    {
+      "scenario": "failure",
+      "should_fire": true,
+      "arm": "treatment",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "Run `helios ship --wave N` to deploy the project. \n\n\nHARVEST: yes"
+    },
+    {
+      "scenario": "feedback",
+      "should_fire": true,
+      "arm": "control",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "Update your PR with the change and resubmit it. \n\nHARVEST: yes"
+    },
+    {
+      "scenario": "feedback",
+      "should_fire": true,
+      "arm": "treatment",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "Harvest the lesson about naming conventions in this project. \n\n\nHARVEST: yes"
+    },
+    {
+      "scenario": "success",
+      "should_fire": true,
+      "arm": "control",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "Document the solution in the project's deployment guide.  \n\nHARVEST: yes"
+    },
+    {
+      "scenario": "success",
+      "should_fire": true,
+      "arm": "treatment",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "Run `python skills/wiki-memory/tools/wiki.py new --template page --title \"Deploying to Helios\" --domain \"Deployment\"` and fill in the details of the successful deployment, including the specific issue"
+    },
+    {
+      "scenario": "failure2",
+      "should_fire": true,
+      "arm": "control",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "Document this solution in the project's documentation or wiki. \n\nHARVEST: yes"
+    },
+    {
+      "scenario": "failure2",
+      "should_fire": true,
+      "arm": "treatment",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "Run a fresh test to verify the fix and check for any regressions. \n\nHARVEST: yes"
+    },
+    {
+      "scenario": "decision",
+      "should_fire": true,
+      "arm": "control",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "Explain how ACID transactions work and why they are important for a financial application like Helios. \n\n\nHARVEST: yes"
+    },
+    {
+      "scenario": "decision",
+      "should_fire": true,
+      "arm": "treatment",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "Next steps:\n\n1. **Document the decision:** Create a new wiki page explaining why Postgres was chosen over MongoDB for the Helios ledger. \n2. **Outline the benefits:** Detail the advantages of using Po"
+    },
+    {
+      "scenario": "trivial",
+      "should_fire": false,
+      "arm": "control",
+      "decision": false,
+      "fired": false,
+      "correct": true,
+      "output_preview": "Analyze the context of the conversation to determine if a project-specific lesson can be harvested. \n\nHARVEST: no"
+    },
+    {
+      "scenario": "trivial",
+      "should_fire": false,
+      "arm": "treatment",
+      "decision": false,
+      "fired": false,
+      "correct": true,
+      "output_preview": "I will run the `wiki_search` command with the query \"verify-before-completion\" and analyze the results. \n\n\nHARVEST: no"
+    },
+    {
+      "scenario": "ephemeral",
+      "should_fire": false,
+      "arm": "control",
+      "decision": false,
+      "fired": false,
+      "correct": true,
+      "output_preview": "2 + 2 = 4\n\nI'll wait for your next instruction.  \n\n\nHARVEST: no"
+    },
+    {
+      "scenario": "ephemeral",
+      "should_fire": false,
+      "arm": "treatment",
+      "decision": false,
+      "fired": false,
+      "correct": true,
+      "output_preview": "2 + 2 = 4\n\nNext, I will identify the command, inspection, or checklist that proves the task is complete and run it fresh.  \n\n\nHARVEST: no"
+    },
+    {
+      "scenario": "greeting",
+      "should_fire": false,
+      "arm": "control",
+      "decision": false,
+      "fired": false,
+      "correct": true,
+      "output_preview": "I'm here! I can help with coding tasks and answer your questions.  \n\nWhat can I do for you? \n\n\nHARVEST: no"
+    },
+    {
+      "scenario": "greeting",
+      "should_fire": false,
+      "arm": "treatment",
+      "decision": false,
+      "fired": false,
+      "correct": true,
+      "output_preview": "My next action is to identify the command, inspection, or checklist that proves the work is correct. \n\n\nHARVEST: no"
+    },
+    {
+      "scenario": "general_knowledge",
+      "should_fire": false,
+      "arm": "control",
+      "decision": true,
+      "fired": true,
+      "correct": false,
+      "output_preview": "I will tell you the capital of France. \n\nHARVEST: yes"
+    },
+    {
+      "scenario": "general_knowledge",
+      "should_fire": false,
+      "arm": "treatment",
+      "decision": false,
+      "fired": false,
+      "correct": true,
+      "output_preview": "The capital of France is Paris. \n\nNext, I will run  `HARVEST: no`."
+    },
+    {
+      "scenario": "ephemeral2",
+      "should_fire": false,
+      "arm": "control",
+      "decision": false,
+      "fired": false,
+      "correct": true,
+      "output_preview": "I can tell you today's date. \n\nThen I will wait for your next instruction.  \nHARVEST: no"
+    },
+    {
+      "scenario": "ephemeral2",
+      "should_fire": false,
+      "arm": "treatment",
+      "decision": false,
+      "fired": false,
+      "correct": true,
+      "output_preview": "Today's date is 2023-10-27.\n\nMy next action is to identify the command, inspection, or checklist that proves the work is correct and run or perform it fresh.  \n\n\nHARVEST: no"
+    }
+  ],
+  "verdict": {
+    "decision_accuracy": {
+      "treatment": 1.0,
+      "control": 0.9,
+      "treatment_minus_control": 0.1
+    },
+    "harvest_fire_should_fire": {
+      "treatment": 1.0,
+      "control": 1.0,
+      "treatment_minus_control": 0.0
+    },
+    "false_fire_should_not": {
+      "treatment": 0.0,
+      "control": 0.2
+    },
+    "abstain_rate": {
+      "treatment": 0.0,
+      "control": 0.0
+    },
+    "headline": "harvest DECISION accuracy (explicit HARVEST: yes/no marker): treatment=1.0 vs control=0.9 (delta +0.1); should-fire fire-rate treatment=1.0; false-fire on should-not treatment=0.0"
+  },
+  "wall_seconds": 34.3
+}

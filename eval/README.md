@@ -63,8 +63,9 @@ Rubric is embedded in each task YAML (`rubric:` field). Default rubric in `judge
 Three combo manifests to author (Phase D scope):
 
 1. `prompt-triage + caveman-ultra + context-keeper` — everyday load
-2. `compress-context + semantic-diff` — heavy-context tasks
-3. `delegate + wiki-memory + verify-before-completion` — research-style tasks
+2. `wiki-memory + verify-before-completion + semantic-diff` — research-style tasks
+
+_(Earlier drafts listed `compress-context` and `delegate` combos — both skills were cut; those combos are dropped.)_
 
 ## Kaggle T4 (N ≥ 50 runs)
 

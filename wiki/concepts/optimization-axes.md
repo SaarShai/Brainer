@@ -22,7 +22,7 @@ Seven axes. Every tool in this repo declares which axis it targets (frontmatter 
 
 | tool | axis | status |
 |---|---|---|
-| [[projects/compound-compression-pipeline/RESULTS\|ComCom]] | A. input_compression | eval-v3 passed |
+| `skills/compress-context` (ComCom) | A. input_compression | eval-v3 passed |
 | [[projects/semdiff/README\|semdiff]] | B. output_filter (file reads) | MCP shipped |
 | native output-filter hook | B. output_filter (terminal stdout) | raw recovery + stats + rules shipped |
 | [[projects/context-keeper/README\|context-keeper v1]] | C. cross_session_memory (intra-session only) | hook active |
@@ -59,4 +59,4 @@ Seven axes. Every tool in this repo declares which axis it targets (frontmatter 
 
 1. Every new tool declares its `axis:` in frontmatter.
 2. If a proposed tool overlaps an existing axis, it must beat the incumbent on a measurable metric, or be rejected.
-3. Gaps (axes with no tool) are open-tickets in [[ROADMAP]].
+3. Gaps (axes with no tool) are tracked as open items.

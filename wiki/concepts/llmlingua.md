@@ -18,4 +18,4 @@ tags: [compression, llmlingua]
 
 LLMLingua and LLMLingua-2 use smaller language models to remove low-salience tokens from prompts. Token Economy tracks this as an input-compression technique and combines it with caveman-style output constraints in ComCom.
 
-Related: [[projects/compound-compression-pipeline/RESULTS]], [[raw/2026-04-17-research-brief]]
+Related: `skills/compress-context/tools/RESULTS.md`, [[raw/2026-04-17-research-brief]]

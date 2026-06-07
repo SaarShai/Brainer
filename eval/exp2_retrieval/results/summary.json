@@ -1,0 +1,780 @@
+{
+  "experiment": "exp2_retrieval \u2014 wiki-memory retrieval quality",
+  "k": 5,
+  "retriever_mode": "inprocess",
+  "wiki_root": "/Users/za/token-economy/wiki",
+  "deterministic": {
+    "aggregate": {
+      "precision@5": 0.2114,
+      "recall@5": 0.9429,
+      "mrr": 0.8438,
+      "hit@5": 0.9429,
+      "n_queries": 35
+    },
+    "per_query": [
+      {
+        "id": "q01",
+        "query": "how does TurboQuant compress the KV cache",
+        "page_type": "concept",
+        "gold_page_ids": [
+          "concepts/turboquant-kv-cache"
+        ],
+        "retrieved_ids": [
+          "concepts/turboquant-kv-cache",
+          "concepts/kv-cache-eviction",
+          "concepts/caveman-output-compression",
+          "raw/2026-04-25-turboquant-adoption-review",
+          "raw/2026-04-20-turboquant-research"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q02",
+        "query": "is V cache compression free or lossy",
+        "page_type": "concept",
+        "gold_page_ids": [
+          "concepts/turboquant-kv-cache"
+        ],
+        "retrieved_ids": [
+          "concepts/turboquant-kv-cache",
+          "concepts/framework-hardening-adoption",
+          "concepts/caveman-output-compression",
+          "concepts/devices-inventory",
+          "concepts/semantic-diff-edits"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q03",
+        "query": "safe asymmetric K V quantization stack for Q4_K_M GGUF models",
+        "page_type": "concept",
+        "gold_page_ids": [
+          "concepts/turboquant-kv-cache"
+        ],
+        "retrieved_ids": [
+          "concepts/turboquant-kv-cache",
+          "concepts/local-model-setup",
+          "raw/2026-04-25-turboquant-adoption-review",
+          "concepts/devices-inventory",
+          "projects/delegate-router"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q04",
+        "query": "what does the boundary layer protection trick do in KV quantization",
+        "page_type": "concept",
+        "gold_page_ids": [
+          "concepts/turboquant-kv-cache"
+        ],
+        "retrieved_ids": [
+          "concepts/turboquant-kv-cache",
+          "concepts/framework-hardening-adoption",
+          "concepts/devices-inventory",
+          "concepts/prefix-caching",
+          "concepts/semantic-diff-edits"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q05",
+        "query": "KV cache eviction reduce long context memory cost",
+        "page_type": "concept",
+        "gold_page_ids": [
+          "concepts/kv-cache-eviction"
+        ],
+        "retrieved_ids": [
+          "concepts/kv-cache-eviction",
+          "concepts/turboquant-kv-cache",
+          "projects/context-refresh",
+          "projects/context-keeper",
+          "projects/context-keeper-v2"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q06",
+        "query": "what does LLMLingua do for prompts",
+        "page_type": "concept",
+        "gold_page_ids": [
+          "concepts/llmlingua"
+        ],
+        "retrieved_ids": [
+          "concepts/framework-hardening-adoption",
+          "concepts/llmlingua",
+          "L4_archive/2026-05-31-auto-handoff-dropped",
+          "templates/handoff.template",
+          "L4_archive/2026-04-24-handoff-codex-context-refresh"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 0.5,
+        "hit@5": 1.0,
+        "first_gold_rank": 2
+      },
+      {
+        "id": "q07",
+        "query": "prompt prefix caching rules keep stable prefix first",
+        "page_type": "concept",
+        "gold_page_ids": [
+          "concepts/prefix-caching"
+        ],
+        "retrieved_ids": [
+          "concepts/prefix-caching",
+          "projects/context-keeper-v2",
+          "projects/context-keeper",
+          "concepts/framework-hardening-adoption",
+          "raw/m5-outputs-2026-04-18/P7_prompt_caching_vs_compression"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q08",
+        "query": "speculative decoding draft with cheap model verify with strong model throughput",
+        "page_type": "concept",
+        "gold_page_ids": [
+          "concepts/speculative-decoding"
+        ],
+        "retrieved_ids": [
+          "concepts/speculative-decoding",
+          "concepts/local-model-setup",
+          "patterns/tiny-model-router",
+          "projects/delegate-router",
+          "concepts/unsloth-distill"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q09",
+        "query": "semantic diff AST node level re-read token savings argparse",
+        "page_type": "project",
+        "gold_page_ids": [
+          "projects/semdiff",
+          "concepts/semantic-diff-edits"
+        ],
+        "retrieved_ids": [
+          "projects/semdiff",
+          "concepts/semantic-diff-edits",
+          "raw/2026-04-17-semantic-diff-survey",
+          "raw/2026-04-17-research-brief",
+          "projects/wiki-search"
+        ],
+        "precision@5": 0.4,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q10",
+        "query": "which languages does the semantic diff tool support",
+        "page_type": "project",
+        "gold_page_ids": [
+          "projects/semdiff"
+        ],
+        "retrieved_ids": [
+          "concepts/semantic-diff-edits",
+          "projects/semdiff",
+          "raw/2026-04-17-semantic-diff-survey",
+          "concepts/optimization-axes",
+          "concepts/local-model-setup"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 0.5,
+        "hit@5": 1.0,
+        "first_gold_rank": 2
+      },
+      {
+        "id": "q11",
+        "query": "structured outputs constrain response shape reduce waste",
+        "page_type": "concept",
+        "gold_page_ids": [
+          "concepts/structured-outputs"
+        ],
+        "retrieved_ids": [
+          "concepts/structured-outputs",
+          "projects/context-keeper",
+          "concepts/lean-execution",
+          "raw/m5-outputs-2026-04-18/P2_structured_output_savings",
+          "log"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q12",
+        "query": "what does caveman ultra terse style drop and what does it preserve",
+        "page_type": "concept",
+        "gold_page_ids": [
+          "concepts/caveman-output-compression"
+        ],
+        "retrieved_ids": [
+          "concepts/caveman-output-compression",
+          "concepts/semantic-diff-edits",
+          "L4_archive/2026-05-31-auto-handoff-dropped",
+          "concepts/caveman-compress-session-files",
+          "log"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q13",
+        "query": "keep startup session files small to save compounding tokens",
+        "page_type": "concept",
+        "gold_page_ids": [
+          "concepts/caveman-compress-session-files"
+        ],
+        "retrieved_ids": [
+          "concepts/caveman-compress-session-files",
+          "projects/context-keeper-v2",
+          "concepts/devices-inventory",
+          "L4_archive/2026-05-22-skill-crystallizer/README",
+          "L4_archive/2026-05-31-auto-handoff-dropped"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q13b",
+        "query": "route extraction summary classification to cheaper workers escalate ambiguity",
+        "page_type": "pattern",
+        "gold_page_ids": [
+          "patterns/tiny-model-router",
+          "projects/delegate-router"
+        ],
+        "retrieved_ids": [
+          "patterns/tiny-model-router",
+          "projects/delegate-router",
+          "concepts/devices-inventory",
+          "L4_archive/2026-05-31-auto-handoff-dropped",
+          "L4_archive/2026-05-22-skill-crystallizer/README"
+        ],
+        "precision@5": 0.4,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q14",
+        "query": "model routing policy cheapest capable worker local medium frontier",
+        "page_type": "project",
+        "gold_page_ids": [
+          "projects/delegate-router"
+        ],
+        "retrieved_ids": [
+          "concepts/local-model-setup",
+          "projects/delegate-router",
+          "patterns/tiny-model-router",
+          "concepts/framework-hardening-adoption",
+          "concepts/unsloth-distill"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 0.5,
+        "hit@5": 1.0,
+        "first_gold_rank": 2
+      },
+      {
+        "id": "q15",
+        "query": "search the wiki before reloading files progressive retrieval shortcircuit",
+        "page_type": "pattern",
+        "gold_page_ids": [
+          "patterns/wiki-query-shortcircuit",
+          "projects/wiki-search"
+        ],
+        "retrieved_ids": [
+          "projects/wiki-search",
+          "patterns/wiki-query-shortcircuit",
+          "concepts/karpathy-wiki",
+          "raw/2026-04-25-agent-memory-framework-research-rerun",
+          "concepts/wiki-governance"
+        ],
+        "precision@5": 0.4,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q16",
+        "query": "why use a markdown wiki instead of loading whole transcript or vector store",
+        "page_type": "concept",
+        "gold_page_ids": [
+          "concepts/karpathy-wiki"
+        ],
+        "retrieved_ids": [
+          "concepts/karpathy-wiki",
+          "projects/wiki-search",
+          "concepts/framework-hardening-adoption",
+          "concepts/wiki-governance",
+          "L4_archive/2026-05-31-auto-handoff-dropped"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q17",
+        "query": "context-keeper preserve structured state before compaction",
+        "page_type": "project",
+        "gold_page_ids": [
+          "projects/context-keeper"
+        ],
+        "retrieved_ids": [
+          "projects/context-keeper",
+          "projects/context-keeper-v2",
+          "concepts/structured-outputs",
+          "concepts/local-model-setup",
+          "projects/context-refresh"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q18",
+        "query": "tiered L0 L1 L2 L3 L4 memory schema sizes and update cadence",
+        "page_type": "project",
+        "gold_page_ids": [
+          "projects/context-keeper-v2"
+        ],
+        "retrieved_ids": [
+          "projects/context-keeper-v2",
+          "concepts/wiki-governance",
+          "schema",
+          "L4_archive/2026-05-22-skill-crystallizer/README",
+          "L1_index"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q19",
+        "query": "context refresh checkpoint threshold to prevent context rot",
+        "page_type": "project",
+        "gold_page_ids": [
+          "projects/context-refresh"
+        ],
+        "retrieved_ids": [
+          "projects/context-refresh",
+          "L4_archive/2026-05-31-auto-handoff-dropped",
+          "projects/context-keeper",
+          "projects/context-keeper-v2",
+          "concepts/devices-inventory"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q20",
+        "query": "stack complementary compression techniques compound savings without assuming additive",
+        "page_type": "pattern",
+        "gold_page_ids": [
+          "patterns/compound-compression-pipeline"
+        ],
+        "retrieved_ids": [
+          "patterns/compound-compression-pipeline",
+          "concepts/turboquant-kv-cache",
+          "concepts/caveman-output-compression",
+          "concepts/semantic-diff-edits",
+          "concepts/caveman-compress-session-files"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q21",
+        "query": "seven optimization axes what each tool optimizes in the repo",
+        "page_type": "concept",
+        "gold_page_ids": [
+          "concepts/optimization-axes"
+        ],
+        "retrieved_ids": [
+          "concepts/optimization-axes",
+          "concepts/framework-hardening-adoption",
+          "concepts/devices-inventory",
+          "concepts/semantic-diff-edits",
+          "concepts/prefix-caching"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q22",
+        "query": "lean execution prune plans YAGNI maximize work not done",
+        "page_type": "concept",
+        "gold_page_ids": [
+          "concepts/lean-execution"
+        ],
+        "retrieved_ids": [
+          "concepts/lean-execution",
+          "concepts/framework-hardening-adoption",
+          "concepts/superpowers-skills",
+          "concepts/optimization-axes",
+          "projects/delegate-router"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q23",
+        "query": "unsloth distillation replace repeated frontier model calls with local specialists",
+        "page_type": "concept",
+        "gold_page_ids": [
+          "concepts/unsloth-distill"
+        ],
+        "retrieved_ids": [
+          "concepts/unsloth-distill",
+          "people/unsloth-team",
+          "concepts/local-model-setup",
+          "patterns/tiny-model-router",
+          "projects/delegate-router"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q24",
+        "query": "wiki governance frontmatter schema and immutability rules for raw",
+        "page_type": "concept",
+        "gold_page_ids": [
+          "concepts/wiki-governance"
+        ],
+        "retrieved_ids": [
+          "concepts/wiki-governance",
+          "raw/2026-04-18-karpathy-wiki-spinoffs",
+          "concepts/karpathy-wiki",
+          "schema",
+          "projects/wiki-search"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q25",
+        "query": "three machine compute cluster M2 M1 M1B roles and SSH",
+        "page_type": "concept",
+        "gold_page_ids": [
+          "concepts/devices-inventory"
+        ],
+        "retrieved_ids": [
+          "raw/2026-04-20-machine-baselines",
+          "concepts/devices-inventory",
+          "concepts/local-model-setup",
+          "raw/2026-04-20-machine-optimization-round2",
+          "concepts/turboquant-kv-cache"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 0.5,
+        "hit@5": 1.0,
+        "first_gold_rank": 2
+      },
+      {
+        "id": "q26",
+        "query": "per machine tool skill and harness matrix local model setup",
+        "page_type": "concept",
+        "gold_page_ids": [
+          "concepts/local-model-setup"
+        ],
+        "retrieved_ids": [
+          "concepts/local-model-setup",
+          "concepts/superpowers-skills",
+          "L4_archive/2026-05-22-skill-crystallizer/README",
+          "concepts/framework-hardening-adoption",
+          "projects/context-keeper-v2"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q27",
+        "query": "who is referenced for the markdown wiki memory pattern",
+        "page_type": "person",
+        "gold_page_ids": [
+          "people/karpathy"
+        ],
+        "retrieved_ids": [
+          "projects/wiki-search",
+          "concepts/karpathy-wiki",
+          "concepts/wiki-governance",
+          "concepts/unsloth-distill",
+          "patterns/wiki-query-shortcircuit"
+        ],
+        "precision@5": 0.0,
+        "recall@5": 0.0,
+        "mrr": 0.0,
+        "hit@5": 0.0,
+        "first_gold_rank": null
+      },
+      {
+        "id": "q28",
+        "query": "who maintains the superpowers skills agent workflow framework",
+        "page_type": "person",
+        "gold_page_ids": [
+          "people/jesse-vincent",
+          "concepts/superpowers-skills"
+        ],
+        "retrieved_ids": [
+          "concepts/superpowers-skills",
+          "concepts/framework-hardening-adoption",
+          "concepts/optimization-axes",
+          "people/jesse-vincent",
+          "projects/delegate-router"
+        ],
+        "precision@5": 0.4,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q29",
+        "query": "who is referenced for caveman terse output and session file compression",
+        "page_type": "person",
+        "gold_page_ids": [
+          "people/julius-brussee"
+        ],
+        "retrieved_ids": [
+          "concepts/caveman-output-compression",
+          "concepts/caveman-compress-session-files",
+          "projects/semdiff",
+          "projects/wiki-search",
+          "patterns/compound-compression-pipeline"
+        ],
+        "precision@5": 0.0,
+        "recall@5": 0.0,
+        "mrr": 0.0,
+        "hit@5": 0.0,
+        "first_gold_rank": null
+      },
+      {
+        "id": "q30",
+        "query": "who is referenced for local model fine tuning and distillation",
+        "page_type": "person",
+        "gold_page_ids": [
+          "people/unsloth-team"
+        ],
+        "retrieved_ids": [
+          "concepts/unsloth-distill",
+          "concepts/local-model-setup",
+          "people/unsloth-team",
+          "projects/wiki-search",
+          "patterns/tiny-model-router"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 0.3333,
+        "hit@5": 1.0,
+        "first_gold_rank": 3
+      },
+      {
+        "id": "q31",
+        "query": "framework hardening adoption learnings ollama keep alive warm policy tok/s baselines",
+        "page_type": "concept",
+        "gold_page_ids": [
+          "concepts/framework-hardening-adoption"
+        ],
+        "retrieved_ids": [
+          "concepts/framework-hardening-adoption",
+          "raw/2026-04-20-machine-baselines",
+          "concepts/local-model-setup",
+          "projects/context-keeper-v2",
+          "raw/2026-04-25-turboquant-adoption-review"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q32",
+        "query": "what should NOT be disabled wait what stage hurts attention in TurboQuant",
+        "page_type": "concept",
+        "gold_page_ids": [
+          "concepts/turboquant-kv-cache"
+        ],
+        "retrieved_ids": [
+          "concepts/turboquant-kv-cache",
+          "concepts/devices-inventory",
+          "concepts/framework-hardening-adoption",
+          "concepts/prefix-caching",
+          "concepts/semantic-diff-edits"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q33",
+        "query": "what is the superpowers skills concept and what does the repo borrow from it",
+        "page_type": "concept",
+        "gold_page_ids": [
+          "concepts/superpowers-skills"
+        ],
+        "retrieved_ids": [
+          "concepts/superpowers-skills",
+          "concepts/semantic-diff-edits",
+          "projects/wiki-search",
+          "concepts/unsloth-distill",
+          "concepts/framework-hardening-adoption"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 1.0,
+        "hit@5": 1.0,
+        "first_gold_rank": 1
+      },
+      {
+        "id": "q34",
+        "query": "how do you measure or trust claimed token savings benchmarks",
+        "page_type": "concept",
+        "gold_page_ids": [
+          "concepts/optimization-axes"
+        ],
+        "retrieved_ids": [
+          "concepts/framework-hardening-adoption",
+          "projects/context-keeper",
+          "L4_archive/2026-05-31-auto-handoff-dropped",
+          "concepts/devices-inventory",
+          "concepts/optimization-axes"
+        ],
+        "precision@5": 0.2,
+        "recall@5": 1.0,
+        "mrr": 0.2,
+        "hit@5": 1.0,
+        "first_gold_rank": 5
+      }
+    ]
+  },
+  "llm_judged": {
+    "aggregate": {
+      "contextual_precision": {
+        "mean": 0.7,
+        "n": 1,
+        "n_failed": 0
+      },
+      "contextual_recall": {
+        "mean": 1.0,
+        "n": 1,
+        "n_failed": 0
+      },
+      "faithfulness": {
+        "mean": 1.0,
+        "n": 1,
+        "n_failed": 0
+      },
+      "answer_relevancy": {
+        "mean": 1.0,
+        "n": 1,
+        "n_failed": 0
+      }
+    },
+    "per_query": [
+      {
+        "id": "q01",
+        "query": "how does TurboQuant compress the KV cache",
+        "metrics": {
+          "contextual_precision": {
+            "score": 0.7,
+            "reason": "The score is 0.70 because while two relevant nodes (nodes 1 and 5) are correctly ranked higher, three irrelevant nodes (nodes 2, 3, and 4) appear in the top rankings despite discussing unrelated topics like KV cache eviction techniques, output token reduction, and integration reviews.",
+            "seconds": 140.9
+          },
+          "contextual_recall": {
+            "score": 1.0,
+            "reason": "The score is 1.00 because both sentences in the expected output accurately describe TurboQuant's mechanism as detailed in the 1st node of the retrieval context.",
+            "seconds": 114.7
+          },
+          "faithfulness": {
+            "score": 1.0,
+            "reason": "The score is 1.00 because there are no contradictions, indicating that the actual output perfectly aligns with the retrieval context.",
+            "seconds": 213.4
+          },
+          "answer_relevancy": {
+            "score": 1.0,
+            "reason": "The score is 1.00 because TurboQuant effectively compresses the KV cache using quantization and sparsity techniques, ensuring efficient memory usage without significant loss of accuracy.",
+            "seconds": 104.8
+          }
+        }
+      }
+    ],
+    "judge_model": "ollama:deepseek-r1:32b",
+    "judge_calls": 11,
+    "judge_coerce_failures": 0,
+    "wall_seconds": 573.8,
+    "subset_size": 1,
+    "stale": true,
+    "note": "carried over from an earlier --llm run; not re-judged on this deterministic-only run"
+  }
+}

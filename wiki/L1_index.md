@@ -10,16 +10,13 @@ Compact pointers. Fetch details on demand.
 - wiki catalog -> `index.md`
 - log -> `log.md`
 - raw sources -> `raw/` (search only; fetch after relevance)
-- L2_facts/20260522-2147-smoke-test-full (page) -> `L2_facts/20260522-2147-smoke-test-full.md`
-- L2_facts/20260522-2149-v1-3-0-merge-smoke (page) -> `L2_facts/20260522-2149-v1-3-0-merge-smoke.md`
 - L4_archive/2026-04-24-handoff-codex-context-refresh (handoff) -> `L4_archive/2026-04-24-handoff-codex-context-refresh.md`
-- L4_archive/2026-04-24-summ-codex-manual (page) -> `L4_archive/2026-04-24-summ-codex-manual.md`
+- L4_archive/2026-04-24-summ-codex-manual (source-summary tags=archive,codex,summ,provenance) -> `L4_archive/2026-04-24-summ-codex-manual.md`
 - L4_archive/2026-05-22-skill-crystallizer/README (project tags=skill,L3-sop,automation) -> `L4_archive/2026-05-22-skill-crystallizer/README.md`
+- L4_archive/2026-05-31-auto-handoff-dropped (decision tags=auto-handoff,dropped,session-launch,context-refresh) -> `L4_archive/2026-05-31-auto-handoff-dropped.md`
 - projects/context-keeper (project tags=compaction,context-management,memory,hooks) -> `projects/context-keeper.md`
 - projects/context-keeper-v2 (project tags=context-keeper,v2,L0-L4,spec) -> `projects/context-keeper-v2.md`
 - projects/context-refresh (project tags=context-refresh,checkpoint,compaction) -> `projects/context-refresh.md`
 - projects/delegate-router (project tags=delegation,routing,subagents,models) -> `projects/delegate-router.md`
-- projects/relay-session (page) -> `projects/relay-session.md`
 - projects/semdiff (project tags=semantic-diff,ast,context-compression) -> `projects/semdiff.md`
 - projects/wiki-search (project tags=retrieval,progressive-disclosure,mcp,wiki) -> `projects/wiki-search.md`
-- projects/write-gate (project tags=write-gate,memory-policy,middleware) -> `projects/write-gate.md`

@@ -5,6 +5,7 @@ type: concept
 domain: "{{domain}}"
 tier: semantic
 confidence: 0.5
+trust: {{trust}}
 created: "{{date}}"
 updated: "{{date}}"
 verified: "{{date}}"

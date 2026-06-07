@@ -41,21 +41,21 @@ Python:
 
 ```python
 import sys
-sys.path.insert(0, "projects/wiki-search")
+sys.path.insert(0, "skills/wiki-memory/tools/wiki_mcp")
 from wiki_search import wiki_search, wiki_timeline, wiki_fetch, wiki_context, code_map
 ```
 
 MCP:
 
 ```bash
-python projects/wiki-search/mcp_server.py
+python skills/wiki-memory/tools/wiki_mcp/mcp_server.py
 ```
 
 ## Implementation
 
-- Core code: `token_economy/wiki.py`.
-- Wrapper: `projects/wiki-search/wiki_search.py`.
-- MCP adapter: `projects/wiki-search/mcp_server.py`.
+- Core code: `skills/wiki-memory/tools/wiki.py`.
+- Wrapper: `skills/wiki-memory/tools/wiki_mcp/wiki_search.py`.
+- MCP adapter: `skills/wiki-memory/tools/wiki_mcp/mcp_server.py`.
 - SQLite FTS5 index at `.token-economy/wiki.sqlite3`.
 - L1 pointer index at `L1_index.md`.
 - Ranking uses title/tag/path matches, tier weighting, backlinks, confidence, recency, raw downranking, and supersession rejection.

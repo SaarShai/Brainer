@@ -6,9 +6,9 @@ domain: framework
 tier: semantic
 confidence: med
 created: 2026-04-25
-updated: 2026-04-25
-verified: 2026-04-25
-sources: [raw/2026-04-25-agent-memory-framework-research-rerun.md, raw/2026-04-25-turboquant-adoption-review.md, raw/2026-04-17-research-brief.md, raw/m5-outputs-2026-04-17/prose_prefix_caching_providers.md, raw/2026-04-20-machine-baselines.md, raw/2026-04-20-machine-optimization-round2.md, projects/wiki-search/README.md, projects/context-refresh/README.md, projects/context-refresh/host-context-controls.md, projects/context-keeper/README.md, projects/context-keeper-v2/README.md, projects/skill-crystallizer/README.md, projects/write-gate/README.md, concepts/optimization-axes.md]
+updated: 2026-06-06
+verified: 2026-06-06
+sources: [raw/2026-04-25-agent-memory-framework-research-rerun.md, raw/2026-04-25-turboquant-adoption-review.md, raw/2026-04-17-research-brief.md, raw/m5-outputs-2026-04-17/prose_prefix_caching_providers.md, raw/2026-04-20-machine-baselines.md, raw/2026-04-20-machine-optimization-round2.md, projects/wiki-search.md, projects/context-refresh.md, projects/context-keeper.md, projects/context-keeper-v2.md, L4_archive/2026-05-22-skill-crystallizer/README.md, skills/write-gate/SKILL.md, concepts/optimization-axes.md]
 evidence_count: 8
 supersedes: []
 superseded-by:
@@ -50,11 +50,11 @@ Rank order is impact first, then fit, then implementation cost.
 
 ## Implemented learnings
 
-- `projects/wiki-search/README.md` is the current retrieval hardening surface: `search`, `timeline`, `fetch`, `context`, and `code_map` are the progressive-disclosure stack.
-- `projects/context-refresh/README.md` and `projects/context-refresh/host-context-controls.md` make the split explicit: Token Economy writes the handoff and durable wiki memory, but the host controls whether context is actually cleared.
-- `projects/skill-crystallizer/README.md` captures the current v1 detector: only verified completed work becomes an L3 SOP candidate.
-- `projects/write-gate/README.md` is the policy backstop: no execution, no memory.
-- `token_economy/code_map.py` and the `./te code map` CLI provide the repo-map style layer: compact structural summaries before full file reads.
+- `skills/wiki-memory/tools/wiki.py` is the current retrieval hardening surface: `search`, `timeline`, `fetch`, `context`, and `code_map` are the progressive-disclosure stack.
+- The [[projects/context-refresh]] workflow makes the split explicit: the framework writes the handoff and durable wiki memory, but the host controls whether context is actually cleared.
+- The skill-crystallizer detector (archived at [[L4_archive/2026-05-22-skill-crystallizer/README]]) captured the v1 rule: only verified completed work becomes an L3 SOP candidate.
+- `skills/write-gate/SKILL.md` is the policy backstop: no execution, no memory.
+- `skills/wiki-memory/tools/code_map.py` provides the repo-map style layer: compact structural summaries before full file reads.
 - `raw/2026-04-25-agent-memory-framework-research-rerun.md` records the two research outputs that drove the adoption matrix.
 
 ## Not yet implemented
@@ -74,11 +74,10 @@ Rank order is impact first, then fit, then implementation cost.
 
 ## Related
 
-- [[projects/wiki-search/README]]
-- [[projects/context-refresh/README]]
-- [[projects/context-refresh/host-context-controls]]
-- [[projects/skill-crystallizer/README]]
-- [[projects/write-gate/README]]
+- [[projects/wiki-search]]
+- [[projects/context-refresh]]
+- [[L4_archive/2026-05-22-skill-crystallizer/README]]
+- `skills/write-gate/SKILL.md` — write-gate policy (no execution, no memory)
 - [[concepts/local-model-setup]]
 - [[concepts/optimization-axes]]
 - [[raw/2026-04-25-agent-memory-framework-research-rerun]]

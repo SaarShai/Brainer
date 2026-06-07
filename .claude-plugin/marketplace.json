@@ -1,33 +1,37 @@
 {
   "$schema": "https://claude.com/schemas/plugin-marketplace.json",
   "name": "token-economy",
-  "version": "1.3.0",
-  "description": "Token/context-efficient skills for AI coding agents. 11 skills covering output style, planning, lean execution, verification, wiki memory, unified handoff, prompt triage, PreCompact extraction, compound compression, semantic AST diff, and output filtering. 10 of 11 measured live; mean per-call savings range -20% to -98% depending on skill type.",
+  "version": "1.6.1",
+  "description": "Token/context-efficient skills for AI coding agents. 15 skills across output style, planning, lean execution, verification, wiki memory (write-gate / wiki-refresh / provenance trust), prompt triage, PreCompact extraction, semantic AST diff, output filtering, retrieval indexing, and drift mitigation. Measured per-skill savings range from ~-20% (routing) to ~-97% (re-reads / compaction) depending on skill type; see eval/FINDINGS.md.",
   "homepage": "https://github.com/SaarShai/token-economy",
   "license": "MIT",
   "author": "Saar Shai",
   "plugins": [
     {
       "name": "token-economy",
-      "version": "1.3.0",
-      "description": "All 11 skills bundled.",
+      "version": "1.6.1",
+      "description": "All 15 skills bundled. skill-pulse and compliance-canary are opt-in (auto-install: false) — installed but not auto-wired.",
       "source": {
         "type": "git-subdirectory",
         "directory": "skills/"
       },
-      "context_cost_estimate_tokens": 1100,
+      "context_cost_estimate_tokens": 998,
       "skills": [
         "caveman-ultra",
         "plan-first-execute",
         "lean-execution",
         "verify-before-completion",
         "wiki-memory",
-        "handoff",
         "prompt-triage",
         "context-keeper",
-        "compress-context",
         "semantic-diff",
-        "output-filter"
+        "index-first",
+        "output-filter",
+        "skill-pulse",
+        "compliance-canary",
+        "write-gate",
+        "wiki-refresh",
+        "cache-lint"
       ],
       "hooks": [
         {
@@ -42,7 +46,7 @@
           "command": "bash ${PLUGIN_DIR}/skills/context-keeper/tools/hook.sh",
           "matcher": "*",
           "optional": true,
-          "description": "context-keeper structured-state extraction."
+          "description": "context-keeper structured-state extraction before compaction."
         }
       ]
     }

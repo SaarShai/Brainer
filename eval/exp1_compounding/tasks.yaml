@@ -1,0 +1,233 @@
+# exp1_compounding — sequential-task corpus for the compounding-memory A/B.
+#
+# Protocol (borrowed from StreamBench, NOT its code): tasks run in fixed order.
+# After each task an agent MAY persist a durable lesson; later tasks can only be
+# solved correctly by REUSING a lesson learnable from an earlier task. A cold
+# agent (no memory) sees each task standalone and must re-derive — but the facts
+# live in a fictional "Project Helios" toolkit, so they are NOT in the model's
+# pretraining: the lesson is the ONLY reliable path to the gold answer.
+#
+# SELF-IMPROVEMENT SOURCES (the point of this experiment): every lesson ORIGINATES
+# from one of the three sources we claim the skills learn from. The introducer task
+# simulates the trigger; the dependent task measures whether the lesson transferred.
+#   source = failure   -> lesson learned from a bug/error/failed attempt (post-mortem)
+#   source = feedback  -> lesson learned from an external correction (review / QA / red test)
+#   source = success   -> lesson distilled from a procedure that worked
+# The per-source memory−cold lift on DEPENDENT tasks is the headline: it shows the
+# system learns from failures, from feedback, AND from successes — separately.
+#
+# Each task:
+#   id                : stable identifier (also the wiki page slug stem)
+#   source            : failure | feedback | success  (lesson origin for this chain)
+#   prompt            : what the agent is asked (the only thing it sees + retrieved memory)
+#   gold              : scoring target.
+#                         scoring="exact"   -> output must contain this exact substring (case-insensitive)
+#                         scoring="keywords"-> output must contain ALL listed keyword substrings
+#   scoring           : "exact" | "keywords"
+#   lesson_text       : the durable fact an agent SHOULD save after this task.
+#                       Written through the gate in the `memory` arm; ungated in `poisoned`.
+#   depends_on_lesson : true  -> correct answer requires a lesson from an EARLIER task
+#                       false -> lesson-introducing; solvable from the prompt alone
+#   requires_lessons  : ids of earlier tasks whose lesson_text this task reuses (empty for introducers)
+#
+# Mix: 5 introducers + 7 dependents. Dependents per source: feedback 3, failure 2, success 2.
+
+tasks:
+  # ---- T01 INTRO (FEEDBACK): config-key convention learned from a review correction
+  - id: helios-config-prefix
+    source: feedback
+    depends_on_lesson: false
+    requires_lessons: []
+    scoring: exact
+    gold: "HELIOS_DB_URL"
+    prompt: |
+      In a Project Helios pull request you named an env-config key `db_url`. Code review
+      REJECTED it with this feedback: "every Helios env-config key must be UPPER_SNAKE_CASE
+      and prefixed with `HELIOS_`, or the loader rejects it." Apply the reviewer's
+      correction: output the single correct Helios config key for the raw setting "db url".
+      Reply with ONLY the key, nothing else.
+    lesson_text: |
+      Project Helios convention (learned from code-review feedback): every env-config key
+      must use the `HELIOS_` prefix in UPPER_SNAKE_CASE, because the loader rejects any key
+      without it. A reviewer corrected `db_url` → HELIOS_DB_URL. To avoid the rejection,
+      always apply the HELIOS_ prefix and UPPER_SNAKE_CASE to new Helios config keys.
+
+  # ---- T02 INTRO (FAILURE): deploy command learned from a failed attempt -----
+  - id: helios-deploy-command
+    source: failure
+    depends_on_lesson: false
+    requires_lessons: []
+    scoring: exact
+    gold: "helios ship --wave"
+    prompt: |
+      You tried to deploy Project Helios by running `helios deploy --wave 2`. It FAILED
+      with: `error: unknown subcommand 'deploy'`. Helios has no `deploy`/`push`/`release`
+      verb — the only deploy command is `helios ship --wave <N>`. Given that failure, what
+      is the correct base command (without the wave number) to deploy Helios? Reply with
+      ONLY the command.
+    lesson_text: |
+      Project Helios lesson (from a deploy failure): running `helios deploy` fails with
+      `unknown subcommand 'deploy'` — Helios has no deploy/push/release verb. The only
+      working deploy command is `helios ship --wave <N>`. To avoid the failure, always
+      deploy with `helios ship --wave`.
+
+  # ---- T03 DEPENDENT on T01 (FEEDBACK): apply the corrected convention -------
+  - id: helios-cache-key
+    source: feedback
+    depends_on_lesson: true
+    requires_lessons: [helios-config-prefix]
+    scoring: exact
+    gold: "HELIOS_CACHE_TTL"
+    prompt: |
+      A teammate added a new Project Helios setting for "cache ttl". Following the
+      project's established config-key convention, output the correct config key.
+      Reply with ONLY the key, nothing else.
+    lesson_text: |
+      Project Helios fact: applying the HELIOS_ UPPER_SNAKE_CASE convention, the raw
+      setting "cache ttl" becomes the key HELIOS_CACHE_TTL. The loader rejects keys
+      without the HELIOS_ prefix, so this is the only valid form.
+
+  # ---- T04 INTRO (FAILURE): retry constant learned from a 429 incident -------
+  - id: helios-retry-constant
+    source: failure
+    depends_on_lesson: false
+    requires_lessons: []
+    scoring: exact
+    gold: "max_retries=5"
+    prompt: |
+      A Project Helios network client was configured with max_retries=8. Under load it
+      triggered repeated HTTP 429 rate-limit errors and requests FAILED, because the
+      upstream gateway rate-limits bursts above 5 attempts. The incident fix set the
+      mandated value is 5. State the Helios retry constant and its corrected value as a
+      single `name=value` token. Reply with ONLY that token.
+    lesson_text: |
+      Project Helios lesson (from a 429 incident): a max_retries value above 5 caused
+      repeated HTTP 429 rate-limit failures, because the upstream gateway rate-limits
+      bursts above 5 attempts. The fix and mandated value is max_retries=5. To avoid 429
+      storms, keep max_retries=5.
+
+  # ---- T05 DEPENDENT on T02 (FAILURE): full deploy invocation ----------------
+  - id: helios-deploy-wave3
+    source: failure
+    depends_on_lesson: true
+    requires_lessons: [helios-deploy-command]
+    scoring: exact
+    gold: "helios ship --wave 3"
+    prompt: |
+      An operator needs to deploy Project Helios to wave number 3. Using the project's
+      one canonical deploy command, write the exact command line they should run.
+      Reply with ONLY the command line.
+    lesson_text: |
+      Project Helios fact: to deploy to wave 3, run `helios ship --wave 3`. The base
+      command `helios ship --wave` takes the wave number as its argument, so wave 3 is
+      `helios ship --wave 3`.
+
+  # ---- T06 INTRO (SUCCESS): canonical log path — a procedure that worked -----
+  - id: helios-log-path
+    source: success
+    depends_on_lesson: false
+    requires_lessons: []
+    scoring: exact
+    gold: "/var/helios/run.log"
+    prompt: |
+      In the Project Helios toolkit, all runtime logs are written to one canonical file:
+      `/var/helios/run.log`. There is no per-service log directory. What is the absolute
+      path of the Helios runtime log file? Reply with ONLY the path.
+    lesson_text: |
+      Project Helios procedure (validated in practice): all runtime logs go to the single
+      canonical file /var/helios/run.log, because Helios uses one shared log sink rather
+      than per-service directories. This worked well — to read errors, always look in
+      /var/helios/run.log.
+
+  # ---- T07 DEPENDENT on T04 (FAILURE): compute total attempts ----------------
+  - id: helios-total-attempts
+    source: failure
+    depends_on_lesson: true
+    requires_lessons: [helios-retry-constant]
+    scoring: exact
+    gold: "6"
+    prompt: |
+      A Project Helios request fails on every try. Counting the first attempt plus all
+      retries permitted by the project's mandated retry policy, how many total attempts
+      does the client make? Reply with ONLY the number.
+    lesson_text: |
+      Project Helios fact: with max_retries=5, a request that always fails makes 1 initial
+      attempt plus 5 retries = 6 total attempts. The retry constant value 5 is the reason
+      the total is 6, not 5.
+
+  # ---- T08 INTRO (SUCCESS): timestamp rule — a convention that fixed correlation
+  - id: helios-timezone-rule
+    source: success
+    depends_on_lesson: false
+    requires_lessons: []
+    scoring: keywords
+    gold: ["UTC", "Z"]
+    prompt: |
+      In the Project Helios toolkit, every timestamp must be recorded in UTC and rendered
+      in ISO-8601 with a trailing `Z` suffix (never a numeric offset like +00:00).
+      Describe the Helios timestamp rule in one sentence, and make sure to mention both
+      the timezone and the required suffix.
+    lesson_text: |
+      Project Helios procedure (adopted after it fixed log correlation): every timestamp is
+      stored in UTC and rendered ISO-8601 with a trailing Z suffix (e.g. 2026-01-01T00:00:00Z),
+      never a numeric +00:00 offset. To keep timestamps unambiguous, always use UTC and the
+      Z suffix.
+
+  # ---- T09 DEPENDENT on T06 (SUCCESS): where to read errors ------------------
+  - id: helios-find-errors
+    source: success
+    depends_on_lesson: true
+    requires_lessons: [helios-log-path]
+    scoring: exact
+    gold: "/var/helios/run.log"
+    prompt: |
+      A Project Helios service is throwing errors and an engineer asks where to look for
+      the error output. Based on the project's logging setup, which exact file should
+      they read? Reply with ONLY the absolute path.
+    lesson_text: |
+      Project Helios fact: to investigate errors, read /var/helios/run.log — Helios writes
+      all runtime output (including errors) to that single canonical log file.
+
+  # ---- T10 DEPENDENT on T01 (FEEDBACK): extend the corrected convention ------
+  - id: helios-event-key
+    source: feedback
+    depends_on_lesson: true
+    requires_lessons: [helios-config-prefix]
+    scoring: exact
+    gold: "HELIOS_EVENT_TS"
+    prompt: |
+      Project Helios needs a new config key for the raw setting "event ts". Following the
+      project's established config-key convention, output the correct config key. Reply
+      with ONLY the key, nothing else.
+    lesson_text: |
+      Project Helios fact: the event-timestamp config key is HELIOS_EVENT_TS (HELIOS_
+      prefix, UPPER_SNAKE_CASE).
+
+  # ---- T11 DEPENDENT on T01 (FEEDBACK): apply the convention again -----------
+  - id: helios-queue-key
+    source: feedback
+    depends_on_lesson: true
+    requires_lessons: [helios-config-prefix]
+    scoring: exact
+    gold: "HELIOS_QUEUE_NAME"
+    prompt: |
+      Add a Project Helios setting for "queue name". Following the established config-key
+      convention used for the other Helios keys, output the correct key. Reply with ONLY
+      the key, nothing else.
+    lesson_text: |
+      Project Helios fact: the raw setting "queue name" becomes the config key
+      HELIOS_QUEUE_NAME under the HELIOS_ UPPER_SNAKE_CASE convention.
+
+  # ---- T12 DEPENDENT on T08 (SUCCESS): format a concrete timestamp -----------
+  - id: helios-format-timestamp
+    source: success
+    depends_on_lesson: true
+    requires_lessons: [helios-timezone-rule]
+    scoring: keywords
+    gold: ["2026-01-01T00:00:00Z"]
+    prompt: |
+      Render the instant "midnight on 1 January 2026" as a Project Helios timestamp,
+      following the project's timestamp rule. Reply with ONLY the formatted timestamp.
+    lesson_text: |
+      Project Helios fact: midnight on 1 Jan 2026 formatted under the Helios timestamp
+      rule (UTC, ISO-8601, trailing Z) is 2026-01-01T00:00:00Z.

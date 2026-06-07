@@ -1,0 +1,212 @@
+{
+  "experiment": "exp7_wiring",
+  "protocol": "load real SKILL.md bodies; model emits explicit HARVEST: yes/no; measure decision accuracy vs control (bare definition)",
+  "backend": "ollama",
+  "model": "qwen2.5:7b-instruct",
+  "n_scenarios": 10,
+  "n_should_fire": 5,
+  "records": [
+    {
+      "scenario": "failure",
+      "should_fire": true,
+      "arm": "control",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "Update your deployment scripts to use the correct command `helios ship --wave N` instead of `helios deploy`.\n\nHARVEST: yes"
+    },
+    {
+      "scenario": "failure",
+      "should_fire": true,
+      "arm": "treatment",
+      "decision": false,
+      "fired": false,
+      "correct": false,
+      "output_preview": "Run the new command fresh to verify:\n\n```bash\nhelios ship --wave N\n```\n\nReport the exact output and any remaining risk.\n\nHARVEST: no"
+    },
+    {
+      "scenario": "feedback",
+      "should_fire": true,
+      "arm": "control",
+      "decision": false,
+      "fired": false,
+      "correct": false,
+      "output_preview": "Next, ensure all other environment variables in your codebase follow this convention to maintain consistency.\n\nHARVEST: no"
+    },
+    {
+      "scenario": "feedback",
+      "should_fire": true,
+      "arm": "treatment",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "Run the verification command to ensure the change passes all checks, then document the correction.\n\n1. Run the relevant tests/linting commands to verify the change.\n2. Report the exact output of these"
+    },
+    {
+      "scenario": "success",
+      "should_fire": true,
+      "arm": "control",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "Document the specific command and its parameters for future deployments.\n\nHARVEST: yes"
+    },
+    {
+      "scenario": "success",
+      "should_fire": true,
+      "arm": "treatment",
+      "decision": false,
+      "fired": false,
+      "correct": false,
+      "output_preview": "Next, verify the deployment by running a fresh check or test that proves it's correct.\n\nAfter verification, decide if this task produced a durable, project-specific lesson worth saving:\n\nHARVEST: no"
+    },
+    {
+      "scenario": "failure2",
+      "should_fire": true,
+      "arm": "control",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "Next, document this configuration setting in your project's environment setup guidelines to ensure consistency and avoid future issues.\n\nHARVEST: yes"
+    },
+    {
+      "scenario": "failure2",
+      "should_fire": true,
+      "arm": "treatment",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "Harvest: yes\n\nDocument the solution in `wiki-memory`:\n\n```markdown\ntitle: Increase Node.js Memory Limit for Helios Build\ndomain: build-optimizations\n\nbecause: The Helios build was OOM-ing during webpa"
+    },
+    {
+      "scenario": "decision",
+      "should_fire": true,
+      "arm": "control",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "Next, you should set up the database connection and schema for Postgres in your application. Ensure that all necessary tables are created according to the requirements of the Helios ledger.\n\nHARVEST: "
+    },
+    {
+      "scenario": "decision",
+      "should_fire": true,
+      "arm": "treatment",
+      "decision": true,
+      "fired": true,
+      "correct": true,
+      "output_preview": "Next, document this decision and the rationale behind it in your project's wiki-memory.\n\nRun the following commands:\n\n```bash\npython3 skills/wiki-memory/tools/wiki.py new --template page --title \"Back"
+    },
+    {
+      "scenario": "trivial",
+      "should_fire": false,
+      "arm": "control",
+      "decision": false,
+      "fired": false,
+      "correct": true,
+      "output_preview": "HARVEST: no"
+    },
+    {
+      "scenario": "trivial",
+      "should_fire": false,
+      "arm": "treatment",
+      "decision": false,
+      "fired": false,
+      "correct": true,
+      "output_preview": "HARVEST: no"
+    },
+    {
+      "scenario": "ephemeral",
+      "should_fire": false,
+      "arm": "control",
+      "decision": false,
+      "fired": false,
+      "correct": true,
+      "output_preview": "4\n\nWhat's the next step in your process or problem?\n\nHARVEST: no"
+    },
+    {
+      "scenario": "ephemeral",
+      "should_fire": false,
+      "arm": "treatment",
+      "decision": false,
+      "fired": false,
+      "correct": true,
+      "output_preview": "2 + 2 = 4.\n\nNext, verify if this quick arithmetic is needed for a more complex task or decision. If not, proceed with the task at hand. \n\nHARVEST: no"
+    },
+    {
+      "scenario": "greeting",
+      "should_fire": false,
+      "arm": "control",
+      "decision": null,
+      "fired": false,
+      "correct": true,
+      "output_preview": "I am here and ready to assist! Could you please provide more details about the task or question you need help with?"
+    },
+    {
+      "scenario": "greeting",
+      "should_fire": false,
+      "arm": "treatment",
+      "decision": null,
+      "fired": false,
+      "correct": true,
+      "output_preview": "I'm here and ready to assist! Based on the skills provided, what specific action would you like me to take or task would you like to discuss further? Please provide more details so I can help effectiv"
+    },
+    {
+      "scenario": "general_knowledge",
+      "should_fire": false,
+      "arm": "control",
+      "decision": false,
+      "fired": false,
+      "correct": true,
+      "output_preview": "The capital of France is Paris.\n\nHARVEST: no"
+    },
+    {
+      "scenario": "general_knowledge",
+      "should_fire": false,
+      "arm": "treatment",
+      "decision": false,
+      "fired": false,
+      "correct": true,
+      "output_preview": "The capital of France is Paris.\n\nNext, I will check if this information needs to be harvested according to the guidelines:\n\nHarvest: No\n\nOutput:\nHARVEST: no"
+    },
+    {
+      "scenario": "ephemeral2",
+      "should_fire": false,
+      "arm": "control",
+      "decision": false,
+      "fired": false,
+      "correct": true,
+      "output_preview": "Today's date is [current_date]. Next, I will provide the current date and then proceed with any further instructions needed for the task.\n\nHARVEST: no"
+    },
+    {
+      "scenario": "ephemeral2",
+      "should_fire": false,
+      "arm": "treatment",
+      "decision": false,
+      "fired": false,
+      "correct": true,
+      "output_preview": "Today's date is not relevant for the current workflow. According to the skills provided, the next step would be to verify any work done and decide whether to harvest a lesson.\n\nSince there's no specif"
+    }
+  ],
+  "verdict": {
+    "decision_accuracy": {
+      "treatment": 0.8,
+      "control": 0.9,
+      "treatment_minus_control": -0.1
+    },
+    "harvest_fire_should_fire": {
+      "treatment": 0.6,
+      "control": 0.8,
+      "treatment_minus_control": -0.2
+    },
+    "false_fire_should_not": {
+      "treatment": 0.0,
+      "control": 0.0
+    },
+    "abstain_rate": {
+      "treatment": 0.1,
+      "control": 0.1
+    },
+    "headline": "harvest DECISION accuracy (explicit HARVEST: yes/no marker): treatment=0.8 vs control=0.9 (delta -0.1); should-fire fire-rate treatment=0.6; false-fire on should-not treatment=0.0"
+  },
+  "wall_seconds": 30.5
+}

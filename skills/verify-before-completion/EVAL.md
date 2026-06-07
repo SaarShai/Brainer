@@ -12,14 +12,16 @@
 
 agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K context window).
 
-## A/B savings (measured, N=50 × 5 prompts, model=mimo-v2-flash)
+## A/B savings (output deltas N=50 × 5 prompts; judge only N=15 — N=50 judge pending), model=mimo-v2-flash
 
 | metric | without skill | with skill | Δ | 95% CI |
 |---|---|---|---|---|
 | input tokens (mean)  | 118 | 326 | +176.6% | n/a |
 | output tokens (mean) | 316 | 210 | -33.5% | n/a |
 | latency (ms)         | 5349 | 4764 | n/a | n/a |
-| judge score (0–5)    | +4.07 | +3.67 | -0.40 |   |
+| judge score (0–5)    | 4.07 | 3.67 | **-0.40 (N=15 only)** | n/a |
+
+> ⚠ The judge row is **N=15, not N=50**: the N=50 judge pass died on `MiMo 402: Insufficient balance` and was never re-run (see `eval/FINDINGS.md`). The committed `verify-before-completion.judged.json` is the N=15 partial. Treat −0.40 as a provisional, small-N signal (and a likely rubric artifact — the rubric scored "demands fresh evidence" below "affirms confidently"), not a settled N=50 result.
 
 
 Raw: [`eval/results/verify-before-completion.json`](../../eval/results/verify-before-completion.json)

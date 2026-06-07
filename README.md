@@ -1,6 +1,11 @@
 # Token Economy
 
-A token- and context-efficient skill catalog for AI coding agents — Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot.
+A skill catalog for AI coding agents — Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot — across four pillars:
+
+1. **Token-use optimization** — tighter output/input per call.
+2. **Context-window optimization & management** — re-reads, compaction survival, routing, retrieval.
+3. **LLM wiki-memory framework** — durable repo-local memory: gated writes, progressive retrieval, decay, code-grounded reconcile.
+4. **Self-improvement & learning** — compounding what each session learns; drift mitigation; measurement infra.
 
 **Skills, not a framework.** Drop the catalog into any [agentskills.io](https://agentskills.io)-compatible host. Each skill is a single folder with a `SKILL.md`, optional bundled tools, and measured evaluation numbers.
 
@@ -34,6 +39,8 @@ graphify extract .
 
 ## The catalog (15 skills)
 
+**13 default-installed, 2 opt-in** (`skill-pulse`, `compliance-canary` carry `auto-install: false` — `./install.sh` symlinks and lists them but does not run their `tools/install.sh`, so no hook is auto-wired). Enable one with `bash skills/<name>/tools/install.sh`.
+
 | Skill | Trigger | Desc tokens | Notes |
 |---|---|---:|---|
 | [caveman-ultra](skills/caveman-ultra/SKILL.md) | session-start, "be terse" | 81 | Terse output style. ~65% output reduction reported (juliusbrussee/caveman lineage). |
@@ -41,18 +48,18 @@ graphify extract .
 | [lean-execution](skills/lean-execution/SKILL.md) | "simplify / lean / prune" | 63 | Pruning rule. |
 | [verify-before-completion](skills/verify-before-completion/SKILL.md) | before any "done" claim | 49 | Evidence-first. |
 | [wiki-memory](skills/wiki-memory/SKILL.md) | retrieve OR write durable | 108 | Tier-aware (L0–L4) repo-local markdown wiki. |
-| [handoff](skills/handoff/SKILL.md) | explicit `/handoff` (+ `--full`, `--ask`) | ~150 | Unified session handoff. Three modes: write doc to $TMPDIR / write doc + route facts to wiki / query last handoff. Replaces `context-refresh`; manual successor launch only. |
 | [prompt-triage](skills/prompt-triage/SKILL.md) | UserPromptSubmit hook | 89 | Pre-model regex+Ollama classifier; routes simple tasks to cheap models. |
 | [context-keeper](skills/context-keeper/SKILL.md) | PreCompact hook | 80 | Structured memory before compaction. |
-| [compress-context](skills/compress-context/SKILL.md) | opt-in long-context | 127 | LLMLingua-based compound compression. 44.9% savings, Δscore −0.12 measured on SQuAD v2 (n=8). |
 | [semantic-diff](skills/semantic-diff/SKILL.md) | file re-read | 99 | AST-node diff. 95.5% measured savings on argparse.py re-reads. |
 | [index-first](skills/index-first/SKILL.md) | "where is X used / what calls Y" | ~110 | Prefer pre-built indexes / composite verbs over grep+read chains. Eval pending. (colbymchenry/codegraph lineage.) |
 | [output-filter](skills/output-filter/SKILL.md) | terminal output hook | 99 | Strip ANSI/progress/dup noise; preserves errors. |
+| [skill-pulse](skills/skill-pulse/SKILL.md) | UserPromptSubmit hook | 61 | **Opt-in** (`auto-install: false`). Every N turns re-injects active skills' `pulse_reminder` rules. Paper-calibrated (arXiv 2510.07777); unmeasured in-repo. |
+| [compliance-canary](skills/compliance-canary/SKILL.md) | UserPromptSubmit hook | 52 | **Opt-in** (`auto-install: false`). Scans recent replies against per-skill `drift_probes.json`; injects targeted correctives. Symptomatic complement to `skill-pulse`; unmeasured in-repo. |
 | [write-gate](skills/write-gate/SKILL.md) | before any persistent write | ~120 | Content-quality gate on durable memory. Signal-score (ogham lineage) + why-clause enforcement (codenamev lineage). Prevents reasonless decisions and recap-style writes. |
-| [memory-decay](skills/memory-decay/SKILL.md) | weekly cron / wiki audit | ~120 | Exponential confidence decay on wiki pages (5%/30d default). Errors / lessons / high-evidence pages protected. Dry-run by default. |
+| [wiki-refresh](skills/wiki-refresh/SKILL.md) | "refresh wiki / audit vs code" | 87 | Code-grounded reconcile of wiki pages (Keep/Update/Consolidate/Replace/Delete) via `audit-refs`; emits typed `contradicts:` edges. Ground-truth reconcile. |
 | [cache-lint](skills/cache-lint/SKILL.md) | before merging hooks/skills, CI | ~110 | Static audit against Anthropic's 6 prompt-cache rules (ussumant lineage). FAIL on dynamic content above breakpoint, prefix mutation by Stop-hooks, etc. |
 
-**Always-resident context tax (15 descriptions): ~1,450 tokens.** Roughly 0.7% of a 200K context window.
+**Always-resident context tax (21 descriptions): ~1,642 tokens.** Roughly 0.8% of a 200K context window. (Opt-in skills' descriptions are still resident; only their tools/hooks are off by default.)
 
 Full body cost (worst case, all loaded at once): ~6,500 tokens. In practice, only the triggered skill's body loads.
 
@@ -73,7 +80,13 @@ See [eval/results/static_cost.json](eval/results/static_cost.json) for the full 
 - `delegate` — orchestration contract with no per-call gain; `prompt-triage` already automates the cheap-model routing it advised manually. Subagent lifecycle prose folded into `prompts/` if needed for downstream use.
 
 **v1.3.0** (merged, not dropped):
-- `context-refresh` — its only unique piece beyond `handoff` was the auto-launcher (`context.py relay --execute`), which never worked reliably. The other useful bits (`checkpoint` doc-write, `extract_transcript_facts`, `ask_old_from_transcript`) live on inside `skills/handoff/tools/_lib/context.py` and surface as `/handoff` modes (`--full`, `--ask`). Manual successor launch is the contract now — paste the handoff path into a fresh session yourself.
+- `context-refresh` — merged into `handoff` (which was itself later removed; see v1.6.1). Its only unique piece was the auto-launcher (`context.py relay --execute`), which never worked reliably.
+
+**v1.6.0** (the unproven-gain tail + dead weight):
+- `handoff-from` + `memory-decay` (redundant / verified no-op), and `compress-context` + `session-recall` + `loop-breaker` (each ❌/🟡 on measured gain and redundant with a kept skill). See [`eval/FINDINGS.md`](eval/FINDINGS.md) "Catalog cuts".
+
+**v1.6.1** (covered by the host):
+- `handoff` — operational-only session-handoff command, no measured token/quality gain. The host's `/compact` + the `context-keeper` PreCompact hook now cover session continuity; durable facts still route through `wiki-memory` + `write-gate`.
 
 ## Install
 
@@ -86,7 +99,7 @@ See [eval/results/static_cost.json](eval/results/static_cost.json) for the full 
 | Codex / Cursor / Gemini CLI / Copilot | per-project (no plugin format exists for these) | clone into `<project>/.token-economy`, then `.token-economy/install.sh --host <name>` + symlink — see [Per-project install](#per-project-install-non-claude-code-hosts) |
 | any host (inside the token-economy clone itself, e.g. contributing) | for that clone only | `./install.sh` (all hosts) or `./install.sh --host <name>` |
 
-The plugin (`token-economy` v1.4.0) bundles all 15 skills plus optional `UserPromptSubmit` and `PreCompact` hooks (off by default; toggle in plugin config).
+The plugin (`token-economy` v1.6.1) bundles all 15 skills plus optional `UserPromptSubmit` and `PreCompact` hooks (off by default; toggle in plugin config).
 
 ### Host install matrix
 
@@ -173,8 +186,7 @@ Built on prior work:
 - [muratcankoylan/Agent-Skills-for-Context-Engineering](https://github.com/muratcankoylan/Agent-Skills-for-Context-Engineering) — 15-skill catalog precedent.
 - [coleam00/claude-memory-compiler](https://github.com/coleam00/claude-memory-compiler) — SessionEnd → wiki distillation.
 - [cocoindex-io/cocoindex-code](https://github.com/cocoindex-io/cocoindex-code) — AST MCP code search.
-- [microsoft/LLMLingua](https://github.com/microsoft/LLMLingua) — neural prompt compression (LLMLingua-2 powers `compress-context`).
-- [lm-sys/RouteLLM](https://github.com/lm-sys/RouteLLM) — model routing reference for `prompt-triage` and `delegate`.
+- [lm-sys/RouteLLM](https://github.com/lm-sys/RouteLLM) — model routing reference for `prompt-triage`.
 
 ## Status
 

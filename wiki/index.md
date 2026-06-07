@@ -3,7 +3,6 @@
 Catalog for a target project that uses Token Economy locally. Load only matched pages.
 
 ## Startup
-- [[start]] — universal agent entrypoint: operating rules, retrieval, context refresh, delegation
 - [[L0_rules]] + [[L1_index]] — lean startup memory tiers
 - [[schema]] — repo-local markdown wiki contract
 - `token-economy.yaml` — local framework config
@@ -32,12 +31,6 @@ Catalog for a target project that uses Token Economy locally. Load only matched 
 - `L3_sops/` — reusable workflows and runbooks
 - `queries/` — durable Q&A
 - `L4_archive/` — cold history kept only when useful
-
-## Prompt Workflows
-- [[prompts/complete-migrate-export]] — export an old project into `complete_migrate_export dot md`
-- [[prompts/complete-migrate-import]] — import `complete_migrate_export dot md` into a new Token Economy-enabled target folder
-- [[prompts/summ]] — context refresh workflow
-- [[prompts/summarize-for-handoff]] — handoff packet template
 
 ## Extension Points
 - [[adapters/README]] — project-local agent adapters

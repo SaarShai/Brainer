@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Run the full N=50 eval batch locally (every >=20% claim).
 #
-# Wall clock: ~5-6 hours dominated by MiMo round-trips. compress-context's
-# pipeline_v2 also burns local CPU for LLMLingua-2 inference.
+# Wall clock: ~5-6 hours dominated by MiMo round-trips.
 #
 # Usage:
 #   bash eval/run_full_batch.sh                       # foreground
@@ -58,13 +57,6 @@ if [ -d eval/combos ]; then
 fi
 
 # 3) Specialty runners
-run_step "runner_compress.py (mechanical N=$N)" \
-  python3 eval/runner_compress.py --max-samples "$N" --rate 0.5
-
-run_step "runner_compress_quality.py (SQuAD A/B N=$N, MiMo judge)" \
-  python3 eval/runner_compress_quality.py --n "$N" --rate 0.5 \
-    --target mimo-v2-flash --judge mimo-v2-flash
-
 run_step "runner_wiki.py (N=$N)" \
   python3 eval/runner_wiki.py --n "$N" --model mimo-v2-flash
 

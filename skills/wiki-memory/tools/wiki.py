@@ -18,6 +18,15 @@ SKIP_PARTS = {".git", ".token-economy", ".claude", "__pycache__", ".pytest_cache
 MAX_MANIFEST_BYTES = 10 * 1024 * 1024
 MAX_LOG_BYTES = 10 * 1024 * 1024
 WIKILINK_RE = re.compile(r"\[\[([^\]]+)\]\]")
+
+# Provenance trust tiers (mirror of skills/wiki-memory/tools/provenance.py). A page's
+# optional `trust:` frontmatter (default "asserted") gates conflict resolution in the
+# `resolve` verb: on a same-subject collision, the higher-trust fact wins. This is the
+# poison defense from eval/exp5_adversarial — the write-gate scores form/signal, not
+# truth, so a confident-wrong lesson passes it; trust resolution is the layer that stops
+# a low-trust assertion from overwriting an established higher-trust fact.
+TRUST_TIERS = {"asserted": 1.0, "corroborated": 2.0, "verified": 3.0, "user_confirmed": 4.0}
+DEFAULT_TRUST = "asserted"
 V2_REQUIRED = ("title", "type", "domain", "tier", "confidence", "created", "updated", "verified", "sources", "supersedes", "superseded-by", "tags")
 V2_TYPES = {"entity", "summary", "decision", "source-summary", "procedure", "concept", "pattern", "project", "query", "fact", "sop", "raw", "person", "handoff"}
 V2_TIERS = {"working", "episodic", "semantic", "procedural"}
@@ -233,6 +242,62 @@ def listish_has_value(value: str) -> bool:
     return bool(clean and clean not in {"[]", "null", "None"})
 
 
+_CONTENT_STOP = {
+    "the", "and", "for", "with", "into", "from", "that", "this", "when", "what",
+    "are", "was", "were", "has", "have", "had", "not", "but", "you", "your",
+    "all", "any", "can", "use", "used", "via", "per", "its", "our", "out", "now",
+    "see", "one", "two", "how", "why", "who", "they", "them", "then", "than",
+}
+
+
+def content_tokens(text: str) -> set[str]:
+    """Lowercased content words (>=4 chars, minus stopwords) for Jaccard overlap.
+
+    Code fences are stripped first so two pages aren't judged "overlapping"
+    just because they both quote the same boilerplate snippet — referenced
+    code identity is its own dimension (see extract_refs).
+    """
+    body = strip_fenced_code(text)
+    toks = set()
+    for tok in re.findall(r"[A-Za-z][A-Za-z0-9_-]{3,}", body.lower()):
+        if tok not in _CONTENT_STOP:
+            toks.add(tok)
+    return toks
+
+
+_REF_RE = re.compile(r"`([^`\n]+)`|(?<![\w@/.-])([\w.-]+(?:/[\w.-]+)+\.[A-Za-z][\w]{0,5})")
+
+
+def extract_refs(text: str) -> set[str]:
+    """Referenced code paths from a page body.
+
+    Two sources: backticked spans that look like a path (contain `/` and a dot
+    extension), and bare path-like tokens (`src/foo/bar.py`). Skips URLs and
+    home/absolute paths outside the repo — those aren't repo refs to audit.
+    """
+    refs: set[str] = set()
+    for backticked, bare in _REF_RE.findall(text):
+        cand = (backticked or bare).strip()
+        if not cand:
+            continue
+        if cand.startswith(("http://", "https://", "~", "/")):
+            continue
+        if "/" not in cand or "." not in cand.rsplit("/", 1)[-1]:
+            continue
+        # Drop trailing punctuation a markdown sentence may have glued on.
+        cand = cand.rstrip(").,:;")
+        if re.fullmatch(r"[\w./-]+", cand):
+            refs.add(cand)
+    return refs
+
+
+def jaccard(a: set[str], b: set[str]) -> float:
+    if not a or not b:
+        return 0.0
+    inter = len(a & b)
+    return inter / len(a | b) if inter else 0.0
+
+
 def render_template(text: str, values: dict[str, str]) -> str:
     """Substitute `{{key}}` placeholders in one pass.
 
@@ -432,16 +497,9 @@ class WikiStore:
             "README",
             "ROADMAP",
             "bench/README",
-            "projects/agents-triage/SKILL",
             "projects/compound-compression-pipeline/RESULTS",
             "projects/context-keeper/README",
             "projects/context-keeper/SKILL",
-            "projects/context-keeper-v2/README",
-            "projects/semdiff/README",
-            "projects/skill-crystallizer/README",
-            "projects/wiki-search/README",
-            "projects/write-gate/README",
-            "skills/token-economy-external-adoption/SKILL",
             "stable/AGENT_PROMPT",
             "stable/README",
         }
@@ -1208,7 +1266,232 @@ class WikiStore:
         except ValueError:
             return False
 
-    def new_page(self, template: str, title: str, domain: str = "framework", slug: str | None = None) -> dict[str, Any]:
+    # GRAFT 1 — dedup at write. Score a candidate fact against existing pages
+    # across five dimensions (subject / tags / content / refs / links) so the
+    # writer can update-not-create when a near-duplicate already exists, instead
+    # of letting duplicate pages drift apart and contradict each other later.
+    # Lineage: EveryInc/compound-engineering-plugin (plugins/compound-engineering/
+    # skills/ce-compound) overlap assessment, grafted onto this wiki's
+    # typed-edge substrate.
+    OVERLAP_DIMENSIONS = ("subject", "tags", "content", "refs", "links")
+
+    def overlap(
+        self,
+        title: str,
+        body: str = "",
+        tags: list[str] | None = None,
+        k: int = 5,
+    ) -> dict[str, Any]:
+        cand_tags = {t.strip().lower() for t in (tags or []) if t.strip()}
+        cand_title_toks = {t for t in query_tokens(title)}
+        cand_content = content_tokens(f"{title}\n{body}")
+        cand_refs = extract_refs(body)
+        cand_links = {normalize_wikilink(x).lower() for x in WIKILINK_RE.findall(strip_fenced_code(body))}
+
+        # Pre-filter with the existing ranker so we only dim-score plausible
+        # neighbours, not the whole wiki.
+        probe = f"{title} {' '.join(cand_tags)}"
+        ranked = self._rank_pages(probe) if probe.strip() else []
+        candidates = [p for p, _score, _r in ranked[: max(k * 3, 12)]]
+        # Fallback: nothing ranked (e.g. empty index) — scan all material pages.
+        if not candidates:
+            candidates = [
+                p for p in self.pages()
+                if not p.id.startswith("raw/")
+                and p.path.name not in {"index.md", "log.md", "schema.md", "L0_rules.md", "L1_index.md"}
+            ]
+
+        scored: list[dict[str, Any]] = []
+        for page in candidates:
+            if page.id.startswith("raw/"):
+                continue
+            if listish_has_value(page.frontmatter.get("superseded-by", "")):
+                continue
+            dims: dict[str, bool] = {}
+            # subject: title token Jaccard, or >=2 shared significant tokens
+            p_title_toks = set(query_tokens(page.title))
+            shared_title = cand_title_toks & p_title_toks
+            dims["subject"] = jaccard(cand_title_toks, p_title_toks) >= 0.34 or len(shared_title) >= 2
+            # tags: any shared tag
+            dims["tags"] = bool(cand_tags & {t.lower() for t in page.tags})
+            # content: body content-token Jaccard
+            dims["content"] = jaccard(cand_content, content_tokens(page.body)) >= 0.18
+            # refs: any shared referenced code path
+            dims["refs"] = bool(cand_refs & extract_refs(page.body))
+            # links: any shared wikilink target
+            dims["links"] = bool(cand_links & {l.lower() for l in page.links})
+            matched = [d for d in self.OVERLAP_DIMENSIONS if dims[d]]
+            score = len(matched)
+            if score == 0:
+                continue
+            scored.append({
+                "id": page.id,
+                "path": page.path.relative_to(self.root).as_posix(),
+                "title": page.title,
+                "score": score,
+                "matched": matched,
+            })
+        scored.sort(key=lambda c: (-c["score"], c["id"]))
+        scored = scored[:k]
+
+        best = scored[0]["score"] if scored else 0
+        if best >= 4:
+            band, action = "high", "update-existing"
+        elif best >= 2:
+            band, action = "moderate", "create-and-flag"
+        else:
+            band, action = "low", "create"
+        return {
+            "title": title,
+            "overlap": band,
+            "recommended_action": action,
+            "best_match": scored[0] if scored else None,
+            "candidates": scored,
+        }
+
+    def resolve(self, title: str, body: str = "", trust: str = DEFAULT_TRUST,
+                tags: list[str] | None = None, k: int = 5) -> dict[str, Any]:
+        """Trust-gated conflict resolution — the poison defense (eval/exp5_adversarial).
+
+        Runs `overlap` to find a same-subject page, reads its `trust:` frontmatter, and
+        applies the provenance policy: higher candidate trust -> replace; lower -> reject;
+        equal -> dispute. `write-gate` decides *quality*; this decides *who wins a
+        contradiction* by provenance, not by confidence of phrasing (a well-formed wrong
+        lesson passes the gate). The same-subject signal is structural (overlap); whether
+        the facts truly disagree stays the caller's judgement.
+        """
+        cand_name = (trust or DEFAULT_TRUST).strip().lower()
+        cand_t = TRUST_TIERS.get(cand_name, TRUST_TIERS[DEFAULT_TRUST])
+        ov = self.overlap(title, body=body, tags=tags, k=k)
+        bm = ov.get("best_match")
+        band = ov.get("overlap")
+        base: dict[str, Any] = {"title": title, "overlap": band,
+                                "candidate_trust": {cand_name: cand_t}, "best_match": bm}
+        if not bm or band == "low":
+            return {**base, "action": "create",
+                    "reason": "no strong same-subject page (overlap low) — safe to create"}
+        try:
+            page = self.read_page(self.root / bm["path"])
+            existing_name = (page.frontmatter.get("trust") or DEFAULT_TRUST).strip().lower()
+        except (OSError, KeyError):
+            existing_name = DEFAULT_TRUST
+        existing_t = TRUST_TIERS.get(existing_name, TRUST_TIERS[DEFAULT_TRUST])
+        base["existing_trust"] = {existing_name: existing_t}
+        if cand_t > existing_t:
+            action = "replace"
+            reason = (f"candidate trust {cand_name}({cand_t}) > existing {existing_name}({existing_t}) "
+                      f"— higher-trust correction permitted; supersede {bm['id']} (wire supersedes/superseded-by).")
+        elif cand_t < existing_t:
+            action = "reject"
+            reason = (f"candidate trust {cand_name}({cand_t}) < existing {existing_name}({existing_t}) "
+                      f"— an established higher-trust page exists; do NOT overwrite it. Raise trust first "
+                      f"(verify against code/test, or user-confirm), or record contradicts:[[{bm['id']}]] for review.")
+        else:
+            action = "dispute"
+            reason = (f"equal trust ({existing_name}) on same-subject page {bm['id']}. If the facts AGREE, "
+                      f"update in place; if they CONFLICT, mark contradicts:[[{bm['id']}]] both ways so retrieval "
+                      f"surfaces the dispute instead of serving one as truth.")
+        return {**base, "action": action, "reason": reason}
+
+    # GRAFT 2 support — code-grounded staleness signal. The refresh skill reads
+    # this to decide Keep/Update/Replace/Delete: a page whose cited code paths
+    # have vanished is drifting against ground truth, not just against the clock.
+    def audit_refs(self, code_root: str | Path | None = None, stale_days: int = 180) -> dict[str, Any]:
+        root_code = Path(code_root).expanduser().resolve() if code_root else self.root.parent
+        today = date.today()
+        skip_dirs = {"templates", "skills", "prompts", "hooks", "configs", "extensions", "adapters"}
+        skip_names = {"index.md", "log.md", "schema.md", "L0_rules.md", "L1_index.md", "README.md"}
+        out: list[dict[str, Any]] = []
+        for page in self.pages():
+            if page.id.startswith("raw/") or page.path.name in skip_names:
+                continue
+            rel_parts = set(page.path.relative_to(self.root).parts) if page.path.is_relative_to(self.root) else set()
+            if rel_parts & skip_dirs:
+                continue
+            refs = sorted(extract_refs(page.body))
+            if not refs:
+                continue
+            present, missing = [], []
+            for ref in refs:
+                if (root_code / ref).exists() or (self.root / ref).exists():
+                    present.append(ref)
+                else:
+                    missing.append(ref)
+            verified = page.frontmatter.get("verified", "").strip().strip("\"'")
+            age_days = None
+            if verified:
+                try:
+                    age_days = (today - date.fromisoformat(verified)).days
+                except ValueError:
+                    age_days = None
+            protected = (
+                page.frontmatter.get("type", "") in {"error", "lesson", "sop", "procedure"}
+                or str(page.frontmatter.get("protected", "")).lower() == "true"
+                or page.id.startswith("L3_sops/")
+            )
+            if missing:
+                out.append({
+                    "id": page.id,
+                    "path": page.path.relative_to(self.root).as_posix(),
+                    "type": page.type,
+                    "missing_refs": missing,
+                    "present_refs": present,
+                    "missing_count": len(missing),
+                    "ref_count": len(refs),
+                    "verified": verified,
+                    "age_days": age_days,
+                    "protected": protected,
+                    "signal": "all-refs-gone" if not present else "some-refs-gone",
+                })
+        out.sort(key=lambda c: (-c["missing_count"], c["id"]))
+        return {
+            "code_root": str(root_code),
+            "scanned": len([p for p in self.pages() if not p.id.startswith("raw/")]),
+            "drifted": out,
+            "drifted_count": len(out),
+        }
+
+    # GRAFT 3 — discoverability. A curated store only compounds if a fresh /
+    # plugin-less agent knows it exists, how to query it, and when. Check whether
+    # a host instruction file surfaces the wiki; emit a snippet if not. (Installer-
+    # managed CLAUDE/AGENTS/GEMINI get this automatically; this is for ad-hoc or
+    # downstream-adopter instruction files outside the installer's reach.)
+    DISCOVERABILITY_SNIPPET = (
+        "## Durable memory store (`wiki/`)\n\n"
+        "Curated knowledge store at `wiki/` (the why/decision/failure-lesson layer). "
+        "Relevant when the task references past work, prior decisions, or \"have we done X\". "
+        "Read `wiki/L1_index.md` first, then "
+        "`python3 skills/wiki-memory/tools/wiki.py search \"<q>\"` → `timeline` → `fetch`.\n"
+    )
+
+    def discoverability(self, instruction_file: str | Path) -> dict[str, Any]:
+        path = Path(instruction_file).expanduser()
+        if not path.is_absolute():
+            path = (self.root.parent / path)
+        if not path.exists():
+            # Don't nag for a file the project hasn't adopted.
+            return {"file": str(path), "exists": False, "pass": None,
+                    "reason": "instruction file not found — skipped", "suggested_snippet": None}
+        text = path.read_text(encoding="utf-8", errors="replace").lower()
+        names_store = any(s in text for s in ("wiki/", "wiki-memory", "l1_index", "wiki.py"))
+        gives_query_cue = any(s in text for s in ("search", "retriev", "query", "timeline", "fetch", "l1_index"))
+        passed = names_store and gives_query_cue
+        if passed:
+            reason = "instruction file surfaces the wiki store and how to query it"
+        elif names_store:
+            reason = "mentions the store but not how/when to query it"
+        else:
+            reason = "no mention of the wiki store — a fresh agent won't know to consult it"
+        return {
+            "file": str(path),
+            "exists": True,
+            "pass": passed,
+            "reason": reason,
+            "suggested_snippet": None if passed else self.DISCOVERABILITY_SNIPPET,
+        }
+
+    def new_page(self, template: str, title: str, domain: str = "framework", slug: str | None = None,
+                 trust: str = DEFAULT_TRUST) -> dict[str, Any]:
         self.init()
         template_map = {
             "page": ("templates/page.template.md", "concepts"),
@@ -1236,6 +1519,7 @@ class WikiStore:
                 "title": title,
                 "domain": domain,
                 "date": today,
+                "trust": trust if trust in TRUST_TIERS else DEFAULT_TRUST,
             },
         )
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -1416,6 +1700,8 @@ def _cli_main(argv: list[str] | None = None) -> int:
     sp.add_argument("--title", required=True)
     sp.add_argument("--domain", default="framework")
     sp.add_argument("--slug", default=None)
+    sp.add_argument("--trust", default=DEFAULT_TRUST, choices=list(TRUST_TIERS),
+                    help="Provenance trust tier for the new page (default asserted).")
 
     sp = sub.add_parser("ingest", help="Add a source (file path or URL) to raw/.")
     sp.add_argument("source")
@@ -1437,6 +1723,29 @@ def _cli_main(argv: list[str] | None = None) -> int:
     sp = sub.add_parser("import-audit", help="Validate an import manifest.")
     sp.add_argument("--manifest", required=True)
 
+    sp = sub.add_parser("overlap", help="Dedup-at-write: score a candidate fact against existing pages (subject/tags/content/refs/links).")
+    sp.add_argument("--title", required=True)
+    sp.add_argument("--body", default="", help="Candidate body text.")
+    sp.add_argument("--body-file", default=None, help="Read candidate body from a file (overrides --body).")
+    sp.add_argument("--tags", default="", help="Comma-separated candidate tags.")
+    sp.add_argument("-k", type=int, default=5)
+
+    sp = sub.add_parser("resolve", help="Trust-gated conflict resolution: should a candidate fact replace / be rejected by / dispute an existing same-subject page? (poison defense)")
+    sp.add_argument("--title", required=True)
+    sp.add_argument("--body", default="", help="Candidate body text.")
+    sp.add_argument("--body-file", default=None, help="Read candidate body from a file (overrides --body).")
+    sp.add_argument("--tags", default="", help="Comma-separated candidate tags.")
+    sp.add_argument("--trust", default=DEFAULT_TRUST, choices=list(TRUST_TIERS),
+                    help="Provenance trust tier of the candidate (default asserted).")
+    sp.add_argument("-k", type=int, default=5)
+
+    sp = sub.add_parser("audit-refs", help="Code-grounded staleness: list pages whose cited code paths no longer exist.")
+    sp.add_argument("--code-root", default=None, help="Repo root to resolve refs against (default: wiki root's parent).")
+    sp.add_argument("--stale-days", type=int, default=180)
+
+    sp = sub.add_parser("discoverability", help="Check whether a host instruction file surfaces the wiki store; emit a snippet if not.")
+    sp.add_argument("--file", required=True, help="Instruction file to check (e.g. CLAUDE.md, AGENTS.md).")
+
     args = p.parse_args(argv)
     root = Path(args.root).expanduser().resolve() if args.root else _cli_default_root()
     store = WikiStore(root)
@@ -1451,7 +1760,7 @@ def _cli_main(argv: list[str] | None = None) -> int:
         _cli_print(store.fetch(args.item_id))
     elif args.cmd == "new":
         _cli_print(store.new_page(args.template, args.title,
-                                  domain=args.domain, slug=args.slug))
+                                  domain=args.domain, slug=args.slug, trust=args.trust))
     elif args.cmd == "ingest":
         _cli_print(store.ingest(args.source, title=args.title))
     elif args.cmd == "index":
@@ -1465,6 +1774,22 @@ def _cli_main(argv: list[str] | None = None) -> int:
         ))
     elif args.cmd == "import-audit":
         _cli_print(store.import_audit(args.manifest))
+    elif args.cmd == "overlap":
+        body = args.body
+        if args.body_file:
+            body = Path(args.body_file).expanduser().read_text(encoding="utf-8", errors="replace")
+        tags = [t.strip() for t in args.tags.split(",") if t.strip()]
+        _cli_print(store.overlap(args.title, body=body, tags=tags, k=args.k))
+    elif args.cmd == "resolve":
+        body = args.body
+        if args.body_file:
+            body = Path(args.body_file).expanduser().read_text(encoding="utf-8", errors="replace")
+        tags = [t.strip() for t in args.tags.split(",") if t.strip()]
+        _cli_print(store.resolve(args.title, body=body, trust=args.trust, tags=tags, k=args.k))
+    elif args.cmd == "audit-refs":
+        _cli_print(store.audit_refs(code_root=args.code_root, stale_days=args.stale_days))
+    elif args.cmd == "discoverability":
+        _cli_print(store.discoverability(args.file))
     else:  # unreachable — argparse enforces choices
         p.error(f"unknown subcommand: {args.cmd}")
     return 0

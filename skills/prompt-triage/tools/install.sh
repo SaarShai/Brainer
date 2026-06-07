@@ -21,7 +21,7 @@ SKILL_DIR="$REPO/.claude/skills"
 AGENT_DIR="$REPO/.claude/agents"
 SETTINGS="$REPO/.claude/settings.json"
 # Repo-relative hook path — matches the convention used by every other
-# hook-shipping skill (compliance-canary, context-keeper, loop-breaker,
+# hook-shipping skill (compliance-canary, context-keeper,
 # skill-pulse). An absolute machine-local path breaks if the repo moves
 # or if .claude/settings.json is committed and shared across machines.
 HOOK_CMD="bash ./.claude/skills/prompt-triage/tools/hook.sh"

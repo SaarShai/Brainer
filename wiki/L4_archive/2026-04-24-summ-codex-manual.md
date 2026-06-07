@@ -1,6 +1,23 @@
+---
+schema_version: 2
+title: Codex manual summ (archived)
+type: source-summary
+domain: framework
+tier: episodic
+confidence: low
+created: 2026-04-24
+updated: 2026-05-08
+verified: 2026-05-08
+sources: [log.md]
+supersedes: []
+superseded-by:
+protected: true
+tags: [archive, codex, summ, provenance]
+---
+
 # Codex manual summ (archived 2026-05-08)
 
-Archived because the framework now ships `./te context codex-fresh-thread` — this 153-line inline App Server launcher was a workaround for older installs that lack that subcommand. Kept for provenance only; do not link from operational docs.
+Archived because the framework now ships a fresh-successor Codex launcher — this 153-line inline App Server launcher was a workaround for older installs that lack that subcommand. Kept for provenance only; do not link from operational docs. Related: [[projects/context-refresh]].
 
 Use this when an existing project has an older project-local Token Economy CLI. This prompt intentionally uses one reliable path: create a lean handoff, then launch a persistent fresh Codex successor thread through `codex app-server` directly. Do not attempt same-thread compaction in older installs; it can fail on inherited host config such as `tools.defer_loading`.
 

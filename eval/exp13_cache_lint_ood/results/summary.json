@@ -1,0 +1,143 @@
+{
+  "experiment": "exp13_cache_lint_ood",
+  "part1_labeled_ood": {
+    "n": 13,
+    "tp": 8,
+    "fp": 0,
+    "fn": 2,
+    "tn": 3,
+    "recall": 0.8,
+    "precision": 1.0,
+    "misses": [
+      "o_r2_backtick",
+      "o_r2_bare_env"
+    ],
+    "records": [
+      {
+        "id": "o_r2_backtick",
+        "rule": 2,
+        "pol": "pos",
+        "expected_fire": true,
+        "fired": false,
+        "correct": false
+      },
+      {
+        "id": "o_r2_braced_env",
+        "rule": 2,
+        "pol": "pos",
+        "expected_fire": true,
+        "fired": true,
+        "correct": true
+      },
+      {
+        "id": "o_r2_bare_env",
+        "rule": 2,
+        "pol": "pos",
+        "expected_fire": true,
+        "fired": false,
+        "correct": false
+      },
+      {
+        "id": "o_r2_random",
+        "rule": 2,
+        "pol": "pos",
+        "expected_fire": true,
+        "fired": true,
+        "correct": true
+      },
+      {
+        "id": "o_r2_jinja",
+        "rule": 2,
+        "pol": "pos",
+        "expected_fire": true,
+        "fired": true,
+        "correct": true
+      },
+      {
+        "id": "o_r2_pyinterp",
+        "rule": 2,
+        "pol": "pos",
+        "expected_fire": true,
+        "fired": true,
+        "correct": true
+      },
+      {
+        "id": "o_r2_neg_price",
+        "rule": 2,
+        "pol": "neg",
+        "expected_fire": false,
+        "fired": false,
+        "correct": true
+      },
+      {
+        "id": "o_r2_neg_inline",
+        "rule": 2,
+        "pol": "neg",
+        "expected_fire": false,
+        "fired": false,
+        "correct": true
+      },
+      {
+        "id": "o_r4_provider_prefix",
+        "rule": 4,
+        "pol": "pos",
+        "expected_fire": true,
+        "fired": true,
+        "correct": true
+      },
+      {
+        "id": "o_r4_bedrock",
+        "rule": 4,
+        "pol": "pos",
+        "expected_fire": true,
+        "fired": true,
+        "correct": true
+      },
+      {
+        "id": "o_r6_sed_inplace",
+        "rule": 6,
+        "pol": "pos",
+        "expected_fire": true,
+        "fired": true,
+        "correct": true
+      },
+      {
+        "id": "o_r6_py_append",
+        "rule": 6,
+        "pol": "pos",
+        "expected_fire": true,
+        "fired": true,
+        "correct": true
+      },
+      {
+        "id": "o_r6_neg_tmp",
+        "rule": 6,
+        "pol": "neg",
+        "expected_fire": false,
+        "fired": false,
+        "correct": true
+      }
+    ]
+  },
+  "part2_real_repo": {
+    "root": "/Users/za/token-economy",
+    "n_findings": 3,
+    "n_fail": 0,
+    "n_warn": 3,
+    "fails": [],
+    "warns": [
+      {
+        "rule": 5,
+        "msg": ""
+      },
+      {
+        "rule": 5,
+        "msg": ""
+      },
+      {
+        "rule": 5,
+        "msg": ""
+      }
+    ]
+  }
+}

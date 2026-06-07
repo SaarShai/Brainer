@@ -1,0 +1,54 @@
+{
+  "baseline": "observation-masking",
+  "source": "arXiv 2508.21433",
+  "transcript": "/Users/za/.claude/projects/-Users-za-Documents-token-economy/7523878a-45a4-4402-b4f1-2021683b7d51.jsonl",
+  "mask_ms": 10,
+  "raw_chars": 505552,
+  "masked_chars": 192528,
+  "compression_ratio": 0.3808,
+  "suppressed_chars": 322464,
+  "n_tool_results_masked": 284,
+  "n_tool_use_kept": 284,
+  "events": 972,
+  "counts": {
+    "files": 264,
+    "cmds": 87,
+    "errors": 111,
+    "urls": 11,
+    "nums": 63
+  },
+  "recall": {
+    "files_recall": 0.455,
+    "cmds_recall": 1.0,
+    "errors_recall": 0.387,
+    "urls_recall": 0.545,
+    "nums_recall": 0.317
+  },
+  "context_keeper": {
+    "extract_ms": 945,
+    "extracted_chars": 11486,
+    "compression_ratio": 0.0227,
+    "recall": {
+      "files_recall": 0.246,
+      "cmds_recall": 0.46,
+      "errors_recall": 0.252,
+      "urls_recall": 1.0,
+      "nums_recall": 0.667
+    }
+  },
+  "head_to_head": {
+    "masking_compression": 0.3808,
+    "context_keeper_compression": 0.0227,
+    "context_keeper_smaller_by_x": 16.8,
+    "context_keeper_recall_wins": [
+      "urls_recall",
+      "nums_recall"
+    ],
+    "masking_recall_wins": [
+      "files_recall",
+      "cmds_recall",
+      "errors_recall"
+    ],
+    "headline": "context-keeper is 16.8\u00d7 smaller (2.3% vs 38.1% of raw) AND wins recall on ['urls_recall', 'nums_recall']; masking wins on ['files_recall', 'cmds_recall', 'errors_recall']"
+  }
+}

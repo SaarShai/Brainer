@@ -1,6 +1,6 @@
 ---
 name: index-first
-description: Prefer pre-built indexes and composite retrieval verbs over chains of grep/read/scan. Use when about to look up symbols, callers, references, routes, or "where is X used / what depends on Y" — query the index (codegraph, repomap, ctags, wiki search, ticket-tracker API, semantic-diff snapshot) before scanning raw text. Batch N related lookups into one capped call instead of N sequential reads. Applies to code AND to any indexed corpus (wiki, tickets, docs, threads).
+description: Prefer pre-built indexes over chains of grep/read/scan. Use when about to look up symbols, callers, references, routes, or "where is X used / what depends on Y" — query the index (codegraph, ctags, wiki search) before scanning raw text. Batch related lookups into one capped call. Applies to code and any indexed corpus (wiki, tickets, docs).
 effort: low
 ---
 

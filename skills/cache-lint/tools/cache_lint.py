@@ -112,6 +112,16 @@ DYNAMIC_PATTERNS = [
     # Modern bash uses $(…); flagging backticks generates too many false
     # positives in skill / CLAUDE.md docs to be worth the coverage.
     (re.compile(r"\{\{\s*env\.", re.I), "env-dependent template ({{env.X}})"),
+    # Braced env interpolation: ${VAR}. The UNBRACED $VAR form is intentionally
+    # NOT checked — it false-positives on prose ($500, $variable, $camelCase)
+    # and on real docs ($PATH, $PWD). Braces are an unambiguous interpolation
+    # signal, so this stays precision-safe (0 FPs on exp13's negatives).
+    (re.compile(r"\$\{[^}]+\}"), "braced env interpolation (${VAR})"),
+    # Generic Jinja control/expression tags beyond the {{env.X}} form above:
+    # {{ … }} expressions and {% … %} statements (now(), loops, includes) all
+    # render per-invocation and bust the cache. Inline-code/backtick suppression
+    # keeps documented examples (`{{env.X}}`) from firing.
+    (re.compile(r"\{\{.*?\}\}|\{%.*?%\}"), "jinja template tag ({{…}}/{%…%})"),
     (re.compile(r"\b(?:datetime\.now|time\.time|Date\.now|new Date\(\))\b"), "wall-clock call"),
     (re.compile(r"\$RANDOM|os\.urandom|secrets\.token"), "RNG call"),
     (re.compile(r"^\s*timestamp\s*[:=]", re.I | re.M), "timestamp field"),

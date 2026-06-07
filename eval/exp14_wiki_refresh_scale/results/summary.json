@@ -1,0 +1,18 @@
+{
+  "experiment": "exp14_wiki_refresh_scale",
+  "n_pages": 30,
+  "scanned": 30,
+  "drifted_detected": 18,
+  "confusion": {
+    "tp": 18,
+    "fp": 0,
+    "fn": 0,
+    "tn": 12
+  },
+  "precision": 1.0,
+  "recall": 1.0,
+  "f1": 1.0,
+  "signal_accuracy": 1.0,
+  "signal_correct": "18/18",
+  "errors": []
+}
