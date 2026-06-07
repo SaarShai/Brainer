@@ -148,6 +148,22 @@ python3 ~/.local/share/token-economy/skills/wiki-memory/tools/wiki.py init
 
 Creates `wiki/{L0_rules.md, L1_index.md, schema.md, L2_facts/, L3_sops/, L4_archive/, raw/, concepts/, patterns/, projects/, people/, queries/, templates/}` seeded from the skill's bundled defaults. Idempotent — safe to re-run. Default target is `./wiki` in cwd; override with `--root <path>` or `WIKI_ROOT=<path>`. Without this step, `wiki-memory` triggers correctly but has nothing to retrieve.
 
+### Updating an existing install (and removing cut skills)
+
+The catalog evolves — skills get added, and some get **cut** after measurement (see the changelog above). To bring a project that already has an older set up to date:
+
+- **Claude Code (plugin):** the plugin manifest (`.claude-plugin/marketplace.json`) is the source of truth. Update the plugin and Claude Code syncs the skill list **and** hooks to the current catalog — cut skills disappear, new ones appear, no manual cleanup.
+- **Symlink hosts (Codex / Cursor / Gemini) or a manual install:**
+
+  ```bash
+  cd .token-economy && git pull        # pull the latest catalog
+  ./install.sh                          # re-wire — self-healing (--dry-run to preview)
+  ```
+
+  A re-run is **self-healing**: it (re)symlinks the current skills, **prunes broken symlinks** for any cut skill, removes **orphan Cursor `.mdc` rules**, **prunes dead hooks** from `.claude/settings.json` whose script no longer exists, and regenerates the resident catalog (`CLAUDE.md` / `AGENTS.md` / `GEMINI.md`). New skills install on the same pass.
+
+The one thing it deliberately *won't* do is disable a still-present **opt-in** skill you enabled (`skill-pulse` / `compliance-canary`) — their scripts still exist, so the prune leaves them; drop those hook entries from `.claude/settings.json` by hand to turn them off.
+
 ## What changed (vs the old framework)
 
 This used to be framed as a framework with a `te` CLI, layered docs (`start.md`, `L0_rules.md`, `L1_index.md`, `token-economy.yaml`), and project-style research under `projects/`. All of that is gone.
@@ -155,7 +171,7 @@ This used to be framed as a framework with a `te` CLI, layered docs (`start.md`,
 - `te` CLI → deleted. Each skill owns its scripts in `skills/<name>/tools/`.
 - `start.md`, `L0_rules.md`, `L1_index.md`, `token-economy.yaml`, `models.yaml` → deleted. Replaced by `skills/SKILLS_INDEX.md`.
 - `adapters/`, `prompts/`, `hooks/` → deleted. Folded into per-skill `tools/`.
-- 11 old skills → audited up to 15, then trimmed to 11 after measurement (drops listed above).
+- 11 old skills → audited and expanded to ~21, then trimmed to **15** after measurement (drops listed above).
 - Working Python projects (ComCom, semdiff, context-keeper, agents-triage, output-filter) → bundled into their matching skills' `tools/` folders.
 - Wiki content (`raw/`, `concepts/`, `patterns/`, `projects/`, `people/`, `queries/`, `L2_facts/`, `L3_sops/`, `L4_archive/`, `index.md`, `log.md`, `schema.md`, `templates/`) → moved under `wiki/`. The `wiki-memory` skill reads it.
 - `bench/` → kept at root for eval datasets.

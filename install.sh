@@ -110,11 +110,12 @@ skill_is_slash_only() {
 # Rationale: only measured-win or cheap load-bearing skills belong on the
 # default install path (see eval/FINDINGS.md). Unmeasured-in-repo or
 # unmeasured-in-repo skills (skill-pulse, compliance-canary) are opt-in.
-# NOTE: per-skill installers MERGE into .claude/settings.json (append-only) —
-# they never delete a hook. So if you previously opted into skill-pulse or
-# compliance-canary, re-running ./install.sh will NOT remove their
-# UserPromptSubmit hooks; drop the stale entry from .claude/settings.json by
-# hand to disable them.
+# NOTE: per-skill installers MERGE into .claude/settings.json (append-only).
+# A bare ./install.sh now AUTO-PRUNES hooks whose script is GONE (a skill that
+# was cut — see prune_dead_hooks below), so removed skills fully self-heal. But
+# a hook whose script still exists is kept: to DISABLE an opt-in you previously
+# enabled (skill-pulse / compliance-canary), drop its entry from
+# .claude/settings.json by hand — the prune won't touch a live script.
 skill_is_optin() {
   local file="$1"
   grep -q '^auto-install: *false' "$file"
@@ -259,10 +260,57 @@ prune_stale_skill_links() {
   done
 }
 
+# Remove hook entries from a settings.json whose command script no longer
+# exists — i.e. hooks left behind by a cut skill (e.g. a PreToolUse hook whose
+# loop-breaker/tools/hook.sh was deleted). The settings.json counterpart of the
+# symlink prune, so a re-install self-heals the hooks side too. Only removes
+# hooks whose script is GONE; a hook for a still-present skill (incl. an opt-in
+# you enabled) is untouched. Safe + idempotent.
+prune_dead_hooks() {
+  local settings="$1" root="$2"
+  [ -f "$settings" ] || return 0
+  DRY_RUN="$DRY_RUN" python3 - "$settings" "$root" <<'PY' 2>/dev/null
+import json, os, shlex, sys
+settings, root = sys.argv[1], sys.argv[2]
+dry = os.environ.get("DRY_RUN") == "1"
+try:
+    d = json.load(open(settings))
+except Exception:
+    sys.exit(0)
+hooks = d.get("hooks", {})
+removed = []
+for event in list(hooks.keys()):
+    new_groups = []
+    for g in hooks[event]:
+        kept = []
+        for h in g.get("hooks", []):
+            cmd = h.get("command", "")
+            script = next((t for t in shlex.split(cmd) if t.endswith((".sh", ".py"))), None)
+            if script is None or os.path.exists(os.path.join(root, script)):
+                kept.append(h)
+            else:
+                removed.append(cmd)
+        if kept:
+            g["hooks"] = kept
+            new_groups.append(g)
+    if new_groups:
+        hooks[event] = new_groups
+    else:
+        del hooks[event]
+if removed and not dry:
+    d["hooks"] = hooks
+    json.dump(d, open(settings, "w"), indent=2)
+    open(settings, "a").write("\n")
+for cmd in removed:
+    print("    [prune-hook] %s%s (skill removed)" % ("DRY: " if dry else "", cmd))
+PY
+}
+
 install_claude_code() {
   echo "[claude-code]"
   run "mkdir -p '$REPO_ROOT/.claude/skills'"
   prune_stale_skill_links "$REPO_ROOT/.claude/skills"
+  prune_dead_hooks "$REPO_ROOT/.claude/settings.json" "$REPO_ROOT"
   for skill in "$SRC"/*/; do
     name=$(basename "$skill")
     [ "$name" = "_shared" ] && continue
