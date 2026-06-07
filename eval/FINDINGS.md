@@ -194,6 +194,19 @@ Closes the gain-gap on **skill-pulse** + **compliance-canary** (both were correc
 - **Implication:** supports the lean call — keep the reactive canary, fold/retire the periodic pulse (it adds little once canary fires). Both stay opt-in (`auto-install: false`) until this replicates.
 - Caveats: single model (qwen2.5:7b), single run, n=26 turns; the ack-token is a clean *proxy* for "a skill rule the agent must keep following," not the skills' actual filler/verbosity probes. Direction is clear; not a tight CI. (The Phase-1 gate first mis-reported "floor" — an early-third window diluted the fast decay; fixed to use the first scored turns.)
 
+## Exp10 — cache-lint detection accuracy (`eval/exp10_cache_lint/`)
+
+Closes the **TP≥80% / FP≤10%** target cache-lint's EVAL.md listed as unrun (only fuzz/robustness was measured). 18-case labeled fixture-directory corpus (the exp3 pattern, but units are project trees since cache-lint audits a dir) over the 4 single-run rules — **2** dynamic-content, **4** model-switch, **5** sizing, **6** fork-safety — balanced with FP-guards (inline-code prose, dynamic-inside-a-fence, read-only `grep/cat` hooks).
+
+**Result: recall 1.0, false-alarm 0.0, F1 1.0 (18/18); per-rule P/R/F1 all 1.0.** Every near-miss negative was correctly NOT flagged. Meets both targets with margin.
+
+Honest caveats (so the perfect score isn't oversold):
+- **In-distribution corpus** — the fixtures are built from the same rule-trigger patterns the tool was written against, so 1.0 reflects *clean detection on well-formed cases*, not messy/adversarial real-world configs. A harder corpus (obfuscated dynamic content, indirect hook writes via invoked scripts) would be the next stress.
+- **Rules 1 & 3 (ordering / tool-stability) out of scope** — they're stateful (diff against a stored baseline across runs), needing a 2-run protocol.
+- **The ≥30% cache-hit *uplift* target remains unmeasured** — that needs a cache-aware host (MiMo `cached_tokens` / Claude); detection ≠ dollar savings.
+
+So: cache-lint reliably *catches the cache-busts it targets without false alarms* (detection gain now measured); whether fixing them saves money is still open.
+
 ## Per-skill measured wins (live A/B)
 
 Headline numbers with the skill active. Different metrics per skill type — see Harness column.
