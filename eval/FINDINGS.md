@@ -19,7 +19,7 @@ Skills compound across axes (output × input × routing × memory) but **diminis
 | End of session, want a fresh one | `/handoff [focus]` |
 | Need one fact from a previous session | `/handoff --ask "<question>"` |
 | Approaching `/compact` | nothing — `context-keeper` hook fires automatically |
-| Noisy terminal output | `output-filter` (already piped via hook) |
+| Noisy terminal output | `output-filter` (wire by hand — pipe form or a PostToolUse/Bash hook; ships no auto-installer) |
 
 **Anti-patterns** (most are agent-internal, but you want to know them when deciding what to install):
 
@@ -32,7 +32,7 @@ Skills compound across axes (output × input × routing × memory) but **diminis
 - **Verbose-prone workloads** (planning, explanation, code review, multi-step bug fixing): catalog is a clear net win. Stack output reducers on top of the input reducers and expect −60% to −85% total tokens.
 - **Short imperative workloads** (commits, fixes, one-line answers): catalog adds marginal cost without proportional savings. Even with prompt caching, expect roughly flat to +10% total.
 
-**Workload-aware install:** keep the hook skills (`prompt-triage`, `context-keeper`, `output-filter`) and `caveman-ultra` everywhere; trim the discipline skills (`plan-first-execute`, `lean-execution`, `verify-before-completion`) on machines that mostly do quick imperative work.
+**Workload-aware install:** keep the auto-wired hook skills (`prompt-triage`, `context-keeper`, `loop-breaker`) and `caveman-ultra` everywhere; `output-filter` is worth wiring on noisy-Bash workloads but ships no auto-installer — wire it by hand (pipe form or a PostToolUse/Bash hook). Trim the discipline skills (`plan-first-execute`, `lean-execution`, `verify-before-completion`) on machines that mostly do quick imperative work.
 
 **Default install path (since the opt-in demotion):** three skills carry `auto-install: false` so `./install.sh` does not run their `tools/install.sh` — `compress-context` (heavy torch+llmlingua dep for a −36% gain that barely beats free observation-masking, and whose 44.9%/SQuAD number is not reproduced in `eval/results`), `skill-pulse` and `compliance-canary` (anti-drift UserPromptSubmit hooks with zero in-repo token A/B that fire every turn and overlap each other). They stay symlinked and listed; enable explicitly with `bash skills/<name>/tools/install.sh`. The default UserPromptSubmit path keeps only `prompt-triage` (measured −20.9%); `loop-breaker` (PreToolUse) and `context-keeper` (PreCompact) remain auto-wired (cheap / measured).
 
