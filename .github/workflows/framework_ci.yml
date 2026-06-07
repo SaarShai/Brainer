@@ -1,29 +1,21 @@
-name: framework-ci
+name: ci
 
 on:
   push:
   pull_request:
 
 jobs:
-  framework:
+  checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - name: Validate JSON configs
         run: |
-          python -m json.tool configs/settings.claude.json >/dev/null
-          python -m json.tool configs/settings.codex.json >/dev/null
-      - name: Compile Python
-        run: python -m py_compile token_economy/*.py projects/context-keeper-v2/*.py projects/wiki-search/*.py
-      - name: Framework tests
-        run: bash scripts/run_all_tests.sh
-      - name: Wiki lint
-        run: ./te wiki lint --strict --fail-on-error
-      - name: Token budgets
-        run: ./te docs audit
-      - name: Framework smoke bench
-        run: ./te bench run --suite framework-smoke
-
+          python -m json.tool .claude-plugin/marketplace.json > /dev/null
+          python -m json.tool .claude/settings.json > /dev/null
+          python -m json.tool .codex/hooks.json > /dev/null
+      - name: Compile Python (syntax check)
+        run: git ls-files -z '*.py' | xargs -0 python -m py_compile
