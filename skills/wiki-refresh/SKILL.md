@@ -8,7 +8,7 @@ pulse_reminder: a wiki page whose cited code paths are gone is drifting against 
 
 # wiki-refresh
 
-Ground-truth maintenance for `wiki-memory`. Where [`memory-decay`](../memory-decay/SKILL.md) ages a page's `confidence` by *time*, this reconciles a page against the *current codebase* and takes an action. Lineage: [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) `plugins/compound-engineering/skills/ce-compound-refresh`, grafted onto this wiki's typed-edge + decay substrate.
+Ground-truth maintenance for `wiki-memory`. Where [`memory-decay`](../memory-decay/SKILL.md) ages a page's `confidence` by *time*, this reconciles a page against the *current codebase* and takes an action.
 
 Division of labor:
 - `write-gate` — what enters the wiki.
@@ -71,7 +71,7 @@ Match depth to specificity: a page citing exact paths + snippets needs more veri
 
 Implementation-gone ≠ domain-gone: if `auth_token.rb` is deleted but the app still handles auth tokens, that's **Replace**, not Delete.
 
-## Differentiator vs ce-compound-refresh: emit contradiction edges
+## Emit contradiction edges
 
 When investigation finds a page that conflicts with current reality **or** with another page — and you cannot immediately resolve it (Replace evidence insufficient, or both pages partly right) — do **not** silently drop it. Record a typed edge so retrieval flags it instead of serving both as truth:
 
@@ -79,27 +79,7 @@ When investigation finds a page that conflicts with current reality **or** with 
 2. Add the reverse edge on the other page (`lint --strict` emits `contradiction_missing_reverse` if you forget).
 3. `lint --strict` then surfaces the pair on every future audit until an agent resolves it.
 
-This is the synthesis `ce-compound-refresh` lacks: it detects contradictions only during a sweep; here they become durable graph state.
-
-## Dedup at write (companion: GRAFT 1)
-
-Most duplication is cheaper to stop at write time than to consolidate later. Before creating any page, the writer should run:
-
-```bash
-python3 skills/wiki-memory/tools/wiki.py --root wiki overlap --title "<title>" --body-file <draft> --tags "a,b"
-```
-
-`high` → update the `best_match` instead of creating. `moderate` → create but the page is a future Consolidate candidate (note it). `low` → create. wiki-refresh handles the moderate/leftover cases that slipped through.
-
-## Discoverability (GRAFT 3)
-
-A reconciled store still compounds nothing if a fresh / plugin-less agent never consults it. Once per pass, confirm the host instruction file surfaces the store:
-
-```bash
-python3 skills/wiki-memory/tools/wiki.py --root wiki discoverability --file CLAUDE.md
-```
-
-`pass: true` → done. `pass: false` → add the returned `suggested_snippet` (store exists + how to query + when). Skips silently if the file is absent — never nag an unadopted project. In this repo the installer-generated block already covers `CLAUDE.md`/`AGENTS.md`/`GEMINI.md`; this command is for ad-hoc or downstream instruction files outside the installer's reach.
+These contradictions become durable graph state (not just sweep-time detection): retrieval keeps flagging the pair until an agent resolves it. (Dedup-at-write and store-discoverability are `wiki-memory`'s job, not repeated here.)
 
 ## Execute
 

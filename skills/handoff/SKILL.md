@@ -51,11 +51,6 @@ Same as default, **plus** extracts durable facts (files, commands, errors, numbe
 
 Finds the most recent handoff doc (in `$TMPDIR` or `.token-economy/checkpoints/`) and returns matching snippets as JSON. Useful in a fresh session that needs one specific fact from the previous one without re-loading the whole handoff into context.
 
-## What this skill no longer does
-
-- **No successor launch.** The old `context-refresh` skill tried to spawn a fresh persistent session via `context.py relay --execute`. That path is fragile across hosts; manual launch is the contract now. Paste the handoff path into a fresh session yourself.
-- **No `meter` / fill-checkpoint auto-trigger.** Slash-only invocation. If you want a periodic checkpoint, set up a host-level reminder.
-
 ## Implementation
 
 When invoked as a slash command **inside an active agent session**, the agent assembles the doc itself from the current conversation. **Do not call any tool to "summarise the conversation"** — the agent IS the summariser. Use a single `Write` tool call to put the file at the path shown above.
@@ -79,7 +74,3 @@ tools/
     ├── context.py         # checkpoint() + extract_transcript_facts() + ask_old_from_transcript()
     └── tokens.py          # token estimator (shared utility)
 ```
-
-## Lineage
-
-`mattpocock/skills/productivity/handoff` (MIT) for the slash-only / `disable-model-invocation` discipline, the suggested-skills section, the reference-don't-duplicate rule, redaction guidance, and the OS-temp-dir output convention. The `--full` and `--ask` modes are absorbed from our older `context-refresh` skill (dropped in v1.3.0 — the auto-launcher was the only unique piece and it never worked reliably).

@@ -60,25 +60,6 @@ tools/
 └── test.sh        # 23-case self-test; run after editing hook.py
 ```
 
-## Reliability contract
+## Reliability
 
-The hook MUST exit 0 on every input. Verified edge cases:
-
-- empty stdin payload
-- malformed JSON
-- missing `tool_name` field
-- state-file unreadable or corrupt
-- state dir unwritable (falls back to no-op)
-
-Errors are logged to stderr with an ISO timestamp prefix; the tool call proceeds normally.
-
-## Known gaps (v1)
-
-- No PostToolUse exit-tracking. The "agent runs slightly different commands that all fail with the same error" pattern isn't caught yet. Add in v2.
-- No agent-text-loop detection (Gemini-CLI also detects identical sentences ≥ 10×). Out of scope for a hook — needs transcript scanning.
-
-## Lineage
-
-- [google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli) `loopDetectionService.ts` — production reference; same ≥5 threshold.
-- [anthropics/claude-code#4277](https://github.com/anthropics/claude-code/issues/4277) — open feature request, no first-party implementation yet.
-- [rohitg00/pro-workflow](https://github.com/rohitg00/pro-workflow) — adjacent pattern: failed-correction rules auto-injected at SessionStart (cross-session, not in-loop).
+The hook MUST exit 0 on every input (empty/malformed payload, missing `tool_name`, corrupt or unwritable state → no-op); errors log to stderr and the tool call proceeds. Edge cases covered by the unit suite — see `EVAL.md`.

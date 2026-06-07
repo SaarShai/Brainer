@@ -107,25 +107,4 @@ Result: noisy memory → wrong context injected → worse answers. This skill ma
 
 ## Configuration
 
-Optional `wiki/write_gate_config.yaml`:
-
-```yaml
-threshold: 3.0
-require_why_for_decisions: true
-weights:
-  decision: 2.0
-  error: 2.0
-  architecture: 1.5
-  code_block: 1.0
-  numbers: 1.0
-filler_phrases:
-  - in summary
-  - to recap
-  - basically what we did
-```
-
-Absent config → defaults above.
-
-## Status
-
-Skill body shipped; signal-score formula and threshold are ogham's published defaults. EVAL.md tracks the project-local A/B once we have writes flowing through it (target: reduce wiki page-creation rate by ≥40% with no drop in retrieval evidence-rate).
+Optional `wiki/write_gate_config.yaml` overrides `threshold` (default 3.0), `require_why_for_decisions`, and any of the `weights` / `filler_phrases` from *How it scores* above. Absent → defaults. Measured: f1 0.96 (precision 1.0) on a 56-case labeled set (`eval/exp3_classifiers/`).
