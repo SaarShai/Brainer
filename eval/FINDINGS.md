@@ -77,6 +77,8 @@ The failure source was **+0.0** before the `write_gate.py` `ERROR_MARKERS` fix (
 4. **Memory costs ~5× tokens** (6,358 vs 1,276): accuracy bought with retrieval-injection context. Real win, real price.
 5. **Substring scoring slightly *under*-states the lift** — cold's `project_helios_queue_name` is credited against gold `HELIOS_QUEUE_NAME`, inflating the cold baseline, so the true memory−cold lift is **≥ +0.571** (the artifact works against the claim).
 
+**Write quality is measured by RECALL fidelity, not a subjective judge.** The right test of "was this a good write?" is "can it be recalled and used correctly later" — which is exactly what these experiments measure: Exp1's +0.571 lift = written lessons recalled → correct answer; Exp6 = recall holds at 405-page scale; Exp4/Exp5 = recall under contradiction / adversarial poison. So wiki-memory's write quality is objectively covered by the recall-driven accuracy across Exp1/4/5/6 — there is no separate "judge the prose" gap.
+
 ## Memory robustness sweep — contradiction / adversarial poison / scale (Exp4–6)
 
 Exp1 proved memory *helps* on the happy path. These three stress the failure modes. All
