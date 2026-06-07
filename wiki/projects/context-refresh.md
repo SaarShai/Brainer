@@ -39,3 +39,7 @@ Fresh packets are written to `.brainer/checkpoints/` and kept under 2000 estimat
 ./te context checkpoint --goal "..." --plan "..." --transcript /path/to/transcript.jsonl
 ./te context fresh-start
 ```
+
+## Provenance
+
+- [[L4_archive/2026-04-24-summ-codex-manual]] — archived Codex `summ` launcher used by older installs of this workflow.

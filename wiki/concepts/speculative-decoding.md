@@ -17,3 +17,5 @@ tags: [decoding, throughput]
 # Speculative Decoding
 
 Speculative decoding improves throughput by drafting with a cheaper model and verifying with a stronger model. It is tracked as a speed/throughput technique rather than a primary repo-local memory mechanism.
+
+Related: [[concepts/optimization-axes]]

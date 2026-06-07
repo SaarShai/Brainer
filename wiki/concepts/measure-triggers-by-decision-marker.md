@@ -6,26 +6,29 @@ domain: "eval-methodology"
 tier: semantic
 confidence: 0.5
 created: "2026-06-06"
-updated: "2026-06-06"
+updated: "2026-06-07"
 verified: "2026-06-06"
-sources: []
+sources: [eval/exp7_wiring/run_wiring.py]
 supersedes: []
 superseded-by:
-tags: []
+tags: [eval-methodology, triggers, measurement]
 ---
 
 # measure-triggers-by-decision-marker
 
 ## Summary
 
-One compact statement.
+Measure skill-trigger firing by an explicit decision marker (`HARVEST: yes|no`), not by keyword presence — a vocabulary detector counts loaded-skill names as fires even when the model declines.
 
 ## Evidence
 
-- Source or command path.
+- `eval/exp7_wiring/run_wiring.py` — parse the last `HARVEST` line.
+- exp7's apparent over-fire (false-fire 0.5) was the vocabulary-detector artifact; the marker gives true false-fire 0.0.
 
 ## Related
 
+- [[concepts/optimization-axes]]
+- [[concepts/framework-hardening-adoption]]
 - [[index]]
 - [[schema]]
 

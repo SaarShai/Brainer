@@ -19,3 +19,5 @@ tags: [caveman, startup, compression]
 Session files such as `start.md`, `L0_rules.md`, and adapter prompts compound across every run. Keep them tiny, pointer-heavy, and free of examples that can live behind skills or wiki retrieval.
 
 Brainer applies this through lean startup docs, `L1_index.md`, and on-demand skills.
+
+Related: [[concepts/caveman-output-compression]], [[people/julius-brussee]]

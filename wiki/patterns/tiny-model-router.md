@@ -18,4 +18,4 @@ tags: [routing, delegation, models]
 
 Route simple extraction, summary, classification, lint, and small documentation tasks to cheaper workers. Escalate ambiguity, architecture, and high-risk synthesis to stronger models.
 
-Related: [[projects/delegate-router/README]]
+Related: [[projects/delegate-router]]

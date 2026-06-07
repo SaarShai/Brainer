@@ -20,4 +20,4 @@ Persistent markdown memory can replace loading a whole transcript or vector stor
 
 Brainer implements this as repo-local markdown wiki pages plus `./te wiki search`, `timeline`, and `fetch`.
 
-Related: [[projects/wiki-search/README]], [[concepts/wiki-governance]]
+Related: [[projects/wiki-search]], [[concepts/wiki-governance]], [[people/karpathy]]

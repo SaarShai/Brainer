@@ -47,3 +47,7 @@ Routing/classification now lives in `skills/prompt-triage/SKILL.md`; delegation 
 6. checkpoint long sessions instead of carrying a growing transcript forever.
 
 Use it before broad implementation or review work when the next action is not obvious.
+
+## Related
+
+- [[patterns/tiny-model-router]] — the routing pattern this project implements.

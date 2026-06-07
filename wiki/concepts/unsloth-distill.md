@@ -18,4 +18,4 @@ tags: [distillation, local-models]
 
 Distillation can replace repeated frontier-model calls with cheaper local specialists when task shape is stable and quality can be measured.
 
-Related: [[projects/delegate-router/README]]
+Related: [[projects/delegate-router]], [[people/unsloth-team]]

@@ -73,3 +73,7 @@ python skills/wiki-memory/tools/wiki_mcp/mcp_server.py
 - **claude-mem**: 3-layer retrieval + ID-based citations.
 - **GenericAgent**: L1 pointer-index discipline.
 - **Karpathy wiki**: index.md as canonical catalog.
+
+## Related
+
+- [[patterns/wiki-query-shortcircuit]] — the retrieval-shortcircuit pattern this project implements.

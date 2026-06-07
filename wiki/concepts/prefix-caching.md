@@ -28,4 +28,4 @@ Prompt caching rewards stable prefixes. Put stable instructions, schemas, exampl
 
 Prompt caching is not a substitute for retrieval discipline. The best cache hit is still worse than not sending irrelevant context.
 
-Related: [[raw/2026-04-17-research-brief]], [[projects/delegate-router/README]]
+Related: [[raw/2026-04-17-research-brief]], [[projects/delegate-router]]

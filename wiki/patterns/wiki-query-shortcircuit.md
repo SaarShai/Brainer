@@ -18,4 +18,4 @@ tags: [wiki, retrieval, context]
 
 Search the repo-local wiki before reloading broad files or re-synthesizing known facts. Use `./te wiki search`, then `timeline`, then `fetch` only for relevant hits.
 
-Related: [[projects/wiki-search/README]]
+Related: [[projects/wiki-search]]

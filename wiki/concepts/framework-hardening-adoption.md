@@ -72,6 +72,15 @@ Rank order is impact first, then fit, then implementation cost.
 - Treat speculative memory layers as deferred until they beat the current wiki plus code-map stack on a real metric.
 - Keep local-model docs honest about cold-load cost; M1-class Ollama is useful, but warm-state policy matters more than model count.
 
+## Eval-methodology learnings
+
+Cross-cutting lessons from the eval harnesses (`eval/exp*`, `eval/kaggle_ollama`) that harden how the framework is measured:
+
+- [[concepts/measure-triggers-by-decision-marker]] — measure skill firing by an explicit decision marker, not keyword presence.
+- [[concepts/write-gate-not-truth-filter]] — the write-gate scores signal, not truth; the poisoning defense is provenance/trust.
+- [[concepts/demote-vs-description-tax]] — trimming `description:` text, not demotion, cuts the always-on description tax.
+- [[concepts/cross-model-ollama-eval-gotchas]] — reasoning models break local Ollama scoring; use non-reasoning models or strip `<think>`.
+
 ## Related
 
 - [[projects/wiki-search]]

@@ -23,18 +23,30 @@ Seven axes. Every tool in this repo declares which axis it targets (frontmatter 
 | tool | axis | status |
 |---|---|---|
 | `skills/compress-context` (ComCom) | A. input_compression | eval-v3 passed |
-| [[projects/semdiff/README\|semdiff]] | B. output_filter (file reads) | MCP shipped |
+| [[projects/semdiff\|semdiff]] | B. output_filter (file reads) | MCP shipped |
 | native output-filter hook | B. output_filter (terminal stdout) | raw recovery + stats + rules shipped |
-| [[projects/context-keeper/README\|context-keeper v1]] | C. cross_session_memory (intra-session only) | hook active |
-| [[projects/context-keeper-v2/README\|context-keeper v2]] | C. cross_session_memory (true cross-session) | skeleton |
+| [[projects/context-keeper\|context-keeper v1]] | C. cross_session_memory (intra-session only) | hook active |
+| [[projects/context-keeper-v2\|context-keeper v2]] | C. cross_session_memory (true cross-session) | skeleton |
 | skip_detector | D. verification | integrated |
 | verify.py / verify_anthropic.py | D. verification | shipped |
 | rename_detect | D. verification (semdiff companion) | integrated |
 | Brainer wiki (this) | E. knowledge_org | live |
-| [[projects/wiki-search/README\|wiki-search]] | E. knowledge_org (retrieval) | skeleton |
-| [[bench/README\|bench]] | F. measurement | 7 datasets |
+| [[projects/wiki-search\|wiki-search]] | E. knowledge_org (retrieval) | skeleton |
+| bench | F. measurement | 7 datasets |
 | eval-v3/v4 harnesses | F. measurement | SQuAD+CoQA |
-| [[projects/skill-crystallizer/README\|skill-crystallizer]] | G. skill_crystallization | skeleton |
+| [[L4_archive/2026-05-22-skill-crystallizer/README\|skill-crystallizer]] | G. skill_crystallization | skeleton |
+
+## Technique notes (research-tracked, by axis)
+
+External techniques surveyed and mapped to the axes above; tracked as notes, not shipped tools.
+
+| technique | axis | note |
+|---|---|---|
+| [[concepts/llmlingua]] | A. input_compression | small-LM prompt-token pruning |
+| [[concepts/structured-outputs]] | A. input_compression / output shaping | constrain response shape to cut waste |
+| [[patterns/compound-compression-pipeline]] | A + caching | stack complementary savings; verify, don't assume additive |
+| [[concepts/speculative-decoding]] | throughput | draft-and-verify; speed, not memory |
+| [[concepts/kv-cache-eviction]] | input_compression (inference memory) | evict low-value KV entries; see [[concepts/turboquant-kv-cache]] |
 
 ## Governance axis (meta — cuts across all 7)
 

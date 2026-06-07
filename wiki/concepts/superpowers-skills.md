@@ -48,3 +48,4 @@ Superpowers is useful to Brainer less as a dependency and more as a workflow pat
 - [[raw/2026-04-18-karpathy-wiki-spinoffs]]
 - [[concepts/wiki-governance]]
 - [[projects/delegate-router]]
+- [[people/jesse-vincent]]

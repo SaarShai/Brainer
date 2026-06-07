@@ -33,11 +33,11 @@ Catalog for a target project that uses Brainer locally. Load only matched pages.
 - `L4_archive/` — cold history kept only when useful
 
 ## Extension Points
-- [[adapters/README]] — project-local agent adapters
+- `adapters/README` — project-local agent adapters
 - `token_economy/code_map.py` — compact structural code-map provider
 - [[concepts/framework-hardening-adoption]] — ranked adoption matrix and current hardening learnings
 - [[concepts/lean-execution]] — plan/context/delegation pruning rules and source synthesis
-- [[projects/delegate-router/README]] — model-agnostic routing plus local cost preflight/profile
+- [[projects/delegate-router]] — model-agnostic routing plus local cost preflight/profile
 - [[concepts/prefix-caching]] — stable-prefix rules for prompt cache friendliness
 - [[raw/2026-05-16-ai-coding-bill-reduction-article]] — source-summary for the user-provided cost-reduction article
 - [[raw/2026-04-25-agent-memory-framework-research-rerun]] — Gemini and local Gemma research outputs

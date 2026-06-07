@@ -18,4 +18,4 @@ tags: [compression, comcom, pattern]
 
 Stack complementary savings: terse output constraints, input compression, prompt caching, structured outputs, and verification/fallback. Do not assume additive wins without evals.
 
-Related: `skills/compress-context/tools/RESULTS.md`
+Related: [[concepts/llmlingua]], [[concepts/structured-outputs]], [[concepts/caveman-output-compression]], [[concepts/prefix-caching]], `skills/compress-context/tools/RESULTS.md`
