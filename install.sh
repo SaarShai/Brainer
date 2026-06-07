@@ -109,8 +109,7 @@ skill_is_slash_only() {
 # dependency. Enable one explicitly with: bash skills/<name>/tools/install.sh
 # Rationale: only measured-win or cheap load-bearing skills belong on the
 # default install path (see eval/FINDINGS.md). Unmeasured-in-repo or
-# heavy-dependency skills (compress-context, skill-pulse, compliance-canary)
-# are opt-in.
+# unmeasured-in-repo skills (skill-pulse, compliance-canary) are opt-in.
 # NOTE: per-skill installers MERGE into .claude/settings.json (append-only) —
 # they never delete a hook. So if you previously opted into skill-pulse or
 # compliance-canary, re-running ./install.sh will NOT remove their
@@ -240,9 +239,24 @@ inject_catalog_into_doc() {
   rm -f "$block_tmp"
 }
 
+# Remove symlinks in a host skills dir whose target no longer exists — i.e.
+# skills deleted from the catalog. Idempotent and safe: only ever removes
+# BROKEN symlinks (never real files or live links), so a re-install self-heals
+# after a skill is cut instead of stranding a dangling link (and, for hooks
+# wired off it, a dead hook command).
+prune_stale_skill_links() {
+  local dir="$1"; [ -d "$dir" ] || return 0
+  local l
+  while IFS= read -r l; do
+    if [ "$DRY_RUN" = "1" ]; then echo "DRY: prune stale link $l"
+    else rm -f "$l"; echo "    [prune] $(basename "$l") (removed from catalog)"; fi
+  done < <(find "$dir" -maxdepth 1 -xtype l 2>/dev/null)
+}
+
 install_claude_code() {
   echo "[claude-code]"
   run "mkdir -p '$REPO_ROOT/.claude/skills'"
+  prune_stale_skill_links "$REPO_ROOT/.claude/skills"
   for skill in "$SRC"/*/; do
     name=$(basename "$skill")
     [ "$name" = "_shared" ] && continue
@@ -254,6 +268,7 @@ install_claude_code() {
 install_codex() {
   echo "[codex]"
   run "mkdir -p '$REPO_ROOT/.codex/skills'"
+  prune_stale_skill_links "$REPO_ROOT/.codex/skills"
   for skill in "$SRC"/*/; do
     name=$(basename "$skill")
     [ "$name" = "_shared" ] && continue
@@ -265,6 +280,17 @@ install_codex() {
 install_cursor() {
   echo "[cursor]"
   run "mkdir -p '$REPO_ROOT/.cursor/skills' '$REPO_ROOT/.cursor/rules'"
+  prune_stale_skill_links "$REPO_ROOT/.cursor/skills"
+  # Prune orphan rule files for skills removed from the catalog.
+  for mdc in "$REPO_ROOT"/.cursor/rules/*.mdc; do
+    [ -e "$mdc" ] || continue
+    local base; base=$(basename "$mdc" .mdc)
+    [ "$base" = "_token-economy-catalog" ] && continue
+    if [ ! -d "$SRC/$base" ]; then
+      if [ "$DRY_RUN" = "1" ]; then echo "DRY: prune orphan $mdc"
+      else rm -f "$mdc"; echo "    [prune] ${base}.mdc (removed from catalog)"; fi
+    fi
+  done
   for skill in "$SRC"/*/; do
     name=$(basename "$skill")
     [ "$name" = "_shared" ] && continue
@@ -311,6 +337,7 @@ MDC
 install_gemini() {
   echo "[gemini]"
   run "mkdir -p '$REPO_ROOT/.gemini/skills'"
+  prune_stale_skill_links "$REPO_ROOT/.gemini/skills"
   for skill in "$SRC"/*/; do
     name=$(basename "$skill")
     [ "$name" = "_shared" ] && continue

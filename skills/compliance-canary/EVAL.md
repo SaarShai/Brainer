@@ -41,7 +41,7 @@ n=100 invocations against a synthetic 400-line transcript with 2 active probes (
 |---|---|---|---|---|---|
 | 34.0 ms | 36.2 ms | 39.5 ms | 40.9 ms | 41.9 ms | 36.7 ms |
 
-Comparable to `loop-breaker` (39 ms p99) and `skill-pulse`. Python cold-start dominates; transcript scan + regex are in the noise.
+Comparable to `skill-pulse`. Python cold-start dominates; transcript scan + regex are in the noise.
 
 ## Verified — measure.py paths
 

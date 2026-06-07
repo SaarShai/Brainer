@@ -6,8 +6,6 @@
 #      → does the rubric rework flip the -0.40 judge artifact?
 #   2. plan-first-execute @ N=50
 #      → is the -20% claim real at scale? if not, reconsider keeping it.
-#   3. compress-context QUALITY @ N=50 on SQuAD with MiMo judge
-#      → does compressed answer quality survive? drives rate=0.5 vs 0.7.
 #
 # Skipped (already known / non-actionable):
 #   - caveman-ultra (just ran at N=50, -86.4% confirmed)
@@ -15,10 +13,9 @@
 #   - wiki-memory (token-positive overall is a known trade-off)
 #   - triage (regex fast-path is deterministic; 100% holds where it matters)
 #   - 4 combos (different "stacking" claim, no N-tightening asked for)
-#   - runner_compress mechanical (deterministic at fixed rate)
 #   - runner_semdiff / _filter / _handoff (fixture-based, N doesn't scale)
 #
-# Wall clock: ~3.5 h (LLMLingua compression in compress_quality dominates).
+# Wall clock: dominated by the MiMo A/B runners.
 #
 # Usage:
 #   nohup bash eval/run_actionable_batch.sh > /tmp/te-eval-actionable.log 2>&1 &
@@ -52,10 +49,6 @@ run_step "verify-before-completion (executable prompts, N=$N)" \
 run_step "plan-first-execute (N=$N)" \
   python3 eval/runner.py --task eval/tasks/plan-first-execute.yaml \
     --n "$N" --backend mimo --model mimo-v2-flash
-
-run_step "compress-context quality (SQuAD A/B, N=$N, MiMo judge)" \
-  python3 eval/runner_compress_quality.py --n "$N" --rate 0.5 \
-    --target mimo-v2-flash --judge mimo-v2-flash
 
 # Judge the new A/B result files (skip already-judged).
 run_step "judge: verify-before-completion" \

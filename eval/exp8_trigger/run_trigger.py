@@ -36,20 +36,15 @@ SHOULD_FIRE = [
     ("before we start this 6-file refactor, draft a phased plan first", "plan-first-execute"),
     ("I think the tests pass now — confirm the work is actually done", "verify-before-completion"),
     ("where is the function parse_config used across the whole codebase?", "index-first"),
-    ("have we tried to fix this caching bug in some earlier session?", "session-recall"),
     ("the wiki facts are stale after the big rename — reconcile them against the code", "wiki-refresh"),
-    ("these wiki pages are old; apply time-based confidence decay to them", "memory-decay"),
     ("should this note be persisted to memory or is it too low-signal?", "write-gate"),
     ("record this architecture decision in our project memory for next time", "wiki-memory"),
     ("the terminal output is full of ANSI codes and progress bars — clean it up", "output-filter"),
     ("I'm re-reading a file I already opened; just show me what changed", "semantic-diff"),
     ("audit this project's prompt-cache hygiene before we ship the new hooks", "cache-lint"),
     ("write a handoff doc so a fresh session can pick up where I left off", "handoff"),
-    ("this prompt is over 2K tokens — compress it before sending", "compress-context"),
     ("classify this incoming prompt and route it to the cheapest capable model", "prompt-triage"),
     ("extract the key state from this transcript before it gets compacted", "context-keeper"),
-    ("the agent keeps making the same failing tool call over and over", "loop-breaker"),
-    ("pull the transcript from my other stuck session and write a doc here", "handoff-from"),
 ]
 
 

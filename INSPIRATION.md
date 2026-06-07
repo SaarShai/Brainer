@@ -76,13 +76,15 @@ Repos and writeups that shaped this catalog or live in adjacent territory. Group
 
 ## Drift mitigation (loop/goal/spec)
 
-- [google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli) `loopDetectionService.ts` — production loop detector: identical tool-call ≥ 5× or identical sentence ≥ 10× triggers halt + recovery. Lineage for [`loop-breaker`](skills/loop-breaker/SKILL.md).
-- [anthropics/claude-code#4277](https://github.com/anthropics/claude-code/issues/4277) — open feature request: no first-party loop detection in Claude Code. Documents the gap [`loop-breaker`](skills/loop-breaker/SKILL.md) fills.
+> `loop-breaker` (in-loop tool-call looping) was built then **cut v1.6.0** — unproven gain vs. an always-on PreToolUse hook cost; in-loop detection left to host loop-protection. Prior art below retained as reference.
+
+- [google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli) `loopDetectionService.ts` — production loop detector: identical tool-call ≥ 5× or identical sentence ≥ 10× triggers halt + recovery. Lineage for `loop-breaker`.
+- [anthropics/claude-code#4277](https://github.com/anthropics/claude-code/issues/4277) — open feature request: no first-party loop detection in Claude Code. Documents the gap `loop-breaker` fills.
 - [othmanadi/planning-with-files](https://github.com/othmanadi/planning-with-files) — 3-file plan/findings/progress pattern with PreToolUse plan re-reads. Candidate lineage for a future `plan-anchor` skill (held; design questions on re-injection cadence vs. noise).
 - [itsuzef/goalkeeper](https://github.com/itsuzef/goalkeeper) — fresh subagent judges work against a written Definition of Done after validator passes. Adjacent to [`verify-before-completion`](skills/verify-before-completion/SKILL.md) but DoD-driven rather than test-driven.
 - [fiberplane/drift](https://github.com/fiberplane/drift) — tree-sitter AST anchors bind markdown blocks to source symbols + `@<git-sha>`; `drift check` fails CI on spec↔code divergence. Candidate for a future `spec-anchor` thin wrapper.
-- [rohitg00/pro-workflow](https://github.com/rohitg00/pro-workflow) — converts user corrections into FTS5-indexed rules auto-injected at SessionStart so the same failure doesn't recur next session. Cross-session counterpart to [`loop-breaker`](skills/loop-breaker/SKILL.md)'s in-session detection.
-- [rulebricks/claude-code-guardrails](https://github.com/rulebricks/claude-code-guardrails) — PreToolUse rule engine blocking fabricated/dangerous commands. Adjacent shape to [`loop-breaker`](skills/loop-breaker/SKILL.md) but rule-based rather than pattern-based.
+- [rohitg00/pro-workflow](https://github.com/rohitg00/pro-workflow) — converts user corrections into FTS5-indexed rules auto-injected at SessionStart so the same failure doesn't recur next session. Cross-session counterpart to `loop-breaker`'s in-session detection.
+- [rulebricks/claude-code-guardrails](https://github.com/rulebricks/claude-code-guardrails) — PreToolUse rule engine blocking fabricated/dangerous commands. Adjacent shape to `loop-breaker` but rule-based rather than pattern-based.
 - arXiv [2601.04170](https://arxiv.org/abs/2601.04170) "Agent Drift" — taxonomy (semantic/coordination/behavioral) + Agent Stability Index across 12 dimensions. Background; ASI itself doesn't fit a slash-skill (needs cross-session telemetry).
 
 ## Compliance decay / instruction adherence
@@ -113,7 +115,7 @@ Public eval harnesses + methodology papers for skills themselves — recently em
 - arXiv [2508.21433 — Complexity Trap](https://arxiv.org/abs/2508.21433) (Aug 2025) — on SWE-bench × 5 models, **plain observation masking halves cost and matches LLM summarization.** **Required control** in [`eval/FINDINGS.md`](eval/FINDINGS.md): compression / compaction skills must beat masking to count as a measured win.
 - arXiv [2510.00615 — ACON](https://arxiv.org/abs/2510.00615) — [Microsoft code](https://github.com/microsoft/acon): 26–54% token reduction at 95% accuracy retention; paired-trajectory evaluation recipe worth stealing for compaction skills.
 - arXiv [2604.19572 — TACO](https://arxiv.org/abs/2604.19572) (Apr 2026) — training-free; learns reusable compression rules from trajectories; tested on TerminalBench / SWE-Bench Lite / DevEval.
-- arXiv [2604.10235 — CodeComp](https://arxiv.org/abs/2604.10235) — structural KV-cache compression for agentic coding; uses Code Property Graph priors; reference for the KV-cache mechanism in [`compress-context`](skills/compress-context/SKILL.md).
+- arXiv [2604.10235 — CodeComp](https://arxiv.org/abs/2604.10235) — structural KV-cache compression for agentic coding; uses Code Property Graph priors. KV-cache compression reference; we built `compress-context` (LLMLingua input compression) but **cut it v1.6.0** — barely beat free observation-masking; neural compaction left to host `/compact` + `context-keeper`.
 - arXiv [2602.12430 — Agent Skills for LLMs: Architecture, Acquisition, Security](https://arxiv.org/abs/2602.12430) — field-defining survey on SKILL.md + progressive context loading + skills/MCP complementarity. Cite as the taxonomy paper Token Economy fits into.
 - arXiv [2602.11988 — Evaluating AGENTS.md](https://arxiv.org/abs/2602.11988) — context files **reduce success rate, +20% cost** across 138 niche Python tasks × 4 frontier models. Contrast with arXiv [2601.20404](https://arxiv.org/abs/2601.20404) (opposite finding on a different set). The contradiction motivates Token Economy's progressive-disclosure design.
 

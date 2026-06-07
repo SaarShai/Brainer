@@ -37,9 +37,9 @@ graphify extract .
 
 `./install.sh` installs `graphify` from our maintained fork ([SaarShai/graphify@token-economy-patches](https://github.com/SaarShai/graphify/tree/token-economy-patches)) — published `graphifyy` 0.8.17 ships four bugs that affect our skill flow (see [skills/index-first/EVAL.md](skills/index-first/EVAL.md) for the bug list and impact). The installer prefers `pipx` and falls back to `python3 -m pip install --user`. Opt out with `./install.sh --no-graphify` (the wiki-memory and index-first skills degrade gracefully when the graph isn't present). After bootstrap the stack is on automatically — hooks fire per event, descriptions trigger on prompt shape.
 
-## The catalog (19 skills)
+## The catalog (16 skills)
 
-**15 default-installed, 4 opt-in** (`compress-context`, `skill-pulse`, `compliance-canary`, `session-recall` carry `auto-install: false` — `./install.sh` symlinks and lists them but does not run their `tools/install.sh`, so no heavy dep is pulled and no hook is auto-wired). Enable one with `bash skills/<name>/tools/install.sh`.
+**14 default-installed, 2 opt-in** (`skill-pulse`, `compliance-canary` carry `auto-install: false` — `./install.sh` symlinks and lists them but does not run their `tools/install.sh`, so no hook is auto-wired). Enable one with `bash skills/<name>/tools/install.sh`.
 
 | Skill | Trigger | Desc tokens | Notes |
 |---|---|---:|---|
@@ -51,12 +51,9 @@ graphify extract .
 | [handoff](skills/handoff/SKILL.md) | explicit `/handoff` (+ `--full`, `--ask`) | ~150 | Unified session handoff. Three modes: write doc to $TMPDIR / write doc + route facts to wiki / query last handoff. Replaces `context-refresh`; manual successor launch only. |
 | [prompt-triage](skills/prompt-triage/SKILL.md) | UserPromptSubmit hook | 89 | Pre-model regex+Ollama classifier; routes simple tasks to cheap models. |
 | [context-keeper](skills/context-keeper/SKILL.md) | PreCompact hook | 80 | Structured memory before compaction. |
-| [session-recall](skills/session-recall/SKILL.md) | "have we done X / what was tried before" | 96 | **Opt-in** (`auto-install: false`). Synthesizes across ALL prior local sessions (Claude Code/Codex/Cursor) when no handoff doc exists. Filters MB-scale transcripts to scratch + dispatches a synthesis subagent — raw never enters orchestrator context (measured 66MB→220B stdout). Pull-many complement to handoff. Lineage: EveryInc/compound-engineering-plugin `ce-sessions`. |
-| [compress-context](skills/compress-context/SKILL.md) | opt-in long-context | 127 | **Opt-in** (`auto-install: false`). LLMLingua-based compound compression. −35.6% mean reduction (n=3, `eval/results`); the 44.9%/SQuAD claim lives only in `tools/RESULTS.md` and is not reproduced in `eval/results`. Heavy torch+llmlingua dep; barely beats free observation-masking — enable only if you need neural input compression. |
 | [semantic-diff](skills/semantic-diff/SKILL.md) | file re-read | 99 | AST-node diff. 95.5% measured savings on argparse.py re-reads. |
 | [index-first](skills/index-first/SKILL.md) | "where is X used / what calls Y" | ~110 | Prefer pre-built indexes / composite verbs over grep+read chains. Eval pending. (colbymchenry/codegraph lineage.) |
 | [output-filter](skills/output-filter/SKILL.md) | terminal output hook | 99 | Strip ANSI/progress/dup noise; preserves errors. |
-| [loop-breaker](skills/loop-breaker/SKILL.md) | PreToolUse hook | 69 | Detects N consecutive identical tool calls, injects a replan signal. Drift-mitigation; cheap. |
 | [skill-pulse](skills/skill-pulse/SKILL.md) | UserPromptSubmit hook | 61 | **Opt-in** (`auto-install: false`). Every N turns re-injects active skills' `pulse_reminder` rules. Paper-calibrated (arXiv 2510.07777); unmeasured in-repo. |
 | [compliance-canary](skills/compliance-canary/SKILL.md) | UserPromptSubmit hook | 52 | **Opt-in** (`auto-install: false`). Scans recent replies against per-skill `drift_probes.json`; injects targeted correctives. Symptomatic complement to `skill-pulse`; unmeasured in-repo. |
 | [write-gate](skills/write-gate/SKILL.md) | before any persistent write | ~120 | Content-quality gate on durable memory. Signal-score (ogham lineage) + why-clause enforcement (codenamev lineage). Prevents reasonless decisions and recap-style writes. |
@@ -97,7 +94,7 @@ See [eval/results/static_cost.json](eval/results/static_cost.json) for the full 
 | Codex / Cursor / Gemini CLI / Copilot | per-project (no plugin format exists for these) | clone into `<project>/.token-economy`, then `.token-economy/install.sh --host <name>` + symlink — see [Per-project install](#per-project-install-non-claude-code-hosts) |
 | any host (inside the token-economy clone itself, e.g. contributing) | for that clone only | `./install.sh` (all hosts) or `./install.sh --host <name>` |
 
-The plugin (`token-economy` v1.5.0) bundles all 19 skills plus optional `UserPromptSubmit`, `PreCompact`, and `PreToolUse` hooks (off by default; toggle in plugin config).
+The plugin (`token-economy` v1.6.0) bundles all 16 skills plus optional `UserPromptSubmit` and `PreCompact` hooks (off by default; toggle in plugin config).
 
 ### Host install matrix
 
@@ -184,12 +181,11 @@ Built on prior work:
 - [muratcankoylan/Agent-Skills-for-Context-Engineering](https://github.com/muratcankoylan/Agent-Skills-for-Context-Engineering) — 15-skill catalog precedent.
 - [coleam00/claude-memory-compiler](https://github.com/coleam00/claude-memory-compiler) — SessionEnd → wiki distillation.
 - [cocoindex-io/cocoindex-code](https://github.com/cocoindex-io/cocoindex-code) — AST MCP code search.
-- [microsoft/LLMLingua](https://github.com/microsoft/LLMLingua) — neural prompt compression (LLMLingua-2 powers `compress-context`).
-- [lm-sys/RouteLLM](https://github.com/lm-sys/RouteLLM) — model routing reference for `prompt-triage` and `delegate`.
+- [lm-sys/RouteLLM](https://github.com/lm-sys/RouteLLM) — model routing reference for `prompt-triage`.
 
 ## Status
 
-- 19 skills written and lint-clean.
+- 16 skills written and lint-clean.
 - 4 hosts wired and verified (Claude Code, Codex, Cursor, Gemini CLI).
 - Static-cost measurements published.
 - Live A/B harness ready; needs a healthy Ollama / explicit `ANTHROPIC_API_KEY` / `HF_TOKEN` to run.

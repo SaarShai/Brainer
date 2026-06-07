@@ -40,11 +40,29 @@ Skills compound across axes (output × input × routing × memory) but **diminis
 
 | Metric | Value | Source |
 |---|---|---|
-| Always-on context tax (19 skill descriptions) | **1321 tokens** (~0.66% of 200K) — down from 1642 (**−321, −19.6%**): trigger-verified description trim (→1505, top-1 accuracy held 18/19) + cutting `handoff-from` (redundant w/ session-recall) and `memory-decay` (verified no-op — retrieval never read its decayed field) | `eval/results/static_cost.json` · `eval/exp8_trigger/` |
+| Always-on context tax (16 skill descriptions) | **1071 tokens** (~0.54% of 200K) — down from 1642 (**−571, −34.8%**): trigger-verified description trim + five catalog cuts (`handoff-from`, `memory-decay`, then v1.6.0 `compress-context` / `session-recall` / `loop-breaker` — see *Catalog cuts*) | `eval/results/static_cost.json` · `eval/exp8_trigger/` |
 | Best per-call output reduction (caveman-ultra) | **−86.4%** output (N=50), **+0.13 judge** (prior N=15) | `eval/results/caveman-ultra.json` + `.judged.json` |
 | Best discipline combo (caveman + lean) | **−87.7%** output | `eval/results/caveman+lean.json` |
 | End-to-end routing savings (prompt-triage, N=13 mixed prompts) | **−20.9%** total tokens, 100% classification accuracy | `eval/results/prompt-triage.json` |
 | Memory compression (context-keeper, real 970-event transcript) | sidecar = **2.3% of raw transcript** (44× smaller), 100% URL recall, 67% numbers recall | `eval/results/context-keeper.json` |
+
+## Catalog cuts (v1.6.0 — 19 → 16 skills)
+
+Trimmed the unproven-gain tail. Principle: a skill stays only if it's either **measured-positive** or **cheap + load-bearing-by-design** (operational utility, no gain claim). A skill that is *both* ❌/🟡 on measured benefit *and* redundant with a kept skill is dead weight — cut it.
+
+| Cut | Why | Covered now by |
+|---|---|---|
+| `compress-context` | −35.6% (n=3, degraded); barely beat free observation-masking; heavy torch+llmlingua dep | host `/compact` + `context-keeper` (extraction) + `caveman` (output) |
+| `session-recall` | no end-to-end Δ; A/B unmeasured | `context-keeper` (auto) + `wiki-memory` (curated) + `handoff` (explicit) |
+| `loop-breaker` | no token A/B; always-on PreToolUse cost vs. unproven benefit | host loop-protection |
+| `handoff-from` *(earlier)* | redundant pull-direction of `handoff` | `handoff` / `session-recall`-replacement |
+| `memory-decay` *(earlier)* | verified **no-op** — retrieval ranking never read its decayed `confidence`; only lint did | n/a (was inert) |
+
+**Kept, against the "bottom-5" framing** (the source table predated Exp10):
+- **`cache-lint`** — Exp10 measured detection **F1 1.0** (recall 1.0 / FP 0.0, 18-case labeled corpus). Pillar-1 (cache/token economy), distinct value. Not unproven.
+- **`handoff`** — the one documented `/handoff` user command; operational-by-design (no gain claim, ≠ unproven gain), zero always-on cost, 3/3 integration tests.
+
+Effect: always-on tax 1642 → **1071 (−34.8%)**; `eval/exp8_trigger/` top-1 fidelity was measured at the 19-skill snapshot (corpus since trimmed to the live set). Installer (`install.sh`) now prunes broken symlinks + orphan cursor rules on re-install, so cuts self-heal instead of stranding dangling links.
 
 ## Self-improvement: compounding memory (Exp1, real-model)
 

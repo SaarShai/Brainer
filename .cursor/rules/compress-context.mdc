@@ -1,7 +1,0 @@
----
-description: Compound prompt compression (LLMLingua-2 + structural protection of code/paths/numbers) with a self-verify judge that falls back on low confidence. Opt-in for long-context (≥2K-token) prompts. In-repo measurement only −35.6% (n=3) — barely beats free observation-masking, so auto-install:false pending a clean N≥50 run.
-globs: ["**/*"]
-alwaysApply: false
----
-
-@skills/compress-context/SKILL.md

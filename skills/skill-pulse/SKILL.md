@@ -1,6 +1,6 @@
 ---
 name: skill-pulse
-description: UserPromptSubmit hook that periodically re-injects active skill rules to fight instruction drift. Every N user turns (default 4), emits a <system-reminder> listing skills currently in scope and their rule summaries. Compliance-decay analog of loop-breaker. Use when long sessions cause earlier-loaded skill rules to fade from effective attention.
+description: UserPromptSubmit hook that periodically re-injects active skill rules to fight instruction drift. Every N user turns (default 4), emits a <system-reminder> listing skills currently in scope and their rule summaries. Use when long sessions cause earlier-loaded skill rules to fade from effective attention.
 model: haiku
 effort: low
 tools: [Bash, Read, Write]
@@ -24,7 +24,7 @@ Skills load on trigger; their full body is read once and then buried in context.
 - `verify-before-completion`-active session ships "done!" claims without running the verification command
 - A "use Edit, not Write" rule from system context slips back to Write
 
-This is **compliance decay**, distinct from the in-loop drift `loop-breaker` watches. Different mechanism, different hook, different fix.
+This is **compliance decay** — distinct from in-loop *tool-call* looping (a separate failure mode, left to host loop-protection). Different mechanism, different fix.
 
 ## Empirical basis
 
@@ -110,7 +110,7 @@ Errors are logged to stderr with ISO timestamps; the user's prompt proceeds.
 
 ## Lineage
 
-- [google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli) — adjacent: in-loop loop detection (we already wrap that in [`loop-breaker`](../loop-breaker/SKILL.md))
+- [google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli) — adjacent: in-loop loop detection (a different failure mode; left to host loop-protection)
 - [Cline Focus Chain](https://docs.cline.bot/features/focus-chain) — closest production analog (re-injects every 6 messages) but pulses todos, not skill rules
 - [Cursor `alwaysApply: true`](https://forum.cursor.com/t/alwaysapply-true-rules-are-being-completely-ignored-now/158551) — every-prompt re-inject, widely reported failure mode in long sessions
 - [delta-hq/cc-canary](https://github.com/delta-hq/cc-canary) — forensic drift detector (offline post-hoc), no in-loop intervention
