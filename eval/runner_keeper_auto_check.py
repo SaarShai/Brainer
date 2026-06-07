@@ -4,7 +4,7 @@
 Scans every transcript JSONL under ~/.claude/projects/<project-slug>/ for
 `compact_boundary` events. For each event with `compactMetadata.trigger == "auto"`
 that fired after the hook-fix timestamp, asserts a checkpoint file exists in
-.token-economy/sessions/ whose name encodes the same session-id prefix and a
+.brainer/sessions/ whose name encodes the same session-id prefix and a
 timestamp within ±tolerance of the event timestamp.
 
 Exit 0: all auto-compactions have checkpoints.
@@ -106,7 +106,7 @@ def main() -> int:
     since = parse_iso(args.since)
     cwd = Path(args.cwd).resolve()
     tdir = Path.home() / ".claude" / "projects" / project_slug(cwd)
-    sessions_dir = cwd / ".token-economy" / "sessions"
+    sessions_dir = cwd / ".brainer" / "sessions"
 
     if not tdir.is_dir():
         print(f"no transcripts dir at {tdir}", file=sys.stderr)

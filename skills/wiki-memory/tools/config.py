@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 
-CONFIG_NAME = "token-economy.yaml"
+CONFIG_NAME = "brainer.yaml"
 
 
 @dataclass
@@ -112,7 +112,7 @@ def load_config(repo_root: str | Path | None = None) -> Config:
     wiki_root = resolve_config_path(str(wiki_root_raw), root, config_dir)
     model_registry_raw = raw.get("model_registry", "./models.yaml")
     model_registry = resolve_config_path(str(model_registry_raw), root, config_dir)
-    output_filter_rules_raw = raw.get("output_filter_rules", ".token-economy/output-filter-rules.txt")
+    output_filter_rules_raw = raw.get("output_filter_rules", ".brainer/output-filter-rules.txt")
     output_filter_rules = resolve_config_path(str(output_filter_rules_raw), root, config_dir)
     return Config(
         repo_root=root,

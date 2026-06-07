@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Token Economy skill-set installer.
+# Brainer skill-set installer.
 # Symlinks skills/ into the per-host loader path. Idempotent.
 # Usage:
 #   ./install.sh                           # all detected hosts + graphify
@@ -69,8 +69,8 @@ link() {
 # Slash-triggered skills (disable-model-invocation: true) get their own
 # section so the agent knows to dispatch on the literal token.
 
-CATALOG_START='<!-- token-economy:skills-catalog:start -->'
-CATALOG_END='<!-- token-economy:skills-catalog:end -->'
+CATALOG_START='<!-- brainer:skills-catalog:start -->'
+CATALOG_END='<!-- brainer:skills-catalog:end -->'
 
 # Strip trigger-boilerplate prefix sentences from a description, return the
 # first remaining sentence.
@@ -206,7 +206,7 @@ inject_catalog_into_doc() {
 
   if [ ! -f "$target" ]; then
     {
-      printf '# Token Economy\n\n'
+      printf '# Brainer\n\n'
       printf 'Skills catalog: see [`%s/SKILLS_INDEX.md`](%s/SKILLS_INDEX.md).\n\n' "$SKILLS_DIR" "$SKILLS_DIR"
       printf 'Each skill loads on its own trigger; full bodies are not in the boot context. Run `./install.sh` to wire skills into the current host.\n\n'
       cat "$block_tmp"
@@ -216,7 +216,7 @@ inject_catalog_into_doc() {
     return 0
   fi
 
-  if grep -q 'token-economy:skills-catalog:start' "$target"; then
+  if grep -q 'brainer:skills-catalog:start' "$target"; then
     local out; out=$(mktemp)
     awk -v blockfile="$block_tmp" -v start="$CATALOG_START" -v end="$CATALOG_END" '
       index($0, start) {
@@ -339,7 +339,7 @@ install_cursor() {
   for mdc in "$REPO_ROOT"/.cursor/rules/*.mdc; do
     [ -e "$mdc" ] || continue
     local base; base=$(basename "$mdc" .mdc)
-    [ "$base" = "_token-economy-catalog" ] && continue
+    [ "$base" = "_brainer-catalog" ] && continue
     if [ ! -d "$SRC/$base" ]; then
       if [ "$DRY_RUN" = "1" ]; then echo "DRY: prune orphan $mdc"
       else rm -f "$mdc"; echo "    [prune] ${base}.mdc (removed from catalog)"; fi
@@ -369,7 +369,7 @@ MDC
   done
   # Always-apply catalog rule — keeps slash-triggers visible in Cursor's
   # resident context even though individual skill .mdc files are alwaysApply:false.
-  local catalog_mdc="$REPO_ROOT/.cursor/rules/_token-economy-catalog.mdc"
+  local catalog_mdc="$REPO_ROOT/.cursor/rules/_brainer-catalog.mdc"
   if [ "$DRY_RUN" = "1" ]; then
     echo "DRY: write $catalog_mdc"
   else
@@ -377,7 +377,7 @@ MDC
     render_skills_catalog > "$body_tmp"
     {
       printf -- '---\n'
-      printf -- 'description: Token Economy repo-local skills catalog — slash-trigger awareness.\n'
+      printf -- 'description: Brainer repo-local skills catalog — slash-trigger awareness.\n'
       printf -- 'globs: ["**/*"]\n'
       printf -- 'alwaysApply: true\n'
       printf -- '---\n\n'

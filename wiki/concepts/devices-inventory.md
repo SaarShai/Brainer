@@ -70,7 +70,7 @@ ssh -i /Users/saar/.ssh/id_ed25519 -F /dev/null -o StrictHostKeyChecking=no -o C
 - **Safe default**: `-ctk q8_0 -ctv turbo4 -fa 1 -ngl 99` for Q4_K_M GGUF
 - **Smoke check**: `scripts/turboquant_smoke.py --json`
 
-### Token Economy install
+### Brainer install
 
 - **MCP servers**: None listed in `~/.claude/mcp-servers/`
 - **Agents** (15 total, ~/.claude/agents/):

@@ -73,7 +73,7 @@ def state_dir() -> Path:
     # state across directories the agent has cd'd into.
     project = os.environ.get("CLAUDE_PROJECT_DIR")
     base = Path(project) if project else Path.cwd()
-    return base / ".token-economy" / "compliance-canary"
+    return base / ".brainer" / "compliance-canary"
 
 
 def state_path(session_id: str) -> Path:

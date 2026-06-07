@@ -1,11 +1,11 @@
-# Token Economy Usage Index
+# Brainer Usage Index
 
-Catalog for a target project that uses Token Economy locally. Load only matched pages.
+Catalog for a target project that uses Brainer locally. Load only matched pages.
 
 ## Startup
 - [[L0_rules]] + [[L1_index]] — lean startup memory tiers
 - [[schema]] — repo-local markdown wiki contract
-- `token-economy.yaml` — local framework config
+- `brainer.yaml` — local framework config
 
 ## Commands
 - `./te doctor` — verify local framework health

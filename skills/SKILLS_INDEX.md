@@ -1,4 +1,4 @@
-# Token Economy Skills
+# Brainer Skills
 
 Lean skills for AI coding agents (Claude Code · Codex · Cursor · Gemini · Copilot) across four pillars: **(1)** token-use optimization, **(2)** context-window optimization & management, **(3)** LLM wiki-memory framework, **(4)** self-improvement & learning.
 

@@ -30,7 +30,7 @@ A direct A/B requires an index actually being installed (e.g., codegraph + MCP) 
 
 [graphify](https://github.com/safishamsi/graphify) builds an AST-based code graph (`graphify-out/graph.json`) plus optional Leiden community clusters. We measured it as a candidate index for this skill's "composite verb over chained primitives" pattern. Headline: when an agent asks symbol-precision questions and graphify is present, **`graphify explain` matches grep+read on evidence at -93% tokens** in our 12-question A/B on this repo's `skills/`. The integration ships in [SKILL.md](SKILL.md) as a recipe — no new skill folder.
 
-### Retrieval A/B (n=12 questions on token-economy `skills/`, code-only graph)
+### Retrieval A/B (n=12 questions on brainer `skills/`, code-only graph)
 
 Harness: [`eval/runner_graphify.py`](../../eval/runner_graphify.py). All token counts are char/4 heuristic; "evidence rate" = fraction of questions whose output contained ≥1 expected keyword.
 
@@ -48,7 +48,7 @@ Harness: [`eval/runner_graphify_costcurve.py`](../../eval/runner_graphify_costcu
 
 | Repo | Code files | Source | Wall time | Nodes | Edges | Communities | Graph size |
 |---|---|---|---|---|---|---|---|
-| small (token-economy `skills/`) | 83 | 207MB* | 17.3s | 507 | 810 | 58 | 0.4MB |
+| small (brainer `skills/`) | 83 | 207MB* | 17.3s | 507 | 810 | 58 | 0.4MB |
 | medium (flask) | 84 | 0.6MB | **1.6s** | 1,195 | 1,793 | 128 | 0.9MB |
 | large (django) | 3,023 | 21MB | 57.9s | 41,373 | 127,537 | 2,694 | **55.7MB** |
 
@@ -58,7 +58,7 @@ Scaling: roughly linear in code-file count. Cost is **near-zero** for typical pr
 
 ### Quality probes
 
-Harness: [`eval/runner_graphify_quality.py`](../../eval/runner_graphify_quality.py). Corpus: token-economy `skills/`.
+Harness: [`eval/runner_graphify_quality.py`](../../eval/runner_graphify_quality.py). Corpus: brainer `skills/`.
 
 - **Edge precision** (30 random EXTRACTED edges checked against ±5-line window in the cited source): **29/30 = 96.7%**. The single miss is a structural `contains` edge on an entry-node placeholder, not a code-claim defect. Real precision on code-claim edges is effectively 100% in this sample.
 - **Path soundness** (3 curated paths): 3/3 returned a valid path; 2/3 within expected hop bound. The third returned a shorter path than expected — a graphify shortcut via a `method` edge that's correct but skips an intermediate. Not a bug, but worth noting the hop count isn't a stable property.

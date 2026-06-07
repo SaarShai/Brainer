@@ -354,7 +354,7 @@ _(Dropped rows: `context-refresh`, `delegate`, `compress-context` — all cut fr
 ## Re-running these measurements
 
 ```bash
-. .token-economy/secrets.env && export MIMO_API_KEY
+. .brainer/secrets.env && export MIMO_API_KEY
 
 # per-skill in-context (4 discipline + 4 combos):
 python3 eval/runner.py --task eval/tasks/caveman-ultra.yaml --n 5 --backend mimo --model mimo-v2-flash

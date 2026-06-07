@@ -3,7 +3,7 @@
 Compact pointers. Fetch details on demand.
 
 - start -> `start.md`
-- config -> `token-economy.yaml`
+- config -> `brainer.yaml`
 - model registry -> `models.yaml`
 - L0 rules -> `L0_rules.md`
 - schema -> `schema.md`

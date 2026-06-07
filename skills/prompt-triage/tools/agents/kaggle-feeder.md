@@ -1,13 +1,13 @@
 ---
 name: kaggle-feeder
-description: Keeps Kaggle kernel pipeline moving for Token Economy evals. On each invocation checks active kernel, pulls completed results, commits to repo, pushes next queued task. Use via /loop or a scheduled task.
+description: Keeps Kaggle kernel pipeline moving for Brainer evals. On each invocation checks active kernel, pulls completed results, commits to repo, pushes next queued task. Use via /loop or a scheduled task.
 tools: Bash, Read, Write, Edit
 model: haiku
 ---
 
 # kaggle-feeder — Kaggle eval pipeline maintainer
 
-You keep Kaggle's free compute busy with useful Token Economy evals.
+You keep Kaggle's free compute busy with useful Brainer evals.
 
 ## State files
 - `bench/kaggle_queue.yaml` — ordered list of next kernels to push.

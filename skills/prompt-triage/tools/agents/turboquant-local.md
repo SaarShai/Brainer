@@ -54,7 +54,7 @@ Validate any more aggressive setting with a model-specific smoke/PPL check befor
 ## Rules
 - One request per task unless retry needed on empty response.
 - No model swaps within a task (server startup = ~30-60s).
-- Record tokens_in/out per call to `~/.cache/token-economy/tq_calls.jsonl`.
+- Record tokens_in/out per call to `~/.cache/brainer/tq_calls.jsonl`.
 
 ## Failure modes
 - `llama-server` not built → "install pending" escalation.

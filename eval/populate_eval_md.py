@@ -25,7 +25,7 @@ def build_ab_block(name: str, results_path: Path, judged_path: Path) -> str:
         return f"""## A/B savings (pending live run)
 
 ```bash
-. .token-economy/secrets.env && export MIMO_API_KEY
+. .brainer/secrets.env && export MIMO_API_KEY
 python3 eval/runner.py --task eval/tasks/{name}.yaml --n 10 --backend mimo --model mimo-v2-flash
 python3 eval/judge.py eval/results/{name}.json --model mimo-v2-flash --backend mimo
 ```

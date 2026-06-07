@@ -276,7 +276,7 @@ def main():
     md = render_markdown(regex_out, llm_out, sid, args.transcript)
 
     repo_root = Path(os.environ.get("TOKEN_ECONOMY_ROOT", Path.cwd()))
-    out_path = Path(args.out) if args.out else repo_root / ".token-economy" / "sessions" / f"{time.strftime('%Y-%m-%d-%H%M', time.gmtime())}-{sid[:8]}.md"
+    out_path = Path(args.out) if args.out else repo_root / ".brainer" / "sessions" / f"{time.strftime('%Y-%m-%d-%H%M', time.gmtime())}-{sid[:8]}.md"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(md, encoding="utf-8")
 

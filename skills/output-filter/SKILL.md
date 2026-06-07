@@ -9,7 +9,7 @@ tools: [Bash]
 
 ## What it does
 
-Strips ANSI escape codes and progress-bar redraws, collapses adjacent duplicate lines, and preserves error lines / exit-status markers verbatim. Raw output is archived under `.token-economy/output-filter/<session>/` so you can always recover the original. CLI exposes `stats` (token savings per session) and `rewind` (restore raw output for the last N runs).
+Strips ANSI escape codes and progress-bar redraws, collapses adjacent duplicate lines, and preserves error lines / exit-status markers verbatim. Raw output is archived under `.brainer/output-filter/<session>/` so you can always recover the original. CLI exposes `stats` (token savings per session) and `rewind` (restore raw output for the last N runs).
 
 ## Usage
 
@@ -27,7 +27,7 @@ python skills/output-filter/tools/cli.py rewind
 python skills/output-filter/tools/cli.py rules --init
 ```
 
-Custom rules live at `.token-economy/output-filter-rules.txt`. Syntax: `keep:<regex>`, `drop:<regex>`, `collapse:<regex>`.
+Custom rules live at `.brainer/output-filter-rules.txt`. Syntax: `keep:<regex>`, `drop:<regex>`, `collapse:<regex>`.
 
 Optional session-aware suppression (suppresses lines already seen in the current `TOKEN_ECONOMY_SESSION_ID`) is OFF by default — repeated lines often matter during debugging. Enable with `--session-aware`.
 

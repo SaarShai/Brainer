@@ -11,7 +11,7 @@ from typing import Any
 
 
 WIKI_DIRS = ("raw", "concepts", "patterns", "projects", "people", "queries", "L2_facts", "L3_sops", "L4_archive")
-SKIP_PARTS = {".git", ".token-economy", ".claude", "__pycache__", ".pytest_cache"}
+SKIP_PARTS = {".git", ".brainer", ".claude", "__pycache__", ".pytest_cache"}
 # H8 fix: hard cap on file sizes read into memory. Stops a runaway/corrupt
 # manifest or log from blowing the host's memory. 10MB is plenty for any
 # real-world wiki log or import manifest.
@@ -32,7 +32,7 @@ V2_TYPES = {"entity", "summary", "decision", "source-summary", "procedure", "con
 V2_TIERS = {"working", "episodic", "semantic", "procedural"}
 
 
-DEFAULT_SCHEMA = """# Token Economy Wiki Schema
+DEFAULT_SCHEMA = """# Brainer Wiki Schema
 
 Purpose: a repo-local markdown LLM wiki for durable agent memory in the current target project.
 
@@ -317,7 +317,7 @@ def render_template(text: str, values: dict[str, str]) -> str:
 class WikiStore:
     def __init__(self, root: str | Path):
         self.root = Path(root).expanduser().resolve()
-        self.state_dir = self.root / ".token-economy"
+        self.state_dir = self.root / ".brainer"
         self.db_path = self.state_dir / "wiki.sqlite3"
         # H2 fix: per-instance caches. iter_markdown / read_page / _rank_pages
         # previously walked + re-read every file on each call. A single
@@ -479,7 +479,7 @@ class WikiStore:
             "Compact pointers. Fetch details on demand.",
             "",
             "- start -> `start.md`",
-            "- config -> `token-economy.yaml`",
+            "- config -> `brainer.yaml`",
             "- model registry -> `models.yaml`",
             "- L0 rules -> `L0_rules.md`",
             "- schema -> `schema.md`",

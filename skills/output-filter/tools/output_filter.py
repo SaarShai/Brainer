@@ -71,7 +71,7 @@ def _now_id() -> tuple[str, str]:
 
 
 def _state_dir(repo_root: Path) -> Path:
-    return repo_root / ".token-economy" / "output-filter"
+    return repo_root / ".brainer" / "output-filter"
 
 
 def _line_hash(line: str) -> str:

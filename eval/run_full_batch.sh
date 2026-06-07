@@ -13,17 +13,17 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 # shellcheck disable=SC1091
-. .token-economy/secrets.env
+. .brainer/secrets.env
 export MIMO_API_KEY
 
 if [ -z "${MIMO_API_KEY:-}" ]; then
-  echo "FATAL: MIMO_API_KEY not set after sourcing .token-economy/secrets.env" >&2
+  echo "FATAL: MIMO_API_KEY not set after sourcing .brainer/secrets.env" >&2
   exit 2
 fi
 
 N="${N:-50}"
 LOG="${LOG:-/tmp/te-eval-batch.log}"
-echo "==== Token Economy full batch, N=$N, log=$LOG ===="
+echo "==== Brainer full batch, N=$N, log=$LOG ===="
 date
 
 run_step() {

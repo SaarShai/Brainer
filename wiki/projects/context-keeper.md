@@ -14,7 +14,7 @@ Default `/compact` runs an LLM summarizer → generic prose → loses file paths
 Before compaction (PreCompact hook):
 1. Parse current transcript JSONL.
 2. Regex-extract: `user_goals`, `files_created`, `files_touched`, `commands_run`, `errors_seen`, `numbers`, `urls`, `failed_attempts`.
-3. Write markdown memory page: `.token-economy/sessions/YYYY-MM-DD-HHMM-<sid8>.md`.
+3. Write markdown memory page: `.brainer/sessions/YYYY-MM-DD-HHMM-<sid8>.md`.
 4. stdout = terse pointer. PreCompact hook injects it into compaction context → summarizer includes pointer. Agent can read file post-compact.
 
 ## Files

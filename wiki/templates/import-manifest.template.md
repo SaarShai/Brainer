@@ -18,12 +18,12 @@ tags: [import, wiki-transplant, source-summary]
 
 ## Purpose
 
-Coverage manifest for recreating the source project wiki inside this repo-local Token Economy wiki.
+Coverage manifest for recreating the source project wiki inside this repo-local Brainer wiki.
 
 ## Rules
 
 - Every original wiki item gets one row.
-- Use `adapted` when information was rewritten into a local Token Economy page.
+- Use `adapted` when information was rewritten into a local Brainer page.
 - Use `archived` when material is kept only as warning/history under `L4_archive/`.
 - Use `discarded` only with a concrete rationale.
 - Original paths are provenance only; do not use them as operational instructions after import.

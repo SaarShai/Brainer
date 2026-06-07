@@ -208,7 +208,7 @@ def main():
     # Each question has a list of substrings that an acceptable answer must contain.
     QUESTIONS = [
         ("What is the secrets file path that holds MIMO_API_KEY?",
-            [".token-economy/secrets.env"]),
+            [".brainer/secrets.env"]),
         ("Which SKILL.md frontmatter value caused the host to fail to resolve a model?",
             ["model: any"]),
         ("Which Kaggle API endpoint returned 'Unauthorized' during exploration?",

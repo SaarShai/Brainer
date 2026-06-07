@@ -16,6 +16,6 @@ tags: [kv-cache, long-context]
 
 # KV Cache Eviction
 
-KV-cache eviction techniques reduce long-context memory cost by retaining high-value tokens and evicting low-value cache entries. Token Economy tracks related local work under TurboQuant.
+KV-cache eviction techniques reduce long-context memory cost by retaining high-value tokens and evicting low-value cache entries. Brainer tracks related local work under TurboQuant.
 
 Related: [[concepts/turboquant-kv-cache]]

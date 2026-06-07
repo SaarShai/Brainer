@@ -15,7 +15,7 @@ WITH_JUDGE=0
 
 if [ "$WITH_JUDGE" = "1" ]; then
   # Load MIMO_API_KEY so judge can use mimo-v2.5-pro (better quality than flash)
-  [ -f .token-economy/secrets.env ] && . .token-economy/secrets.env && export MIMO_API_KEY
+  [ -f .brainer/secrets.env ] && . .brainer/secrets.env && export MIMO_API_KEY
   for f in eval/results/*.json; do
     base=$(basename "$f" .json)
     case "$base" in

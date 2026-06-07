@@ -88,7 +88,7 @@ def _openai_compat_chat(url: str, key: str, model: str, system: str, prompt: str
 def call_mimo(model: str, system: str, prompt: str) -> dict[str, Any]:
     key = os.environ.get("MIMO_API_KEY")
     if not key:
-        raise RuntimeError("MIMO_API_KEY not set (source .token-economy/secrets.env)")
+        raise RuntimeError("MIMO_API_KEY not set (source .brainer/secrets.env)")
     base = os.environ.get("MIMO_BASE_URL", "https://api.xiaomimimo.com/v1").rstrip("/")
     return _openai_compat_chat(f"{base}/chat/completions", key, model, system, prompt)
 

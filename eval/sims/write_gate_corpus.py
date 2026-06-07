@@ -2,7 +2,7 @@
 """write-gate corpus calibration.
 
 Two passes:
-  1. REAL corpus — every page in wiki/ (Token Economy's own). Reports per-kind
+  1. REAL corpus — every page in wiki/ (Brainer's own). Reports per-kind
      score distribution + acceptance rate. No labels; just calibration.
   2. ADVERSARIAL labeled corpus — 30 hand-curated should-pass / should-reject
      pairs. Reports accuracy, precision, recall, FP and FN cases.

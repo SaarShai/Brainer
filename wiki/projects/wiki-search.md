@@ -6,7 +6,7 @@ confidence: med
 evidence_count: 0
 ---
 
-# wiki-search — progressive-disclosure retrieval over the Token Economy wiki
+# wiki-search — progressive-disclosure retrieval over the Brainer wiki
 
 **Status: IMPLEMENTED v1.** Adopts claude-mem's 3-layer retrieval pattern (index -> timeline -> fetch) for any repo-local markdown wiki. Adds an audited context packet for task-scoped loading.
 
@@ -56,7 +56,7 @@ python skills/wiki-memory/tools/wiki_mcp/mcp_server.py
 - Core code: `skills/wiki-memory/tools/wiki.py`.
 - Wrapper: `skills/wiki-memory/tools/wiki_mcp/wiki_search.py`.
 - MCP adapter: `skills/wiki-memory/tools/wiki_mcp/mcp_server.py`.
-- SQLite FTS5 index at `.token-economy/wiki.sqlite3`.
+- SQLite FTS5 index at `.brainer/wiki.sqlite3`.
 - L1 pointer index at `L1_index.md`.
 - Ranking uses title/tag/path matches, tier weighting, backlinks, confidence, recency, raw downranking, and supersession rejection.
 - Code maps use Python AST plus lightweight JS/TS/shell symbol extraction; they are structural pointers, not source substitutes.
@@ -64,7 +64,7 @@ python skills/wiki-memory/tools/wiki_mcp/mcp_server.py
 
 ## Stores
 
-- SQLite at repo-local `.token-economy/wiki.sqlite3`.
+- SQLite at repo-local `.brainer/wiki.sqlite3`.
 - Rebuilds on file modification (watchdog).
 - Vector index via sentence-transformers for heavier installations.
 

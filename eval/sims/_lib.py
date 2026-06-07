@@ -9,7 +9,7 @@ Designed for the 4 sim shapes:
   - INTEGRATION: cross-skill end-to-end pipelines.
 
 Each sim should:
-  1. Use `repo_root()` to find /Users/za/Documents/token-economy/ regardless of cwd.
+  1. Use `repo_root()` to find /Users/za/Documents/brainer/ regardless of cwd.
   2. Use `import_skill_module(name, module)` to load skill code without sys.path hacks.
   3. Use `Report` to collect results and `write_report(name, report)` to save JSON.
   4. Use `print_report(name, report)` for a consistent console summary.

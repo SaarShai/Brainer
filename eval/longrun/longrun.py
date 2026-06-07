@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Long-running cross-model replication driver (token-economy).
+"""Long-running cross-model replication driver (brainer).
 
 Built to run for HOURS on a single node against its LOCAL ollama, accumulating
 repeated trials of the model-backed experiments so we get variance (reliability),

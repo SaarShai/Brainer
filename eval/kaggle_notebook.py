@@ -34,7 +34,7 @@ import sys
 from pathlib import Path
 
 
-REPO_URL = "https://github.com/SaarShai/token-economy.git"
+REPO_URL = "https://github.com/SaarShai/Brainer.git"
 BRANCH = "main"
 
 OUT_DIR = Path("/kaggle/working/eval-results")
@@ -69,7 +69,7 @@ def run_step(label: str, cmd: list[str]) -> None:
 
 
 def main() -> int:
-    repo_dir = "/kaggle/working/token-economy"
+    repo_dir = "/kaggle/working/brainer"
     if not Path(repo_dir).exists():
         run(["git", "clone", "--depth", "1", "--branch", BRANCH, REPO_URL, repo_dir])
     print("repo at:", repo_dir)
@@ -124,7 +124,7 @@ def main() -> int:
     ])
     # keeper needs a transcript; try a couple of likely locations and skip if absent.
     for candidate in [
-        f"{repo_dir}/.token-economy/checkpoints/sample.jsonl",
+        f"{repo_dir}/.brainer/checkpoints/sample.jsonl",
         f"{repo_dir}/eval/fixtures/transcript.jsonl",
     ]:
         if Path(candidate).exists():

@@ -33,7 +33,7 @@ Model-agnostic routing policy for subagents and cheaper models.
 ./te delegate cost-check "task"  # compatibility alias
 ```
 
-Routing/classification now lives in `skills/prompt-triage/SKILL.md`; delegation pruning in `skills/lean-execution/SKILL.md`. (The `./te delegate`/`./te cost` commands above reflect the former Token Economy CLI surface.)
+Routing/classification now lives in `skills/prompt-triage/SKILL.md`; delegation pruning in `skills/lean-execution/SKILL.md`. (The `./te delegate`/`./te cost` commands above reflect the former Brainer CLI surface.)
 
 ## Cost preflight
 

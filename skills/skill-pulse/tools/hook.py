@@ -7,7 +7,7 @@ timed reminder injections drop KL divergence 6.45-11.81% and improve
 judge scores 16-27% on long-horizon agent tasks.
 
 Mechanism:
-  - Tracks turn count per session in .token-economy/skill-pulse/<sid>.json
+  - Tracks turn count per session in .brainer/skill-pulse/<sid>.json
   - Every SKILL_PULSE_EVERY user prompts (default 4, paper-calibrated),
     emits a <system-reminder> on stdout listing active skill rules.
   - UserPromptSubmit stdout-prepends to next model turn (verified docs).
@@ -54,7 +54,7 @@ def state_dir() -> Path:
     # fragments per-session state across directories.
     project = os.environ.get("CLAUDE_PROJECT_DIR")
     base = Path(project) if project else Path.cwd()
-    return base / ".token-economy" / "skill-pulse"
+    return base / ".brainer" / "skill-pulse"
 
 
 def state_path(session_id: str) -> Path:

@@ -28,9 +28,9 @@ eval/results/verify-before-completion.ollama.json
 .deepeval_telemetry.txt
 eval/*/output/
 
-# Token Economy runtime state
-.token-economy/
-.token-economy-profile
+# Brainer runtime state
+.brainer/
+.brainer-profile
 .claude/
 .mcp.json
 

@@ -3,7 +3,7 @@ broader scope via extra_roots.
 
 Run:
   /Users/za/Documents/Master\ Screenery\ 3.5/.venv/bin/python -m pytest \
-    .token-economy/skills/wiki-memory/tools/test_lint_hygiene.py -s -v
+    .brainer/skills/wiki-memory/tools/test_lint_hygiene.py -s -v
 """
 
 from __future__ import annotations

@@ -18,6 +18,6 @@ tags: [wiki, memory, retrieval]
 
 Persistent markdown memory can replace loading a whole transcript or vector store when it has a compact index, stable schema, raw/source separation, and progressive retrieval.
 
-Token Economy implements this as repo-local markdown wiki pages plus `./te wiki search`, `timeline`, and `fetch`.
+Brainer implements this as repo-local markdown wiki pages plus `./te wiki search`, `timeline`, and `fetch`.
 
 Related: [[projects/wiki-search/README]], [[concepts/wiki-governance]]

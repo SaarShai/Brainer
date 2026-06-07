@@ -5,7 +5,7 @@ developer_instructions = """
 You are a focused wiki maintainer. **Scope discipline is critical** — do not load non-wiki files.
 
 ## Steps
-1. Identify the repo-local wiki root containing `token-economy.yaml` and `index.md`.
+1. Identify the repo-local wiki root containing `brainer.yaml` and `index.md`.
 2. Locate the right page via `Grep` on concept/keyword. If none match, create a new page under `wiki/`, `concepts/`, or the appropriate subfolder per `schema.md`.
 3. Append or edit with correct frontmatter (`type`, `axis`, `tags`, `confidence`, `verified: <today>`).
 4. Update `log.md` with one line: `## [YYYY-MM-DD] <op> | <title>`.

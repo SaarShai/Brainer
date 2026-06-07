@@ -6,7 +6,7 @@ Static linter for prompt-cache hygiene against Anthropic's six prompt-cache rule
 
 ## Lineage
 
-[ussumant/cache-audit](https://github.com/ussumant/cache-audit) (52★) — same six-rule framing. Token Economy ports it as a precheck skill rather than a post-hoc CLI.
+[ussumant/cache-audit](https://github.com/ussumant/cache-audit) (52★) — same six-rule framing. Brainer ports it as a precheck skill rather than a post-hoc CLI.
 
 ## Rule coverage
 
@@ -36,7 +36,7 @@ Backtick command substitution (`` `date` ``) is intentionally not checked — se
 
 ## Real-world calibration
 
-Run against Token Economy itself: 0 FAIL, 3 WARN. The WARNs are legitimate: `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` are deliberately tiny pointer files (~56 tokens each), trading cache-slot efficiency for progressive-disclosure. Documented and accepted in [`eval/FINDINGS.md`](../../eval/FINDINGS.md).
+Run against Brainer itself: 0 FAIL, 3 WARN. The WARNs are legitimate: `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` are deliberately tiny pointer files (~56 tokens each), trading cache-slot efficiency for progressive-disclosure. Documented and accepted in [`eval/FINDINGS.md`](../../eval/FINDINGS.md).
 
 ## Target metrics
 

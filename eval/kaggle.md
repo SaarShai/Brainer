@@ -8,7 +8,7 @@ Use Kaggle's free T4 (30h/week) to scale `eval/runner.py` from N=3 smoke to N≥
 2. Add your MiMo key as a Kaggle Secret:
    - Notebook → Add-ons → Secrets → "Add a secret"
    - Label: `MIMO_API_KEY`
-   - Value: your key (the one in `.token-economy/secrets.env`)
+   - Value: your key (the one in `.brainer/secrets.env`)
 3. Enable Internet access in the notebook settings.
 4. Pick "GPU T4 x2" as accelerator (we don't use the GPU for MiMo, but it gets you better CPU/RAM too).
 

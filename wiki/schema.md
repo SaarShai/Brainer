@@ -1,4 +1,4 @@
-# Token Economy Wiki — Schema
+# Brainer Wiki — Schema
 
 Purpose: persistent, contextual, inter-linked long-term memory for AI agents working in the current target project. Karpathy 3-layer (raw/wiki/schema) + git-wiki immutability + progressive retrieval.
 
@@ -51,7 +51,7 @@ Legacy v1 pages remain readable. `./te wiki lint --strict` emits migration warni
 Imported projects must be self-contained in the new working folder.
 
 - Treat any source project wiki as evidence to adapt, not as a dependency to keep using.
-- Recreate all useful source-wiki information in repo-local Token Economy pages.
+- Recreate all useful source-wiki information in repo-local Brainer pages.
 - Track every source-wiki item in `raw/YYYY-MM-DD-import-manifest.md` with status `adapted`, `archived`, or `discarded`.
 - `index.md` and `L1_index.md` must point to local wiki pages and local commands only.
 - Agents must not use home-directory rules, external wikis, or source-wiki paths for project facts after import.

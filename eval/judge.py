@@ -88,7 +88,7 @@ def judge_mimo(model: str, task_prompt: str, candidate: str, rubric: str) -> dic
     """
     key = os.environ.get("MIMO_API_KEY")
     if not key:
-        raise RuntimeError("MIMO_API_KEY not set (source .token-economy/secrets.env)")
+        raise RuntimeError("MIMO_API_KEY not set (source .brainer/secrets.env)")
     base = os.environ.get("MIMO_BASE_URL", "https://api.xiaomimimo.com/v1").rstrip("/")
     body = json.dumps({
         "model": model,

@@ -18,7 +18,7 @@ tags: [skills, superpowers, agents, workflow]
 
 ## Summary
 
-Superpowers is useful to Token Economy less as a dependency and more as a workflow pattern: small named skills, mandatory skill checks before action, evidence before completion, and staged development loops.
+Superpowers is useful to Brainer less as a dependency and more as a workflow pattern: small named skills, mandatory skill checks before action, evidence before completion, and staged development loops.
 
 ## Lessons To Keep
 

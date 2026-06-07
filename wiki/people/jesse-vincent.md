@@ -16,6 +16,6 @@ tags: [people, superpowers]
 
 # Jesse Vincent
 
-Maintainer of `obra/superpowers`, a skills-based agent workflow framework. Token Economy borrows the pattern of small on-demand skills, phase gates, and verification discipline.
+Maintainer of `obra/superpowers`, a skills-based agent workflow framework. Brainer borrows the pattern of small on-demand skills, phase gates, and verification discipline.
 
 Related: [[concepts/superpowers-skills]]

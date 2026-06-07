@@ -21,7 +21,7 @@ class SessionCache:
     def __init__(self, session_id: str, cache_dir: Optional[Path] = None):
         self.session_id = session_id
         repo_root = Path(os.environ.get("TOKEN_ECONOMY_ROOT", Path.cwd()))
-        self.cache_dir = Path(cache_dir) if cache_dir else repo_root / ".token-economy" / "semdiff"
+        self.cache_dir = Path(cache_dir) if cache_dir else repo_root / ".brainer" / "semdiff"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.path = self.cache_dir / _safe_session_filename(session_id)
         self._data = self._load()

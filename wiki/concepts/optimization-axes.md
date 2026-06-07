@@ -30,7 +30,7 @@ Seven axes. Every tool in this repo declares which axis it targets (frontmatter 
 | skip_detector | D. verification | integrated |
 | verify.py / verify_anthropic.py | D. verification | shipped |
 | rename_detect | D. verification (semdiff companion) | integrated |
-| Token Economy wiki (this) | E. knowledge_org | live |
+| Brainer wiki (this) | E. knowledge_org | live |
 | [[projects/wiki-search/README\|wiki-search]] | E. knowledge_org (retrieval) | skeleton |
 | [[bench/README\|bench]] | F. measurement | 7 datasets |
 | eval-v3/v4 harnesses | F. measurement | SQuAD+CoQA |

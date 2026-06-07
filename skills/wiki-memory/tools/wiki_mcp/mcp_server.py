@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MCP server for Token Economy wiki-search.
+"""MCP server for Brainer wiki-search.
 
 Requires `mcp` package. The core retrieval API has no external dependencies.
 """
@@ -13,7 +13,7 @@ except Exception as exc:  # pragma: no cover - runtime dependency
     raise SystemExit(f"mcp package unavailable: {exc}")
 
 
-mcp = FastMCP("token-economy-wiki-search")
+mcp = FastMCP("brainer-wiki-search")
 
 
 @mcp.tool()

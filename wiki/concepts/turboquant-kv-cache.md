@@ -48,7 +48,7 @@ User's claim verified. TurboQuant compresses the *runtime* KV cache. Weight quan
 
 ## 2026-04-25 adoption review
 
-Adoption mode: **pattern-reimplementation**. Do not vendor TurboQuant repos into Token Economy. Use TheTom/turboquant_plus and TheTom/llama-cpp-turboquant as the operational reference, then encode safe defaults and checks in our docs/scripts.
+Adoption mode: **pattern-reimplementation**. Do not vendor TurboQuant repos into Brainer. Use TheTom/turboquant_plus and TheTom/llama-cpp-turboquant as the operational reference, then encode safe defaults and checks in our docs/scripts.
 
 Additional watchlist:
 - `quantumaikr/quant.cpp`: GGUF-first pure C engine with OpenAI-compatible server; separate engine, Qwen3.6 35B marked experimental.
@@ -57,7 +57,7 @@ Additional watchlist:
 - `back2matching/turboquant`: HF baseline; verify license before reuse.
 - Reject direct adoption of GPL or QJL-heavy implementations such as `0xSero/turboquant`.
 
-## Relevance to our stack (Token Economy)
+## Relevance to our stack (Brainer)
 
 | our tool | interaction with TurboQuant |
 |---|---|

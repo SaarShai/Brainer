@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash /Users/za/Documents/token-economy/projects/agents-triage/hook.sh"
+            "command": "bash /Users/za/Documents/brainer/projects/agents-triage/hook.sh"
           }
         ]
       }

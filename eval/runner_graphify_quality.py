@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Quality + staleness probes for graphify graphs.
 
-Three probes on a built graph (defaults to the small token-economy
+Three probes on a built graph (defaults to the small brainer
 corpus). All are automatic — no judge model needed.
 
 1. EDGE PRECISION (sample-based, automatic)

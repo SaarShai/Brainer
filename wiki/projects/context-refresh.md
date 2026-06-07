@@ -23,7 +23,7 @@ Fresh-context workflow for preventing context rot.
 
 ## Packet
 
-Fresh packets are written to `.token-economy/checkpoints/` and kept under 2000 estimated tokens by default. Each packet includes:
+Fresh packets are written to `.brainer/checkpoints/` and kept under 2000 estimated tokens by default. Each packet includes:
 
 - mandatory plan-mode instruction
 - goal and current plan

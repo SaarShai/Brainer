@@ -17,7 +17,7 @@ Output: /kaggle/working/eval-results/exp1-summary.json (auto-attached for downlo
 
 Kernel config (kernel-metadata.json in this dir):
   enable_gpu: true, enable_internet: true (ollama install + model pull need net)
-  dataset_sources: ["saarshai/token-economy-eval-consolidated"]
+  dataset_sources: ["saarshai/brainer-eval-consolidated"]
 """
 from __future__ import annotations
 

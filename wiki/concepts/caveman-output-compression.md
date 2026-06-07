@@ -18,7 +18,7 @@ tags: [caveman, output-compression, style]
 
 Terse output constraints reduce output tokens by dropping filler, pleasantries, hedging, and hollow closings while preserving code, paths, numbers, math, and exact errors.
 
-Token Economy applies this as `Caveman Ultra` in `start.md`, `L0_rules.md`, and `skills/caveman-ultra/SKILL.md`.
+Brainer applies this as `Caveman Ultra` in `start.md`, `L0_rules.md`, and `skills/caveman-ultra/SKILL.md`.
 That compression affects surfaced output only. It does not change hidden reasoning or the model's thinking budget.
 
 Related: [[raw/2026-04-17-research-brief]], `skills/caveman-ultra/SKILL.md`

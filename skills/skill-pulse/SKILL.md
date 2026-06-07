@@ -70,7 +70,7 @@ Environment variables (all optional):
 - `SKILL_PULSE_EVERY` — cadence in user prompts. Default `4`. Floored to `2`.
 - `SKILL_PULSE_DISABLED=1` — global off-switch.
 - `SKILL_PULSE_SKILLS=a,b` — manual allowlist override (uses `description` fallback for skills without `pulse_reminder`).
-- `SKILL_PULSE_STATE_DIR` — override state dir. Default `.token-economy/skill-pulse/`.
+- `SKILL_PULSE_STATE_DIR` — override state dir. Default `.brainer/skill-pulse/`.
 - `SKILL_PULSE_SKILLS_ROOT` — override skills lookup root. Default `.claude/skills/`.
 
 ## Rules

@@ -23,7 +23,7 @@ evidence_count: 0
 ## Files
 
 ```
-.token-economy/memory/
+.brainer/memory/
 ├── L0_rules.md
 ├── L1_index.md
 ├── L2_facts/
@@ -73,7 +73,7 @@ from memory_api import ck_query, ck_fetch, ck_recent
 
 ## Implementation plan
 
-1. Convert current repo-local `.token-economy/sessions/*.md` to L4 archive.
+1. Convert current repo-local `.brainer/sessions/*.md` to L4 archive.
 2. Wire v2 retrieval into existing context-keeper PreCompact hook.
 3. Add synthetic compaction fact-retention eval with/without v2.
 

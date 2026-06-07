@@ -1,4 +1,4 @@
-# Token Economy
+# Brainer
 
 A skill catalog for AI coding agents — Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot — across four pillars:
 
@@ -30,7 +30,7 @@ Bootstrap once per project:
 
 ```bash
 # wiki-memory needs a wiki/ tree:
-python3 ~/.local/share/token-economy/skills/wiki-memory/tools/wiki.py init
+python3 ~/.local/share/brainer/skills/wiki-memory/tools/wiki.py init
 # graphify owns the code graph (auto-installed by ./install.sh; build per repo):
 graphify extract .
 ```
@@ -94,12 +94,12 @@ See [eval/results/static_cost.json](eval/results/static_cost.json) for the full 
 
 | You use… | Want skills… | Run this |
 |---|---|---|
-| **Claude Code** | **everywhere** (recommended) | `git clone https://github.com/SaarShai/token-economy.git ~/.local/share/token-economy && claude plugin install ~/.local/share/token-economy/.claude-plugin/marketplace.json` |
-| Claude Code | in one project only | clone into `<project>/.token-economy`, then `mkdir -p .claude/skills && ln -sfn ../.token-economy/skills/* .claude/skills/` |
-| Codex / Cursor / Gemini CLI / Copilot | per-project (no plugin format exists for these) | clone into `<project>/.token-economy`, then `.token-economy/install.sh --host <name>` + symlink — see [Per-project install](#per-project-install-non-claude-code-hosts) |
-| any host (inside the token-economy clone itself, e.g. contributing) | for that clone only | `./install.sh` (all hosts) or `./install.sh --host <name>` |
+| **Claude Code** | **everywhere** (recommended) | `git clone https://github.com/SaarShai/Brainer.git ~/.local/share/brainer && claude plugin install ~/.local/share/brainer/.claude-plugin/marketplace.json` |
+| Claude Code | in one project only | clone into `<project>/.brainer`, then `mkdir -p .claude/skills && ln -sfn ../.brainer/skills/* .claude/skills/` |
+| Codex / Cursor / Gemini CLI / Copilot | per-project (no plugin format exists for these) | clone into `<project>/.brainer`, then `.brainer/install.sh --host <name>` + symlink — see [Per-project install](#per-project-install-non-claude-code-hosts) |
+| any host (inside the brainer clone itself, e.g. contributing) | for that clone only | `./install.sh` (all hosts) or `./install.sh --host <name>` |
 
-The plugin (`token-economy` v1.6.1) bundles all 15 skills plus optional `UserPromptSubmit` and `PreCompact` hooks (off by default; toggle in plugin config).
+The plugin (`brainer` v1.6.1) bundles all 15 skills plus optional `UserPromptSubmit` and `PreCompact` hooks (off by default; toggle in plugin config).
 
 ### Host install matrix
 
@@ -129,10 +129,10 @@ SKILLS_DIR=skills.new ./install.sh      # alternate canonical dir
 
 ```bash
 cd /path/to/project-X
-git clone https://github.com/SaarShai/token-economy.git .token-economy
-.token-economy/install.sh --host codex          # wires .token-economy/.codex/skills/
+git clone https://github.com/SaarShai/Brainer.git .brainer
+.brainer/install.sh --host codex          # wires .brainer/.codex/skills/
 mkdir -p .codex/skills
-ln -sfn ../.token-economy/.codex/skills/* .codex/skills/
+ln -sfn ../.brainer/.codex/skills/* .codex/skills/
 ```
 
 Repeat the last two lines per host (`.cursor/skills/`, `.gemini/skills/`, etc.). For Claude Code, use the plugin command in the table above — it's cwd-independent and skips the symlink dance entirely.
@@ -142,8 +142,8 @@ Repeat the last two lines per host (`.cursor/skills/`, `.gemini/skills/`, etc.).
 The `wiki-memory` skill needs a `wiki/` tree in your project root. After installing the catalog, run once per project:
 
 ```bash
-python3 ~/.local/share/token-economy/skills/wiki-memory/tools/wiki.py init
-# (or .token-economy/skills/wiki-memory/tools/wiki.py init for per-project installs)
+python3 ~/.local/share/brainer/skills/wiki-memory/tools/wiki.py init
+# (or .brainer/skills/wiki-memory/tools/wiki.py init for per-project installs)
 ```
 
 Creates `wiki/{L0_rules.md, L1_index.md, schema.md, L2_facts/, L3_sops/, L4_archive/, raw/, concepts/, patterns/, projects/, people/, queries/, templates/}` seeded from the skill's bundled defaults. Idempotent — safe to re-run. Default target is `./wiki` in cwd; override with `--root <path>` or `WIKI_ROOT=<path>`. Without this step, `wiki-memory` triggers correctly but has nothing to retrieve.
@@ -156,7 +156,7 @@ The catalog evolves — skills get added, and some get **cut** after measurement
 - **Symlink hosts (Codex / Cursor / Gemini) or a manual install:**
 
   ```bash
-  cd .token-economy && git pull        # pull the latest catalog
+  cd .brainer && git pull        # pull the latest catalog
   ./install.sh                          # re-wire — self-healing (--dry-run to preview)
   ```
 
@@ -166,10 +166,10 @@ The one thing it deliberately *won't* do is disable a still-present **opt-in** s
 
 ## What changed (vs the old framework)
 
-This used to be framed as a framework with a `te` CLI, layered docs (`start.md`, `L0_rules.md`, `L1_index.md`, `token-economy.yaml`), and project-style research under `projects/`. All of that is gone.
+This used to be framed as a framework with a `te` CLI, layered docs (`start.md`, `L0_rules.md`, `L1_index.md`, `brainer.yaml`), and project-style research under `projects/`. All of that is gone.
 
 - `te` CLI → deleted. Each skill owns its scripts in `skills/<name>/tools/`.
-- `start.md`, `L0_rules.md`, `L1_index.md`, `token-economy.yaml`, `models.yaml` → deleted. Replaced by `skills/SKILLS_INDEX.md`.
+- `start.md`, `L0_rules.md`, `L1_index.md`, `brainer.yaml`, `models.yaml` → deleted. Replaced by `skills/SKILLS_INDEX.md`.
 - `adapters/`, `prompts/`, `hooks/` → deleted. Folded into per-skill `tools/`.
 - 11 old skills → audited and expanded to ~21, then trimmed to **15** after measurement (drops listed above).
 - Working Python projects (ComCom, semdiff, context-keeper, agents-triage, output-filter) → bundled into their matching skills' `tools/` folders.

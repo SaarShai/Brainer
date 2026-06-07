@@ -18,7 +18,7 @@ tags: [lean, planning, delegation, context, process-rot]
 
 ## Summary
 
-Token Economy should treat plans, context, delegation, and process artifacts as inventory: useful only when they reduce risk, produce value/evidence, or preserve durable learning.
+Brainer should treat plans, context, delegation, and process artifacts as inventory: useful only when they reduce risk, produce value/evidence, or preserve durable learning.
 
 ## Evidence
 

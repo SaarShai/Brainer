@@ -35,7 +35,7 @@ text, meta = read_smart("foo.py", session_id="s1")
 ## Design
 - **AST extract**: tree-sitter → top-level fns/classes + nested methods. Qualified names (`Widget.render`).
 - **Hash**: SHA1 of node source bytes, 12 hex chars.
-- **Cache**: JSON file at `.token-economy/semdiff/<session>.json`. Per-session isolation.
+- **Cache**: JSON file at `.brainer/semdiff/<session>.json`. Per-session isolation.
 - **Diff render**: changed/added nodes full source + unchanged stubs (`// [unchanged: foo, bar, +90 more]`).
 - **Parent/child dedup**: if method changed, skip redundant class-body emit.
 
