@@ -1,1 +1,8 @@
 [Sun Jun  7 01:29:01 PDT 2026] === re-judge: gemma2:9b (family: gemma) ===
+
+=== judge: gemma2:9b (ollama) ===
+  without skill: 4.088
+  with skill:    4.456
+  delta:         0.3680000000000003
+  results: eval/results/verify_rejudge_gemma2.judged.json
+[Sun Jun  7 01:46:31 PDT 2026] === re-judge: llama3.1:8b (family: llama) ===

@@ -51,3 +51,12 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Long-run per-rep dumps + logs (the longrun_<node>.jsonl summary IS committed)
+eval/longrun/results/drift_*.json
+eval/longrun/results/compound_*.json
+eval/longrun/results/*.log
+# Re-judge candidate copies (regeneratable cp of verify-before-completion.ollama.json);
+# the small .judged.json delta results ARE committed
+eval/results/verify_rejudge_*.json
+!eval/results/verify_rejudge_*.judged.json

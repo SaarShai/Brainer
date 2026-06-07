@@ -1,2 +1,0 @@
-longrun node=M3 model=llama3.1:8b hours=5.0 exps=['drift', 'compound'] start=2026-06-07T01:06:40
-[rep 1 +12min] drift_ok=True canary_uplift=0.44 compound_ok=True lift=1.0
