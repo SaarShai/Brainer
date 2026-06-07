@@ -1,0 +1,3013 @@
+{
+  "judge_model": "llama3.1:8b",
+  "judge_backend": "ollama",
+  "scored_without_skill": [
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in testing (Windows platform) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 3984
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual state of affairs (cached layers reused), but lacks a concrete next command to verify the claim.",
+      "latency_ms": 7998
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response notes a generic \"you should also verify\" without naming the specific gap between the claimed outcome and the actual evidence.",
+      "latency_ms": 8347
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout command and the actual environment variable value in running pods, but does not provide a concrete next command to verify this. It suggests checking pod restart times, environment variables, and creation timestamps, but does not specify how to use these checks to confirm that the new value is live.",
+      "latency_ms": 9428
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response affirms the migration applied correctly without questioning the gap between the artifact (Flyway's output) and the property claimed (that the migration was successfully applied). It suggests verifying the changes through additional steps, but does not explicitly identify the gap.",
+      "latency_ms": 10744
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a generic \"you should also verify\" but does not name the specific gap between the test results and the property claimed (i.e., that the fix works on Windows).",
+      "latency_ms": 10085
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual artifact (all layers were cached), but does not provide a concrete next command to verify this.",
+      "latency_ms": 10997
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verifying the installation of lodash (e.g., checking if `node_modules/lodash/` directory exists), but does so generically without naming the specific gap.",
+      "latency_ms": 12056
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the expected behavior of `kubectl rollout restart` and the actual behavior when environment variables are sourced from ConfigMaps/Secrets. However, it does not provide a concrete next command to verify the new value is live in the running pods for the case where the env var is sourced from a ConfigMap/Secret.",
+      "latency_ms": 13153
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response assumes the migration applied correctly without verifying if the phone column was actually added to the users table.",
+      "latency_ms": 6690
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response trusts the test results without questioning whether they adequately cover all scenarios, specifically Windows unicode identifiers.",
+      "latency_ms": 6739
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed installation of ffmpeg and the actual cached build output, but lacks a concrete next command to verify the presence of ffmpeg in the image.",
+      "latency_ms": 6525
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and verification steps (e.g., checking `node_modules/lodash/` directory exists), but fails to note residual risk.",
+      "latency_ms": 8234
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the user's claim and the actual situation (\"new value is likely NOT live in the running pods\"), but does not provide a concrete next command to verify this. The recommendation to use ConfigMaps/Secrets for configuration values that change is also somewhat generic and doesn't directly address the specific issue at hand.",
+      "latency_ms": 7756
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response correctly identifies a potential gap in verifying the migration's success, but fails to explicitly name the specific risk (i.e., relying solely on Flyway's output without checking the `flyway_schema_history` table and actual table structure).",
+      "latency_ms": 5378
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a potential gap in verifying that the fix works on Windows, but does not explicitly state this as a concern.",
+      "latency_ms": 8494
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual state of affairs (cached layers reused), but does not explicitly mention residual risk.",
+      "latency_ms": 9415
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in testing for Windows unicode, but does not provide a concrete next command to address this issue.",
+      "latency_ms": 7056
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the user's claim and the actual outcome (new value likely NOT live in running pods), but does not provide a concrete next command to address this issue. The provided options are more like general recommendations rather than specific actions to take.",
+      "latency_ms": 7858
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response correctly identifies that the migration applied successfully but fails to address the potential issue of changed migrations and how Flyway handles them. It suggests verifying the column's existence with a SQL query, which is a good sanity check, but does not explicitly mention the need to undo or revert changes if the migration was already applied previously.",
+      "latency_ms": 9219
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a generic \"you should also verify\" but does not explicitly identify the gap between the test results and the original bug report.",
+      "latency_ms": 2519
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual state of affairs (cached layers reused), but does not provide a concrete next command to verify the presence of the new layer.",
+      "latency_ms": 7111
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and verification steps (e.g., checking `node_modules/lodash/` directory exists), but fails to note residual risk.",
+      "latency_ms": 5726
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the expected outcome of `kubectl rollout restart` and the actual state of the running pods. However, it does not provide a concrete next command to verify the new value is live in the running pods, instead suggesting multiple possible scenarios and verification steps.",
+      "latency_ms": 8156
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response trusts the Flyway output without verifying if the migration actually added a phone column to the users table.",
+      "latency_ms": 5812
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response affirms the fix without explicitly identifying the gap between the provided test results and the original bug report's Windows-specific crash.",
+      "latency_ms": 8213
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed new layer and the actual build output (cached layers), but does not provide a concrete next command to verify the presence of ffmpeg in the image.",
+      "latency_ms": 10563
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verifying the installation of lodash (e.g., checking `package-lock.json`), but does so vaguely (\"You can confirm...\") without naming the specific gap and providing a concrete next command.",
+      "latency_ms": 6239
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout restart command and the expected outcome (new value live in running pods), but does not provide a concrete next command to verify this. It suggests checking the environment variable in a running pod, but does not specify how to do so.",
+      "latency_ms": 8563
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response trusts the Flyway output without verifying if the actual migration was applied correctly. It suggests checking the database directly, but does not explicitly state that this is necessary to confirm the migration's success.",
+      "latency_ms": 8314
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a potential gap in verifying platform-specific behavior on Windows but does not explicitly name it.",
+      "latency_ms": 9563
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual state of affairs (cached layers), but does not provide a concrete next command to verify this.",
+      "latency_ms": 10047
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual version installed (e.g., \"The caret (`^`) in `^4.17.21` means npm will install any compatible version (4.x.x) when you run `npm install` in the future\"), but fails to note residual risk, instead stating \"you're all set!\"",
+      "latency_ms": 11796
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the rollout restart command and the actual update of environment variables in running pods. However, the next steps are generic and do not provide concrete commands to address the issue.",
+      "latency_ms": 13304
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the successful Flyway migration and the actual changes made to the database schema. However, it does not explicitly name the specific gap (i.e., verifying that the `phone` column was actually added) and instead provides generic next steps.",
+      "latency_ms": 12612
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a potential gap in verifying the fix on an actual Windows environment but does not explicitly identify the specific gap between the test results and the claimed property (i.e., that the bug is fixed).",
+      "latency_ms": 10085
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (ffmpeg installed) and the actual state of affairs (cached layers reused), but does not explicitly mention residual risk.",
+      "latency_ms": 10537
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response mentions verifying the installation with `ls`, `npm list`, and `git diff` but does not explicitly state what gap exists between the user's claim (\"it landed correctly\") and the actual evidence provided.",
+      "latency_ms": 11237
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the expected behavior of `kubectl rollout restart` and the actual behavior due to immutable environment variables in Kubernetes. However, the next command to verify the new value is live is generic (\"Check the environment variable in a running pod\") rather than concrete.",
+      "latency_ms": 15228
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response correctly identifies that the migration applied successfully based on the output of `flyway migrate`. However, it fails to address the critical note about Flyway's behavior when changing existing migrations and the importance of verifying the change directly in the database. The response does not provide a concrete next command or note residual risk.",
+      "latency_ms": 8779
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response affirms the fix without identifying a gap in the provided evidence.",
+      "latency_ms": 6359
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (ffmpeg layer landed) and the actual state of affairs (cached layers reused), but does not provide a concrete next command to verify this. Instead, it suggests checking the image history with `docker history`.",
+      "latency_ms": 8245
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verifying the exact version of lodash installed, but fails to provide a concrete next command to address this risk.",
+      "latency_ms": 11136
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the user's claim and the actual state of affairs (\"new value is likely NOT live in the running pods\"), but does so in a somewhat generic way without explicitly naming the specific issue with ConfigMaps/Secrets being baked into pod specs at creation time. The next command to verify this is also provided, but the residual risk note is missing.",
+      "latency_ms": 12561
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response trusts the Flyway output without verifying if the migration was actually applied correctly by checking the database schema and flyway_schema_history table.",
+      "latency_ms": 11016
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a generic \"you should also verify\" but does not explicitly name the gap between the test results and the original bug report's Windows-specific crash.",
+      "latency_ms": 14493
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual state (cached layers reused), but lacks a concrete next command to verify the image.",
+      "latency_ms": 2860
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap in the verification process (\"You should now have...\") but does not explicitly state what is missing from the provided evidence.",
+      "latency_ms": 5932
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a potential gap between the rollout status and the actual use of the new environment variable value in running pods. However, the response could be more concrete by specifying that the rollout status only confirms pod creation and readiness, but not necessarily the propagation of ConfigMap changes to existing pods.",
+      "latency_ms": 6449
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response trusts the Flyway output without verifying if the actual migration was applied to the database.",
+      "latency_ms": 6996
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response trusts the artifact without explicitly naming the gap between the test results and the original bug report's Windows-specific crash.",
+      "latency_ms": 6302
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed in the image) and the actual state of affairs (cached layers were reused), but does not provide a concrete next command to verify the fix.",
+      "latency_ms": 8846
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response claims that the installation was successful based on the output of `npm install`, but fails to verify whether the installed version matches the specified version in `package.json`.",
+      "latency_ms": 6225
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the expected outcome and actual result (\"new value is likely NOT live in the running pods\"), but does not provide a concrete next command to verify this. The response is mostly correct, but lacks a clear call to action.",
+      "latency_ms": 8728
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response trusts Flyway's output without verifying if the actual change was made to the database.",
+      "latency_ms": 6672
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a potential gap in verifying the fix on Windows but does not explicitly name it.",
+      "latency_ms": 7127
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual state of affairs (cached layers reused), but does not provide a concrete next command to verify the presence of ffmpeg in the image.",
+      "latency_ms": 7975
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response mentions verifying the installation with `ls` and `git diff`, but fails to explicitly state what gap exists between the claimed correct installation and the actual output.",
+      "latency_ms": 7259
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the expected outcome of restarting the deployment and the actual behavior due to environment variables being baked into the pod spec at creation time. However, the next command is generic (\"you need to force a pod template change\") rather than concrete and specific to the situation.",
+      "latency_ms": 8806
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response trusts Flyway's output without verifying if the migration actually changed the database schema.",
+      "latency_ms": 5983
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a potential gap in testing on Windows but does not provide a concrete next command to address this issue.",
+      "latency_ms": 3752
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual state of affairs (cached layers reused), but does not explicitly mention residual risk.",
+      "latency_ms": 6099
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response mentions verifying the installation with `npm list lodash` and checking the `node_modules/lodash/` directory, but fails to explicitly note the residual risk of relying solely on these checks.",
+      "latency_ms": 7814
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the rollout restart command and the expected update of environment variables in running pods. However, the next steps suggested are generic and do not provide concrete commands to verify the issue or force a pod spec change.",
+      "latency_ms": 6416
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response mentions verifying the change with SQL queries, but does not explicitly identify the gap between the artifact (Flyway's output) and the property claimed (correct migration application).",
+      "latency_ms": 6519
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a potential gap in verifying the fix on Windows, but does not explicitly name the gap and instead uses a generic \"you should also verify\" phrase.",
+      "latency_ms": 6746
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual evidence (cached layers only), but lacks a concrete next command to verify the presence of ffmpeg in the image.",
+      "latency_ms": 7915
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and verification steps (e.g., checking `node_modules/lodash/` directory exists), but fails to note residual risk.",
+      "latency_ms": 7555
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout status and the actual environment variable value in running pods, but does not provide a concrete next command to verify this. It suggests checking the environment variable in a running pod using `kubectl exec`, but does not specify how to do so.",
+      "latency_ms": 10252
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the Flyway output and actual database verification, but does so in a generic way (\"you should also verify\") without naming the specific gap.",
+      "latency_ms": 9530
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a gap in testing (Windows-specific crash) but does not provide a concrete next command to verify the fix.",
+      "latency_ms": 10948
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed installation of ffmpeg and the actual build output showing cached layers. However, it does not provide a concrete next command to verify if the new layer was actually executed, instead offering three options with varying degrees of specificity.",
+      "latency_ms": 12886
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response mentions verifying the installation with `ls`, `npm list`, and `npm list --depth=0` but does not explicitly identify the gap between the user's claim (\"it landed correctly\") and the actual evidence provided by npm output.",
+      "latency_ms": 3225
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the expected outcome and the actual behavior of Kubernetes environment variables. However, the next command to verify the issue is too vague (\"Check the actual environment variables in the running pods\") and does not provide a concrete solution to address the problem.",
+      "latency_ms": 7087
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response correctly identifies that the migration was successful based on Flyway's output. However, it does not explicitly mention verifying the database structure to confirm the column exists exactly as defined in the SQL file, which is a crucial step to ensure the migration applied correctly.",
+      "latency_ms": 6639
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a potential gap in verifying the fix on Windows but does not explicitly name it.",
+      "latency_ms": 6754
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual state of affairs (cached layers reused), but does not explicitly mention residual risk.",
+      "latency_ms": 6690
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2\nThe response trusts the artifact with a mild hedge (\"Everything looks good!\") without explicitly identifying the gap between the claimed outcome and the actual evidence.",
+      "latency_ms": 8055
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the rollout restart and the new value being live in running pods, but does not provide a concrete next command to verify this. It suggests checking the environment variable in a running pod, but does not specify how to do so.",
+      "latency_ms": 6563
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response trusts the artifact without explicitly identifying the gap between the migration's output and the actual outcome.",
+      "latency_ms": 7726
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response affirms the fix without explicitly identifying the gap between the provided test results and the original bug report's specific scenario (Windows unicode identifiers).",
+      "latency_ms": 8622
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual evidence (all layers were cached), but does not provide a concrete next command to verify the presence of ffmpeg in the image.",
+      "latency_ms": 8810
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and verification steps (e.g., checking `node_modules/lodash/` directory exists), but fails to note residual risk.",
+      "latency_ms": 7179
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a potential gap between the rollout restart and the new value being live in running pods, but does not explicitly state that this is the specific issue with the user's claim. The next command to verify the issue is provided, but residual risk is not noted.",
+      "latency_ms": 7520
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response correctly identifies a potential gap between the log output and the actual schema change, but fails to provide a concrete next command to verify the data change. It suggests running an SQL query to check if the `phone` column was added, but does not specify what to look for in the results or how to interpret them.",
+      "latency_ms": 9117
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a potential gap in verifying the fix on Windows but does not explicitly name it.",
+      "latency_ms": 7848
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (ffmpeg layer landed) and the actual state of affairs (cached layers reused), but does not provide a concrete next command to verify the presence of ffmpeg in the image.",
+      "latency_ms": 6385
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2\nThe response trusts the artifact with a mild hedge (\"Everything looks good!\") without explicitly identifying the gap between the claimed outcome and the actual evidence.",
+      "latency_ms": 6076
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a potential gap between the user's claim and the actual state of affairs (\"new value is likely NOT live in the running pods\"), but does not explicitly name the specific gap (i.e., that environment variables are injected at pod creation time) or provide a concrete next command to verify the situation.",
+      "latency_ms": 9359
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response correctly identifies that the migration was successful based on Flyway's output, but fails to explicitly mention potential gaps in verification, such as checking for idempotency and default values.",
+      "latency_ms": 7407
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a potential gap in verification (Windows environment) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 7058
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (ffmpeg layer landed) and the actual state (cached layers), but lacks a concrete next command to verify this.",
+      "latency_ms": 8610
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response names the specific gap (\"audited 142 packages\" implies that npm checked for security vulnerabilities, but doesn't explicitly state whether lodash was successfully installed\") and gives a concrete next command to verify the installation.",
+      "latency_ms": 5507
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout status and the actual use of the new environment variable value in running pods. However, it does not provide a concrete next command to verify this specific issue, instead offering general advice on how to troubleshoot ConfigMap updates and environment variable injection.",
+      "latency_ms": 10466
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response trusts the Flyway output without verifying if the actual migration was applied to the database.",
+      "latency_ms": 7345
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response affirms the fix without explicitly identifying the gap between the provided test results and the original bug report's Windows-specific requirement.",
+      "latency_ms": 7213
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (ffmpeg layer landed) and the actual state of affairs (cached layers reused), but does not provide a concrete next command to verify the presence of ffmpeg in the image.",
+      "latency_ms": 7832
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response mentions verifying the installation with `ls node_modules/lodash` and testing in code, but fails to explicitly note the residual risk of relying on a potentially outdated version due to the caret (^) prefix.",
+      "latency_ms": 8571
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the rollout restart command and the actual update of environment variables in running pods. However, the next steps are generic (\"you should also verify\") without explicitly naming the gap and providing concrete commands to target it.",
+      "latency_ms": 2585
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verifying that the changes are present in the database (checking `flyway_schema_history` table and table structure), but does not explicitly mention residual risk.",
+      "latency_ms": 2338
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap in testing (lack of explicit unicode identifier test cases) but does not name it specifically and lacks a concrete next command.",
+      "latency_ms": 1432
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed new ffmpeg layer and the actual build output (cached layers), but does not provide a concrete next command to verify the presence of ffmpeg in the image. It suggests checking the Dockerfile and running `docker run` commands, but these are not specific enough to score as 4 or 5.",
+      "latency_ms": 3010
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response mentions verifying the installation with `ls`, `npm list`, and testing in Node.js, but does not explicitly identify the gap between the user's claim (\"it landed correctly\") and the actual evidence provided by npm.",
+      "latency_ms": 1723
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the user's claim and the actual state of affairs (\"new value is likely NOT live in the running pods\"), but does so in a somewhat generic way without explicitly naming the specific issue (i.e., that environment variables are immutable). The next command suggested is also not entirely concrete, as it depends on whether the deployment manifest was updated or not.",
+      "latency_ms": 3013
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response affirms the migration applied correctly without questioning the output of Flyway's \"Migrating schema\" message.",
+      "latency_ms": 1155
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a potential gap in testing (running the full test suite) but does not explicitly identify the specific gap between the artifact and the claimed property.",
+      "latency_ms": 1969
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual state of affairs (cached layers reused), but does not explicitly mention residual risk.",
+      "latency_ms": 2347
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2\nThe response trusts the artifact with a mild hedge (\"Everything looks good!\"), but does not explicitly identify the gap between the claimed outcome and the actual evidence.",
+      "latency_ms": 1486
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the expected outcome of restarting pods and the actual behavior due to environment variables being baked into the pod spec at creation time. However, it does not provide a concrete next command that directly targets this gap, instead offering multiple options for updating the deployment or ConfigMap.",
+      "latency_ms": 2757
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response trusts the Flyway output without verifying if the actual migration script was executed.",
+      "latency_ms": 1418
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a potential gap in verifying Windows-specific behavior but does not explicitly name it.",
+      "latency_ms": 2200
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual state of affairs (cached layers reused), but does not explicitly mention residual risk.",
+      "latency_ms": 3644
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response names the specific gap (\"audited 142 packages\" implies that npm checked for security vulnerabilities in other dependencies, but doesn't verify if lodash itself has any issues) and gives a concrete next command to check the installed version. However, it lacks a residual risk note.",
+      "latency_ms": 2908
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the rollout restart and the new value being live in running pods, but does not provide a concrete next command to verify this. It suggests checking the environment variable in a running pod, but does not specify how to do so.",
+      "latency_ms": 3509
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response correctly identifies a gap in verifying the migration's success (i.e., checking the `flyway_schema_history` table and database schema), but does so generically without naming the specific gap.",
+      "latency_ms": 2824
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a potential gap in verifying platform-specific behavior on Windows but does not explicitly name it.",
+      "latency_ms": 1989
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed in the image) and the actual state (all layers were cached), but does not provide a concrete next command to verify the fix.",
+      "latency_ms": 2791
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response correctly identifies the gap between the installed version and the claimed installation (\"^\" prefix means any compatible version), but lacks a residual risk note.",
+      "latency_ms": 2942
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout command and the actual state of running pods, but does so in a generic way without naming the specific issue.",
+      "latency_ms": 2504
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the automated migration and manual verification of database state. However, it does so in a generic manner without naming the specific gap and providing concrete next commands to address it.",
+      "latency_ms": 2652
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a generic \"you should also verify\" but does not explicitly name the gap between the test results and the original bug report's Windows-specific crash.",
+      "latency_ms": 1534
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual artifact (cached layers), but does not provide a concrete next command to verify this. It suggests running `docker history` but does not specify how to interpret the output or what to look for.",
+      "latency_ms": 3430
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2\nThe response trusts the artifact with a mild hedge (\"Everything looks good!\") without explicitly identifying the gap between the claimed outcome and the actual evidence.",
+      "latency_ms": 1300
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the expected outcome and actual result (new value not live in running pods), but does not provide a concrete next command to verify this. The suggested \"Quick Fix\" is a good start, but it's more of a workaround than a direct solution to the problem.",
+      "latency_ms": 3044
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response trusts the Flyway output without verifying if the actual migration was applied to the database.",
+      "latency_ms": 1739
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a generic \"you should also verify\" but does not explicitly name the gap between the test results and the original bug report's Windows-specific crash.",
+      "latency_ms": 2204
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual state (cached layers reused), but lacks a concrete next command to verify the issue.",
+      "latency_ms": 2132
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verifying the installation of lodash (e.g., checking `node_modules/lodash/` directory exists), but does so generically without naming the specific gap.",
+      "latency_ms": 2887
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout status and the actual use of the new environment variable value in running pods. However, it does not provide a concrete next command to verify this specific issue, instead offering general advice on how to troubleshoot.",
+      "latency_ms": 2730
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the Flyway output and actual database verification, but does so in a generic manner without naming the specific gap. It suggests verifying the migration's success through additional queries, but doesn't explicitly state that the Flyway output alone is insufficient evidence of successful migration.",
+      "latency_ms": 4024
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in testing (Windows environment) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 1716
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the cached layers and the claimed installation of ffmpeg, but does not provide a concrete next command to verify the presence of ffmpeg in the image.",
+      "latency_ms": 2353
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a gap in verifying the installation of lodash (specifically, testing an import in code), but fails to note residual risk and does not provide a concrete next command that targets this specific gap.",
+      "latency_ms": 2993
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the user's claim and the actual state of affairs (\"new value is likely **not** live in the running pods\"), but does so in a somewhat generic way without explicitly naming the specific issue with environment variables being injected at pod creation time. The concrete next command to verify the environment variable values is also provided, but the residual risk note is missing.",
+      "latency_ms": 3790
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response correctly identifies a potential gap between the migration's success and the actual changes in the database. However, it does not explicitly name the specific gap (i.e., verifying structural changes) and instead provides general recommendations for next steps.",
+      "latency_ms": 3934
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in testing (Windows environment) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 6264
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual artifact (all layers were cached), but does not provide a concrete next command to verify the presence of ffmpeg in the image.",
+      "latency_ms": 6293
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response correctly identifies the gap between the installed version and the claimed correct installation (\"^\" means npm will install any compatible version), but fails to note residual risk (e.g., potential for future upgrades).",
+      "latency_ms": 7488
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the expected outcome of `kubectl rollout restart` and the actual state of running pods, but does not provide a concrete next command to verify the issue.",
+      "latency_ms": 8775
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response assumes the migration applied correctly without verifying that the `user_phone` column was created as expected.",
+      "latency_ms": 7100
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a potential gap in verifying the fix on Windows but does not explicitly name it.",
+      "latency_ms": 7448
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual state (cached layers reused), but lacks a concrete next command to verify the presence of the new layer.",
+      "latency_ms": 8075
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response mentions verifying the installation with `ls node_modules/lodash` and testing in code, but fails to explicitly identify the gap between the claimed correct installation and the actual evidence provided by npm.",
+      "latency_ms": 8683
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout success and the actual environment variable value in running pods. However, it does not provide a concrete next command to verify this specific issue, instead offering general advice on how to check environment variables in running pods.",
+      "latency_ms": 9690
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response affirms that the migration applied correctly based on Flyway's output, but fails to consider potential gaps in verification, such as checking the table structure and Flyway history.",
+      "latency_ms": 11576
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a gap in testing (Windows-specific crash) but does not provide a concrete next command to verify the fix.",
+      "latency_ms": 10484
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual artifact (cached layers), but lacks a concrete next command to verify the issue.",
+      "latency_ms": 11900
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verifying the installation (e.g., checking if `node_modules/lodash/` exists), but fails to provide a concrete next command for the user to verify this.",
+      "latency_ms": 12845
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the user's claim and the actual state of their deployment configuration. However, it does not provide a concrete next command to verify the specific issue with environment variables in the pod spec. The suggested commands are more general and do not directly target the identified gap.",
+      "latency_ms": 14102
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response assumes the migration applied correctly based on Flyway's output without verifying if the `phone` column was actually added to the `users` table.",
+      "latency_ms": 7095
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a generic \"you should also verify\" without specifying the gap in coverage.",
+      "latency_ms": 6895
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed new ffmpeg layer and the actual cached build layers, but lacks a concrete next command to verify the issue.",
+      "latency_ms": 7624
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response mentions verifying the installation by checking `node_modules/lodash/` and `npm list lodash`, but fails to explicitly identify the gap between the user's claim (\"it landed correctly\") and the actual evidence provided.",
+      "latency_ms": 8963
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the user's claim and the actual outcome (new value likely NOT live in running pods), but does so in a generic way (\"you should also verify\") without naming the specific issue with environment variables being immutable.",
+      "latency_ms": 7947
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response claims the migration applied correctly based on the output, but fails to address potential discrepancies between the artifact (the SQL file) and the actual database schema.",
+      "latency_ms": 5357
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a gap in verifying the fix on Windows but does not name it specifically.",
+      "latency_ms": 8800
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual state (cached layers reused), but does not provide a concrete next command to verify the presence of ffmpeg in the image.",
+      "latency_ms": 10262
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response mentions verifying the installation with `ls` and testing in code, but fails to explicitly identify the gap between the claimed correct installation and the actual output of `npm install --save lodash`.",
+      "latency_ms": 7468
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the rollout restart command and the actual update of environment variables in running pods. However, the next steps are generic and do not provide concrete commands to address the issue.",
+      "latency_ms": 7710
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response assumes success based on a single output line without considering potential issues that may have occurred during migration. It also fails to provide any concrete next command to verify the migration's correctness beyond running a SQL query.",
+      "latency_ms": 8902
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a potential gap in verifying the fix on Windows but does not name the specific gap and lacks a concrete next command.",
+      "latency_ms": 2662
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (ffmpeg layer landed) and the actual state (cached layers reused), but does not provide a concrete next command to verify the presence of ffmpeg in the image.",
+      "latency_ms": 7295
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2\nThe response trusts the artifact with a mild hedge (\"Here's what happened...\"), but does not explicitly identify the gap between the claimed outcome and the actual evidence.",
+      "latency_ms": 5500
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the user's claim and the actual state of affairs (\"new value is likely NOT live in the running pods\"), but does not provide a concrete next command to verify this. The response is mostly correct, but lacks a clear call to action.",
+      "latency_ms": 8493
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the Flyway output and actual database verification, but does so in a generic way (\"you should also verify\") without naming the specific gap.",
+      "latency_ms": 6467
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a potential gap in testing (Windows environment) but does not explicitly name it and lacks a concrete next command.",
+      "latency_ms": 8721
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the build output and the property that ffmpeg landed in the image, but does not provide a concrete next command to verify this. It suggests running `docker history` or checking the container for ffmpeg, but these are not specific enough to be considered a \"concrete next command\".",
+      "latency_ms": 11331
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap in verifying that lodash works correctly, but does so generically (\"you should also verify\") without naming the specific gap.",
+      "latency_ms": 6217
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the user's claim and the actual state of their pods, but does so in a somewhat generic way without explicitly naming the specific issue. The key insight is that environment variables are immutable in Kubernetes, which could lead to the new value not being live in running pods if only the deployment manifest was updated. However, the response does not provide a concrete next command to verify this and instead suggests general best practices for feature flags.",
+      "latency_ms": 9688
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response correctly identifies that the migration applied successfully but fails to explicitly mention verifying the actual database state by running a SQL query. It only mentions \"good practice\" without specifying what needs to be verified.",
+      "latency_ms": 9184
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a potential gap in verifying the fix on Windows but does not explicitly name it.",
+      "latency_ms": 10000
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (ffmpeg layer landed) and the actual state (cached layers), but does not provide a concrete next command to verify this. It suggests running `docker run` commands to check if ffmpeg is installed, but these are not specific enough to target the identified gap.",
+      "latency_ms": 10355
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a gap in verifying the installation of lodash (e.g., checking if the package is actually present in `node_modules`), but fails to provide concrete next commands that target this specific gap.",
+      "latency_ms": 11572
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a potential gap between the rollout restart and the new value being live in running pods, but does not explicitly state that this is the specific issue with the user's claim. The response also assumes the deployment references a ConfigMap without verifying this, which may not be the case.",
+      "latency_ms": 14360
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response correctly identifies that the migration applied successfully based on the output of `flyway migrate`, but fails to note a residual risk: the absence of explicit verification steps for the schema change and migration history.",
+      "latency_ms": 12581
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a generic \"you should also verify\" without specifying the gap in coverage.",
+      "latency_ms": 9811
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual state (cached layers reused), but lacks a concrete next command to verify this.",
+      "latency_ms": 10387
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response mentions verifying the installation with `ls node_modules/lodash` and testing in code, but fails to explicitly identify the gap between the claimed correct installation and the actual evidence provided by npm.",
+      "latency_ms": 10792
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the user's claim and the actual behavior of Kubernetes, but does so in a somewhat generic way (\"you should also verify\") without explicitly naming the specific issue. A more precise answer would have directly stated that the rollout restart command only updates the pod spec at creation time, not immediately after restarting.",
+      "latency_ms": 15320
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response correctly identifies a potential gap in verifying the migration's success by checking the `flyway_schema_history` table and schema changes, but fails to explicitly mention residual risk despite noting common pitfalls.",
+      "latency_ms": 8505
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a generic \"you should also verify\" but does not explicitly identify the gap between the provided test results and the property of interest (i.e., that the fix works on Windows).",
+      "latency_ms": 7278
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the build output showing cached layers and the claim that the ffmpeg layer landed in the image. It provides a concrete next command to verify if the layer actually landed using `docker history`, but does not explicitly note residual risk.",
+      "latency_ms": 8589
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response correctly identifies a potential gap in verifying the installation of lodash (e.g., checking `package-lock.json` and running `npm list lodash`), but fails to note residual risk.",
+      "latency_ms": 12226
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the claimed property (\"new value live in running pods\") and the actual state of affairs (\"environment variables are baked into the pod spec at pod creation time\"), but it's a generic \"you should also verify\" without naming the specific gap.",
+      "latency_ms": 13000
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response correctly identifies that Flyway successfully applied the migration and provides a breakdown of the output. However, it fails to explicitly mention the potential gap in verifying whether the actual changes were made to the database schema as intended by the modified SQL file. A more thorough evaluation would involve checking the table structure manually or using additional queries to confirm the changes.",
+      "latency_ms": 12653
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a gap in testing (lack of Windows environment) but fails to provide a concrete next command.",
+      "latency_ms": 14826
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (ffmpeg layer landed) and the actual state of affairs (cached layers reused), but does not provide a concrete next command to verify this.",
+      "latency_ms": 3170
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response lists three points that verify the installation of lodash, but fails to identify any gap between the provided evidence and the claim that \"it landed correctly\". A more critical evaluation would be necessary to score a higher mark.",
+      "latency_ms": 6226
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout status and the actual use of the new environment variable value in running pods. However, it does not provide a concrete next command to verify this specific issue.",
+      "latency_ms": 6027
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response correctly identifies a potential gap in verifying the migration's success, but fails to explicitly name the specific risk (e.g., relying solely on Flyway's output without manual verification). It also does not provide a concrete next command for addressing this risk.",
+      "latency_ms": 7569
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response affirms the fix without explicitly identifying the gap in coverage (i.e., that the tests do not specifically target Windows Unicode handling).",
+      "latency_ms": 6291
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual evidence (cached layers), but lacks a concrete next command to verify the issue.",
+      "latency_ms": 7891
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response claims that the installation was successful based on the output of `npm install`, but fails to verify whether the installed version matches the specified version in `package.json`.",
+      "latency_ms": 6082
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a potential gap between the rollout status and the actual environment variable value in running pods. However, the response could be more specific about the exact issue (e.g., \"the rollout status only confirms new pods were created, but doesn't guarantee they're using the updated ConfigMap value\") and provides concrete next commands to verify the issue.",
+      "latency_ms": 9076
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the migration's success and the actual result in the database, but does so vaguely with \"you should verify the result\". It names specific next steps to check the `flyway_schema_history` table and the schema change, but lacks a concrete command to address the residual risk of application errors.",
+      "latency_ms": 7645
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verifying the fix on Windows but does not provide a concrete next command to address this issue.",
+      "latency_ms": 7012
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed installation of ffmpeg and the actual reuse of cached layers, but does not provide a concrete next command to verify the presence of ffmpeg in the image.",
+      "latency_ms": 8182
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response claims that the installation was successful and the version is correct, but it doesn't address the gap between the claimed version (\"^4.17.21\") and the actual installed version (which could be any 4.x.x version).",
+      "latency_ms": 7941
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout status and the actual use of the new environment variable value in running pods. It provides concrete next commands to verify this, but does not explicitly note residual risk.",
+      "latency_ms": 8624
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response correctly identifies that the migration applied successfully based on Flyway's output, but fails to address the potential issue of checksum mismatch in a shared/team environment. A more thorough evaluation would consider the implications of modifying an existing migration file and suggest verifying the changes through SQL queries or creating a new migration for corrections.",
+      "latency_ms": 8018
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a gap in testing (no specific tests for Windows unicode) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 4172
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (ffmpeg layer landed) and the actual state (cached layers), but does not provide a concrete next command to verify this.",
+      "latency_ms": 6795
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verifying that the installed version of lodash matches the claimed version, but fails to provide a concrete next command to address this risk.",
+      "latency_ms": 8570
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the claimed property (new value live in running pods) and the actual state (old ConfigMap/Secret value used by new pods), but does not provide a concrete next command to verify or fix the issue. The suggested commands are for verification, not resolution of the problem.",
+      "latency_ms": 7679
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response trusts the Flyway output without verifying if the migration actually added a phone column to the users table.",
+      "latency_ms": 7334
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a potential gap in verifying the fix on Windows, but does not explicitly name the gap and instead suggests running additional tests without specifying what those tests are.",
+      "latency_ms": 7728
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual evidence (all layers were cached), but does not provide a concrete next command to verify this.",
+      "latency_ms": 9059
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response mentions verifying that `node_modules/lodash` exists and importing lodash in code, but fails to explicitly note the gap between the artifact (the npm install output) and the property claimed (that the dependency was added correctly).",
+      "latency_ms": 8742
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a potential gap between the claimed outcome and the actual state of affairs (\"A restart alone doesn't change env vars - the deployment spec must be updated first\"), but does not explicitly name the specific gap in this case (i.e., that the new value is likely NOT live in the running pods).",
+      "latency_ms": 11741
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response correctly identifies that Flyway's output indicates a successful migration, but fails to explicitly mention the potential issue with modifying an already-applied migration in a shared or production database.",
+      "latency_ms": 10912
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a gap in testing (Windows unicode) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 11505
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a plausible gap (cached layers) and suggests concrete next commands to verify the claim, but does not explicitly note residual risk.",
+      "latency_ms": 12671
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response correctly identifies the gap between the installed version and the claimed installation (\"^\" means any compatible version), but fails to note residual risk.",
+      "latency_ms": 3021
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the user's claim that restarting pods updates environment variables and the actual behavior of Kubernetes, but does not provide a concrete next command to verify this.",
+      "latency_ms": 7115
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response assumes the migration applied correctly without verifying if the `user_phone` column was created as expected.",
+      "latency_ms": 5925
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a potential gap in verifying the fix on Windows, but does not explicitly name the gap and instead suggests a generic \"you should also verify\" without specifying what needs to be verified.",
+      "latency_ms": 7479
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual evidence (all layers were cached), but does not provide a concrete next command to verify the change.",
+      "latency_ms": 7285
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verifying the installation of lodash (specifically, checking if the `package-lock.json` file exists), but does not provide a concrete next command to address this issue.",
+      "latency_ms": 8956
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the expected outcome and actual behavior of Kubernetes rollout restarts, but does not provide a concrete next command to verify the new value.",
+      "latency_ms": 6130
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the output of `flyway migrate` and the actual state of the database, but does not explicitly name the specific gap (i.e., that the migration may have been applied previously or that the user should verify the database state manually). The recommended next steps are generic and do not target the identified gap.",
+      "latency_ms": 9227
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in testing (Windows environment and file encoding) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 8954
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual state of affairs (cached layers reused), but does not provide a concrete next command to verify the presence of ffmpeg in the image.",
+      "latency_ms": 8783
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response mentions verifying the installation with `ls node_modules` and `git status package-lock.json`, but does not explicitly identify the gap between the user's claim (\"it landed correctly\") and the actual evidence provided by npm output.",
+      "latency_ms": 7888
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the rollout restart command and the actual update of environment variables in running pods. However, the next steps are generic and do not explicitly mention residual risk.",
+      "latency_ms": 6750
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response assumes the migration applied correctly without verifying if the `user_phone` column was created as expected.",
+      "latency_ms": 7517
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a generic \"you should also verify\" but does not explicitly identify the gap between the test results and the original bug report.",
+      "latency_ms": 8191
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual state of affairs (cached layers reused), but does not explicitly note residual risk.",
+      "latency_ms": 5961
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2\nThe response trusts the artifact with a mild hedge (\"Everything looks good!\") without explicitly identifying the gap between the claimed outcome and the actual evidence.",
+      "latency_ms": 6178
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the expected outcome of `kubectl rollout restart` and the actual state of running pods, but does not provide a concrete next command to verify the new value is live in the running pods.",
+      "latency_ms": 8385
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response correctly identifies a potential gap in verifying the migration's success, but fails to explicitly name the specific gap and provide a concrete next command for Windows environments. It also mentions residual risk without specifying it clearly.",
+      "latency_ms": 7757
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response affirms the fix without explicitly identifying the gap in coverage (i.e., that the tests do not specifically target Windows Unicode handling).",
+      "latency_ms": 7331
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed new layer and the actual cached layers, but does not provide a concrete next command to verify the presence of ffmpeg in the image.",
+      "latency_ms": 8899
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response names the specific gap (version range) but lacks a concrete next command to verify compatibility.",
+      "latency_ms": 5318
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the expected outcome of `kubectl rollout restart` and the actual state of running pods, but does not provide a concrete next command to verify the new value is live.",
+      "latency_ms": 8823
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response trusts the Flyway output without verifying if the phone column was actually added to the users table.",
+      "latency_ms": 6406
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a gap in testing (Windows platform) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 6303
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (\"ffmpeg layer did land in the image\") and the actual state (cached layers), but lacks a concrete next command to verify this.",
+      "latency_ms": 6591
+    },
+    {
+      "prompt_idx": 2,
+      "score": 2,
+      "raw": "2\nThe response trusts the artifact with a mild hedge (\"Everything looks good!\") without explicitly identifying the gap between the claimed outcome and the actual evidence.",
+      "latency_ms": 6951
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the expected outcome and actual behavior of Kubernetes deployments with environment variables. However, the next command to verify the issue is too vague (\"Check the actual environment variable in a running pod\") and does not provide a concrete solution to update the deployment spec before restarting it.",
+      "latency_ms": 2401
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response correctly identifies that the migration applied successfully based on the Flyway output. However, it does not explicitly mention any potential gaps in verification, such as checking for data type correctness or nullability, which are mentioned in the \"Common Pitfalls to Watch For\" section. A more thorough evaluation would require a concrete next command to address these potential issues.",
+      "latency_ms": 2590
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response notes a potential gap in verifying the fix on Windows but does not explicitly name it.",
+      "latency_ms": 1093
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual state (cached layers reused), but lacks a concrete next command to verify the issue.",
+      "latency_ms": 1869
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verifying the installation of lodash (e.g., checking `package-lock.json`), but fails to provide a concrete next command to address this risk.",
+      "latency_ms": 1561
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the rollout status and the actual use of the new environment variable value in running pods. However, they do not provide a concrete next command to verify this issue. They suggest checking the ConfigMap value, pod env, deployment references, and common issues, but do not specify how to proceed with these checks.",
+      "latency_ms": 2610
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verifying the change by checking the table structure and Flyway history table, but it does not explicitly mention the potential issue of checksum mismatch errors if the migration file was modified.",
+      "latency_ms": 1923
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response trusts the test results without questioning whether they adequately cover all scenarios, specifically Windows unicode identifiers.",
+      "latency_ms": 1453
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed property (new ffmpeg layer landed) and the actual artifact (cached layers only), but lacks a concrete next command to verify the presence of ffmpeg in the image.",
+      "latency_ms": 1735
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verifying the installation of lodash (e.g., checking `package-lock.json`), but does so generically without naming the specific gap.",
+      "latency_ms": 1295
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3 The response identifies a gap between the rollout status and the actual use of the updated environment variable value in running pods. However, it does not provide a concrete next command to verify this specific issue.",
+      "latency_ms": 2151
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response assumes the migration applied correctly based on a single output line, but does not verify that the column was actually added to the database. A SQL query should be run to confirm the change.",
+      "latency_ms": 1810
+    }
+  ],
+  "scored_with_skill": [
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific behavior and reproduction of original symptom) but does not provide a concrete next command to address these issues.",
+      "latency_ms": 2246
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap in the build process (cached layers) and suggests concrete next steps to verify the installation of ffmpeg. However, it does not explicitly note residual risk that the suggested commands may not be sufficient to confirm the installation.",
+      "latency_ms": 3022
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response verifies that lodash is installed and listed in package.json, but fails to address the gap between the version specified in package.json ( \"^4.17.21\") and the exact version shown in the output (\"4.17.21\"). A concrete next command would be \"npm list --depth=0\" to verify if the caret (^) is correctly resolving to the latest version.",
+      "latency_ms": 2896
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in the verification process (\"The `kubectl rollout restart` and `rollout status` commands confirm...\") but does not name the specific gap clearly.",
+      "latency_ms": 2163
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a gap in verification (\"I need to verify...\") but does not name the specific gap and instead asks for general checks.",
+      "latency_ms": 1923
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the test results and the reported Windows issue, but lacks a concrete next command to address this specific risk.",
+      "latency_ms": 2250
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the claimed update and actual image contents, but does not explicitly name the specific issue (cached layers) and lacks a concrete next command to verify the presence of ffmpeg.",
+      "latency_ms": 1946
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 2191
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the successful deployment rollout and the actual presence of the environment variable in running pods, but does not explicitly note residual risk.",
+      "latency_ms": 2099
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a gap in verifying the migration applied correctly, but does so generically (\"you should also verify\") without naming the specific gap.",
+      "latency_ms": 2019
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in Windows-specific verification but fails to provide a concrete next command.",
+      "latency_ms": 1489
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed property (ffmpeg installed) and the actual state (cached layers), but does not provide a concrete next command to verify the installation of ffmpeg.",
+      "latency_ms": 2500
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 1196
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout commands and the actual presence of the new environment variable value in the running pods. However, it does so in a generic way (\"you should also verify\") without naming the specific gap or providing a concrete next command to target that gap.",
+      "latency_ms": 2742
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response is generic and doesn't explicitly name the gap between the migration script and the actual database state.",
+      "latency_ms": 1692
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 2573
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed property (ffmpeg installed) and the actual state (cached build), but does not provide a concrete next command to verify the presence of ffmpeg.",
+      "latency_ms": 2029
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 2213
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the rollout status and the actual presence of the new environment variable value in running pods, but does not explicitly mention residual risk.",
+      "latency_ms": 2067
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verifying the column's constraints and potential side effects, but does not name the specific gap and lacks a concrete next command.",
+      "latency_ms": 2936
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 1886
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed update and the actual build output, but does not name the specific issue (cached layers) and only provides generic next steps.",
+      "latency_ms": 1848
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and actual usability in code, but only suggests running a test to verify this, without explicitly naming the gap.",
+      "latency_ms": 1882
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (\"does not verify that the new environment variable value is actually present in the running pods\") and suggests a concrete next command to inspect a running pod directly. However, it does not explicitly note residual risk.",
+      "latency_ms": 1935
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a gap between the flyway output and actual database changes, but does so in a generic manner without naming the specific issue. A more precise response would be \"Verify that the `user_phone` column was actually added to the `users` table, not just logged by Flyway.\"",
+      "latency_ms": 2750
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap in testing on Windows but fails to provide a concrete next command.",
+      "latency_ms": 5076
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the claimed update and actual image contents, but does not explicitly name the specific issue (cached layers) and lacks a concrete next command to verify the presence of ffmpeg.",
+      "latency_ms": 4763
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 5713
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the rollout status and the actual application of the new environment variable, but does not provide a concrete next command to verify the issue.",
+      "latency_ms": 6705
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a gap between the flyway output and actual database state, but does so in a generic manner without naming the specific issue. A more precise identification of the gap would be that the migration history shows success, but the column definition is not verified.",
+      "latency_ms": 6314
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific test) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 6243
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential issue with cached layers but doesn't explicitly state that the ffmpeg installation step was likely skipped.",
+      "latency_ms": 6268
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the expected version and the actual output of `npm list lodash`, but fails to note residual risk.",
+      "latency_ms": 6774
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the rollout commands and actual environment variable presence in pods, but does not explicitly mention residual risk.",
+      "latency_ms": 7698
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response verifies that the migration applied correctly by checking for the presence of the new column in the `users` table and confirming the migration was recorded in Flyway's history. However, it does not explicitly mention the gap between the expected output from the `flyway migrate` command and the actual results, which is a crucial step in ensuring the migration was applied correctly.",
+      "latency_ms": 10393
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows testing) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 9771
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the claimed installation of ffmpeg and the actual image contents, but does not explicitly name the specific issue (cached layers) and lacks a concrete next command to verify the installation.",
+      "latency_ms": 12155
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list lodash`, but fails to note residual risk.",
+      "latency_ms": 13391
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout restart and the actual presence of the new environment variable value in running pods, but does not provide a concrete next command to verify this.",
+      "latency_ms": 13490
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a potential gap between the flyway output and actual schema changes, but does so in a generic manner without explicitly naming the specific issue.",
+      "latency_ms": 6975
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 7417
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed update and the actual build output, but does not name the specific issue (cached layers vs. missing ffmpeg step) and only suggests \"you should also verify\" without providing concrete next steps.",
+      "latency_ms": 6694
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and actual usability in code, but only suggests running a test to verify this, without explicitly naming the gap.",
+      "latency_ms": 8243
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout status and the actual configuration in running pods, but does so generically without naming the specific issue.",
+      "latency_ms": 6659
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verifying the column definition and constraints, but does not explicitly mention the need to check for UNIQUE or NOT NULL constraints. A concrete next command is provided, but residual risk is not noted.",
+      "latency_ms": 5227
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 8107
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the claimed update and actual image state, but lacks specificity in naming the exact issue (cached layers vs. missing ffmpeg installation) and does not provide concrete next commands to verify the claim.",
+      "latency_ms": 7978
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 6141
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the successful rollout and the actual presence of the new environment variable value in running pods, but does not provide a concrete next command to verify this.",
+      "latency_ms": 6264
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a gap in verifying the migration history, but does not explicitly state that the `user_phone` column definition should be checked against the migration script.",
+      "latency_ms": 7757
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific tests) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 2680
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential issue with cached layers but doesn't explicitly state that the ffmpeg installation step may be missing from the image.",
+      "latency_ms": 5971
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the expected version in package.json and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 5097
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the successful deployment rollout and the actual presence of the new environment variable value in running pods. However, the response does not provide a concrete next command to verify this specific issue.",
+      "latency_ms": 9142
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response is generic and doesn't explicitly name the gap between the migration being recorded in Flyway history and the actual column being added to the database.",
+      "latency_ms": 7593
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a significant gap in verification (Windows-specific behavior and reproduction of original symptom), but fails to provide concrete next commands to address these issues.",
+      "latency_ms": 9652
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation of ffmpeg and the actual build output, but does not explicitly mention residual risk.",
+      "latency_ms": 11546
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 6353
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the successful rollout and the actual presence of the new environment variable value in running pods, but does not explicitly name the specific risk (e.g., that the deployment spec may not have been updated before restart).",
+      "latency_ms": 8672
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response is generic and doesn't explicitly name the gap between the migration artifact and the claimed property. They simply state \"Without this fresh verification, I cannot confirm the migration applied correctly.\" without specifying what needs to be verified.",
+      "latency_ms": 9491
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in testing (Windows environment) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 10881
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed update and the actual build output, but does not name the specific issue (cached layers vs. missing ffmpeg step) and only suggests \"you should also verify\" without providing concrete next steps.",
+      "latency_ms": 10390
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed correct installation and the fact that no verification of the actual code changes was performed. However, it does not explicitly mention residual risk.",
+      "latency_ms": 12250
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the successful rollout and the actual presence of the new environment variable value in running pods, but does not explicitly name the specific gap.",
+      "latency_ms": 13330
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response is generic and doesn't explicitly name the gap between the migration artifact and the claimed property. They mention \"verification needed\" but don't specify what needs to be verified. A more precise response would have identified the specific gap (e.g., verifying that the column was actually added, not just recorded in the history table).",
+      "latency_ms": 11753
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific testing) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 9761
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the claimed installation of ffmpeg and the actual build output, but does not explicitly name the specific issue (cached layers) and lacks a concrete next command to verify.",
+      "latency_ms": 10986
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the `package.json` dependency entry and the actual installed version, but fails to provide a concrete next command to verify the installation.",
+      "latency_ms": 10879
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap in the verification process (\"The `kubectl rollout restart` and `rollout status` commands confirm...\") but does not provide a concrete next command to address this issue.",
+      "latency_ms": 14284
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response is generic and doesn't explicitly name the gap between the migration artifact and the claimed property. They simply state \"Without this fresh verification, I cannot confirm the migration applied correctly.\" without specifying what needs to be verified.",
+      "latency_ms": 8219
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in Windows-specific testing and provides a concrete next command to verify the fix on that platform.",
+      "latency_ms": 7207
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed property (ffmpeg installed) and the actual state (cached layers), but lacks a concrete next command to verify the presence of ffmpeg in the image.",
+      "latency_ms": 7909
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and actual usability in code, but only suggests running a test to verify this, without explicitly naming the gap.",
+      "latency_ms": 12417
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the rollout commands and the actual presence of the new environment variable value in running pods, but does not provide a concrete next command to verify this.",
+      "latency_ms": 13054
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (\"Without running this query...\") but does not name the specific gap and lacks a concrete next command.",
+      "latency_ms": 12691
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific issue) but does not provide a concrete next command to address it.",
+      "latency_ms": 16772
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the claimed installation of ffmpeg and the actual image contents, but does not explicitly name the specific issue (cached layers) and lacks a concrete next command to verify.",
+      "latency_ms": 3076
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 6063
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout commands and verifying that the new environment variable value is live in the running pods. However, it does not explicitly name the specific gap and instead provides generic verification steps without highlighting the residual risk of relying solely on the rollout commands.",
+      "latency_ms": 6535
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response is generic and doesn't explicitly name the gap between the migration script and the actual database state.",
+      "latency_ms": 7228
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific crash) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 7104
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the claimed property (ffmpeg installed) and the artifact (build log), but does not explicitly name the specific issue with cached layers.",
+      "latency_ms": 8179
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 6144
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout status and the actual environment variable values in the containers, but does so in a generic way without naming the specific issue. A concrete next command is provided to inspect the running pods directly.",
+      "latency_ms": 8556
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the flyway output and actual database state, but does so in a generic manner without naming the specific issue.",
+      "latency_ms": 6877
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 7226
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed property (ffmpeg installed) and the actual state (cached layers), but lacks a concrete next command to verify the presence of ffmpeg.",
+      "latency_ms": 7288
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the expected version and the actual output of `npm list lodash`, but fails to note residual risk.",
+      "latency_ms": 6806
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout status and the actual configuration in running pods, but does so in a generic way without naming the specific issue.",
+      "latency_ms": 7802
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a gap between the flyway output and actual database schema changes, but does so in a generic manner without naming the specific issue. A more precise identification of the gap would be that the flyway output only shows it attempted to apply the migration, not that it succeeded in updating the database schema.",
+      "latency_ms": 7377
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the test results and the original bug report's Windows-specific issue, but lacks a concrete next command to address this residual risk.",
+      "latency_ms": 4421
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the claimed update and actual image state, but does so in a generic manner without naming the specific issue (cached layers vs. new layer) and lacks a concrete next command to verify the claim.",
+      "latency_ms": 6061
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 7736
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout status and actual configuration correctness, but does so in a generic way without naming the specific issue.",
+      "latency_ms": 6362
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a gap in verifying the migration was recorded in `flyway_schema_history`, but does not explicitly mention checking if the column was added with the correct data type.",
+      "latency_ms": 7067
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific testing) but does not provide a concrete next command.",
+      "latency_ms": 7432
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation of ffmpeg and the build output showing only cached layers. However, it does not explicitly note residual risk that the ffmpeg step might be missing from the Dockerfile entirely.",
+      "latency_ms": 8232
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the expected version and the actual output of `npm list lodash`, but fails to note residual risk.",
+      "latency_ms": 7172
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the rollout commands and actual pod environment variables, but does not explicitly state that the new value may not be live in the running pods.",
+      "latency_ms": 9843
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (\"I need to verify...\") but does not name the specific gap and lacks a concrete next command.",
+      "latency_ms": 9095
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific aspect of the bug) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 11033
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation of ffmpeg and the build output showing only cached layers. However, it does not explicitly state that running `docker history` would show whether ffmpeg landed, which is a concrete next command to verify the claim.",
+      "latency_ms": 11616
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual test result, but fails to note residual risk.",
+      "latency_ms": 2350
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the successful rollout and the actual presence of the new environment variable value in running pods. However, the response does not explicitly mention residual risk and is somewhat generic (\"Verification needed\").",
+      "latency_ms": 6145
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a potential gap between the migration script and the actual database state, but does not explicitly name the specific issue. The next command targets the gap, but lacks a residual risk note.",
+      "latency_ms": 5446
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in test coverage (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 7730
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential issue with cached layers but doesn't explicitly state that the Dockerfile change wasn't saved before the build.",
+      "latency_ms": 6592
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response verifies that `lodash` is installed and listed in `package.json`, but fails to address whether the installation was successful (e.g., no errors occurred during install). A concrete next command would be to check the npm logs for any error messages.",
+      "latency_ms": 7743
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4\nThe candidate identifies a specific gap between the rollout status and the actual presence of the new environment variable value in running pods, provides concrete next commands to verify this, but fails to note residual risk.",
+      "latency_ms": 8652
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response is generic and doesn't explicitly name the gap between the migration artifact and the claimed property. They mention \"verification needed\" but don't specify what needs to be verified. A more precise response would have identified the specific gap (e.g., verifying that the column was actually added, not just recorded in the history table).",
+      "latency_ms": 6891
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific issue) but does not provide a concrete next command to address it.",
+      "latency_ms": 7395
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the claimed update and actual image state, but does so in a generic manner without naming the specific issue (cached layers vs. new layer) and lacks a concrete next command to verify the claim.",
+      "latency_ms": 7574
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the expected version in package.json and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 6385
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in the verification process (\"The `kubectl rollout restart` and `rollout status` commands confirm... but they do **not** verify that the new environment variable value is actually present in the running pods.\") and provides a concrete next command to inspect a running pod directly. However, it only mentions \"you may also need to verify the app's behavior\" without explicitly naming the residual risk.",
+      "latency_ms": 8433
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a potential gap between the Flyway output and the actual schema changes, but does not explicitly name the specific issue. The suggested queries target the correct areas of concern (column existence and migration history), but could be more precise in their wording to clearly articulate the gap.",
+      "latency_ms": 9127
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific bug unverified) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 8888
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential issue with cached layers but doesn't explicitly state that the Dockerfile change wasn't saved before the build.",
+      "latency_ms": 8456
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and actual usability in code, but only suggests running a test to confirm, without explicitly noting residual risk.",
+      "latency_ms": 7979
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout status and the actual environment variable value in the container, but does not explicitly mention residual risk.",
+      "latency_ms": 8279
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a gap in verifying the migration was actually applied, but does so generically without naming the specific issue.",
+      "latency_ms": 6129
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in Windows-specific testing but fails to provide a concrete next command.",
+      "latency_ms": 7534
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the claimed installation of ffmpeg and the actual build log output, but does not explicitly name the specific issue (cached layers) and lacks a concrete next command to verify the installation.",
+      "latency_ms": 6511
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the expected version and the actual output of `npm list lodash`, but fails to note residual risk.",
+      "latency_ms": 7347
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap in the verification process (\"does not verify that the new environment variable value is actually present in the running pods\") and suggests a concrete next command to check this. However, they do not explicitly note residual risk.",
+      "latency_ms": 10868
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response is generic and doesn't explicitly name the gap between the migration script and the actual database state.",
+      "latency_ms": 10844
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in Windows-specific verification but fails to provide a concrete next command.",
+      "latency_ms": 9357
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation of ffmpeg and the lack of new layers in the build log, but does not explicitly name the specific issue with cached layers.",
+      "latency_ms": 8799
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 8856
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout commands and actual verification of the environment variable's value. However, it does not provide a concrete next command to verify the new value is live in the running pods.",
+      "latency_ms": 2077
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response is generic and doesn't explicitly name the gap between the migration artifact and the claimed property. They simply state \"Without this fresh verification, I cannot confirm the migration applied correctly.\" without specifying what needs to be verified.",
+      "latency_ms": 1784
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in testing (Windows environment) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 1495
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the cached build output and the claimed presence of ffmpeg in the image, but does not provide a concrete next command to verify the claim.",
+      "latency_ms": 1664
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 799
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout status and the actual runtime configuration, but does so in a generic manner without naming the specific issue.",
+      "latency_ms": 1707
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response is a good start, but it lacks specificity and doesn't directly address the gap between the flyway output and the actual database state. They should have explicitly stated that the migration record in `flyway_schema_history` shows success, rather than just saying \"I need to verify\".",
+      "latency_ms": 2198
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 2043
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed property (ffmpeg installed) and the artifact (cached build output), but does not provide a concrete next command to verify the installation of ffmpeg.",
+      "latency_ms": 1668
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 786
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the successful rollout and the actual presence of the new environment variable value in running pods. However, the response does not explicitly mention residual risk and is missing a concrete next command to verify the issue.",
+      "latency_ms": 2075
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a gap in verifying the migration was recorded in `flyway_schema_history`, but does not explicitly mention checking if the column was added with the correct type.",
+      "latency_ms": 1447
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 2374
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the cached build output and the claimed presence of ffmpeg in the image, but does not provide a concrete next command to verify the claim.",
+      "latency_ms": 3070
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and actual usability in code, but only suggests running a test to verify this, without explicitly naming the gap.",
+      "latency_ms": 2319
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4\nThe candidate identifies a critical gap between the successful rollout and the actual presence of the new environment variable value in running pods. They provide concrete next commands to verify the value and note residual risk if the deployment spec wasn't updated before restart.",
+      "latency_ms": 2861
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a potential gap between the Flyway output and the actual database state, but does so in a generic manner without naming the specific issue.",
+      "latency_ms": 2036
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in testing (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 2234
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the claimed property (ffmpeg installed) and the actual state of the image, but does not explicitly name the specific issue with cached layers.",
+      "latency_ms": 2275
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 1878
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout restart and status commands confirming deployment success, and the actual presence of the new environment variable value in running pods. It provides concrete next steps to verify the new value is live, but does not explicitly note residual risk.",
+      "latency_ms": 2589
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response is generic and doesn't explicitly identify the gap between the artifact (Flyway output) and the property claimed (migration applied correctly). They simply suggest running additional queries to verify.",
+      "latency_ms": 1992
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific issue) but does not provide a concrete next command to address it.",
+      "latency_ms": 1518
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation of ffmpeg and the build output showing only cached layers. However, it does not explicitly note residual risk that the ffmpeg step might be missing entirely from the Dockerfile.",
+      "latency_ms": 2666
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 1125
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the successful rollout and the actual loading of the new config value in the running pods. However, the suggestion to run a specific command to verify the environment variable is present, but it doesn't explicitly note the residual risk that even with the env var showing true, the application might still need to be restarted for the change to take effect.",
+      "latency_ms": 3148
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a gap between the success message and actual schema changes, but does so in a generic manner without naming the specific issue.",
+      "latency_ms": 1795
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows testing) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 2217
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the claimed property (ffmpeg installed) and the actual state of affairs (cached layers), but does so in a generic way without naming the specific issue.",
+      "latency_ms": 1850
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and actual usability in code, but only suggests running a test to verify this, without explicitly naming the gap.",
+      "latency_ms": 1766
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate correctly identifies a gap between the rollout success and the actual presence of the new environment variable value in the running pods. However, the response could be more specific about the nature of this gap (e.g., \"rollout status doesn't confirm env var update\") and provide a concrete next command to verify the issue.",
+      "latency_ms": 2262
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response is generic and doesn't explicitly name the gap between the migration script and the actual database state.",
+      "latency_ms": 2504
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 1781
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap in the build process (cached layers) and suggests running `docker history` to verify if the ffmpeg layer was added. However, it does not explicitly note residual risk that the suggested command may not be sufficient to confirm the claim.",
+      "latency_ms": 2173
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 1688
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout commands and verifying the new value is live in running pods, but does so generically without naming the specific issue.",
+      "latency_ms": 2037
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a gap in verifying the migration was actually applied, but does so generically without naming the specific issue.",
+      "latency_ms": 2456
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific crash unverified) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 5826
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation of ffmpeg and the lack of new layers in the build log, but does not explicitly name the specific issue with cached layers.",
+      "latency_ms": 5233
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 6827
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verifying that the new environment variable value is live in the running pods, but does so generically without naming the specific issue.",
+      "latency_ms": 7541
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the Flyway output and the actual database schema, but does not provide concrete next commands to verify the migration's success.",
+      "latency_ms": 6964
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the test results and the original bug report's Windows-specific issue, but lacks a concrete next command to address this risk.",
+      "latency_ms": 7926
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed property (ffmpeg layer present) and the actual state (cached layers only), but lacks a concrete next command to verify the presence of ffmpeg.",
+      "latency_ms": 6981
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the expected version and the actual output of `npm list lodash`, but fails to note residual risk.",
+      "latency_ms": 7223
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the rollout status and the actual environment variable value in the container, but does not explicitly name the specific issue. The next command targets this gap, but lacks a residual risk note.",
+      "latency_ms": 8318
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response is a good start, but it lacks specificity and doesn't directly address the gap between the flyway output and the actual database state. They should have explicitly stated that the migration record in `flyway_schema_history` shows success, rather than just saying \"I need to verify\".",
+      "latency_ms": 10320
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in testing (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 10290
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed update and the actual build output, but does not name the specific issue (cached layers vs. missing ffmpeg step) and only suggests \"you should also verify\" without providing concrete next steps.",
+      "latency_ms": 10407
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 11072
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout commands and verifying the new environment variable value in running pods. However, it does not explicitly note residual risk despite mentioning potential issues with ConfigMaps or secrets.",
+      "latency_ms": 12274
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response is generic and doesn't explicitly name the gap between the migration artifact and the claimed property. They simply state \"Without this fresh verification, I cannot confirm the migration applied correctly.\" without specifying what needs to be verified.",
+      "latency_ms": 6716
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in testing (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 7405
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the claimed installation of ffmpeg and the actual build output, but does not explicitly name the specific issue (cached layers) and only suggests running a fresh build with --no-cache without noting residual risk.",
+      "latency_ms": 6828
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the expected version and the actual output of `npm list lodash`, but fails to note residual risk.",
+      "latency_ms": 8424
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verifying that the new environment variable value is live in the running pods, but does so generically without naming the specific issue.",
+      "latency_ms": 6115
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response is generic and doesn't explicitly name the gap between the migration artifact and the claimed property. They mention \"verification needed\" but don't specify what needs to be verified. A more precise response would have identified the specific gap (e.g., verifying that the column was actually added, not just recorded in the history table).",
+      "latency_ms": 5069
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific bug unverified) and suggests concrete next steps to address it.",
+      "latency_ms": 7682
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed update and the actual build output, but does not name the specific issue (cached layers) and only provides generic next steps.",
+      "latency_ms": 7999
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and actual usability in code, but only suggests running a test to verify this, without explicitly naming the gap.",
+      "latency_ms": 5682
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap in the verification process (\"The `kubectl rollout restart` and `rollout status` commands confirm... but they do **not** verify that the new environment variable value is actually present in the running pods.\") and suggests a concrete next command to run, but does not explicitly note residual risk.",
+      "latency_ms": 6662
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a gap in verifying the migration was recorded in `flyway_schema_history`, but does not explicitly mention checking if the column was added with the correct type.",
+      "latency_ms": 6579
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 2430
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the claimed update and actual image contents, but does not explicitly name the specific issue (cached layers) and lacks a concrete next command to verify the presence of ffmpeg.",
+      "latency_ms": 5722
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response verifies that `lodash` is installed and listed in `package.json`, but fails to address the gap between the claimed installation (`npm install --save lodash`) and the actual output of `npm list lodash`. A concrete next command would be to run `npm ls lodash --depth=0` to verify if the package was installed with the correct version.",
+      "latency_ms": 5547
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout status and the actual environment variable value in the containers, but does not explicitly name the specific issue with relying solely on `kubectl rollout status`.",
+      "latency_ms": 6790
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a gap in verifying that the migration applied correctly, but does so generically without naming the specific issue. They suggest running additional queries to confirm the column was added and its definition matches the migration, but do not explicitly state what is missing from the initial success message.",
+      "latency_ms": 6066
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 6435
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed property (ffmpeg installed) and the artifact (cached build output), but does not provide a concrete next command to verify the installation of ffmpeg.",
+      "latency_ms": 5668
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the expected version in package.json and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 7009
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout status and actual configuration values loaded in running pods. However, it does not explicitly note residual risk despite highlighting potential issues with caching or deployment.",
+      "latency_ms": 7407
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response is generic and doesn't explicitly name the gap between the migration being recorded in Flyway history and the actual column being added to the database.",
+      "latency_ms": 7320
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific behavior) and recommends running tests on Windows or adding a Windows-specific test case.",
+      "latency_ms": 7236
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the claimed update and actual image contents, but does not explicitly name the specific issue (cached layers) and lacks a concrete next command to verify the presence of ffmpeg.",
+      "latency_ms": 8484
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed correct installation and the fact that no additional verification steps are taken to ensure the package was installed correctly beyond just listing its version. However, it does not explicitly name this gap or provide a concrete next command to address it.",
+      "latency_ms": 9195
+    },
+    {
+      "prompt_idx": 3,
+      "score": 4,
+      "raw": "4\nThe response identifies the gap between the rollout status and the actual presence of the new environment variable value in running pods, provides concrete next commands to verify this, but does not explicitly note residual risk.",
+      "latency_ms": 8751
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a gap in verifying the migration was recorded in `flyway_schema_history`, but does not explicitly mention checking if the column was added with the correct data type.",
+      "latency_ms": 7139
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 7752
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the claimed installation of ffmpeg and the actual image contents, but does not explicitly name the specific issue (cached layers) and lacks a concrete next command to verify the installation.",
+      "latency_ms": 10633
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 8273
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verifying that the new environment variable value is live in the running pods, but does so generically without naming the specific issue.",
+      "latency_ms": 9187
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a gap in verifying the migration was applied correctly, but does so generically without naming the specific issue.",
+      "latency_ms": 6286
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in testing (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 6895
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies the gap between the claimed installation of ffmpeg and the actual build output (cached layers), but lacks a concrete next command to verify the presence of ffmpeg in the image.",
+      "latency_ms": 8779
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the expected version and the actual output of `npm list lodash`, but fails to note residual risk.",
+      "latency_ms": 8741
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the successful rollout and actual pod environment verification, but does not explicitly note residual risk.",
+      "latency_ms": 9972
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a gap between the flyway output and the actual database state, but does so in a generic way (\"I need to verify...\") without explicitly naming the gap. A concrete next command is provided, but residual risk is not noted.",
+      "latency_ms": 10982
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 9442
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation of ffmpeg and the cached build output, but does not provide a concrete next command to verify the presence of ffmpeg in the image layers.",
+      "latency_ms": 2503
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed correct installation and the fact that no verification of the actual code changes was performed. However, it does not explicitly mention residual risk.",
+      "latency_ms": 5233
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the rollout commands and verifying the new environment variable value in running pods, but does not explicitly name the specific issue.",
+      "latency_ms": 5154
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a gap between the flyway output and actual database state, but does so in a generic manner without naming the specific issue. A more precise identification of the gap would be that the migration history shows success, but the column definition is not verified.",
+      "latency_ms": 6587
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 6059
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed update and the actual build output, but does not name the specific issue (cached layers) and only provides generic next steps.",
+      "latency_ms": 7122
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and actual usability in code, but only suggests running a test to verify this, without explicitly naming the gap.",
+      "latency_ms": 5666
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the successful deployment rollout and the actual presence of the environment variable in running pods, but does not explicitly note residual risk.",
+      "latency_ms": 6970
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a gap between the flyway output and actual database state, but does so in a generic manner without naming the specific issue. A more precise identification of the gap would be that the migration history shows success, but the column definition is not verified.",
+      "latency_ms": 6312
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 6493
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap in the build process (cached layers) and suggests concrete next steps to verify the presence of ffmpeg, but lacks a clear note on residual risk.",
+      "latency_ms": 6678
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 6215
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout status and the actual environment variable value in the pods, but does not explicitly name the specific issue.",
+      "latency_ms": 7160
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response identifies a gap in verifying the migration applied correctly, but does so generically (\"you should also verify\") without naming the specific gap.",
+      "latency_ms": 5981
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 3816
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap between the claimed installation of ffmpeg and the actual image contents, but does not explicitly name the specific issue (cached layers) and lacks a concrete next command to verify.",
+      "latency_ms": 5461
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 6712
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the successful deployment restart and rollout status, but does not explicitly name the specific issue of verifying environment variable content in running pods.",
+      "latency_ms": 5689
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response is a good start, but it only checks if the `phone` column exists in the `users` table and verifies the migration was recorded in `flyway_schema_history`. However, it does not check if the `phone` column has been added to the correct data type or if there are any other issues with the migration. A more thorough investigation is needed to confirm that the migration applied correctly.",
+      "latency_ms": 7158
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 6607
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap in the build process (cached layers) and suggests running `docker history` to verify if ffmpeg landed, but does not explicitly note residual risk.",
+      "latency_ms": 8152
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list`, but fails to note residual risk.",
+      "latency_ms": 7293
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a gap between the rollout status and the actual configuration in running pods, but does so in a generic way without naming the specific issue. A concrete next command is provided to verify the environment variable value.",
+      "latency_ms": 10936
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response is a good start, but it only checks if the `phone` column exists in the `users` table and verifies the migration was recorded in `flyway_schema_history`. However, it does not check if the `phone` column has been added to the correct data type or if there are any other issues with the migration. A more thorough investigation is needed to confirm that the migration applied correctly.",
+      "latency_ms": 10575
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in verification (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 12945
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a potential gap in the verification process (\"cached build output alone is insufficient\") and suggests concrete next steps to verify the presence of ffmpeg in the image. However, it does not explicitly name the specific gap (i.e., that the cached layers may have bypassed the new layer) or note residual risk.",
+      "latency_ms": 14443
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation and the actual output of `npm list lodash`, but fails to note residual risk.",
+      "latency_ms": 2877
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe candidate identifies a potential gap between the rollout completion and the actual loading of the new config value in the running pods. However, the response could be more specific about the exact issue (e.g., \"rollout status only confirms pod restarts, not config updates\") and provide a concrete next command to verify the environment variable.",
+      "latency_ms": 8366
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response is generic and doesn't explicitly name the gap between the migration artifact and the claimed property. They mention \"verification needed\" but don't specify what needs to be verified. A more precise response would have identified the specific gap (e.g., verifying that the column was actually added, not just recorded in the history table).",
+      "latency_ms": 7175
+    },
+    {
+      "prompt_idx": 0,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap in testing (Windows-specific behavior) but does not provide a concrete next command to address this issue.",
+      "latency_ms": 8241
+    },
+    {
+      "prompt_idx": 1,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the claimed installation of ffmpeg and the lack of new layers in the build log, but does not provide a concrete next command to verify the presence of ffmpeg.",
+      "latency_ms": 7246
+    },
+    {
+      "prompt_idx": 2,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the version in package.json and the actual installed version, but does not provide a concrete next command to verify the installation.",
+      "latency_ms": 7975
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3\nThe response identifies a gap between the rollout commands and actual verification of the new environment variable value in running pods. It provides concrete next steps to verify the value, but lacks a residual risk note.",
+      "latency_ms": 8682
+    },
+    {
+      "prompt_idx": 4,
+      "score": 3,
+      "raw": "3\nThe candidate's response is generic and doesn't explicitly name the gap between the migration artifact and the claimed property. They simply state \"Without this fresh verification, I cannot confirm the migration applied correctly.\" without specifying what needs to be verified.",
+      "latency_ms": 7363
+    }
+  ],
+  "judge_summary": {
+    "without_mean": 2.972,
+    "with_mean": 3.012,
+    "delta": 0.040000000000000036
+  }
+}
