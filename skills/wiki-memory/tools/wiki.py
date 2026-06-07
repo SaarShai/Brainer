@@ -18,6 +18,15 @@ SKIP_PARTS = {".git", ".token-economy", ".claude", "__pycache__", ".pytest_cache
 MAX_MANIFEST_BYTES = 10 * 1024 * 1024
 MAX_LOG_BYTES = 10 * 1024 * 1024
 WIKILINK_RE = re.compile(r"\[\[([^\]]+)\]\]")
+
+# Provenance trust tiers (mirror of skills/wiki-memory/tools/provenance.py). A page's
+# optional `trust:` frontmatter (default "asserted") gates conflict resolution in the
+# `resolve` verb: on a same-subject collision, the higher-trust fact wins. This is the
+# poison defense from eval/exp5_adversarial — the write-gate scores form/signal, not
+# truth, so a confident-wrong lesson passes it; trust resolution is the layer that stops
+# a low-trust assertion from overwriting an established higher-trust fact.
+TRUST_TIERS = {"asserted": 1.0, "corroborated": 2.0, "verified": 3.0, "user_confirmed": 4.0}
+DEFAULT_TRUST = "asserted"
 V2_REQUIRED = ("title", "type", "domain", "tier", "confidence", "created", "updated", "verified", "sources", "supersedes", "superseded-by", "tags")
 V2_TYPES = {"entity", "summary", "decision", "source-summary", "procedure", "concept", "pattern", "project", "query", "fact", "sop", "raw", "person", "handoff"}
 V2_TIERS = {"working", "episodic", "semantic", "procedural"}
@@ -1340,6 +1349,50 @@ class WikiStore:
             "candidates": scored,
         }
 
+    def resolve(self, title: str, body: str = "", trust: str = DEFAULT_TRUST,
+                tags: list[str] | None = None, k: int = 5) -> dict[str, Any]:
+        """Trust-gated conflict resolution — the poison defense (eval/exp5_adversarial).
+
+        Runs `overlap` to find a same-subject page, reads its `trust:` frontmatter, and
+        applies the provenance policy: higher candidate trust -> replace; lower -> reject;
+        equal -> dispute. `write-gate` decides *quality*; this decides *who wins a
+        contradiction* by provenance, not by confidence of phrasing (a well-formed wrong
+        lesson passes the gate). The same-subject signal is structural (overlap); whether
+        the facts truly disagree stays the caller's judgement.
+        """
+        cand_name = (trust or DEFAULT_TRUST).strip().lower()
+        cand_t = TRUST_TIERS.get(cand_name, TRUST_TIERS[DEFAULT_TRUST])
+        ov = self.overlap(title, body=body, tags=tags, k=k)
+        bm = ov.get("best_match")
+        band = ov.get("overlap")
+        base: dict[str, Any] = {"title": title, "overlap": band,
+                                "candidate_trust": {cand_name: cand_t}, "best_match": bm}
+        if not bm or band == "low":
+            return {**base, "action": "create",
+                    "reason": "no strong same-subject page (overlap low) — safe to create"}
+        try:
+            page = self.read_page(self.root / bm["path"])
+            existing_name = (page.frontmatter.get("trust") or DEFAULT_TRUST).strip().lower()
+        except (OSError, KeyError):
+            existing_name = DEFAULT_TRUST
+        existing_t = TRUST_TIERS.get(existing_name, TRUST_TIERS[DEFAULT_TRUST])
+        base["existing_trust"] = {existing_name: existing_t}
+        if cand_t > existing_t:
+            action = "replace"
+            reason = (f"candidate trust {cand_name}({cand_t}) > existing {existing_name}({existing_t}) "
+                      f"— higher-trust correction permitted; supersede {bm['id']} (wire supersedes/superseded-by).")
+        elif cand_t < existing_t:
+            action = "reject"
+            reason = (f"candidate trust {cand_name}({cand_t}) < existing {existing_name}({existing_t}) "
+                      f"— an established higher-trust page exists; do NOT overwrite it. Raise trust first "
+                      f"(verify against code/test, or user-confirm), or record contradicts:[[{bm['id']}]] for review.")
+        else:
+            action = "dispute"
+            reason = (f"equal trust ({existing_name}) on same-subject page {bm['id']}. If the facts AGREE, "
+                      f"update in place; if they CONFLICT, mark contradicts:[[{bm['id']}]] both ways so retrieval "
+                      f"surfaces the dispute instead of serving one as truth.")
+        return {**base, "action": action, "reason": reason}
+
     # GRAFT 2 support — code-grounded staleness signal. The refresh skill reads
     # this to decide Keep/Update/Replace/Delete: a page whose cited code paths
     # have vanished is drifting against ground truth, not just against the clock.
@@ -1437,7 +1490,8 @@ class WikiStore:
             "suggested_snippet": None if passed else self.DISCOVERABILITY_SNIPPET,
         }
 
-    def new_page(self, template: str, title: str, domain: str = "framework", slug: str | None = None) -> dict[str, Any]:
+    def new_page(self, template: str, title: str, domain: str = "framework", slug: str | None = None,
+                 trust: str = DEFAULT_TRUST) -> dict[str, Any]:
         self.init()
         template_map = {
             "page": ("templates/page.template.md", "concepts"),
@@ -1465,6 +1519,7 @@ class WikiStore:
                 "title": title,
                 "domain": domain,
                 "date": today,
+                "trust": trust if trust in TRUST_TIERS else DEFAULT_TRUST,
             },
         )
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -1645,6 +1700,8 @@ def _cli_main(argv: list[str] | None = None) -> int:
     sp.add_argument("--title", required=True)
     sp.add_argument("--domain", default="framework")
     sp.add_argument("--slug", default=None)
+    sp.add_argument("--trust", default=DEFAULT_TRUST, choices=list(TRUST_TIERS),
+                    help="Provenance trust tier for the new page (default asserted).")
 
     sp = sub.add_parser("ingest", help="Add a source (file path or URL) to raw/.")
     sp.add_argument("source")
@@ -1673,6 +1730,15 @@ def _cli_main(argv: list[str] | None = None) -> int:
     sp.add_argument("--tags", default="", help="Comma-separated candidate tags.")
     sp.add_argument("-k", type=int, default=5)
 
+    sp = sub.add_parser("resolve", help="Trust-gated conflict resolution: should a candidate fact replace / be rejected by / dispute an existing same-subject page? (poison defense)")
+    sp.add_argument("--title", required=True)
+    sp.add_argument("--body", default="", help="Candidate body text.")
+    sp.add_argument("--body-file", default=None, help="Read candidate body from a file (overrides --body).")
+    sp.add_argument("--tags", default="", help="Comma-separated candidate tags.")
+    sp.add_argument("--trust", default=DEFAULT_TRUST, choices=list(TRUST_TIERS),
+                    help="Provenance trust tier of the candidate (default asserted).")
+    sp.add_argument("-k", type=int, default=5)
+
     sp = sub.add_parser("audit-refs", help="Code-grounded staleness: list pages whose cited code paths no longer exist.")
     sp.add_argument("--code-root", default=None, help="Repo root to resolve refs against (default: wiki root's parent).")
     sp.add_argument("--stale-days", type=int, default=180)
@@ -1694,7 +1760,7 @@ def _cli_main(argv: list[str] | None = None) -> int:
         _cli_print(store.fetch(args.item_id))
     elif args.cmd == "new":
         _cli_print(store.new_page(args.template, args.title,
-                                  domain=args.domain, slug=args.slug))
+                                  domain=args.domain, slug=args.slug, trust=args.trust))
     elif args.cmd == "ingest":
         _cli_print(store.ingest(args.source, title=args.title))
     elif args.cmd == "index":
@@ -1714,6 +1780,12 @@ def _cli_main(argv: list[str] | None = None) -> int:
             body = Path(args.body_file).expanduser().read_text(encoding="utf-8", errors="replace")
         tags = [t.strip() for t in args.tags.split(",") if t.strip()]
         _cli_print(store.overlap(args.title, body=body, tags=tags, k=args.k))
+    elif args.cmd == "resolve":
+        body = args.body
+        if args.body_file:
+            body = Path(args.body_file).expanduser().read_text(encoding="utf-8", errors="replace")
+        tags = [t.strip() for t in args.tags.split(",") if t.strip()]
+        _cli_print(store.resolve(args.title, body=body, trust=args.trust, tags=tags, k=args.k))
     elif args.cmd == "audit-refs":
         _cli_print(store.audit_refs(code_root=args.code_root, stale_days=args.stale_days))
     elif args.cmd == "discoverability":
