@@ -1,4 +1,6 @@
-# Simulations & extended testing — write-gate · cache-lint · memory-decay
+# Simulations & extended testing — write-gate · cache-lint
+
+> **Note:** `memory-decay` was **cut at v1.6.0** — a verified no-op (retrieval ranking never read its decayed `confidence`; only lint did). Its simulation results below (throughput, closed-form correctness, bugs found) are retained as a historical record, not a live skill.
 
 Extends the unit-test suite under each skill's `tools/test_*.py` with:
 
