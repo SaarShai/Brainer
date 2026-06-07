@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ./.claude/skills/context-keeper/hook.sh"
+            "command": "bash ./.claude/skills/context-keeper/tools/hook.sh"
           }
         ]
       }
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash /Users/za/Documents/brainer/projects/agents-triage/hook.sh"
+            "command": "bash ./.claude/skills/prompt-triage/tools/hook.sh"
           }
         ]
       }
