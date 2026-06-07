@@ -1,0 +1,1013 @@
+{
+  "experiment": "exp9_drift",
+  "backend": "ollama",
+  "model": "qwen2.5:7b-instruct",
+  "n_turns": 26,
+  "pulse_every": 4,
+  "history_cap": 2500,
+  "ack": "[ack: HELIOS-7]",
+  "arms": [
+    "control",
+    "pulse",
+    "canary",
+    "both"
+  ],
+  "per_arm": {
+    "control": {
+      "adherence": 0.12,
+      "compliance_curve": [
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "injected_tokens_total": 0,
+      "n_injections": 0,
+      "records": [
+        {
+          "turn": 0,
+          "complied": true,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": true,
+          "preview": "h the desired value can be found.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 1,
+          "complied": true,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": true,
+          "preview": "ery efficient for large datasets.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 2,
+          "complied": true,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": true,
+          "preview": "mpared to creating a new process.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 3,
+          "complied": true,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": true,
+          "preview": "their simplicity and flexibility.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 4,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "emory efficiently and writing robust applications."
+        },
+        {
+          "turn": 5,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "hance the performance of your database operations."
+        },
+        {
+          "turn": 6,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "choose the right protocol for your specific needs."
+        },
+        {
+          "turn": 7,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "olution for scaling web applications and services."
+        },
+        {
+          "turn": 8,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "twork communication more organized and manageable."
+        },
+        {
+          "turn": 9,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "a crucial component for secure web communications."
+        },
+        {
+          "turn": 10,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "ntly reduce the risk of deadlocks in your systems."
+        },
+        {
+          "turn": 11,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "scalable and maintainable concurrent applications."
+        },
+        {
+          "turn": 12,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "ure data integrity and handle potential conflicts."
+        },
+        {
+          "turn": 13,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "ions to filter out non-existent items efficiently."
+        },
+        {
+          "turn": 14,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "r to meet the specific needs of their application."
+        },
+        {
+          "turn": 15,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": " systems that are scalable, secure, and resilient."
+        },
+        {
+          "turn": 16,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "resses, enabling seamless access to web resources."
+        },
+        {
+          "turn": 17,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "ons to perform specific actions within the system."
+        },
+        {
+          "turn": 18,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "d on the specific requirements of the application."
+        },
+        {
+          "turn": 19,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "de might be needed in highly dynamic environments."
+        },
+        {
+          "turn": 20,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "developing reliable and robust concurrent systems."
+        },
+        {
+          "turn": 21,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "aling with complex computations or large datasets."
+        },
+        {
+          "turn": 22,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "ng more modular and maintainable software systems."
+        },
+        {
+          "turn": 23,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "ely changes but needs to be modified occasionally."
+        },
+        {
+          "turn": 24,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "re can be managed in a simple asynchronous system."
+        },
+        {
+          "turn": 25,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "perations without causing unintended side effects."
+        }
+      ]
+    },
+    "pulse": {
+      "adherence": 0.36,
+      "compliance_curve": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0
+      ],
+      "injected_tokens_total": 174,
+      "n_injections": 6,
+      "records": [
+        {
+          "turn": 0,
+          "complied": true,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": true,
+          "preview": "h the desired value can be found.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 1,
+          "complied": true,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": true,
+          "preview": "ery efficient for large datasets.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 2,
+          "complied": true,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": true,
+          "preview": "mpared to creating a new process.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 3,
+          "complied": true,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": true,
+          "preview": "their simplicity and flexibility.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 4,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 29,
+          "rule_in_window": true,
+          "preview": "tween efficiency and performance.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 5,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "ance between performance gains and resource costs."
+        },
+        {
+          "turn": 6,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "re about either protocol or need further examples?"
+        },
+        {
+          "turn": 7,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "ore about load balancing or need further examples?"
+        },
+        {
+          "turn": 8,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 29,
+          "rule_in_window": true,
+          "preview": " cables or wireless transmission.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 9,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "nsitive information transmitted over the internet."
+        },
+        {
+          "turn": 10,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "p manage resource allocation to prevent deadlocks."
+        },
+        {
+          "turn": 11,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": " common issues like deadlocks and race conditions."
+        },
+        {
+          "turn": 12,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 29,
+          "rule_in_window": true,
+          "preview": "y that resolves itself over time.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 13,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "as caching, spam filtering, and database indexing."
+        },
+        {
+          "turn": 14,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "requirements and constraints of their application."
+        },
+        {
+          "turn": 15,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": " a robust layer of protection for backend servers."
+        },
+        {
+          "turn": 16,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 29,
+          "rule_in_window": true,
+          "preview": "rovide fast and accurate results.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 17,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "ions about these concepts or need further details?"
+        },
+        {
+          "turn": 18,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "ions about these concepts or need further details?"
+        },
+        {
+          "turn": 19,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": " on the specific requirements of your application."
+        },
+        {
+          "turn": 20,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 29,
+          "rule_in_window": true,
+          "preview": "fy shared data at any given time.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 21,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "r applications by reducing redundant computations."
+        },
+        {
+          "turn": 22,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "ocessing frameworks like Apache Kafka or RabbitMQ."
+        },
+        {
+          "turn": 23,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": " to optimize memory usage and improve performance."
+        },
+        {
+          "turn": 24,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 29,
+          "rule_in_window": true,
+          "preview": "rate within their capacity limits. [ack: HELIOS-7]"
+        },
+        {
+          "turn": 25,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "istent, even if they are performed multiple times."
+        }
+      ],
+      "uplift": 0.24,
+      "efficiency_uplift_per_1k_tok": 1.379
+    },
+    "canary": {
+      "adherence": 0.56,
+      "compliance_curve": [
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1
+      ],
+      "injected_tokens_total": 297,
+      "n_injections": 11,
+      "records": [
+        {
+          "turn": 0,
+          "complied": true,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": true,
+          "preview": "h the desired value can be found.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 1,
+          "complied": true,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": true,
+          "preview": "ery efficient for large datasets.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 2,
+          "complied": true,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": true,
+          "preview": "mpared to creating a new process.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 3,
+          "complied": true,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": true,
+          "preview": "their simplicity and flexibility.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 4,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "emory efficiently and writing robust applications."
+        },
+        {
+          "turn": 5,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 27,
+          "rule_in_window": true,
+          "preview": "performance and ensuring efficient data retrieval."
+        },
+        {
+          "turn": 6,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "specific applications based on their requirements."
+        },
+        {
+          "turn": 7,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 27,
+          "rule_in_window": true,
+          "preview": "orkloads across multiple servers.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 8,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "ing it easier to troubleshoot and design networks."
+        },
+        {
+          "turn": 9,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 27,
+          "rule_in_window": true,
+          "preview": "or modified during transmission over the internet."
+        },
+        {
+          "turn": 10,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "fectively prevent deadlocks in concurrent systems."
+        },
+        {
+          "turn": 11,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 27,
+          "rule_in_window": true,
+          "preview": "g scalable and fault-tolerant distributed systems."
+        },
+        {
+          "turn": 12,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "onsistency, availability, and partition tolerance."
+        },
+        {
+          "turn": 13,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 27,
+          "rule_in_window": true,
+          "preview": "c analysis where false positives can be tolerated."
+        },
+        {
+          "turn": 14,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "n the specific requirements of their applications."
+        },
+        {
+          "turn": 15,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 27,
+          "rule_in_window": true,
+          "preview": "of reverse proxies you'd like more information on?"
+        },
+        {
+          "turn": 16,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "ed further details about any part of this process?"
+        },
+        {
+          "turn": 17,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 27,
+          "rule_in_window": true,
+          "preview": "ization or need further details on either concept?"
+        },
+        {
+          "turn": 18,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "nd binary trees or need further details on either?"
+        },
+        {
+          "turn": 19,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 27,
+          "rule_in_window": true,
+          "preview": " you like more details on any particular strategy?"
+        },
+        {
+          "turn": 20,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "ncurrent programs behave predictably and reliably."
+        },
+        {
+          "turn": 21,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 27,
+          "rule_in_window": true,
+          "preview": "ntly while maintaining readability and simplicity."
+        },
+        {
+          "turn": 22,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "nents need to communicate without direct coupling."
+        },
+        {
+          "turn": 23,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 27,
+          "rule_in_window": true,
+          "preview": "echnique to optimize memory usage and performance."
+        },
+        {
+          "turn": 24,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "y limits and maintaining overall system stability."
+        },
+        {
+          "turn": 25,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 27,
+          "rule_in_window": true,
+          "preview": ", you can build more robust and maintainable APIs."
+        }
+      ],
+      "uplift": 0.44,
+      "efficiency_uplift_per_1k_tok": 1.481
+    },
+    "both": {
+      "adherence": 0.6,
+      "compliance_curve": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0
+      ],
+      "injected_tokens_total": 309,
+      "n_injections": 11,
+      "records": [
+        {
+          "turn": 0,
+          "complied": true,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": true,
+          "preview": "h the desired value can be found.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 1,
+          "complied": true,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": true,
+          "preview": "ery efficient for large datasets.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 2,
+          "complied": true,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": true,
+          "preview": "mpared to creating a new process.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 3,
+          "complied": true,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": true,
+          "preview": "their simplicity and flexibility.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 4,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 29,
+          "rule_in_window": true,
+          "preview": "tween efficiency and performance.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 5,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "ance between performance gains and resource costs."
+        },
+        {
+          "turn": 6,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 27,
+          "rule_in_window": true,
+          "preview": "work performance and reliability.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 7,
+          "complied": true,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "hat resources are used optimally.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 8,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 29,
+          "rule_in_window": true,
+          "preview": "processes and delivers the email.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 9,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": " and a web server remains secure and confidential."
+        },
+        {
+          "turn": 10,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 27,
+          "rule_in_window": true,
+          "preview": "ly without getting stuck in an unresolvable state."
+        },
+        {
+          "turn": 11,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "ions that are easier to reason about and maintain."
+        },
+        {
+          "turn": 12,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 29,
+          "rule_in_window": true,
+          "preview": "exities of distributed computing.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 13,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "mory usage needs to be minimized.\n\n[ack: HELIOS-8]"
+        },
+        {
+          "turn": 14,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 27,
+          "rule_in_window": true,
+          "preview": "olerance over strict consistency.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 15,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "nd servers from external clients.\n\n[ack: HELIOS-8]"
+        },
+        {
+          "turn": 16,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 29,
+          "rule_in_window": true,
+          "preview": "authoritative answer is obtained.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 17,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "ust security measures in systems and applications."
+        },
+        {
+          "turn": 18,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 27,
+          "rule_in_window": true,
+          "preview": "cs that make them suitable for specific use cases."
+        },
+        {
+          "turn": 19,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "ts and constraints of your application or service."
+        },
+        {
+          "turn": 20,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 29,
+          "rule_in_window": true,
+          "preview": "itions in concurrent programming.\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 21,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "subproblems, such as dynamic programming problems."
+        },
+        {
+          "turn": 22,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 27,
+          "rule_in_window": true,
+          "preview": "ices communication, and real-time data processing."
+        },
+        {
+          "turn": 23,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": " need to share data and only a few will modify it."
+        },
+        {
+          "turn": 24,
+          "complied": true,
+          "injected": true,
+          "injected_tokens": 29,
+          "rule_in_window": true,
+          "preview": "certain threshold (backpressure).\n\n[ack: HELIOS-7]"
+        },
+        {
+          "turn": 25,
+          "complied": false,
+          "injected": false,
+          "injected_tokens": 0,
+          "rule_in_window": false,
+          "preview": "hen dealing with network unreliability or retries."
+        }
+      ],
+      "uplift": 0.48,
+      "efficiency_uplift_per_1k_tok": 1.553
+    }
+  },
+  "verdict": {
+    "control_adherence_early": 0.75,
+    "control_adherence_late": 0,
+    "control_decays": true,
+    "pulse_adherence": 0.36,
+    "pulse_uplift": 0.24,
+    "pulse_cost_tok": 174,
+    "pulse_efficiency": 1.379,
+    "canary_adherence": 0.56,
+    "canary_uplift": 0.44,
+    "canary_cost_tok": 297,
+    "canary_efficiency": 1.481,
+    "both_adherence": 0.6,
+    "both_uplift": 0.48,
+    "both_cost_tok": 309,
+    "both_efficiency": 1.553,
+    "both_beats_best_single": true
+  }
+}

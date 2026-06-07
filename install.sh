@@ -182,8 +182,8 @@ failure-lesson* layer (rationale, trade-offs, incidents, procedures), distinct
 from auto-extracted code structure. Relevant when the task references past work,
 prior decisions, or "have we done X". Query it before re-deriving: read
 `wiki/L1_index.md` first, then `python3 skills/wiki-memory/tools/wiki.py search "<q>"`
-→ `timeline` → `fetch`. Maintained by `wiki-memory` (write), `memory-decay`
-(age), and `wiki-refresh` (reconcile vs code).
+→ `timeline` → `fetch`. Maintained by `wiki-memory` (write) and `wiki-refresh`
+(reconcile vs code).
 STORE
   fi
   cat <<'FOOT'

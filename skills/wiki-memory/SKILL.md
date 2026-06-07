@@ -90,7 +90,7 @@ Write-gate (two layers). Both are **procedure gates** — agent steps in the wri
 ## Aging & reconcile
 
 Once a page is in the wiki, two companions maintain it:
-- [`memory-decay`](../memory-decay/SKILL.md) ages its `confidence` field over time (5% per 30 idle days, default). Error / lesson / SOP pages and high-`evidence_count` pages are protected from decay.
+- Page `confidence` and the `verified:` date carry staleness signal; `wiki-refresh` reconciles drifted pages against the codebase, and `lint --strict` flags pages whose `verified:` date is stale.
 - [`wiki-refresh`](../wiki-refresh/SKILL.md) reconciles pages against the *current codebase* (Keep/Update/Consolidate/Replace/Delete) and emits typed `contradicts:` edges. Drift signal: `python skills/wiki-memory/tools/wiki.py audit-refs [--code-root PATH]` lists pages whose cited code paths no longer exist. Run decay weekly (cheap), refresh monthly or after a refactor/rename (costs reads).
 
 ## Tier layout

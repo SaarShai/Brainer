@@ -1,6 +1,6 @@
 ---
 name: handoff
-description: Fires on the literal token "/handoff". Do NOT fire on any other input. Writes a markdown handoff doc summarising THIS session so the next/fresh agent can continue — outbound. Modes: default (temp-dir doc), --full (also route durable facts to wiki), --ask (query the most recent handoff). Pure local, no launch. Inbound counterpart is /handoff-from.
+description: Fires on the literal token "/handoff". Do NOT fire on any other input. Writes a markdown handoff doc summarising THIS session so the next/fresh agent can continue — outbound. Modes: default (temp-dir doc), --full (also route durable facts to wiki), --ask (query the most recent handoff). Pure local, no launch.
 effort: low
 tools: [Bash, Read, Write]
 argument-hint: What will the next session be used for? (or use --ask, --full)
@@ -11,7 +11,7 @@ disable-model-invocation: true
 
 ## Strict trigger gate
 
-Fires **only** when the user's most recent message starts with the literal token `/handoff` (case-insensitive) followed by whitespace, end-of-line, or `--`. **Do not fire on `/handoff-from…`** — that's a different skill. If the message doesn't match, **exit silently** — do not write a file, do not propose a handoff, do not mention this skill.
+Fires **only** when the user's most recent message starts with the literal token `/handoff` (case-insensitive) followed by whitespace, end-of-line, or `--`. If the message doesn't match, **exit silently** — do not write a file, do not propose a handoff, do not mention this skill.
 
 ## Three modes
 

@@ -17,7 +17,6 @@ Where it sits in the handoff family:
 |---|---|---|
 | [`handoff`](../handoff/SKILL.md) | push forward | writes a doc for the *next* session |
 | [`context-keeper`](../context-keeper/SKILL.md) | freeze present | extracts *this* session's live transcript pre-compaction |
-| [`handoff-from`](../handoff-from/SKILL.md) | pull one | pulls *one* named prior session via a sidecar |
 | **`session-recall`** | **pull many** | **synthesizes across ALL local sessions when no handoff doc exists** |
 
 Use this when there's nothing to hand off *from* — the knowledge is scattered across dozens of old sessions and you need the journey, not a single file.
@@ -26,7 +25,7 @@ Use this when there's nothing to hand off *from* — the knowledge is scattered 
 
 Model-invokable on questions about past agent work: "have we tried X", "how did we investigate Y", "what was the fix for Z last week", "did a previous session touch the auth middleware", "what didn't work when we…". Also when the user references prior sessions / earlier attempts without saying "session".
 
-Do NOT fire for: continuing the current conversation (you already have it), or pulling one specific known session (use `/handoff-from`).
+Do NOT fire for: continuing the current conversation (you already have it).
 
 ## Guardrails — non-negotiable
 
@@ -159,4 +158,4 @@ tools/
 
 ## Lineage
 
-Adapted from [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) `plugins/compound-engineering/skills/ce-sessions` (the four `scripts/` are vendored near-verbatim under MIT; the `ce-session-historian` agent's guardrails are folded into the step-6 subagent contract). Grafted onto our handoff family: positioned as the *pull-many* complement to [`handoff`](../handoff/SKILL.md) / [`handoff-from`](../handoff-from/SKILL.md) / [`context-keeper`](../context-keeper/SKILL.md), with the durable-finding tail routed through [`write-gate`](../write-gate/SKILL.md) → [`wiki-memory`](../wiki-memory/SKILL.md). **Opt-in (`auto-install: false`)** until measured.
+Adapted from [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) `plugins/compound-engineering/skills/ce-sessions` (the four `scripts/` are vendored near-verbatim under MIT; the `ce-session-historian` agent's guardrails are folded into the step-6 subagent contract). Grafted onto our handoff family: positioned as the *pull-many* complement to [`handoff`](../handoff/SKILL.md) / [`context-keeper`](../context-keeper/SKILL.md), with the durable-finding tail routed through [`write-gate`](../write-gate/SKILL.md) → [`wiki-memory`](../wiki-memory/SKILL.md). **Opt-in (`auto-install: false`)** until measured.

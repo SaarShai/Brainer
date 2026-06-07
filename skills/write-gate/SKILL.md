@@ -103,7 +103,7 @@ Result: noisy memory → wrong context injected → worse answers. This skill ma
 
 - [`wiki-memory`](../wiki-memory/SKILL.md) — owns the actual write path; this skill is its precheck.
 - [`verify-before-completion`](../verify-before-completion/SKILL.md) — execution-gate sibling; together they enforce "no execution, no memory; no reason, no decision."
-- [`memory-decay`](../memory-decay/SKILL.md) — what happens to memories *after* they pass this gate.
+- [`wiki-refresh`](../wiki-refresh/SKILL.md) — reconciles stored memories against the codebase after they pass this gate.
 
 ## Configuration
 

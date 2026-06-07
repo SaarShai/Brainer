@@ -40,7 +40,7 @@ Skills compound across axes (output × input × routing × memory) but **diminis
 
 | Metric | Value | Source |
 |---|---|---|
-| Always-on context tax (21 skill descriptions) | **1505 tokens** (~0.75% of 200K) — down from 1642 after a trigger-verified description-trim pass (−137, −8.3%), `top-1 trigger accuracy held 18/19` | `eval/results/static_cost.json` · `eval/exp8_trigger/` |
+| Always-on context tax (19 skill descriptions) | **1321 tokens** (~0.66% of 200K) — down from 1642 (**−321, −19.6%**): trigger-verified description trim (→1505, top-1 accuracy held 18/19) + cutting `handoff-from` (redundant w/ session-recall) and `memory-decay` (verified no-op — retrieval never read its decayed field) | `eval/results/static_cost.json` · `eval/exp8_trigger/` |
 | Best per-call output reduction (caveman-ultra) | **−86.4%** output (N=50), **+0.13 judge** (prior N=15) | `eval/results/caveman-ultra.json` + `.judged.json` |
 | Best discipline combo (caveman + lean) | **−87.7%** output | `eval/results/caveman+lean.json` |
 | End-to-end routing savings (prompt-triage, N=13 mixed prompts) | **−20.9%** total tokens, 100% classification accuracy | `eval/results/prompt-triage.json` |
@@ -98,7 +98,7 @@ enough to clear the write-gate so the test isolates update-handling, not gate sc
 | reconcile (wiki-refresh *Replace*) | **1.0** | 0.0 |
 
 - **Stale memory is the failure mode**: 0% correct AND serves the OLD value 100% of the time — *confidently* wrong. (Cold is also 0% but merely guesses; it doesn't assert a remembered-but-wrong fact.) So un-refreshed memory is arguably worse than none.
-- **Reconcile (Replace the stale page) recovers the current fact 3/3**: reconcile − stale = **+1.0** (on 3 binary trials — read as direction, not a tight 100%). First passing reading for the previously-untested `wiki-refresh` (Replace) + `memory-decay` skills, via the `wiki overlap` dedup-at-write primitive. Verified by the audit: `replace_lesson` genuinely deletes the v1 text from disk, and dep prompts leak no gold.
+- **Reconcile (Replace the stale page) recovers the current fact 3/3**: reconcile − stale = **+1.0** (on 3 binary trials — read as direction, not a tight 100%). First passing reading for the previously-untested `wiki-refresh` (Replace) skill, via the `wiki overlap` dedup-at-write primitive. (`memory-decay` was later cut — a verified no-op: retrieval never consumed its decayed `confidence` field.) Verified by the audit: `replace_lesson` genuinely deletes the v1 text from disk, and dep prompts leak no gold.
 - **Append also hit 3/3** — the real model read the supersession cues in the v2 lessons (`moved to` / `migrated to` / `now` / `lowered to`) and picked the new fact even with the old still retrievable. Honest caveat: append's success *depends* on the contradicting lesson carrying explicit recency cues; reconcile is robust regardless (it removes the stale page) and costs fewer retrieval tokens (one page, not two).
 
 ### Exp5 — adversarial poison (`eval/exp5_adversarial/`)
@@ -174,6 +174,25 @@ The N-gap backstop: every experiment re-run on three different-vendor families (
 - **Exp7 is the soft spot, but milder than first reported.** The original cross-model read claimed over-firing (false-fire 0.5 on llama/gemma); a follow-up with an explicit-decision detector showed that was a **measurement artifact** — true false-fire is 0.0 everywhere. The genuine residuals are *conservative under-firing* (qwen declines some raw should-fire) and *format non-compliance under long context* (llama abstains), and the elaborate harvest prose doesn't beat a one-line decision rule. Model-dependent, but not the "pollutes memory" failure first feared. (2nd-model attempt on `qwen3.6:35b-a3b` was discarded — reasoning model returned empty outputs via `/api/generate`; `gemma4:26b` was an unusable orphaned manifest; `gemma2:9b` pulled fresh.)
 
 **Portfolio caveat:** still single-run, temp 0, tiny binary N (3–5) per experiment, so no CIs — but the 3-family replication removes the "single-model artifact" risk for every finding except Exp7, whose model-dependence is now itself a documented result. The Kaggle N=50 discipline run remains the within-model variance backstop.
+
+## Exp9 — anti-drift hook efficiency (`eval/exp9_drift/`)
+
+Closes the gain-gap on **skill-pulse** + **compliance-canary** (both were correctness-tested but effect-unmeasured). LIFBench-style instruction-adherence: an arbitrary ack-rule (`[ack: HELIOS-7]`) is stated ONCE at turn 0, the system prompt is neutral, and the context window is bounded — so the rule scrolls out and adherence decays. Drift signal = ack present per turn. qwen2.5:7b, temp 0, 26 turns.
+
+**Phase-1 gate: control DECAYS** — adherence early 0.75 → late 0 (complies ~4 turns, then collapses once the rule leaves the window). Real drift to fix. Efficiency = adherence-uplift ÷ tokens injected.
+
+| arm | adherence | inj-tokens | uplift vs control | efficiency (uplift/1k tok) |
+|---|---:|---:|---:|---:|
+| control | 0.12 | 0 | — | — |
+| pulse (periodic, every 4 turns) | 0.36 | 174 | +0.24 | 1.38 |
+| **canary (reactive)** | **0.56** | 297 | **+0.44** | **1.48** |
+| both | 0.60 | 309 | +0.48 | 1.55 |
+
+- **Both hooks deliver a real measured gain** — they restore decayed instruction-adherence. The "effect-unmeasured" gap is closed: neither is useless.
+- **Canary (reactive) beats pulse (periodic)** on absolute adherence (0.56 vs 0.36) AND token-efficiency (1.48 vs 1.38 /1k) — confirms the "reactive > unconditional" prior with numbers.
+- **`both` barely beats canary alone** (+0.04 adherence for +12 tokens) → stacking has diminishing returns; **canary is the sweet spot**.
+- **Implication:** supports the lean call — keep the reactive canary, fold/retire the periodic pulse (it adds little once canary fires). Both stay opt-in (`auto-install: false`) until this replicates.
+- Caveats: single model (qwen2.5:7b), single run, n=26 turns; the ack-token is a clean *proxy* for "a skill rule the agent must keep following," not the skills' actual filler/verbosity probes. Direction is clear; not a tight CI. (The Phase-1 gate first mis-reported "floor" — an early-third window diluted the fast decay; fixed to use the first scored turns.)
 
 ## Per-skill measured wins (live A/B)
 
