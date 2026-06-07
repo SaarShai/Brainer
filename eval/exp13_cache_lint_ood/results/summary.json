@@ -123,7 +123,7 @@
   },
   "part2_real_repo": {
     "root": "/Users/za/token-economy",
-    "n_findings": 4,
+    "n_findings": 3,
     "n_fail": 0,
     "n_warn": 3,
     "fails": [],
