@@ -16,3 +16,5 @@ jobs:
         run: git ls-files -z '*.json' | xargs -0 -n1 python -m json.tool > /dev/null
       - name: Compile Python (syntax check)
         run: git ls-files -z '*.py' | xargs -0 python -m py_compile
+      - name: Carrier-skills catalog in sync
+        run: python3 scripts/check_carrier_sync.py

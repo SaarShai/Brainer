@@ -12,14 +12,14 @@ section before trusting the A/B delta.**
 | field | tokens / size |
 |---|---|
 | description (frontmatter; resident part is the catalog one-liner) | **81 tokens** (376 chars) |
-| body (loaded on `/think`)      | **1,380 tokens** (6,359 chars) |
+| body (loaded on `/think`)      | **1,238 tokens** (5,397 chars) |
 | tools/ payload                 | 0.0 KB |
 | model pin                      | `any` |
 | effort pin                     | `medium` |
 
 Source: [`eval/results/static_cost.json`](../../eval/results/static_cost.json).
 As a slash-only skill the always-resident part is just the catalog one-liner
-(the first sentence, ~40 tok); the full 81-tok description and 1,380-tok body
+(the first sentence, ~40 tok); the full 81-tok description and 1,238-tok body
 load only on `/think`. Cheap either way.
 
 ## Trigger accuracy (measured) — the solid result
@@ -120,20 +120,24 @@ reliably (fixing the 9b judge's blindness). N=3 × 5 × 2 = 30 subject runs.
 skill — the *baseline already scores 4.20 / 80% caught*; the skill adds +0.07
 (noise). This settles the 7b ambiguity both ways: the 7b "−0.6 harm" was
 **method-theater** (Opus doesn't recite rituals), and there was never a lift to
-find — **Opus already does first-principles trap-catching natively**, so the
-*posture* half of `think` (challenge premises, reduce-before-add) is **redundant
-at frontier**.
+find **on this one model** — Opus already does first-principles trap-catching
+natively. But that is **N=1 model and proves nothing general**; the **7b *failed*
+these traps**, so the posture content is **load-bearing for weaker models**, not
+redundant. Read it as *Opus didn't need it here*, not *frontier models don't need
+it* — which is exactly why the skill is now written for the weakest model that loads it.
 
 `dates` (1.33/1.33, neither arm caught) is a **flawed probe**: the old prompt
 ordered "do not use any date libraries" — a legitimate user constraint, so
 complying isn't a trap-fail. Revised in `think.yaml` (the trap is now the
 reinvention *impulse*, not disobeying an order); re-measure next run.
 
-**Mode implication:** auto-loading `think` buys ~**zero** posture benefit on the
-frontier model that runs in Claude Code, at a measured **+23.7% output** per fire.
-Its defensible value is the *situational methods* (brain-blizzard, 5-whys,
-pre-mortem) applied **deliberately** → the manual case. Shipped
-**`disable-model-invocation: true`** (slash-only `/think`).
+**Mode implication:** on Opus specifically, auto-loading `think` buys ~**zero**
+posture benefit at **+23.7% output** per fire — but a weaker model *does* need the
+posture, so the content stays. Manual `/think` is a **control** choice (you decide
+when), not a 'redundant' claim. The body is now written for the weakest model that
+loads it: **Always** (unconditional imperatives) + **When-relevant** (task-gated,
+de-ritualized) — see SKILL.md. Shipped **`disable-model-invocation: true`**
+(slash-only `/think`).
 
 Raw: workflow run `wf_bd0b9813` (subject/judge transcripts under the session's
 `subagents/workflows/`).
@@ -142,9 +146,10 @@ Raw: workflow run `wf_bd0b9813` (subject/judge transcripts under the session's
 
 - ✅ Triggers cleanly, zero regression (measured).
 - ✅ Trivially cheap resident (slash-only; catalog one-liner ~40 tok, no hook/dep).
-- ➖ Posture value (challenge-premise / reduce) **measured neutral at frontier**
-  (+0.07; Opus already has it) → not carried always-on; now **manual-only**
-  (`/think`).
+- ➖ Posture value: **neutral for Opus** on these 5 probes (+0.07) but
+  **load-bearing for the 7b** (which failed them) — not redundant in general, only
+  for a model already strong at first-principles. Manual `/think` is a *control*
+  choice (you decide when), not a 'redundant' claim.
 - ❓ The *situational methods* (ideation / 5-whys / pre-mortem) are **untested** —
   the trap probes exercise posture, not method. That half is what a deliberate
   `/think` is for; give it its own probe set if it's to earn more than a slot.
@@ -160,10 +165,11 @@ Raw: workflow run `wf_bd0b9813` (subject/judge transcripts under the session's
 ## Failure modes (observed at 7b — watch for them at scale)
 
 - **Method-theater:** named methods ("Brain Blizzard", "5 Whys") recited as
-  ritual headers without doing the underlying work. If a frontier run reproduces
-  this, the fix is to make the methods *triggers to think*, not *sections to
-  fill* — i.e. trim prescriptive method-naming. Not changed now: a 7b artifact is
-  too weak to justify editing user-authored, user-approved content.
+  ritual headers without doing the underlying work. **Fixed:** the body was
+  restructured into **Always** (unconditional imperatives) + **When-relevant**
+  (task-gated, behaviour-first, method-names demoted to parenthetical labels) with
+  an apply-note ("do it even if you'd already; don't announce — perform, don't
+  recite"), to make directives land on weaker models and stop recitation.
 - **Output inflation** on prompts that didn't need deliberation (the catalog's
   known weakness on terse/clear tasks — `think` should not fire there; trigger
   test suggests it doesn't).

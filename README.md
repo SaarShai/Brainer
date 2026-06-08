@@ -45,7 +45,7 @@ graphify extract .
 |---|---|---:|---|
 | [caveman-ultra](skills/caveman-ultra/SKILL.md) | session-start, "be terse" | 81 | Terse output style. ~65% output reduction reported (juliusbrussee/caveman lineage). |
 | [plan-first-execute](skills/plan-first-execute/SKILL.md) | task > 3 steps | 70 | Plan-mode gate. |
-| [think](skills/think/SKILL.md) | `/think` (manual; slash-only) | 81 | How an agent should think: first-principles, reduce/simplify, research-and-borrow, experiment-to-falsify, no flattery; ideation + 5-whys + pre-mortem/inversion. Frontier A/B: **posture neutral** (Opus already does it, +0.07) → `disable-model-invocation: true`. See [EVAL](skills/think/EVAL.md). |
+| [think](skills/think/SKILL.md) | `/think` (manual; slash-only) | 81 | How an agent should think: first-principles, reduce/simplify, research-and-borrow, experiment-to-falsify, no flattery; ideation + 5-whys + pre-mortem/inversion. Frontier A/B: posture **neutral for Opus** (+0.07) but **load-bearing for weak models** (7b failed the traps); restructured Always/When-relevant; slash-only `/think`. See [EVAL](skills/think/EVAL.md). |
 | [lean-execution](skills/lean-execution/SKILL.md) | "simplify / lean / prune" | 63 | Pruning rule. |
 | [verify-before-completion](skills/verify-before-completion/SKILL.md) | before any "done" claim | 49 | Evidence-first. |
 | [wiki-memory](skills/wiki-memory/SKILL.md) | retrieve OR write durable | 108 | Tier-aware (L0–L4) repo-local markdown wiki. |
@@ -62,7 +62,7 @@ graphify extract .
 
 **Always-resident context tax (16 descriptions): ~1,079 tokens.** Roughly 0.5% of a 200K context window. (Opt-in skills' descriptions are still resident; only their tools/hooks are off by default.)
 
-Full body cost (worst case, all loaded at once): ~16,900 tokens. In practice, only the triggered skill's body loads.
+Full body cost (worst case, all loaded at once): ~16,800 tokens. In practice, only the triggered skill's body loads.
 
 See [eval/results/static_cost.json](eval/results/static_cost.json) for the full measurement.
 

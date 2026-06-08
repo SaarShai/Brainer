@@ -51,7 +51,10 @@ def lint_one(path: Path) -> list[str]:
     if len(desc) > DESC_MAX:
         issues.append(f"description {len(desc)} chars > {DESC_MAX} cap")
     desc_lc = desc.lower()
-    if not any(h in desc_lc for h in TRIGGER_HINTS):
+    # Slash-only skills (`disable-model-invocation: true`) trigger on the literal
+    # token, not description-matching — they don't need trigger keywords.
+    slash_only = fm.get("disable-model-invocation", "").strip().lower() == "true"
+    if not slash_only and not any(h in desc_lc for h in TRIGGER_HINTS):
         issues.append("description should front-load trigger keywords (e.g. 'Use when...', 'Trigger on...')")
     # Section headings are recommended only for longer skill bodies.
     if "##" not in body and len(body.splitlines()) > 25:
