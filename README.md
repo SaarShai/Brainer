@@ -45,7 +45,7 @@ graphify extract .
 |---|---|---:|---|
 | [caveman-ultra](skills/caveman-ultra/SKILL.md) | session-start, "be terse" | 81 | Terse output style. ~65% output reduction reported (juliusbrussee/caveman lineage). |
 | [plan-first-execute](skills/plan-first-execute/SKILL.md) | task > 3 steps | 70 | Plan-mode gate. |
-| [think](skills/think/SKILL.md) | planning / ideation / "how to approach X" | 68 | How an agent should think: first-principles, reduce/simplify, research-and-borrow, experiment-to-falsify, no flattery; ideation + 5-whys + pre-mortem/inversion. Pure-prompt mindset doc; unmeasured in-repo. |
+| [think](skills/think/SKILL.md) | `/think` (manual; slash-only) | 81 | How an agent should think: first-principles, reduce/simplify, research-and-borrow, experiment-to-falsify, no flattery; ideation + 5-whys + pre-mortem/inversion. Frontier A/B: **posture neutral** (Opus already does it, +0.07) → `disable-model-invocation: true`. See [EVAL](skills/think/EVAL.md). |
 | [lean-execution](skills/lean-execution/SKILL.md) | "simplify / lean / prune" | 63 | Pruning rule. |
 | [verify-before-completion](skills/verify-before-completion/SKILL.md) | before any "done" claim | 49 | Evidence-first. |
 | [wiki-memory](skills/wiki-memory/SKILL.md) | retrieve OR write durable | 108 | Tier-aware (L0–L4) repo-local markdown wiki. |
@@ -60,7 +60,7 @@ graphify extract .
 | [wiki-refresh](skills/wiki-refresh/SKILL.md) | "refresh wiki / audit vs code" | 87 | Code-grounded reconcile of wiki pages (Keep/Update/Consolidate/Replace/Delete) via `audit-refs`; emits typed `contradicts:` edges. Ground-truth reconcile. |
 | [cache-lint](skills/cache-lint/SKILL.md) | before merging hooks/skills, CI | ~110 | Static audit against Anthropic's 6 prompt-cache rules (ussumant lineage). FAIL on dynamic content above breakpoint, prefix mutation by Stop-hooks, etc. |
 
-**Always-resident context tax (16 descriptions): ~1,066 tokens.** Roughly 0.5% of a 200K context window. (Opt-in skills' descriptions are still resident; only their tools/hooks are off by default.)
+**Always-resident context tax (16 descriptions): ~1,079 tokens.** Roughly 0.5% of a 200K context window. (Opt-in skills' descriptions are still resident; only their tools/hooks are off by default.)
 
 Full body cost (worst case, all loaded at once): ~16,900 tokens. In practice, only the triggered skill's body loads.
 

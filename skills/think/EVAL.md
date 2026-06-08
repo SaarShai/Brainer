@@ -11,15 +11,16 @@ section before trusting the A/B delta.**
 
 | field | tokens / size |
 |---|---|
-| description (always resident) | **68 tokens** (311 chars) |
-| body (loaded on trigger)      | **1,344 tokens** (6,200 chars) |
+| description (frontmatter; resident part is the catalog one-liner) | **81 tokens** (376 chars) |
+| body (loaded on `/think`)      | **1,380 tokens** (6,359 chars) |
 | tools/ payload                 | 0.0 KB |
 | model pin                      | `any` |
 | effort pin                     | `medium` |
 
 Source: [`eval/results/static_cost.json`](../../eval/results/static_cost.json).
-68 resident tokens is ~0.03% of a 200K window — the cheap, model-agnostic part
-of the case for keeping it.
+As a slash-only skill the always-resident part is just the catalog one-liner
+(the first sentence, ~40 tok); the full 81-tok description and 1,380-tok body
+load only on `/think`. Cheap either way.
 
 ## Trigger accuracy (measured) — the solid result
 
@@ -96,25 +97,65 @@ The whole −0.6 comes from probe 3 (−2) and probe 4 (−1); probes 0–2 are 
 
 **Do not read −0.6 as "think degrades reasoning."** Read it as: *unverified, and
 local small models can't verify it.* The two trustworthy results are trigger
-(1.0, no regression) and the 68-token resident cost.
+(1.0, no regression) and the tiny resident cost. **The frontier A/B below settles it.**
+
+## Frontier A/B (Opus subject / Sonnet judge) — the decisive test, DONE
+
+Ran the same 5 probes with a **frontier subject and a cross-model judge** via a
+subagent workflow (no API key — uses session models): subject =
+**claude-opus-4-8** (with vs without the skill; the `with` arm *reads the real
+`skills/think/SKILL.md`*); judge = **claude-sonnet**, *told the trap* so it scores
+reliably (fixing the 9b judge's blindness). N=3 × 5 × 2 = 30 subject runs.
+
+| probe | without | with | Δ | caught w/o→with |
+|---|---:|---:|---:|---|
+| gil   | 5.00 | 5.00 | 0 | 3/3 → 3/3 |
+| redis | 5.00 | 5.00 | 0 | 3/3 → 3/3 |
+| dates | 1.33 | 1.33 | 0 | 0/3 → 0/3 |
+| micro | 5.00 | 5.00 | 0 | 3/3 → 3/3 |
+| regex | 4.67 | 5.00 | +0.33 | 3/3 → 3/3 |
+| **overall** | **4.20** | **4.27** | **+0.07** | **80% → 80%** |
+
+**Verdict: neutral.** Opus catches the traps equally well with or without the
+skill — the *baseline already scores 4.20 / 80% caught*; the skill adds +0.07
+(noise). This settles the 7b ambiguity both ways: the 7b "−0.6 harm" was
+**method-theater** (Opus doesn't recite rituals), and there was never a lift to
+find — **Opus already does first-principles trap-catching natively**, so the
+*posture* half of `think` (challenge premises, reduce-before-add) is **redundant
+at frontier**.
+
+`dates` (1.33/1.33, neither arm caught) is a **flawed probe**: the old prompt
+ordered "do not use any date libraries" — a legitimate user constraint, so
+complying isn't a trap-fail. Revised in `think.yaml` (the trap is now the
+reinvention *impulse*, not disobeying an order); re-measure next run.
+
+**Mode implication:** auto-loading `think` buys ~**zero** posture benefit on the
+frontier model that runs in Claude Code, at a measured **+23.7% output** per fire.
+Its defensible value is the *situational methods* (brain-blizzard, 5-whys,
+pre-mortem) applied **deliberately** → the manual case. Shipped
+**`disable-model-invocation: true`** (slash-only `/think`).
+
+Raw: workflow run `wf_bd0b9813` (subject/judge transcripts under the session's
+`subagents/workflows/`).
 
 ## What the skill currently rests on
 
 - ✅ Triggers cleanly, zero regression (measured).
-- ✅ Trivially cheap resident (68 tok, no hook/dep).
-- ❓ Behavioral value **unverified** — the 7b/9b smoke is non-confirming and
-  capability-limited. It is kept as a default pure-prompt skill on cost +
-  triggering grounds, not on a measured behavioral win. Honest status:
-  **unmeasured-positive**, same bar the catalog applies to opt-in skills, minus
-  the hook cost that forces those to opt-in.
+- ✅ Trivially cheap resident (slash-only; catalog one-liner ~40 tok, no hook/dep).
+- ➖ Posture value (challenge-premise / reduce) **measured neutral at frontier**
+  (+0.07; Opus already has it) → not carried always-on; now **manual-only**
+  (`/think`).
+- ❓ The *situational methods* (ideation / 5-whys / pre-mortem) are **untested** —
+  the trap probes exercise posture, not method. That half is what a deliberate
+  `/think` is for; give it its own probe set if it's to earn more than a slot.
 
-## Recommended decisive test (next)
+## Open follow-ups
 
-Re-run `eval/tasks/think.yaml` with a **frontier model as both subject and judge**
-(`runner.py --backend anthropic --model claude-…`, judge likewise). That is the
-only setup that can tell whether `think` converts to real trap-catching or just
-adds ceremony. Needs `ANTHROPIC_API_KEY` + spend authorization — not run here.
-Add boundary/negative trigger cases in the same pass.
+- Re-run with the fixed `dates` probe (current 1.33 is a probe artifact).
+- A probe set for the **methods** half: does a deliberate 5-whys / pre-mortem /
+  structured ideation beat unstructured frontier reasoning on tasks that need
+  them? The trap probes don't test this.
+- `think + caveman` interaction (does the +23.7% output survive a terse style).
 
 ## Failure modes (observed at 7b — watch for them at scale)
 
@@ -134,3 +175,8 @@ Add boundary/negative trigger cases in the same pass.
 - Backends: `runner.py` supports `ollama` / `anthropic` / `mimo` / `mlx`.
 - Judge: `judge.py --backend ollama --model gemma2:9b` (default `mimo`/`gemma4:26b`
   unavailable — see above). Rubric embedded per-task in the YAML.
+- Frontier A/B: subagent workflow (`think-frontier-ab`), Opus subject / Sonnet
+  judge, N=3, judge *told the trap*. **Gotcha:** subjects have file tools — the
+  `dates` probe made some write a parser to the repo root (`rfc3339.py` etc.),
+  which had to be deleted before commit. A re-run must add "answer in text only;
+  do not create files" to the subject prompt.

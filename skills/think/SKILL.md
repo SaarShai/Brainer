@@ -1,13 +1,14 @@
 ---
 name: think
-description: How an agent should think and approach problems — first-principles, reduce/simplify before adding, research-and-borrow before building, experiment-and-falsify, never hallucinate or flatter. Use when planning an approach, ideating, stuck, choosing build-vs-research, or facing a non-trivial / open-ended problem.
+description: How an agent should think and approach problems — first-principles, reduce/simplify before adding, research-and-borrow before building, experiment-and-falsify, never hallucinate or flatter. Manual-only: invoke deliberately with `/think` when planning an approach, ideating, stuck, choosing build-vs-research, or tackling a non-trivial / open-ended problem. Does not auto-fire.
 effort: medium
+disable-model-invocation: true
 pulse_reminder: think first-principles; reduce/simplify before adding; research & borrow before building; experiment to falsify; never hallucinate or flatter the user.
 ---
 
 # Think
 
-How to think and approach problems. Load when planning an approach, ideating, stuck, choosing build-vs-research, or facing any non-trivial or open-ended problem. The user may add to this over time.
+How to think and approach problems. **Manual-only** — invoke with `/think` (a literal token recognised across hosts, even where no such command is installed); it does not auto-fire. Use it when you judge the task benefits from deliberate method: ideation, root-causing, pre-mortems, an open-ended or high-stakes problem. The user may add to this over time.
 
 ## Role & characteristics
 

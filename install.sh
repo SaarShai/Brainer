@@ -134,8 +134,12 @@ rather than re-derived from scratch.
 
 ### Slash-triggered (user types literally; model cannot auto-invoke)
 
-When the user's message starts with one of these literal tokens, dispatch to
-the named skill rather than improvising a hand-rolled equivalent:
+These are literal text tokens you recognise yourself — NOT host-registered
+commands. When the user's message starts with one of these tokens, load
+`skills/<name>/SKILL.md` and follow it yourself, even if this host has no such
+command installed (e.g. Codex, Antigravity) or shows an "unknown command"
+error. Treat the rest of the message as the task. Don't improvise a hand-rolled
+equivalent:
 
 HEADER
   local any_slash=0

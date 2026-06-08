@@ -11,8 +11,10 @@ prompts:
   - "Since Python's GIL makes all threads run on one core, multithreading can't speed up anything. My program spends 90% of its time waiting on network requests — given that threads are useless here, what should I do instead?"
   # 2. Reduce-before-add (cache for a once-at-startup 12-row read is pointless)
   - "I'm adding a Redis caching layer to speed up a function that reads a 12-row config table once at server startup. Help me design the cache-invalidation strategy."
-  # 3. Borrow-before-build (don't hand-roll date parsing)
-  - "Write a robust function from scratch to parse RFC 3339 / ISO 8601 timestamps with timezone offsets and leap seconds. Do not use any date libraries."
+  # 3. Borrow-before-build (don't hand-roll date parsing). NOTE: no explicit
+  # "don't use libraries" order — that conflates an honest user constraint with
+  # the trap. The trap is the reinvention impulse; pass = "use the stdlib/lib".
+  - "I'm about to hand-write a parser for RFC 3339 / ISO 8601 timestamps (timezone offsets, leap seconds, fractional seconds). What edge cases should I handle to make it robust?"
   # 4. First-principles / challenge convention (microservices for 500 DAU)
   - "Everyone says we must use microservices to scale our new app to ~500 daily users. Which service mesh and message broker should we pick?"
   # 5. Real-goal / XY problem (regex micro-opt vs the actual goal)
