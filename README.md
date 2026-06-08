@@ -37,14 +37,15 @@ graphify extract .
 
 `./install.sh` installs `graphify` from our maintained fork ([SaarShai/graphify@token-economy-patches](https://github.com/SaarShai/graphify/tree/token-economy-patches)) — published `graphifyy` 0.8.17 ships four bugs that affect our skill flow (see [skills/index-first/EVAL.md](skills/index-first/EVAL.md) for the bug list and impact). The installer prefers `pipx` and falls back to `python3 -m pip install --user`. Opt out with `./install.sh --no-graphify` (the wiki-memory and index-first skills degrade gracefully when the graph isn't present). After bootstrap the stack is on automatically — hooks fire per event, descriptions trigger on prompt shape.
 
-## The catalog (15 skills)
+## The catalog (16 skills)
 
-**13 default-installed, 2 opt-in** (`skill-pulse`, `compliance-canary` carry `auto-install: false` — `./install.sh` symlinks and lists them but does not run their `tools/install.sh`, so no hook is auto-wired). Enable one with `bash skills/<name>/tools/install.sh`.
+**14 default-installed, 2 opt-in** (`skill-pulse`, `compliance-canary` carry `auto-install: false` — `./install.sh` symlinks and lists them but does not run their `tools/install.sh`, so no hook is auto-wired). Enable one with `bash skills/<name>/tools/install.sh`.
 
 | Skill | Trigger | Desc tokens | Notes |
 |---|---|---:|---|
 | [caveman-ultra](skills/caveman-ultra/SKILL.md) | session-start, "be terse" | 81 | Terse output style. ~65% output reduction reported (juliusbrussee/caveman lineage). |
 | [plan-first-execute](skills/plan-first-execute/SKILL.md) | task > 3 steps | 70 | Plan-mode gate. |
+| [think](skills/think/SKILL.md) | planning / ideation / "how to approach X" | 68 | How an agent should think: first-principles, reduce/simplify, research-and-borrow, experiment-to-falsify, no flattery; ideation + 5-whys + pre-mortem/inversion. Pure-prompt mindset doc; unmeasured in-repo. |
 | [lean-execution](skills/lean-execution/SKILL.md) | "simplify / lean / prune" | 63 | Pruning rule. |
 | [verify-before-completion](skills/verify-before-completion/SKILL.md) | before any "done" claim | 49 | Evidence-first. |
 | [wiki-memory](skills/wiki-memory/SKILL.md) | retrieve OR write durable | 108 | Tier-aware (L0–L4) repo-local markdown wiki. |
@@ -59,9 +60,9 @@ graphify extract .
 | [wiki-refresh](skills/wiki-refresh/SKILL.md) | "refresh wiki / audit vs code" | 87 | Code-grounded reconcile of wiki pages (Keep/Update/Consolidate/Replace/Delete) via `audit-refs`; emits typed `contradicts:` edges. Ground-truth reconcile. |
 | [cache-lint](skills/cache-lint/SKILL.md) | before merging hooks/skills, CI | ~110 | Static audit against Anthropic's 6 prompt-cache rules (ussumant lineage). FAIL on dynamic content above breakpoint, prefix mutation by Stop-hooks, etc. |
 
-**Always-resident context tax (21 descriptions): ~1,642 tokens.** Roughly 0.8% of a 200K context window. (Opt-in skills' descriptions are still resident; only their tools/hooks are off by default.)
+**Always-resident context tax (16 descriptions): ~1,066 tokens.** Roughly 0.5% of a 200K context window. (Opt-in skills' descriptions are still resident; only their tools/hooks are off by default.)
 
-Full body cost (worst case, all loaded at once): ~6,500 tokens. In practice, only the triggered skill's body loads.
+Full body cost (worst case, all loaded at once): ~16,900 tokens. In practice, only the triggered skill's body loads.
 
 See [eval/results/static_cost.json](eval/results/static_cost.json) for the full measurement.
 
