@@ -44,6 +44,7 @@ SHOULD_FIRE = [
     ("audit this project's prompt-cache hygiene before we ship the new hooks", "cache-lint"),
     ("classify this incoming prompt and route it to the cheapest capable model", "prompt-triage"),
     ("extract the key state from this transcript before it gets compacted", "context-keeper"),
+    ("I'm facing an open-ended problem — reason it through from first principles and challenge the assumptions before proposing any solution", "think"),
 ]
 
 

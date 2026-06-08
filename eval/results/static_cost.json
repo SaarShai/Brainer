@@ -139,7 +139,7 @@
     "body_chars": 6200,
     "tools_bytes": 0,
     "tools_kb": 0.0,
-    "has_eval_template": false,
+    "has_eval_template": true,
     "model_pin": "",
     "effort_pin": "medium"
   },

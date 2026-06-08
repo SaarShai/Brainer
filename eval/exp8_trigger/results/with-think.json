@@ -1,0 +1,97 @@
+{
+  "experiment": "exp8_trigger",
+  "backend": "ollama",
+  "model": "qwen2.5:7b-instruct",
+  "label": "with-think",
+  "n_prompts": 14,
+  "catalog_size": 16,
+  "approx_desc_tokens": 1223,
+  "top1_accuracy": 1.0,
+  "correct": 14,
+  "records": [
+    {
+      "prompt": "make your answers really terse and compact, drop the fluff",
+      "expected": "caveman-ultra",
+      "got": "caveman-ultra",
+      "correct": true
+    },
+    {
+      "prompt": "this plan has way too many steps \u2014 simplify it, cut the process",
+      "expected": "lean-execution",
+      "got": "lean-execution",
+      "correct": true
+    },
+    {
+      "prompt": "before we start this 6-file refactor, draft a phased plan first",
+      "expected": "plan-first-execute",
+      "got": "plan-first-execute",
+      "correct": true
+    },
+    {
+      "prompt": "I think the tests pass now \u2014 confirm the work is actually done",
+      "expected": "verify-before-completion",
+      "got": "verify-before-completion",
+      "correct": true
+    },
+    {
+      "prompt": "where is the function parse_config used across the whole codebase?",
+      "expected": "index-first",
+      "got": "index-first",
+      "correct": true
+    },
+    {
+      "prompt": "the wiki facts are stale after the big rename \u2014 reconcile them against the code",
+      "expected": "wiki-refresh",
+      "got": "wiki-refresh",
+      "correct": true
+    },
+    {
+      "prompt": "should this note be persisted to memory or is it too low-signal?",
+      "expected": "write-gate",
+      "got": "write-gate",
+      "correct": true
+    },
+    {
+      "prompt": "record this architecture decision in our project memory for next time",
+      "expected": "wiki-memory",
+      "got": "wiki-memory",
+      "correct": true
+    },
+    {
+      "prompt": "the terminal output is full of ANSI codes and progress bars \u2014 clean it up",
+      "expected": "output-filter",
+      "got": "output-filter",
+      "correct": true
+    },
+    {
+      "prompt": "I'm re-reading a file I already opened; just show me what changed",
+      "expected": "semantic-diff",
+      "got": "semantic-diff",
+      "correct": true
+    },
+    {
+      "prompt": "audit this project's prompt-cache hygiene before we ship the new hooks",
+      "expected": "cache-lint",
+      "got": "cache-lint",
+      "correct": true
+    },
+    {
+      "prompt": "classify this incoming prompt and route it to the cheapest capable model",
+      "expected": "prompt-triage",
+      "got": "prompt-triage",
+      "correct": true
+    },
+    {
+      "prompt": "extract the key state from this transcript before it gets compacted",
+      "expected": "context-keeper",
+      "got": "context-keeper",
+      "correct": true
+    },
+    {
+      "prompt": "I'm facing an open-ended problem \u2014 reason it through from first principles and challenge the assumptions before proposing any solution",
+      "expected": "think",
+      "got": "think",
+      "correct": true
+    }
+  ]
+}

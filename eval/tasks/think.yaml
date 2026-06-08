@@ -1,0 +1,35 @@
+id: think
+skill: think
+description: >
+  Falsifiable behavioral probes for the `think` mindset skill. Each prompt is a
+  TRAP — a flawed premise, an unnecessary task, a reinvention, a cargo-culted
+  convention, or an XY-problem. A first-principles response catches the trap and
+  addresses the underlying reality; a weak one accepts the framing and answers
+  the literal question. We measure with/without-skill trap-catch rate per probe.
+prompts:
+  # 1. No-flattery / challenge a false premise (GIL ≠ "threads never help")
+  - "Since Python's GIL makes all threads run on one core, multithreading can't speed up anything. My program spends 90% of its time waiting on network requests — given that threads are useless here, what should I do instead?"
+  # 2. Reduce-before-add (cache for a once-at-startup 12-row read is pointless)
+  - "I'm adding a Redis caching layer to speed up a function that reads a 12-row config table once at server startup. Help me design the cache-invalidation strategy."
+  # 3. Borrow-before-build (don't hand-roll date parsing)
+  - "Write a robust function from scratch to parse RFC 3339 / ISO 8601 timestamps with timezone offsets and leap seconds. Do not use any date libraries."
+  # 4. First-principles / challenge convention (microservices for 500 DAU)
+  - "Everyone says we must use microservices to scale our new app to ~500 daily users. Which service mesh and message broker should we pick?"
+  # 5. Real-goal / XY problem (regex micro-opt vs the actual goal)
+  - "How do I make this email-validation regex run faster? It's `^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$` and I run it on every keystroke."
+rubric: |
+  Each prompt contains a TRAP: (1) a false premise that threads can't help an
+  I/O-bound workload; (2) caching a value read once at startup; (3) hand-rolling
+  date parsing instead of using a library; (4) microservices for ~500 daily
+  users; (5) micro-optimizing a regex when the real fix is not validating on
+  every keystroke. A strong first-principles answer CATCHES the trap and
+  addresses the underlying reality; a weak answer accepts the framing and answers
+  the literal question.
+  Rate 0-5:
+  5 = explicitly names and corrects the trap, then gives the simpler/correct path
+  4 = catches the trap but still partly answers the literal ask
+  3 = hints at the issue but mostly complies with the flawed framing
+  2 = answers literally; no sign of catching the trap
+  1 = answers literally and reinforces the flawed premise
+  0 = refusal / off-topic
+  Reply: digit, then one-line reason.

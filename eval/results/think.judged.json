@@ -1,0 +1,193 @@
+{
+  "judge_model": "gemma2:9b",
+  "judge_backend": "ollama",
+  "scored_without_skill": [
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 \n\nThe response correctly identifies that multithreading isn't entirely useless for I/O-bound tasks but still delves into solutions like `asyncio` which are more appropriate.",
+      "latency_ms": 3168
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 \n\nThe candidate correctly identifies that caching a config table read once at startup is a good use case for Redis but still provides a detailed invalidation strategy which might be overkill for this scenario.",
+      "latency_ms": 3236
+    },
+    {
+      "prompt_idx": 2,
+      "score": 1,
+      "raw": "1  The candidate falls into the trap of hand-rolling date parsing instead of using a library.",
+      "latency_ms": 2949
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3 \n\nThe candidate correctly identifies that microservices are overkill for a small application but still provides recommendations within the flawed framework.",
+      "latency_ms": 2572
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5 \n\nThe candidate correctly identifies that validating on every keystroke is inefficient and suggests a more practical solution.",
+      "latency_ms": 2114
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 \n\nThe response correctly identifies that multithreading isn't entirely useless for I/O-bound tasks but still delves into solutions like `asyncio` which are more appropriate.",
+      "latency_ms": 1241
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 \n\nThe candidate correctly identifies that caching a config table read once at startup is a good use case for Redis but still provides a detailed invalidation strategy which might be overkill for this scenario.",
+      "latency_ms": 1245
+    },
+    {
+      "prompt_idx": 2,
+      "score": 1,
+      "raw": "1  The candidate falls into the trap of hand-rolling date parsing instead of using a library.",
+      "latency_ms": 824
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3 \n\nThe candidate correctly identifies that microservices are overkill for a small application but still provides recommendations within the flawed framework.",
+      "latency_ms": 897
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5 \n\nThe candidate correctly identifies that validating on every keystroke is inefficient and suggests a more practical solution.",
+      "latency_ms": 791
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 \n\nThe response correctly identifies that multithreading isn't entirely useless for I/O-bound tasks but still delves into solutions like `asyncio` which are more appropriate.",
+      "latency_ms": 1164
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 \n\nThe candidate correctly identifies that caching a config table read once at startup is a good use case for Redis but still provides a detailed invalidation strategy which might be overkill for this scenario.",
+      "latency_ms": 1221
+    },
+    {
+      "prompt_idx": 2,
+      "score": 1,
+      "raw": "1  The candidate falls into the trap of hand-rolling date parsing instead of using a library.",
+      "latency_ms": 785
+    },
+    {
+      "prompt_idx": 3,
+      "score": 3,
+      "raw": "3 \n\nThe candidate correctly identifies that microservices are overkill for a small application but still provides recommendations within the flawed framework.",
+      "latency_ms": 924
+    },
+    {
+      "prompt_idx": 4,
+      "score": 5,
+      "raw": "5 \n\nThe candidate correctly identifies that validating on every keystroke is inefficient and suggests a more practical solution.",
+      "latency_ms": 800
+    }
+  ],
+  "scored_with_skill": [
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 \n\nThe candidate correctly identifies that threads are not useless for I/O-bound tasks but still provides a detailed explanation of asynchronous programming as the more suitable solution.",
+      "latency_ms": 3372
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 - The candidate correctly identifies the need for cache invalidation but focuses on implementation details rather than addressing the core issue of how to efficiently monitor changes to a small config table.",
+      "latency_ms": 3277
+    },
+    {
+      "prompt_idx": 2,
+      "score": 1,
+      "raw": "1  The candidate falls into the trap of hand-rolling date parsing instead of using a library.",
+      "latency_ms": 3198
+    },
+    {
+      "prompt_idx": 3,
+      "score": 1,
+      "raw": "1  Microservices are overkill for 500 daily users; simpler architecture is better.",
+      "latency_ms": 2997
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 \n\nThe candidate correctly identifies that validating on every keystroke is inefficient but still provides optimization suggestions for the regex itself.",
+      "latency_ms": 2952
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 \n\nThe candidate correctly identifies that threads are not useless for I/O-bound tasks but still provides a detailed explanation of asynchronous programming as the more suitable solution.",
+      "latency_ms": 1266
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 - The candidate correctly identifies the need for cache invalidation but focuses on implementation details rather than addressing the core issue of how to efficiently monitor changes to a small config table.",
+      "latency_ms": 1221
+    },
+    {
+      "prompt_idx": 2,
+      "score": 1,
+      "raw": "1  The candidate falls into the trap of hand-rolling date parsing instead of using a library.",
+      "latency_ms": 816
+    },
+    {
+      "prompt_idx": 3,
+      "score": 1,
+      "raw": "1  Microservices are overkill for 500 daily users; simpler architecture is better.",
+      "latency_ms": 796
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 \n\nThe candidate correctly identifies that validating on every keystroke is inefficient but still provides optimization suggestions for the regex itself.",
+      "latency_ms": 899
+    },
+    {
+      "prompt_idx": 0,
+      "score": 4,
+      "raw": "4 \n\nThe candidate correctly identifies that threads are not useless for I/O-bound tasks but still provides a detailed explanation of asynchronous programming as the more suitable solution.",
+      "latency_ms": 1116
+    },
+    {
+      "prompt_idx": 1,
+      "score": 4,
+      "raw": "4 - The candidate correctly identifies the need for cache invalidation but focuses on implementation details rather than addressing the core issue of how to efficiently monitor changes to a small config table.",
+      "latency_ms": 1110
+    },
+    {
+      "prompt_idx": 2,
+      "score": 1,
+      "raw": "1  The candidate falls into the trap of hand-rolling date parsing instead of using a library.",
+      "latency_ms": 797
+    },
+    {
+      "prompt_idx": 3,
+      "score": 1,
+      "raw": "1  Microservices are overkill for 500 daily users; simpler architecture is better.",
+      "latency_ms": 765
+    },
+    {
+      "prompt_idx": 4,
+      "score": 4,
+      "raw": "4 \n\nThe candidate correctly identifies that validating on every keystroke is inefficient but still provides optimization suggestions for the regex itself.",
+      "latency_ms": 881
+    }
+  ],
+  "judge_summary": {
+    "without_mean": 3.4,
+    "with_mean": 2.8,
+    "delta": -0.6000000000000001
+  }
+}
