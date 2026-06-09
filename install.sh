@@ -275,6 +275,12 @@ prune_stale_skill_links() {
 # symlink prune, so a re-install self-heals the hooks side too. Only removes
 # hooks whose script is GONE; a hook for a still-present skill (incl. an opt-in
 # you enabled) is untouched. Safe + idempotent.
+# SCOPED + CONSERVATIVE: only ever considers Brainer-managed hooks (script path
+# under `.claude/skills/`). App hooks (any other path) are NEVER touched. And a
+# path it can't positively resolve — an unexpanded $VAR or ~ — is always kept,
+# never pruned: prune must prove a hook is a removed Brainer skill before
+# deleting it, or it would silently eat a live app hook like a $CLAUDE_PROJECT_DIR
+# Stop gate.
 prune_dead_hooks() {
   local settings="$1" root="$2"
   [ -f "$settings" ] || return 0
@@ -295,7 +301,11 @@ for event in list(hooks.keys()):
         for h in g.get("hooks", []):
             cmd = h.get("command", "")
             script = next((t for t in shlex.split(cmd) if t.endswith((".sh", ".py"))), None)
-            if script is None or os.path.exists(os.path.join(root, script)):
+            # Only Brainer-managed hooks are prune candidates, and only when the
+            # path is concrete (no unexpanded $VAR/~). Everything else is kept.
+            managed = (script is not None and ".claude/skills/" in script
+                       and "$" not in script and "~" not in script)
+            if not managed or os.path.exists(os.path.join(root, script)):
                 kept.append(h)
             else:
                 removed.append(cmd)
