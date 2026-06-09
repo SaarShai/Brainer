@@ -108,14 +108,19 @@ skill_is_slash_only() {
 # run by a bare ./install.sh — so they never auto-wire a hook or pull a heavy
 # dependency. Enable one explicitly with: bash skills/<name>/tools/install.sh
 # Rationale: only measured-win or cheap load-bearing skills belong on the
-# default install path (see eval/FINDINGS.md). Unmeasured-in-repo or
-# unmeasured-in-repo skills (skill-pulse, compliance-canary) are opt-in.
+# default install path (see eval/FINDINGS.md).
+# skill-pulse + compliance-canary are now DEFAULT-ON (auto-install: true, set
+# 2026-06-09): they are the output-style drift defense — skill-pulse re-anchors
+# active skill rules every N turns, compliance-canary catches symptomatic drift
+# — that keeps caveman-ultra (and any pulse_reminder/drift_probes skill) from
+# decaying over a long session. Turn off per-project via env without uninstall:
+# SKILL_PULSE_DISABLED=1 / COMPLIANCE_CANARY_DISABLED=1.
 # NOTE: per-skill installers MERGE into .claude/settings.json (append-only).
 # A bare ./install.sh now AUTO-PRUNES hooks whose script is GONE (a skill that
 # was cut — see prune_dead_hooks below), so removed skills fully self-heal. But
-# a hook whose script still exists is kept: to DISABLE an opt-in you previously
-# enabled (skill-pulse / compliance-canary), drop its entry from
-# .claude/settings.json by hand — the prune won't touch a live script.
+# a hook whose script still exists is kept: to fully DISABLE a default-on hook,
+# drop its entry from .claude/settings.json by hand — the prune won't touch a
+# live script.
 skill_is_optin() {
   local file="$1"
   grep -q '^auto-install: *false' "$file"
@@ -310,6 +315,95 @@ for cmd in removed:
 PY
 }
 
+# Output-style skills (frontmatter `output_style: true`) inject their rule at
+# SessionStart so terse/style guidance is set from turn 1. That injection must
+# fire in EVERY project where Brainer is installed and NOWHERE else, so — unlike
+# every other hook here — it lives as a GUARDED hook in the user-global
+# ~/.claude/settings.json, guarded on the per-project marker
+# `.claude/skills/<skill>`. This is the ONLY place install.sh writes user-global
+# (not repo-local) config. Idempotent + convergent: reads the canonical injected
+# text from each skill's session_start.md, rebuilds the guarded command, and
+# converges any prior copy in place (upgrading an old unguarded/global hook to
+# the guarded form). Skills with output_style but no session_start.md are
+# skipped; a non-JSON global settings file is left untouched with a warning.
+ensure_global_output_style_hooks() {
+  local gsettings="$HOME/.claude/settings.json"
+  if [ "$DRY_RUN" = "1" ]; then
+    echo "    DRY: ensure guarded SessionStart output-style hook(s) in $gsettings"
+    return 0
+  fi
+  GS="$gsettings" python3 - "$SRC" <<'PY'
+import json, os, shlex, sys
+from pathlib import Path
+
+src = Path(sys.argv[1])
+gpath = Path(os.environ["GS"])
+
+def frontmatter(text):
+    if not text.startswith("---"):
+        return {}
+    end = text.find("\n---", 3)
+    if end < 0:
+        return {}
+    out = {}
+    for line in text[3:end].splitlines():
+        s = line.strip()
+        if not s or s.startswith("#") or ":" not in line:
+            continue
+        k, _, v = line.partition(":")
+        k, v = k.strip(), v.strip()
+        if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+            v = v[1:-1]
+        out[k] = v
+    return out
+
+styles = []
+for d in sorted(src.iterdir()):
+    sm, ss = d / "SKILL.md", d / "session_start.md"
+    if not sm.is_file() or not ss.is_file():
+        continue
+    fm = frontmatter(sm.read_text(encoding="utf-8", errors="replace"))
+    if str(fm.get("output_style", "")).strip().lower() != "true":
+        continue
+    styles.append((fm.get("name") or d.name, ss.read_text(encoding="utf-8").strip()))
+
+if not styles:
+    sys.exit(0)
+
+if gpath.exists():
+    try:
+        data = json.loads(gpath.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        print("    [warn] %s not valid JSON — leaving global hooks untouched" % gpath)
+        sys.exit(0)
+else:
+    data = {}
+
+before = json.dumps(data, sort_keys=True)
+ss_rules = data.setdefault("hooks", {}).setdefault("SessionStart", [])
+
+for name, text in styles:
+    marker = ".claude/skills/%s" % name
+    payload = {"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": text}}
+    echo_arg = shlex.quote(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
+    command = 'p="${CLAUDE_PROJECT_DIR:-$PWD}"; if [ -e "$p/%s" ]; then echo %s; fi' % (marker, echo_arg)
+    existing = [h for g in ss_rules for h in g.get("hooks", []) if marker in h.get("command", "")]
+    if existing:
+        for h in existing:               # converge in place (no-op if identical)
+            h["type"], h["command"] = "command", command
+    else:
+        ss_rules.append({"hooks": [{"type": "command", "command": command,
+                                    "statusMessage": "Applying %s output style" % name}]})
+
+if json.dumps(data, sort_keys=True) == before:
+    print("    [skip] global output-style hook(s) already current")
+    sys.exit(0)
+gpath.parent.mkdir(parents=True, exist_ok=True)
+gpath.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+print("    [global] ensured guarded SessionStart hook(s): %s" % ", ".join(n for n, _ in styles))
+PY
+}
+
 install_claude_code() {
   echo "[claude-code]"
   run "mkdir -p '$REPO_ROOT/.claude/skills'"
@@ -321,6 +415,7 @@ install_claude_code() {
     link "$skill" "$REPO_ROOT/.claude/skills/$name"
   done
   inject_catalog_into_doc "$REPO_ROOT/CLAUDE.md"
+  ensure_global_output_style_hooks
 }
 
 install_codex() {

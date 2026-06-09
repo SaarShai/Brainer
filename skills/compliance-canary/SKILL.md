@@ -4,7 +4,7 @@ description: UserPromptSubmit hook that scans recent assistant messages for per-
 model: haiku
 effort: low
 tools: [Bash, Read, Write]
-auto-install: false
+auto-install: true
 pulse_reminder: drift detectors are watching — your recent reply is scanned each user turn against the active skills' drift_probes.json files.
 ---
 

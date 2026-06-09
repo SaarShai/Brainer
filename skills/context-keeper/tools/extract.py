@@ -258,6 +258,74 @@ def render_markdown(regex_out, llm_out, session_id, transcript_path):
     return "\n".join(lines)
 
 
+_FM_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
+
+
+def _parse_frontmatter(text):
+    """Minimal `key: value` frontmatter parser (zero deps, matches the rest of
+    the catalog's simple-scalar style)."""
+    m = _FM_RE.match(text)
+    if not m:
+        return {}
+    out = {}
+    for raw in m.group(1).splitlines():
+        s = raw.strip()
+        if not s or s.startswith("#") or ":" not in raw:
+            continue
+        k, _, v = raw.partition(":")
+        k, v = k.strip(), v.strip()
+        if len(v) >= 2 and v[0] == v[-1] and v[0] in ("'", '"'):
+            v = v[1:-1]
+        out[k] = v
+    return out
+
+
+def skills_dir():
+    """Locate the project's skills dir. Prefer CLAUDE_PROJECT_DIR /
+    TOKEN_ECONOMY_ROOT, fall back to cwd; check the installed `.claude/skills`
+    symlink dir first, then the canonical `skills/`."""
+    bases = [os.environ.get("CLAUDE_PROJECT_DIR"), os.environ.get("TOKEN_ECONOMY_ROOT"), str(Path.cwd())]
+    for base in bases:
+        if not base:
+            continue
+        for sub in (".claude/skills", "skills"):
+            d = Path(base) / sub
+            if d.is_dir():
+                return d
+    return None
+
+
+def active_output_styles(root):
+    """Skills whose frontmatter sets `output_style: true`. Returns [(name, rule)]
+    where rule is the `pulse_reminder` (fallback: first sentence of description).
+    These define the session's emitted-prose style; PreCompact would otherwise
+    drop them, so we surface them in the compaction pointer to survive the
+    summary. Generic over any output-style skill (e.g. caveman-ultra)."""
+    if not root or not root.is_dir():
+        return []
+    out, seen = [], set()
+    try:
+        for entry in sorted(root.iterdir()):
+            sm = entry / "SKILL.md"
+            if not sm.is_file():
+                continue
+            try:
+                fm = _parse_frontmatter(sm.read_text(encoding="utf-8", errors="replace"))
+            except OSError:
+                continue
+            if str(fm.get("output_style", "")).strip().lower() != "true":
+                continue
+            name = fm.get("name") or entry.name
+            if name in seen:
+                continue
+            seen.add(name)
+            rule = (fm.get("pulse_reminder") or fm.get("description", "").split(". ")[0]).strip()
+            out.append((name, rule))
+    except OSError:
+        pass
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("transcript")
@@ -285,8 +353,20 @@ def main():
     n_cmds = len(regex_out.get("commands_run", []))
     n_errs = len(regex_out.get("errors_seen", []))
     goals = regex_out.get("user_goals", [])[:3]
+    # Active output styles (e.g. caveman-ultra) define emitted-prose rules that
+    # PreCompact would otherwise drop — surface them FIRST and verbatim so the
+    # summarizer carries them into post-compaction context.
+    styles = active_output_styles(skills_dir())
+    style_block = ""
+    if styles:
+        sl = ["[context-keeper] ACTIVE OUTPUT STYLE — keep applying verbatim to every reply after compaction:"]
+        for name, rule in styles:
+            sl.append(f"  • {name}: {rule}")
+        style_block = "\n".join(sl) + "\n"
+
     pointer = (
-        f"[context-keeper] structured memory saved → {out_path}\n"
+        style_block
+        + f"[context-keeper] structured memory saved → {out_path}\n"
         f"  {n_files} files touched, {n_cmds} commands run, {n_errs} errors logged\n"
         + (f"  goals: {'; '.join(goals)}\n" if goals else "")
         + f"  READ this file post-compact if prior context needed."

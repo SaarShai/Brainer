@@ -4,7 +4,7 @@ description: UserPromptSubmit hook that periodically re-injects active skill rul
 model: haiku
 effort: low
 tools: [Bash, Read, Write]
-auto-install: false
+auto-install: true
 pulse_reminder: every N turns, re-inject active skill rules so they stay in effective attention. Curated via `pulse_reminder:` frontmatter on each skill.
 ---
 
