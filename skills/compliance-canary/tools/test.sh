@@ -355,6 +355,26 @@ write_transcript "$TX" \
 out=$(call cc26 sk24 "$TX" s26)
 if emitted "$out" && echo "$out" | grep -q 'repeated_tool_error'; then ok "mixed string+blocks content detected"; else no "mixed string+blocks content detected" "got: $(echo "$out" | head -c120)"; fi
 
+echo "[27] user_correction: correction in current prompt fires"
+PROBES='[{"id":"uc","kind":"user_correction","pattern":"(?i)(?:^\\s*no[,. ]|don.?t use\\b|i said\\b)","message":"harvest the correction"}]'
+make_skill_with_probes sk27 cv "$PROBES"
+TX="$TRANSCRIPT_DIR/t27.jsonl"
+write_transcript "$TX" "$(assistant_text 'I used tabs for indentation.' u1)"
+payload=$(python3 -c "
+import json,sys
+print(json.dumps({'session_id':'s27','transcript_path':sys.argv[1],'hook_event_name':'UserPromptSubmit','prompt':'no, I said use spaces not tabs'}))
+" "$TX")
+out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc27" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk27" $HOOK)
+if emitted "$out" && echo "$out" | grep -q 'user_correction'; then ok "correction prompt fires"; else no "correction prompt fires" "got: $(echo "$out" | head -c120)"; fi
+
+echo "[28] user_correction: ordinary prompt stays silent"
+payload=$(python3 -c "
+import json,sys
+print(json.dumps({'session_id':'s28','transcript_path':sys.argv[1],'hook_event_name':'UserPromptSubmit','prompt':'now add a unit test for the parser'}))
+" "$TX")
+out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc28" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk27" $HOOK)
+if [ -z "$out" ]; then ok "ordinary prompt silent"; else no "ordinary prompt silent" "got: $(echo "$out" | head -c100)"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then

@@ -74,6 +74,37 @@ Looks for claim words in the last assistant message AND checks that a verificati
 
 Use for: verify-before-completion drift (claiming success without running a check).
 
+### `repeated_tool_error` *(v1.7)*
+
+Scans recent `is_error` tool_results (user-type events — invisible to the message detectors) for a recurring error signature. Added after transcript mining found one signature ("File has not been read yet") was 15 of 18 tool errors across 5 sessions.
+
+```json
+{
+  "kind": "repeated_tool_error",
+  "id": "edit-without-read",
+  "pattern": "File has not been read yet",
+  "min_count": 2,
+  "severity": "warn"
+}
+```
+
+Use for: any tool error the agent keeps re-triggering after the native error message failed to break the habit.
+
+### `user_correction` *(v1.7)*
+
+Matches the user's CURRENT prompt (not the transcript) against correction patterns ("no, use X", "that's wrong", "I said …"). Fires the harvest reflex at the exact turn the correction lands — corrections are the highest-value learning source (exp1: feedback lift +0.667) but the prose-only reflex under-fires. Lineage: BayramAnnakov/claude-reflect; ships in `wiki-memory/drift_probes.json`.
+
+```json
+{
+  "kind": "user_correction",
+  "id": "user-correction",
+  "pattern": "(?i)(?:^\\s*no[,. ]|don'?t use\\b|i said\\b|that'?s wrong)",
+  "severity": "warn"
+}
+```
+
+Use for: routing corrections into write-gate → wiki-memory instead of losing them to the session.
+
 ## Install
 
 Claude Code (project-local):

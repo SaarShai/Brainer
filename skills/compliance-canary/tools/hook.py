@@ -304,7 +304,7 @@ def recent_tool_errors(events: list[dict], n: int = 30) -> list[str]:
 
 # -------------------------- detectors --------------------------------------
 
-def detect_forbidden_regex(probe: dict, messages: list[dict], _tool_uses, _tool_errors=None) -> dict | None:
+def detect_forbidden_regex(probe: dict, messages: list[dict], _tool_uses, _tool_errors=None, user_prompt: str = "") -> dict | None:
     pat_str = probe.get("pattern")
     if not pat_str:
         return None
@@ -326,7 +326,7 @@ def detect_forbidden_regex(probe: dict, messages: list[dict], _tool_uses, _tool_
     return None
 
 
-def detect_word_count_per_message(probe: dict, messages: list[dict], _tool_uses, _tool_errors=None) -> dict | None:
+def detect_word_count_per_message(probe: dict, messages: list[dict], _tool_uses, _tool_errors=None, user_prompt: str = "") -> dict | None:
     if not messages:
         return None
     threshold = float(probe.get("threshold", 80))
@@ -344,7 +344,7 @@ def detect_word_count_per_message(probe: dict, messages: list[dict], _tool_uses,
     return None
 
 
-def detect_claim_without_evidence(probe: dict, messages: list[dict], tool_uses: list[dict], _tool_errors=None) -> dict | None:
+def detect_claim_without_evidence(probe: dict, messages: list[dict], tool_uses: list[dict], _tool_errors=None, user_prompt: str = "") -> dict | None:
     if not messages:
         return None
     last_text = messages[-1]["text"]
@@ -385,7 +385,7 @@ def detect_claim_without_evidence(probe: dict, messages: list[dict], tool_uses: 
     }
 
 
-def detect_repeated_tool_error(probe: dict, _messages, _tool_uses, tool_errors=None) -> dict | None:
+def detect_repeated_tool_error(probe: dict, _messages, _tool_uses, tool_errors=None, user_prompt: str = "") -> dict | None:
     """Fire when the same tool-error signature recurs in the recent window.
     Transcript mining (2026-06-12) found one signature — 'File has not been
     read yet' — accounted for 15 of 18 tool errors across 5 sessions; the
@@ -420,12 +420,41 @@ DETECTORS = {
 }
 
 
+def detect_user_correction(probe: dict, _messages, _tool_uses, _tool_errors=None,
+                           user_prompt: str = "") -> dict | None:
+    """Fire when the user's CURRENT prompt is a correction ("no, use X",
+    "that's wrong", "I said ..."). Closes the correction-capture gap
+    (lineage: BayramAnnakov/claude-reflect, flagged in INSPIRATION.md):
+    corrections are the highest-value learning source (exp1: feedback lift
+    +0.667, the largest of the three) but the harvest reflex is prose-only —
+    this makes the trigger mechanical, at the exact turn the correction lands."""
+    if not user_prompt:
+        return None
+    pat_str = probe.get("pattern")
+    if not pat_str:
+        return None
+    try:
+        pat = re.compile(pat_str)
+    except re.error as e:
+        log_err(f"bad-regex probe={probe.get('_probe_id')} err={e!r}")
+        return None
+    m = pat.search(user_prompt)
+    if m:
+        return {"matched": m.group(0),
+                "snippet": user_prompt[max(0, m.start() - 10): m.end() + 50].replace("\n", " ")}
+    return None
+
+
+DETECTORS["user_correction"] = detect_user_correction
+
+
 def run_probes(
     probes: list[dict],
     messages: list[dict],
     tool_uses: list[dict],
     suppressed: set[str],
     tool_errors: list[str] | None = None,
+    user_prompt: str = "",
 ) -> list[dict]:
     """Returns list of fired probes (each dict has _skill, _probe_id, _result)."""
     fired: list[dict] = []
@@ -436,7 +465,7 @@ def run_probes(
         if probe["_probe_id"] in suppressed:
             continue
         try:
-            result = DETECTORS[kind](probe, messages, tool_uses, tool_errors)
+            result = DETECTORS[kind](probe, messages, tool_uses, tool_errors, user_prompt=user_prompt)
         except Exception as e:
             log_err(f"detector-fail probe={probe['_probe_id']} err={e!r}")
             continue
@@ -546,7 +575,8 @@ def main() -> int:
         and turn - int(h.get("fired_at_turn", 0)) < cooldown
     }
 
-    fired = run_probes(probes, messages, tool_uses, suppressed, tool_errors)
+    fired = run_probes(probes, messages, tool_uses, suppressed, tool_errors,
+                       user_prompt=str(payload.get("prompt") or ""))
     if not fired:
         return 0
 

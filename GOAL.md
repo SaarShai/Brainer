@@ -38,7 +38,8 @@ Every skill must be: **robust** (survives host quirks, bad input, re-install), *
 See `wiki/projects/` + `eval/FINDINGS.md` for evidence. As of 2026-06-12:
 
 1. ~~**prompt-triage complex-prompt misroute**~~ — **DONE 2026-06-12**: dead-fallback-tag auto-resolution, fail-closed, <0.7-conf silence, 1500-char length gate, 9-test regression lock, 2-family cross-model 0/10 violations. (delegation axis)
-2. **correction-capture** — capture "no, use X" user corrections → gated wiki/CLAUDE.md merge (INSPIRATION: claude-reflect; flagged "real gap"). (learning axis)
-3. **Transcript telemetry** — ccmeter-style offline analyzer over `~/.claude/projects/*.jsonl`: cache-bust costs, triage audit, re-read offenders. The measurement loop for everything else. (token axis)
+2. ~~**correction-capture**~~ — **DONE 2026-06-12** as canary `user_correction` probe kind + wiki-memory probe (no new skill; probe suffices). (learning axis)
+3. ~~**Transcript telemetry**~~ — **v1 DONE 2026-06-12**: `scripts/mine_transcripts.py` (tool histograms, error signatures, triage audit, re-read offenders). Not yet: cache-bust $$ attribution (ccmeter's remaining edge). (token axis)
 4. **SkillReducer self-audit** — run catalog through arXiv 2603.29919 pipeline; 26%+ of public skills fail routing-description checks — verify ours don't. (token axis)
 5. **Workflow-tool orchestration patterns** — the host `Workflow` tool has shipped; re-express `eval/combos/` stacks + judge-panel/loop-until-dry patterns as reusable workflow scripts. (orchestration axis)
+6. **output-filter wiring** — decided 2026-06-12: nothing to auto-wire; PostToolUse cannot rewrite already-returned output, pipe-form is the real mechanism (behavioral). Biggest mined offender (wiki lint 22KB JSON) fixed at source instead. Re-open only if a host gains output-rewriting hooks.
