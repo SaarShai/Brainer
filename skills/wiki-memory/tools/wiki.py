@@ -778,6 +778,7 @@ class WikiStore:
             row = conn.execute("SELECT * FROM docs WHERE id = ? OR path = ?", (key, item_id)).fetchone()
         if not row:
             raise KeyError(f"wiki page not found: {item_id}")
+        self._bump_usage(row["id"])
         return {
             "id": row["id"],
             "path": row["path"],
@@ -1360,6 +1361,70 @@ class WikiStore:
             "candidates": scored,
         }
 
+    def _usage_path(self):
+        return self.state_dir / "usage.json"
+
+    def _bump_usage(self, page_id: str) -> None:
+        """Fetch-count ledger feeding `consolidate` — reuse is the cheapest
+        honest corroboration signal we have. Never on the search path (too
+        noisy); only an explicit fetch counts as use."""
+        try:
+            self.state_dir.mkdir(exist_ok=True)
+            path = self._usage_path()
+            data = json.loads(path.read_text()) if path.exists() else {}
+            data[page_id] = int(data.get(page_id, 0)) + 1
+            path.write_text(json.dumps(data, indent=0, sort_keys=True))
+        except Exception:
+            pass  # usage tracking must never break a read
+
+    def consolidate(self, min_fetches: int = 2, apply: bool = False) -> dict[str, Any]:
+        """Reuse-driven memory consolidation (adopted 2026-06-12, semantic-
+        consolidation pattern; PROMPTER memory-decay handles the aging side).
+        Pages fetched >= min_fetches while still trust=asserted are PROMOTION
+        candidates -> corroborated (one tier only; 'verified' stays earned
+        through write-gate evidence, never through popularity). Pages never
+        fetched are listed for the decay tool to age. Report-first: --apply
+        rewrites trust frontmatter on promotion candidates, deletes nothing."""
+        try:
+            usage = json.loads(self._usage_path().read_text()) if self._usage_path().exists() else {}
+        except Exception:
+            usage = {}
+        promote, never_fetched = [], []
+        for page in self.pages():
+            n = int(usage.get(page.id, 0))
+            trust = (page.frontmatter.get("trust") or DEFAULT_TRUST).strip()
+            # raw/ and L4_archive/ are immutable source material — reuse of a
+            # source is not corroboration of a claim.
+            immutable = page.id.startswith(("raw/", "L4_archive/"))
+            if n >= min_fetches and trust == "asserted" and not immutable:
+                promote.append({"id": page.id, "fetches": n, "trust": trust,
+                                "_path": page.path})
+            elif n == 0:
+                never_fetched.append(page.id)
+        applied = []
+        if apply:
+            for cand in promote:
+                ppath = cand.pop("_path")
+                text = ppath.read_text(encoding="utf-8")
+                if re.search(r"^trust:\s*asserted\s*$", text, re.M):
+                    ppath.write_text(re.sub(r"^trust:\s*asserted\s*$",
+                                            "trust: corroborated", text, count=1, flags=re.M),
+                                     encoding="utf-8")
+                elif text.startswith("---\n"):
+                    text = text.replace("---\n", "---\ntrust: corroborated\n", 1)
+                    ppath.write_text(text, encoding="utf-8")
+                else:
+                    continue
+                applied.append(cand["id"])
+            if applied:
+                self._invalidate_caches()
+        for cand in promote:
+            cand.pop("_path", None)
+        return {"promote_candidates": promote, "applied": applied,
+                "never_fetched_count": len(never_fetched),
+                "never_fetched_sample": never_fetched[:10],
+                "note": "promotion is asserted->corroborated only; aging via `wiki.py decay`"}
+
     def resolve(self, title: str, body: str = "", trust: str = DEFAULT_TRUST,
                 tags: list[str] | None = None, k: int = 5) -> dict[str, Any]:
         """Trust-gated conflict resolution — the poison defense (eval/exp5_adversarial).
@@ -1720,6 +1785,14 @@ def _cli_main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("index", help="Rebuild the SQLite search index.")
 
+    sp = sub.add_parser("consolidate", help="Reuse-driven promotion report: pages fetched >=N while trust=asserted -> corroborated candidates. --apply rewrites trust; deletes nothing.")
+    sp.add_argument("--min-fetches", type=int, default=2)
+    sp.add_argument("--apply", action="store_true")
+
+    sp = sub.add_parser("decay", help="Time-based confidence decay (vendored memory-decay tool). Dry-run unless --apply.")
+    sp.add_argument("--apply", action="store_true")
+    sp.add_argument("--halflife-days", type=float, default=405.0)
+
     sp = sub.add_parser("lint", help="Stale claims, orphans, broken links, duplicate titles, hub gravity-wells.")
     sp.add_argument("--json", action="store_true",
                     help="Full JSON report (default: one-line-per-category summary — "
@@ -1787,6 +1860,12 @@ def _cli_dispatch(args, store, root) -> int:
         _cli_print(store.ingest(args.source, title=args.title))
     elif args.cmd == "index":
         _cli_print(store.index())
+    elif args.cmd == "consolidate":
+        _cli_print(store.consolidate(min_fetches=args.min_fetches, apply=args.apply))
+    elif args.cmd == "decay":
+        import decay as _decay
+        argv = ["--root", str(root)] + (["--apply"] if args.apply else []) + ["--halflife-days", str(args.halflife_days)]
+        return _decay.main(argv)
     elif args.cmd == "lint":
         report = store.lint_pages(
             strict=args.strict,

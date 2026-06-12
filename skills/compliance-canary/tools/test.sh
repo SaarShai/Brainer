@@ -394,6 +394,37 @@ else
   no "probe fires past malformed events" "got: $(echo "$out" | head -c120)"
 fi
 
+echo "[30] trajectory_drift: high error-rate session fires"
+PROBES='[{"id":"traj","kind":"trajectory_drift","min_tool_calls":4,"max_error_rate":0.5,"message":"error loop"}]'
+make_skill_with_probes sk30 traj "$PROBES"
+TX="$TRANSCRIPT_DIR/t30.jsonl"
+write_transcript "$TX" \
+  "$(assistant_text 'retrying the command' u30)" \
+  "$(assistant_tool_use Bash '{"command":"x"}')" \
+  "$(user_tool_error 'boom one')" \
+  "$(assistant_tool_use Bash '{"command":"y"}')" \
+  "$(user_tool_error 'boom two')" \
+  "$(assistant_tool_use Read '{"file_path":"/a"}')" \
+  "$(assistant_tool_use Read '{"file_path":"/b"}')"
+out=$(call cc30 sk30 "$TX" s30)
+if emitted "$out" && echo "$out" | grep -q 'trajectory_drift'; then ok "high error rate fires"; else no "high error rate fires" "got: $(echo "$out" | head -c120)"; fi
+
+echo "[31] trajectory_drift: silent below min_tool_calls (cold start)"
+TX="$TRANSCRIPT_DIR/t31.jsonl"
+write_transcript "$TX" \
+  "$(assistant_tool_use Bash '{"command":"x"}')" \
+  "$(user_tool_error 'boom')"
+out=$(call cc31 sk30 "$TX" s31)
+if [ -z "$out" ]; then ok "cold start silent"; else no "cold start silent" "got: $(echo "$out" | head -c100)"; fi
+
+echo "[32] trajectory_drift: silent at healthy error rate"
+TX="$TRANSCRIPT_DIR/t32.jsonl"
+{ assistant_text 'reading files' u32
+  for i in 1 2 3 4 5 6 7 8; do assistant_tool_use Read "{\"file_path\":\"/f$i\"}"; done
+  user_tool_error 'single failure'; } > "$TX"
+out=$(call cc32 sk30 "$TX" s32)
+if [ -z "$out" ]; then ok "healthy rate silent"; else no "healthy rate silent" "got: $(echo "$out" | head -c100)"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then

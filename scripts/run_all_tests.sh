@@ -48,6 +48,8 @@ UNIT_TESTS=(
   skills/context-keeper/tools/tests/test_extract.py
   skills/prompt-triage/tools/test_classify.py
   skills/write-gate/tools/test_write_gate.py
+  skills/wiki-memory/tools/test_consolidate.py
+  skills/wiki-memory/tools/test_decay.py
   skills/wiki-memory/tools/test_lint_hygiene.py
   skills/wiki-memory/tools/test_provenance.py
   skills/wiki-memory/tools/test_refresh.py

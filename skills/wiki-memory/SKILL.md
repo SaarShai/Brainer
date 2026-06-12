@@ -67,6 +67,17 @@ python3 skills/wiki-memory/tools/wiki.py resolve --title "<t>" --body-file <draf
 ```
 Tiers: `asserted` (default) < `corroborated` (independently re-seen) < `verified` (checked against code/test/fs, cf. `audit-refs`) < `user_confirmed`. Stamp each page's tier at creation with `new --trust <tier>`. `resolve` returns an action: **create** (no same-subject page) · **replace** (your higher-trust correction supersedes — wire `supersedes`/`superseded-by`) · **reject** (a higher-trust page exists; do NOT overwrite — raise trust by verifying, or record `contradicts:[[…]]`) · **dispute** (equal trust — mark `contradicts:` both ways so retrieval surfaces the conflict instead of serving one as truth). This recovers the truth+poison coexistence case (measured — dependent accuracy 0.5→1.0). **Honest limit:** with no competing truth and no verifier, a lie can only be *flagged unverified*, not corrected — that hand-off is [`verify-before-completion`](../verify-before-completion/SKILL.md) + code-grounded checks. (Pure logic in [`provenance.py`](tools/provenance.py).)
 
+## Consolidate & decay *(2026-06-12)*
+
+```
+python3 skills/wiki-memory/tools/wiki.py consolidate [--min-fetches N] [--apply]
+python3 skills/wiki-memory/tools/wiki.py decay [--halflife-days D] [--apply]
+```
+
+`consolidate`: reuse-driven promotion — pages **fetched** ≥N times (search hits don't count) while still `trust: asserted` become `corroborated` candidates. One tier only: `verified` stays earned through write-gate evidence, never popularity. `raw/` and `L4_archive/` are immutable. Report-first; `--apply` rewrites trust frontmatter, deletes nothing. Fetch counts live in `<wiki>/.brainer/usage.json` (gitignored; ledger corruption never breaks reads).
+
+`decay`: time-based confidence aging (exponential, default half-life 405d; vendored from PROMPTER's memory-decay — `tools/decay.py`). Protection class skips `type: error|lesson|sop|procedure`, `protected: true`, `evidence_count ≥3`, `L0_rules.md`/`L3_sops/`/`raw/`. Dry-run by default. Run weekly/before audits, never per-prompt.
+
 ## Lint
 
 ```

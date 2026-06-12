@@ -1,0 +1,9 @@
+[
+  {
+    "id": "traj-error-rate",
+    "kind": "trajectory_drift",
+    "min_tool_calls": 8,
+    "max_error_rate": 0.25,
+    "message": "tool-error rate over the recent window crossed 25% — stop retrying variations; re-read the failing tool's contract (params, required prior calls like Read-before-Edit, cwd state) before the next attempt"
+  }
+]

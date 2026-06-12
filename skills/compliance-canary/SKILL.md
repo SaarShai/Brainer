@@ -99,6 +99,21 @@ Matches the user's CURRENT prompt (not the transcript) against correction patter
 
 Use for: routing corrections into write-gate → wiki-memory instead of losing them to the session.
 
+### `trajectory_drift` *(v1.8)*
+
+Session-level tool-error RATE over the transcript tail (tool_use count vs `is_error` tool_results, same window). Catches error-loop drift that `repeated_tool_error` misses when each retry fails differently. Cheapest form of trajectory calibration (lineage: HTC, arXiv 2601.15778) — no model, no training. Ships default-on in `compliance-canary/drift_probes.json`.
+
+```json
+{
+  "kind": "trajectory_drift",
+  "id": "traj-error-rate",
+  "min_tool_calls": 8,
+  "max_error_rate": 0.25
+}
+```
+
+Use for: stop-and-reassess when the agent is thrashing (retry loops, wrong-cwd cascades, schema-mismatch storms). `min_tool_calls` guards cold starts.
+
 ## Install
 
 Claude Code (project-local):

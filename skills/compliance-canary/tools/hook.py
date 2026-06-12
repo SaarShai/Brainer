@@ -320,7 +320,7 @@ def recent_tool_errors(events: list[dict], n: int = 30) -> list[str]:
 
 # -------------------------- detectors --------------------------------------
 
-def detect_forbidden_regex(probe: dict, messages: list[dict], _tool_uses, _tool_errors=None, user_prompt: str = "") -> dict | None:
+def detect_forbidden_regex(probe: dict, messages: list[dict], _tool_uses, _tool_errors=None, user_prompt: str = "", traj_stats: dict | None = None) -> dict | None:
     pat_str = probe.get("pattern")
     if not pat_str:
         return None
@@ -342,7 +342,7 @@ def detect_forbidden_regex(probe: dict, messages: list[dict], _tool_uses, _tool_
     return None
 
 
-def detect_word_count_per_message(probe: dict, messages: list[dict], _tool_uses, _tool_errors=None, user_prompt: str = "") -> dict | None:
+def detect_word_count_per_message(probe: dict, messages: list[dict], _tool_uses, _tool_errors=None, user_prompt: str = "", traj_stats: dict | None = None) -> dict | None:
     if not messages:
         return None
     threshold = float(probe.get("threshold", 80))
@@ -360,7 +360,7 @@ def detect_word_count_per_message(probe: dict, messages: list[dict], _tool_uses,
     return None
 
 
-def detect_claim_without_evidence(probe: dict, messages: list[dict], tool_uses: list[dict], _tool_errors=None, user_prompt: str = "") -> dict | None:
+def detect_claim_without_evidence(probe: dict, messages: list[dict], tool_uses: list[dict], _tool_errors=None, user_prompt: str = "", traj_stats: dict | None = None) -> dict | None:
     if not messages:
         return None
     last_text = messages[-1]["text"]
@@ -401,7 +401,7 @@ def detect_claim_without_evidence(probe: dict, messages: list[dict], tool_uses: 
     }
 
 
-def detect_repeated_tool_error(probe: dict, _messages, _tool_uses, tool_errors=None, user_prompt: str = "") -> dict | None:
+def detect_repeated_tool_error(probe: dict, _messages, _tool_uses, tool_errors=None, user_prompt: str = "", traj_stats: dict | None = None) -> dict | None:
     """Fire when the same tool-error signature recurs in the recent window.
     Transcript mining (2026-06-12) found one signature — 'File has not been
     read yet' — accounted for 15 of 18 tool errors across 5 sessions; the
@@ -428,16 +428,58 @@ def detect_repeated_tool_error(probe: dict, _messages, _tool_uses, tool_errors=N
     return None
 
 
+def trajectory_stats(events: list[dict]) -> dict:
+    """Tool-call vs tool-error counts over the SAME transcript tail, so a
+    rate is well-defined (recent_tool_uses/errors use different caps).
+    Adopted from HTC-style trajectory calibration (arXiv 2601.15778) in the
+    cheapest form that pays: process-level error rate, no model, no training."""
+    calls = errs = 0
+    for e in events:
+        msg = e.get("message") or {}
+        content = msg.get("content")
+        if not isinstance(content, list):
+            continue
+        for b in content:
+            if not isinstance(b, dict):
+                continue
+            if e.get("type") == "assistant" and b.get("type") == "tool_use":
+                calls += 1
+            elif e.get("type") == "user" and b.get("type") == "tool_result" and b.get("is_error"):
+                errs += 1
+    return {"tool_calls": calls, "tool_errors": errs}
+
+
+def detect_trajectory_drift(probe: dict, _messages, _tool_uses, _tool_errors=None,
+                            user_prompt: str = "", traj_stats: dict | None = None) -> dict | None:
+    """Fire when the session's tool-error RATE crosses a threshold — catches
+    error-loop drift that per-signature probes (repeated_tool_error) miss
+    when each retry fails differently. min_tool_calls guards cold starts."""
+    if not traj_stats:
+        return None
+    calls = traj_stats.get("tool_calls", 0)
+    errs = traj_stats.get("tool_errors", 0)
+    min_calls = int(probe.get("min_tool_calls", 8))
+    max_rate = float(probe.get("max_error_rate", 0.25))
+    if calls < min_calls:
+        return None
+    rate = errs / calls
+    if rate >= max_rate:
+        return {"tool_calls": calls, "tool_errors": errs,
+                "rate": round(rate, 3), "threshold": max_rate}
+    return None
+
+
 DETECTORS = {
     "forbidden_regex": detect_forbidden_regex,
     "word_count_per_message": detect_word_count_per_message,
     "claim_without_evidence": detect_claim_without_evidence,
     "repeated_tool_error": detect_repeated_tool_error,
+    "trajectory_drift": detect_trajectory_drift,
 }
 
 
 def detect_user_correction(probe: dict, _messages, _tool_uses, _tool_errors=None,
-                           user_prompt: str = "") -> dict | None:
+                           user_prompt: str = "", traj_stats: dict | None = None) -> dict | None:
     """Fire when the user's CURRENT prompt is a correction ("no, use X",
     "that's wrong", "I said ..."). Closes the correction-capture gap
     (lineage: BayramAnnakov/claude-reflect, flagged in INSPIRATION.md):
@@ -471,6 +513,7 @@ def run_probes(
     suppressed: set[str],
     tool_errors: list[str] | None = None,
     user_prompt: str = "",
+    traj_stats: dict | None = None,
 ) -> list[dict]:
     """Returns list of fired probes (each dict has _skill, _probe_id, _result)."""
     fired: list[dict] = []
@@ -481,7 +524,7 @@ def run_probes(
         if probe["_probe_id"] in suppressed:
             continue
         try:
-            result = DETECTORS[kind](probe, messages, tool_uses, tool_errors, user_prompt=user_prompt)
+            result = DETECTORS[kind](probe, messages, tool_uses, tool_errors, user_prompt=user_prompt, traj_stats=traj_stats)
         except Exception as e:
             log_err(f"detector-fail probe={probe['_probe_id']} err={e!r}")
             continue
@@ -592,7 +635,8 @@ def main() -> int:
     }
 
     fired = run_probes(probes, messages, tool_uses, suppressed, tool_errors,
-                       user_prompt=str(payload.get("prompt") or ""))
+                       user_prompt=str(payload.get("prompt") or ""),
+                       traj_stats=trajectory_stats(events))
     if not fired:
         return 0
 
