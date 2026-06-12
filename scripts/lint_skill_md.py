@@ -54,7 +54,11 @@ def lint_one(path: Path) -> list[str]:
     # Slash-only skills (`disable-model-invocation: true`) trigger on the literal
     # token, not description-matching — they don't need trigger keywords.
     slash_only = fm.get("disable-model-invocation", "").strip().lower() == "true"
-    if not slash_only and not any(h in desc_lc for h in TRIGGER_HINTS):
+    # Deprecation stubs ("DEPRECATED — use X. Do not use.") must NOT carry
+    # trigger keywords — their whole point is to never fire (PROMPTER field
+    # deploy 2026-06-12: linter demanded 'Use when' on do-not-use stubs).
+    deprecated = desc.strip().upper().startswith("DEPRECATED")
+    if not slash_only and not deprecated and not any(h in desc_lc for h in TRIGGER_HINTS):
         issues.append("description should front-load trigger keywords (e.g. 'Use when...', 'Trigger on...')")
     # Section headings are recommended only for longer skill bodies. 40-line
     # floor: a ~30-line measured-tuned body (caveman-ultra) doesn't need nav,
