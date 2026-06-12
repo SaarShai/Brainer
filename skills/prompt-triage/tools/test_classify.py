@@ -113,6 +113,60 @@ def test_env_pin_wins_model_resolution():
         del os.environ["AGENTS_TRIAGE_OLLAMA_MODEL"]
 
 
+def test_research_outranks_summarize_on_mixed_prompts():
+    # round-2 codex: summarize rule shadowed research under first-match-wins.
+    r = classify("summarize and research the available literature on X", use_ollama_fallback=False)
+    assert r["agent"] == "research-lite" and r["tier"] == "medium", r
+    # plain summarize still routes local
+    r2 = classify("summarize this paragraph for me", use_ollama_fallback=False)
+    assert r2["agent"] == "local-ollama", r2
+
+
+def test_quoted_bait_does_not_trigger_cheap_rules():
+    # round-2 codex: quick-fix regex fired on QUOTED text.
+    p = 'explain why the prompt "fix the typo" routes to haiku'
+    r = classify(p, use_ollama_fallback=False)
+    assert r.get("agent") != "quick-fix", r
+    # ...but quoted complex hints still protect (asymmetric stripping):
+    p2 = 'please "refactor the system" end to end'
+    from classify import _looks_complex
+    assert _looks_complex(p2)
+
+
+def test_unicode_hyphen_complex_hint_detected():
+    # round-2 codex: U+2011 in `multi‑file` bypassed COMPLEX_HINTS.
+    from classify import _looks_complex
+    assert _looks_complex("fix this multi‑file refactoring issue")
+
+
+def test_llm_schema_echo_and_garbage_rejected():
+    # round-2 codex: wrong-but-parseable LLM dicts must not reach emit_context.
+    from classify import _validate_llm_result
+    assert _validate_llm_result({"tier": "simple|medium|hard", "agent": "wiki-note|quick-fix"}) is None
+    assert _validate_llm_result({"tier": "simple"}) is None                       # missing agent
+    assert _validate_llm_result({"tier": "simple", "agent": "rm-rf"}) is None     # bad enum
+    assert _validate_llm_result({"tier": "simple", "agent": "quick-fix",
+                                 "confidence": "0-1"}) is None                    # bad conf
+    assert _validate_llm_result({"tier": "simple", "agent": "quick-fix",
+                                 "confidence": 1.7}) is None                      # out of range
+    ok = _validate_llm_result({"tier": "simple", "agent": "quick-fix", "confidence": 0.9})
+    assert ok and ok["model"] == "opus" and ok["lean_context"] == [], ok
+
+
+def test_non_string_prompt_never_crashes():
+    # round-2 audit: {"prompt": 123} crashed is_bypass (regex on int) —
+    # silently, behind hook.sh stderr suppression.
+    import subprocess
+    here = Path(__file__).parent
+    for payload in ['{"prompt": 123}', '{"prompt": null}', '{"prompt": ["a"]}']:
+        r = subprocess.run(
+            [sys.executable, str(here / "classify.py"), "--emit-context"],
+            input=payload, env={**os.environ, "AGENTS_TRIAGE_NO_OLLAMA": "1"},
+            capture_output=True, text=True, timeout=30,
+        )
+        assert r.returncode == 0, (payload, r.stderr[-200:])
+
+
 def test_bad_length_gate_env_never_crashes_hook():
     # codex finding #1: unguarded int() on the env var crashed at import.
     import subprocess

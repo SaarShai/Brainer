@@ -56,3 +56,23 @@ _Provenance/rationale below is maintainer context, not runtime instruction — r
 - RouteLLM (ICLR 2025).
 - Anthropic SDK Task tool + subagent_type.
 - Orchestrator-worker multi-agent papers 2024-2026.
+
+## 2026-06-12 self-audit (post fail-closed rebuild)
+
+Measured on this machine (M3, python3.12, ollama qwen2.5:7b-instruct warm):
+
+| Metric | Value |
+|---|---|
+| Hook latency (regex path, avg of 5) | ~113ms (python cold-start dominated) |
+| Directive size when emitted | **76 tokens** (was 122 — boilerplate trimmed, empty `lean_context` dropped) |
+| Hook cost when silent (hard/none/bypass/<0.7 conf) | 0 tokens |
+| exp3 corpus N=48, deterministic (no LLM) | routing 100% on complex-protection: **0/18 complex → cheap**; tier 96.8% (1 conservative miss → opus) |
+| exp3 corpus N=48, live ollama | routing 94.9%, tier 96.8%, split regex 22 / ollama 21 — **first live-LLM corpus run ever** (fallback was silently dead until 2026-06-12) |
+| Cross-model misroute corpus (10 prompts, 5 complex) | qwen2.5 local 0/10 · gemma2:9b on M2 0/10 |
+| Fuzz (empty/garbage/null/int/50KB/unicode payloads) | all exit 0, no partial directive output |
+| Regression suite | `test_classify.py` 13 tests, offline, in `run_all_tests.sh`/CI |
+
+Enforcement note: the directive is advisory by design — the main model can
+(and sometimes should) override it; failure mode 3 documents this. Mining
+showed overrides are usually correct on context-heavy prompts, so no
+mechanical enforcement is added.

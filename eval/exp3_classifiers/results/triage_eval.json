@@ -29,7 +29,8 @@
     "bypass_correct": 48,
     "fastpath_split": {
       "regex": 22,
-      "regex-low-conf": 10,
+      "regex-low-conf": 3,
+      "fail-closed": 7,
       "default": 11
     },
     "complex_cases": 18,

@@ -76,6 +76,22 @@ def _extract_json_obj(text: str) -> dict | None:
                     start = -1  # keep scanning for a later balanced block
     return None
 
+# Normalization before any regex: unicode dashes/spaces fold to ASCII so
+# `multi‑file` (U+2011) can't slip past the complex-hint guard, and quoted /
+# code-fenced text is stripped so 'explain why "fix the typo" works' doesn't
+# hit the quick-fix rule on QUOTED words (codex review 2026-06-12).
+_UNICODE_FOLD = str.maketrans({
+    "‐": "-", "‑": "-", "‒": "-", "–": "-", "—": "-",
+    " ": " ", "‘": "'", "’": "'", "“": '"', "”": '"',
+})
+_QUOTED_RE = re.compile(r'"[^"\n]{0,200}"|\'[^\'\n]{0,200}\'|```[\s\S]*?```|`[^`\n]+`')
+
+
+def _match_text(prompt: str) -> str:
+    """The text regex rules and complex-hints run against."""
+    return _QUOTED_RE.sub(" ", prompt.translate(_UNICODE_FOLD))
+
+
 # Regex fast-path rules. Order matters — first match wins.
 # Each rule: (pattern, tier, agent, model, confidence, reason, context_globs)
 RULES = [
@@ -93,6 +109,11 @@ RULES = [
     # Short factual question (no filesystem)
     (r"^\s*(?:what is|who is|when (?:was|is|did)|where (?:is|was)|define|meaning of)\b",
      "simple", "research-lite", "haiku", 0.85, "factual lookup", []),
+    # Research BEFORE summarize (first-match-wins): "summarize and research
+    # the literature" must route research-lite/medium, not local-ollama/simple
+    # (codex review 2026-06-12 — the summarize rule was shadowing this one).
+    (r"\b(?:research|survey|find repos?|investigate|literature)\b",
+     "medium", "research-lite", "sonnet", 0.8, "research-lite task", []),
     # Summarize this file / path / log / etc.
     # M2 fix: was `local:gemma4:26b` — gemma4 is not a published Ollama tag and
     # `ollama show gemma4:26b` returns "model not found" on our setup. qwen3:8b
@@ -102,9 +123,6 @@ RULES = [
     (r"\b(?:summari[sz]e|tldr|abstract|condense|rewrite)\b",
      "simple", "local-ollama", "local:qwen3:8b", 0.8, "summarization -- local model fine",
      []),
-    # Research: find repos, survey literature
-    (r"\b(?:research|survey|find repos?|investigate|literature)\b",
-     "medium", "research-lite", "sonnet", 0.8, "research-lite task", []),
     # Install / setup / configure. Conf 0.6 (was 0.75): "configure the auth
     # system" is routinely complex — transcript mining (2026-06-12) found
     # 340-turn sessions triaged "simple setup". 0.6 forces the LLM fallback;
@@ -132,8 +150,9 @@ RULES = [
 
 
 def regex_classify(prompt: str) -> dict | None:
+    text = _match_text(prompt)
     for pat, tier, agent, model, conf, reason, ctx in RULES:
-        if re.search(pat, prompt, re.IGNORECASE):
+        if re.search(pat, text, re.IGNORECASE):
             return {
                 "tier": tier, "agent": agent, "model": model,
                 "confidence": conf, "reason": reason,
@@ -159,7 +178,11 @@ def _looks_complex(prompt: str) -> bool:
     should never be regex-routed to the cheapest tier."""
     if len(prompt) > 800:
         return True
-    if COMPLEX_HINTS.search(prompt):
+    # Unicode-fold only — do NOT quote-strip here. Stripping quotes guards the
+    # cheap-route rules against quoted bait (safe direction); stripping them
+    # from the complex guard would REMOVE protection for quoted complex asks
+    # (unsafe direction). The two matchers are deliberately asymmetric.
+    if COMPLEX_HINTS.search(prompt.translate(_UNICODE_FOLD)):
         return True
     return False
 
@@ -257,7 +280,31 @@ def ollama_classify(prompt: str, model: str | None = None, timeout: int = 2) -> 
     obj = _extract_json_obj(resp)
     if obj is None:
         return None
-    obj.setdefault("lean_context", [])
+    return _validate_llm_result(obj)
+
+
+_VALID_TIERS = {"simple", "medium", "hard"}
+_VALID_AGENTS = {"wiki-note", "quick-fix", "research-lite", "local-ollama", "none"}
+
+
+def _validate_llm_result(obj: dict) -> dict | None:
+    """Reject wrong-but-parseable LLM output (codex review 2026-06-12): a
+    schema echo like {"tier":"simple|medium|hard"} parses as JSON but must
+    never reach emit_context. Enum-check tier/agent, coerce confidence."""
+    tier = obj.get("tier")
+    agent = obj.get("agent")
+    if tier not in _VALID_TIERS or agent not in _VALID_AGENTS:
+        return None
+    try:
+        conf = float(obj.get("confidence", 0))
+    except (TypeError, ValueError):
+        return None
+    if not (0.0 <= conf <= 1.0):
+        return None
+    obj["confidence"] = conf
+    obj.setdefault("model", "opus")
+    obj.setdefault("reason", "llm")
+    obj["lean_context"] = obj.get("lean_context") or []
     return obj
 
 
@@ -345,8 +392,10 @@ def is_bypass(prompt: str) -> bool:
 def _read_prompt_from_stdin() -> str:
     """Parse the CC UserPromptSubmit hook stdin payload. Tolerant of empty /
     malformed input — the hook must not crash on a weird payload."""
-    raw = sys.stdin.read()
-    if not raw:
+    # 1MB cap: hook payloads are small; an adversarially huge stdin should
+    # cost bounded memory and fail closed, not stall the prompt.
+    raw = sys.stdin.read(1_000_000)
+    if not raw or len(raw) >= 1_000_000:
         return ""
     try:
         d = json.loads(raw)
@@ -354,7 +403,11 @@ def _read_prompt_from_stdin() -> str:
         return ""
     if not isinstance(d, dict):
         return ""
-    return d.get("prompt") or d.get("user_prompt") or ""
+    prompt = d.get("prompt") or d.get("user_prompt") or ""
+    # Hosts may send non-string prompts ({"prompt": 123}); regex calls on a
+    # non-str crash the classifier (silently, behind hook.sh's stderr
+    # suppression) — coerce, never trust the payload shape.
+    return prompt if isinstance(prompt, str) else str(prompt)
 
 
 def emit_context(prompt: str, use_ollama_fallback: bool = True) -> str:
@@ -380,19 +433,18 @@ def emit_context(prompt: str, use_ollama_fallback: bool = True) -> str:
             return ""
     except (TypeError, ValueError):
         return ""
+    # Drop empty lean_context from the wire — pure noise when [].
+    if not result.get("lean_context"):
+        result.pop("lean_context", None)
     cls_json = json.dumps(result)
-    # Keep this block byte-for-byte compatible with the prior hook.sh heredoc
-    # so downstream prompts / training data don't drift.
+    # Directive trimmed 122→~70 tokens (2026-06-12 self-audit): the directive
+    # is injected on EVERY routed prompt, so its own size is part of the
+    # skill's cost. One imperative line beats three paragraphs of rationale.
     return (
         "⚡ [agents-triage] Task classified:\n"
         f"{cls_json}\n"
-        "\n"
-        "**Strong recommendation:** dispatch this task via the `Task` tool "
-        "using the suggested subagent + model, then return its result. Do NOT "
-        "engage deep-thinking or load full context yourself. The subagent will "
-        "load only what it needs.\n"
-        "\n"
-        "If classification seems wrong, user can re-send with \"NO TRIAGE\" to bypass."
+        "Dispatch via the Task tool to this subagent+model and return its "
+        "result — skip deep thinking. Wrong call? User can resend with \"NO TRIAGE\"."
     )
 
 

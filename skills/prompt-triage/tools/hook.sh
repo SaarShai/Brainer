@@ -9,8 +9,9 @@
 # with the suggested args and does NO deep reasoning. Actual task runs on the
 # lesser subagent's context budget.
 #
-# Override: user types "NO TRIAGE" anywhere in prompt, or starts the prompt
-# with "/opus", → hook exits silently.
+# Override: user types "NO TRIAGE" anywhere in prompt, or "/opus" as a
+# standalone token (start of prompt or whitespace-delimited; never inside a
+# path like /opus/file.md) → hook exits silently.
 #
 # H1 fix (2026-05): was 4 separate python3 spawns per prompt (~120-320ms
 # cold-start tax on macOS, paid on every Enter press). Now one process:
