@@ -66,7 +66,7 @@ def test_incident_prompt_fails_closed_without_llm():
     assert r["agent"] == "none", r
     # "we built" in the prompt now trips the (earlier) context-guard; both
     # sources are the same safe verdict — hard/none, zero directive.
-    assert r["source"] in ("fail-closed", "context-guard"), r
+    assert r["source"] in ("fail-closed", "context-guard", "brief-gate"), r
     # And the hook must emit NOTHING for it.
     assert emit_context(INCIDENT_PROMPT_MID, use_ollama_fallback=False) == ""
 
@@ -266,11 +266,52 @@ def test_multi_objective_prompt_never_routes_cheap():
     from classify import _multi_objective
     assert _multi_objective(p), p
     r = classify(p, use_ollama_fallback=False)
-    assert r["source"] in ("fail-closed", "context-guard"), r
+    assert r["source"] in ("fail-closed", "context-guard", "brief-gate"), r
     assert emit_context(p, use_ollama_fallback=False) == ""
     # single-objective research still routes
     r2 = classify("research the history of the QWERTY layout", use_ollama_fallback=False)
     assert r2["agent"] == "research-lite" and r2["source"] == "regex", r2
+
+
+def test_continuation_prompts_stay_silent():
+    # incident class #7 (simulated-week sweep 2026-06-12): conversational
+    # steering of in-flight work must never be routed.
+    for p in [
+        "continue. no need to ask me for approval to continue.",
+        "continue with round 3. make sure your tests are reliable.",
+        "please apply all fixes",
+        "let's forget m1 for now, use m2 and kaggle and this device.",
+        "do PROMPTER",                      # short, no rule match
+        "that's weird because the session was fine yesterday",
+        "ok go ahead",
+        "retry",
+    ]:
+        r = classify(p, use_ollama_fallback=False)
+        assert r["source"] in ("context-guard", "short-unmatched"), (p, r)
+        assert emit_context(p, use_ollama_fallback=False) == "", p
+    # self-contained short imperatives still route via their rules:
+    assert classify("commit and push", use_ollama_fallback=False)["source"] == "regex"
+    assert classify("what is the capital of France?", use_ollama_fallback=False)["source"] == "regex"
+
+
+def test_llm_cannot_reopen_downgraded_git_route():
+    # sweep finding: 170-char multi-clause "commit everything and push.
+    # check nothing left running..." was regex-downgraded to 0.6, but the
+    # live LLM said simple/quick-fix and the route reopened.
+    import classify as mod
+    orig = mod.ollama_classify
+    mod.ollama_classify = lambda *a, **k: {
+        "tier": "simple", "agent": "quick-fix", "model": "haiku",
+        "confidence": 0.9, "reason": "llm says simple"}
+    try:
+        p = ("commit everything and push. check there is nothing you left "
+             "running (agents in the background or on devices) and if yes - "
+             "let them finish if needed and then close.")
+        r = classify(p, use_ollama_fallback=True)
+        assert r["source"] == "hint-veto", r
+        assert emit_context(p, use_ollama_fallback=True) == ""
+    finally:
+        mod.ollama_classify = orig
 
 
 def test_multiline_brief_never_routes_cheap():
@@ -283,7 +324,7 @@ def test_multiline_brief_never_routes_cheap():
          "wiki-refresh pass — today churned code paths (extract.py rewrite).")
     assert len(p) < 800
     r = classify(p, use_ollama_fallback=False)
-    assert r["source"] in ("fail-closed", "context-guard"), r
+    assert r["source"] in ("fail-closed", "context-guard", "brief-gate"), r
     assert emit_context(p, use_ollama_fallback=False) == ""
     # one-line summarize with a single trailing newline still routes
     r2 = classify("summarize this paragraph for me\n", use_ollama_fallback=False)

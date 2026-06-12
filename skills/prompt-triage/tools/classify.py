@@ -184,15 +184,33 @@ CONTEXT_HINTS = re.compile(
     r"we(?:'ve| have| were| just)? (?:built|made|did|done|changed|"
     r"discuss(?:ed|ing)|decided|been (?:doing|working))|"
     r"you(?:'ve| have| were| just)? (?:said|did|done|made|created|wrote|"
-    r"written|changed|suggested)|"
-    r"your (?:last|previous|earlier)|as discussed|earlier today|"
+    r"written|changed|suggested|updated)|"
+    r"your (?:last|previous|earlier|stated role|role|goal|instructions)|"
+    r"are you sure|as discussed|earlier today|"
     r"so far|this session'?s)\b",
     re.I,
 )
 
 
+# Conversational continuations steer work already in flight — "continue",
+# "do PROMPTER", "please apply all fixes", "let's skip m1". A fresh subagent
+# has no idea what's in flight; routing these is always wrong (simulated-week
+# sweep 2026-06-12: the LLM fallback routed 7+ of them). Anchored at start.
+CONTINUATION_RE = re.compile(
+    r"^\s*(?:continue\b|proceed\b|go ahead\b|go on\b|keep going\b|carry on\b|"
+    r"resume\b|next\b|yes\b|yep\b|ok(?:ay)?\b|sure\b|sounds good\b|"
+    r"do (?:it|that|this|the rest)\b|"
+    r"please (?:do|continue|proceed|apply|fix (?:it|that|them|those|these))\b|"
+    r"apply (?:all|the|those|these|it)\b|let'?s\b|that'?s\b|"
+    r"now (?:do|try|run|the)\b|same (?:for|with)\b|and (?:then|also)\b|"
+    r"again\b|retry\b|try again\b)",
+    re.I,
+)
+
+
 def _needs_session_context(prompt: str) -> bool:
-    return bool(CONTEXT_HINTS.search(prompt.translate(_UNICODE_FOLD)))
+    folded = prompt.translate(_UNICODE_FOLD)
+    return bool(CONTEXT_HINTS.search(folded)) or bool(CONTINUATION_RE.match(folded))
 
 
 # Imperative sentence-starts for multi-objective counting (field misroute,
@@ -400,6 +418,16 @@ def classify(prompt: str, use_ollama_fallback: bool = True) -> dict:
                 "confidence": 1.0,
                 "reason": f"prompt >{LENGTH_GATE_CHARS} chars; main model handles long briefs",
                 "lean_context": [], "source": "length-gate"}
+    # Brief-shaped prompts are a HARD gate, same rank as length: ≥3
+    # imperative-start sentences or ≥3 newlines means a bundled brief, and an
+    # LLM "medium" verdict must not reopen it (simulated-week sweep
+    # 2026-06-12: the 4-objective screenery brief re-routed via LLM medium
+    # after the soft downgrade had closed the regex path).
+    if _multi_objective(prompt) or prompt.count("\n") >= 3:
+        return {"tier": "hard", "agent": "none", "model": "opus",
+                "confidence": 1.0,
+                "reason": "brief-shaped (multi-objective or multi-paragraph); main model handles briefs",
+                "lean_context": [], "source": "brief-gate"}
     fast = regex_classify(prompt)
     # "commit and push" earns 0.9 only when that's the WHOLE ask. A long
     # close-out prompt starting with "commit everything and push. check
@@ -417,6 +445,16 @@ def classify(prompt: str, use_ollama_fallback: bool = True) -> dict:
     if fast and fast["confidence"] >= 0.8:
         fast["source"] = "regex"
         return fast
+    # Short prompts that matched NO regex rule are conversational replies, not
+    # self-contained tasks ("do PROMPTER", "fix per discussion") — the LLM
+    # fallback routed several in the simulated-week sweep. Self-contained
+    # short tasks are exactly what RULES encode; no hit + short ⇒ silent,
+    # don't even spend the LLM call.
+    if not fast and len(prompt.strip()) < 80:
+        return {"tier": "unknown", "agent": "none", "model": "opus",
+                "confidence": 0.0,
+                "reason": "short prompt with no rule match — likely conversational; defer",
+                "lean_context": [], "source": "short-unmatched"}
     if use_ollama_fallback:
         llm = ollama_classify(prompt)
         if llm:
@@ -425,8 +463,12 @@ def classify(prompt: str, use_ollama_fallback: bool = True) -> dict:
             # Hint veto (codex review 2026-06-12): a 7B "simple" verdict does
             # not overrule complex-work hints — the LLM may still route medium,
             # but the cheapest tier on a hint-flagged prompt is exactly the
-            # asymmetric mistake this skill must never make.
-            if llm.get("tier") == "simple" and _looks_complex(prompt):
+            # asymmetric mistake this skill must never make. Extended to any
+            # regex-DOWNGRADED verdict (e.g. >120-char multi-clause git
+            # prompts): the LLM must not reopen a route the regex layer
+            # deliberately closed (simulated-week sweep 2026-06-12).
+            downgraded = bool(fast and "downgraded" in fast.get("reason", ""))
+            if llm.get("tier") == "simple" and (_looks_complex(prompt) or downgraded):
                 return {"tier": "hard", "agent": "none", "model": "opus",
                         "confidence": 0.0,
                         "reason": "LLM said simple but complex-work hints present; defer to main model",

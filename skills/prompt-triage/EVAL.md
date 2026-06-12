@@ -104,3 +104,16 @@ Codex round-3 fixes: `_validate_llm_result` clamps out-of-platform `model` value
 5. PROMPTER history replay: 4-objective brief ("look through X... find a method... document it... otherwise research...") → `research-lite/0.8` via regex. Fix: `_multi_objective()` — ≥3 imperative-opening sentences ⇒ complex-work guard, fail-closed without LLM. Locked by `test_multi_objective_prompt_never_routes_cheap`.
 
 Replay after fix: Brainer 27 prompts → 4 routed (git-mechanical only); PROMPTER 12 → 2 routed ("commit and push" ×2). 0 violations both.
+
+## 2026-06-12 simulated-week sweep (incident class #7 + brief-gate)
+
+Full prompt history (229 real prompts, Brainer + PROMPTER) through the live classifier. Round 1: 116/228 routed (51%) — exposed the LLM fallback routing conversational continuations ("continue.", "do PROMPTER", "please apply all fixes", "let's forget m1"). Fixes:
+- **CONTINUATION_RE** (anchored): continue/proceed/yes/ok/do it/apply all/let's/that's/retry… → context-guard.
+- **short-unmatched**: <80 chars + no regex rule hit ⇒ silent without spending the LLM call (self-contained short tasks are what RULES encode).
+- **Downgrade veto**: LLM "simple" cannot reopen a regex-downgraded route (the >120-char git close-out had reopened via LLM).
+- **brief-gate** (hard, rank of length-gate): ≥3 imperative-start sentences or ≥3 newlines ⇒ hard/none even against an LLM "medium" (the screenery 4-objective brief had re-routed via medium).
+- CONTEXT_HINTS additions: "you updated", "are you sure", "your role/goal/instructions".
+
+Round 2 after guards: 79/229 (34%); round 3 with brief-gate hard: **67/230 (29%)** — haiku 45, sonnet 20, opus 2; spot-check clean (sheet edits, wiki notes, one-line fixes, git mechanicals).
+
+Savings estimate IF all routed turns dispatched (assumptions: ~20k input/800 output tok per routed turn; opus $15/$75, sonnet $3/$15, haiku $1/$5 per Mtok): **~$20.88 over the ~6-week corpus ≈ $3.48/week** — modest in $, but each route also keeps ~20k tokens out of the main context window, which is the bigger win on long sessions.
