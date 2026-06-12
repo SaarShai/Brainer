@@ -256,6 +256,23 @@ def test_session_context_prompts_stay_silent():
     assert r["source"] == "regex" and r["agent"] == "quick-fix", r
 
 
+def test_multi_objective_prompt_never_routes_cheap():
+    # PROMPTER field misroute 2026-06-12: 4-objective brief carrying the
+    # "research" keyword routed research-lite/0.8 via regex.
+    p = ("look through the ~/Documents/screenery-lean project. they should "
+         "have a way to edit google sheets somewhere. find a working method "
+         "and document it so you always have a way to do it. otherwise, think "
+         "and research the most efficient and reliable tool for the job.")
+    from classify import _multi_objective
+    assert _multi_objective(p), p
+    r = classify(p, use_ollama_fallback=False)
+    assert r["source"] in ("fail-closed", "context-guard"), r
+    assert emit_context(p, use_ollama_fallback=False) == ""
+    # single-objective research still routes
+    r2 = classify("research the history of the QWERTY layout", use_ollama_fallback=False)
+    assert r2["agent"] == "research-lite" and r2["source"] == "regex", r2
+
+
 def test_long_git_prompt_downgraded():
     # replay audit 2026-06-12: multi-clause close-out prompts start with
     # "commit ... and push" but bundle more work; must stay silent.

@@ -97,3 +97,10 @@ Benchmarks (this device): hook regex/guard path p50 67ms; LLM fallback warm 655�
 Historical replay (`scripts/replay_triage.py`, now suite check #34): of 25 prompts that ever received a directive, 21 now correctly silent, 4 still routed (all short git-mechanical), 0 violations. New downgrade: `^commit...` rule drops to 0.6 when prompt >120 chars (multi-clause close-outs bundle non-mechanical work).
 
 Codex round-3 fixes: `_validate_llm_result` clamps out-of-platform `model` values to tier defaults (haiku/sonnet/opus only); CONTEXT_HINTS gained contractions/modifiers ("we've built", "you just changed", "this thread", "our previous conversation") and DROPPED "this repo/branch/codebase" (filesystem state is subagent-readable — "commit and push this branch" keeps its cheap route); confidence-gate test made non-vacuous.
+
+## 2026-06-12 field incidents #4/#5 (PROMPTER deploy + live session)
+
+4. "can you run simulations in prompter..." → LLM fallback verdict `quick-fix/sonnet` @0.8 — quick-fix is a file-edit agent; LLM prompt now pins agent definitions (quick-fix = small scoped FILE EDITS only).
+5. PROMPTER history replay: 4-objective brief ("look through X... find a method... document it... otherwise research...") → `research-lite/0.8` via regex. Fix: `_multi_objective()` — ≥3 imperative-opening sentences ⇒ complex-work guard, fail-closed without LLM. Locked by `test_multi_objective_prompt_never_routes_cheap`.
+
+Replay after fix: Brainer 27 prompts → 4 routed (git-mechanical only); PROMPTER 12 → 2 routed ("commit and push" ×2). 0 violations both.

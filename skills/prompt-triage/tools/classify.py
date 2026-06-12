@@ -195,10 +195,33 @@ def _needs_session_context(prompt: str) -> bool:
     return bool(CONTEXT_HINTS.search(prompt.translate(_UNICODE_FOLD)))
 
 
+# Imperative sentence-starts for multi-objective counting (field misroute,
+# PROMPTER 2026-06-12: "look through X. find a method. document it. otherwise
+# research..." routed research-lite/0.8 — four objectives, one cheap agent).
+_IMPERATIVE_START = re.compile(
+    r"^\s*(?:look|find|search|read|review|check|build|make|create|fix|add|"
+    r"run|test|document|write|research|think|implement|install|deploy|"
+    r"measure|compare|explain|update|sync|verify|otherwise)\b", re.I)
+
+
+def _multi_objective(prompt: str) -> bool:
+    """≥3 sentences opening with imperative verbs ⇒ a bundled brief, not a
+    single dispatchable task."""
+    n = 0
+    for sent in re.split(r"[.!?\n;]+", prompt):
+        if _IMPERATIVE_START.match(sent) and len(sent.split()) >= 3:
+            n += 1
+            if n >= 3:
+                return True
+    return False
+
+
 def _looks_complex(prompt: str) -> bool:
     """Heuristic guard: long prompts or prompts containing complex-work phrases
     should never be regex-routed to the cheapest tier."""
     if len(prompt) > 800:
+        return True
+    if _multi_objective(prompt):
         return True
     # Unicode-fold only — do NOT quote-strip here. Stripping quotes guards the
     # cheap-route rules against quoted bait (safe direction); stripping them
@@ -267,6 +290,7 @@ Rules:
 - medium = multi-step but bounded (research a topic, refactor one file, write one script)
 - hard = multi-file, architecture, design, novel reasoning
 - A task bundling 3+ distinct objectives (e.g. review AND research AND implement AND test) is hard
+- agent definitions: quick-fix = small scoped FILE EDITS only (never running tasks, tests, or simulations); wiki-note = wiki/markdown notes; research-lite = bounded web lookups; general-purpose = everything else simple/medium
 - agent="none" means fall through to main model (opus)
 - Prefer lowest capable tier. Haiku ~$0.25/M-tok input; sonnet ~$3; opus ~$15.
 - If task mentions "simple", "quick", "tiny" — bias simple.
