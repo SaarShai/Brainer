@@ -82,32 +82,39 @@ def main() -> None:
         if m:
             wired_by_skill.setdefault(m.group(1), []).append(event)
 
+    # The committed map holds STATIC facts only. A "Wired here?" column read
+    # from .claude/settings.json made the file differ on every fresh host
+    # (round-4 idempotency check 2026-06-12: first install in a clean clone
+    # dirtied the work tree). Live wiring state goes to stdout instead;
+    # agents needing it read .claude/settings.json directly.
     lines = [
         "# Hooks map (generated — do not edit; `python3 scripts/gen_hooks_map.py`)",
         "",
-        "One-page answer to \"what hooks exist / what's wired / where's the entry\".",
+        "One-page answer to \"what hooks exist / where's the entry / installer\".",
         "Read THIS instead of walking skills/*/tools/ file by file.",
         "",
-        "| Skill | Hook event(s) | Wired here? | Entry | Installer |",
-        "|---|---|---|---|---|",
+        "| Skill | Hook event(s) | Entry | Installer |",
+        "|---|---|---|---|",
     ]
     for r in inventory:
-        wired_events = wired_by_skill.get(r["skill"], [])
-        wired_cell = ", ".join(sorted(set(wired_events))) if wired_events else "no"
         lines.append(
-            f"| {r['skill']} | {', '.join(r['events'])} | {wired_cell} "
+            f"| {r['skill']} | {', '.join(r['events'])} "
             f"| {'<br>'.join(f'`{e}`' for e in r['entry'])} | `{r['installer']}` |"
         )
     lines += [
         "",
-        "Wiring lives in `.claude/settings.json` (repo-local). Per-skill installers",
-        "append hook entries and never delete; `./install.sh` prunes dead Brainer",
-        "hooks on re-install. `output-filter` ships tooling but no auto-installer",
-        "by design (wire as pipe or PostToolUse by hand).",
+        "LIVE wiring state is machine-local: check `.claude/settings.json`.",
+        "Per-skill installers append hook entries and never delete;",
+        "`./install.sh` prunes dead Brainer hooks on re-install. `output-filter`",
+        "ships tooling but no auto-installer by design (wire as pipe or",
+        "PostToolUse by hand).",
         "",
     ]
     OUT.write_text("\n".join(lines))
-    print(f"wrote {OUT.relative_to(REPO)} ({len(inventory)} hook skills, {len(wired)} wired entries)")
+    print(f"wrote {OUT.relative_to(REPO)} ({len(inventory)} hook skills)")
+    for r in inventory:
+        events = ", ".join(sorted(set(wired_by_skill.get(r["skill"], [])))) or "NOT WIRED"
+        print(f"  wired-here: {r['skill']}: {events}")
 
 
 if __name__ == "__main__":

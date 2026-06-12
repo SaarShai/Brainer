@@ -375,19 +375,23 @@ print(json.dumps({'session_id':'s28','transcript_path':sys.argv[1],'hook_event_n
 out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc28" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk27" $HOOK)
 if [ -z "$out" ]; then ok "ordinary prompt silent"; else no "ordinary prompt silent" "got: $(echo "$out" | head -c100)"; fi
 
-echo "[29] malformed transcript events: parseable non-dict lines never crash (exit 0)"
+echo "[29] malformed transcript events: detection still WORKS with garbage lines present"
+# Exit-code-only assertion is vacuous here — hook.sh swallows crashes with
+# '|| true' (mutation test 2026-06-12: deleting the normalization survived).
+# Real contract: a probe must still FIRE on a transcript laced with
+# parseable-but-malformed lines, proving hook.py processed past them.
+PROBES='[{"id":"m29","kind":"forbidden_regex","pattern":"(?i)\\bdefinitely-drifted\\b","message":"caught"}]'
+make_skill_with_probes sk29 m29skill "$PROBES"
 TX="$TRANSCRIPT_DIR/t29.jsonl"
 write_transcript "$TX" "$(assistant_text 'normal message' u1)"
 # parseable-but-malformed: bare scalar, list, message-as-string (codex round-3)
 printf '123\n["a","b"]\n{"type":"assistant","message":"bad"}\n{"type":"user","message":42}\n' >> "$TX"
-payload=$(python3 -c "
-import json,sys
-print(json.dumps({'session_id':'s29','transcript_path':sys.argv[1],'hook_event_name':'UserPromptSubmit','prompt':'ping'}))
-" "$TX")
-if printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc29" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk27" $HOOK >/dev/null 2>"$STATE_ROOT/t29.err"; then
-  ok "malformed events exit 0"
+assistant_text 'this reply is definitely-drifted content' u2 >> "$TX"
+out=$(call cc29 sk29 "$TX" s29)
+if emitted "$out" && echo "$out" | grep -q 'm29'; then
+  ok "probe fires past malformed events"
 else
-  no "malformed events exit 0" "stderr: $(head -c150 "$STATE_ROOT/t29.err")"
+  no "probe fires past malformed events" "got: $(echo "$out" | head -c120)"
 fi
 
 # ----------------------------------------------------------------------

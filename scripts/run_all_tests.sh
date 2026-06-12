@@ -45,6 +45,7 @@ run "py-compile" bash -c "git ls-files -z '*.py' | xargs -0 python3 -m py_compil
 # 5. Per-skill unit tests (plain-python, no pytest dep)
 UNIT_TESTS=(
   skills/cache-lint/tools/test_cache_lint.py
+  skills/context-keeper/tools/tests/test_extract.py
   skills/prompt-triage/tools/test_classify.py
   skills/write-gate/tools/test_write_gate.py
   skills/wiki-memory/tools/test_lint_hygiene.py

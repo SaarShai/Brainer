@@ -26,13 +26,22 @@ URL_RE = re.compile(r"https?://[^\s)\]'\"]+")
 NUM_RE = re.compile(r"\b\d+(?:\.\d+)?\s*(?:%|ms|s|x|tokens?|tok|GB|MB|KB|B|bytes?|lines?|items?|calls?)\b", re.I)
 ERROR_RE = re.compile(r"(?:Error|Exception|Traceback|fail(?:ed|ure)?|SIGKILL|exit code [1-9]|stderr)[^\n]{3,200}", re.I)
 IMPERATIVE_RE = re.compile(r"^(?:build|make|create|fix|find|implement|add|run|test|check|set up|design|write|measure|eval|compare|explain|research|install|deploy)\b", re.I)
+FAIL_WORD_RE = re.compile(r"didn't work|doesn't work|not work|broke|broken|bug|wrong|mismatch|incompat", re.I)
 
 
 def iter_events(path):
     with open(path, encoding="utf-8", errors="replace") as f:
         for line in f:
-            try: yield json.loads(line)
+            try: obj = json.loads(line)
             except: continue
+            # Parseable-but-non-dict lines (`123`, `["a"]`) crashed regex_extract
+            # downstream — silently, behind hook.sh's `|| true`, costing the whole
+            # compaction snapshot (found by round-4 stress 2026-06-12). Same guard
+            # for message-as-non-dict.
+            if not isinstance(obj, dict): continue
+            if "message" in obj and not isinstance(obj["message"], dict):
+                obj["message"] = {}
+            yield obj
 
 
 def extract_text(content):
@@ -134,20 +143,43 @@ def regex_extract(events):
                 s = e.strip().rstrip(".")
                 if len(s) > 10: add("errors_seen", s[:200], limit=30)
 
-        # Bash commands: extract from tool_use blocks
-        if "TOOL:Bash" in text:
-            for m in re.finditer(r'TOOL:Bash INPUT:\{[^}]*"command"\s*:\s*"([^"]{5,300})"', text):
-                cmd = m.group(1).replace('\\"', '"').replace('\\n', '; ')
-                add("commands_run", cmd, limit=40)
+        # Bash commands / written files: walk tool_use blocks STRUCTURALLY.
+        # The old approach regex-scraped the flattened "TOOL:Bash INPUT:{...}"
+        # text; on multi-KB commands the bounded capture backtracked
+        # quadratically — 23s for a 10k-event transcript (round-4 profile,
+        # 2026-06-12). The content blocks are already parsed JSON; read them.
+        if isinstance(content, list):
+            for b in content:
+                if not isinstance(b, dict) or b.get("type") != "tool_use":
+                    continue
+                inp = b.get("input")
+                if not isinstance(inp, dict):
+                    continue
+                if b.get("name") == "Bash":
+                    cmd = inp.get("command")
+                    if isinstance(cmd, str) and len(cmd) >= 5:
+                        add("commands_run",
+                            cmd[:300].replace("\n", "; "), limit=40)
+                elif b.get("name") == "Write":
+                    fp = inp.get("file_path")
+                    if isinstance(fp, str) and fp:
+                        add("files_created", fp)
 
-        # Written files from Write tool
-        if "TOOL:Write" in text:
-            for m in re.finditer(r'TOOL:Write INPUT:\{[^}]*"file_path"\s*:\s*"([^"]+)"', text):
-                add("files_created", m.group(1))
-
-        # Failed attempts: sentences near failure words
-        for m in re.finditer(r"[^.!?\n]{10,150}(?:didn't work|doesn't work|not work|broke|broken|bug|wrong|mismatch|incompat)[^.!?\n]{0,150}", text, re.I):
-            add("failed_attempts", m.group(0).strip()[:200], limit=20)
+        # Failed attempts: sentences near failure words. Keyword-first, then
+        # slice a window — the old single regex put a backtracking {10,150}
+        # prefix BEFORE the alternation, going quadratic on long unbroken
+        # lines (this was ~95% of a 23s extract on a 10k-event transcript;
+        # round-4 profile 2026-06-12).
+        for m in FAIL_WORD_RE.finditer(text):
+            lo = max(0, m.start() - 150)
+            hi = min(len(text), m.end() + 150)
+            window = text[lo:hi]
+            # trim to the sentence containing the keyword
+            head = window[:m.start() - lo].rsplit("\n", 1)[-1].rsplit(". ", 1)[-1]
+            tail = window[m.start() - lo:].split("\n", 1)[0].split(". ", 1)[0]
+            s = (head + tail).strip()
+            if len(s) >= 15:
+                add("failed_attempts", s[:200], limit=20)
 
     result = dict(out)
     result["_confidence"] = {k: dict(v) for k, v in confidence.items()}
