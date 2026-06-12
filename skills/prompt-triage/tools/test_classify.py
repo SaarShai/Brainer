@@ -64,7 +64,9 @@ def test_incident_prompt_fails_closed_without_llm():
     r = classify(INCIDENT_PROMPT_MID, use_ollama_fallback=False)
     assert r["tier"] == "hard", r
     assert r["agent"] == "none", r
-    assert r["source"] == "fail-closed", r
+    # "we built" in the prompt now trips the (earlier) context-guard; both
+    # sources are the same safe verdict — hard/none, zero directive.
+    assert r["source"] in ("fail-closed", "context-guard"), r
     # And the hook must emit NOTHING for it.
     assert emit_context(INCIDENT_PROMPT_MID, use_ollama_fallback=False) == ""
 
@@ -100,7 +102,7 @@ def test_length_gate_blocks_cheap_route_even_with_llm():
     # >1500 chars → hard/none regardless of fallback availability; the gate
     # must short-circuit BEFORE any LLM call (so this stays offline-stable).
     r = classify(INCIDENT_PROMPT, use_ollama_fallback=True)
-    assert r["source"] == "length-gate", r
+    assert r["source"] in ("length-gate", "context-guard"), r
     assert r["tier"] == "hard" and r["agent"] == "none", r
     assert emit_context(INCIDENT_PROMPT, use_ollama_fallback=True) == ""
 
@@ -117,9 +119,10 @@ def test_research_outranks_summarize_on_mixed_prompts():
     # round-2 codex: summarize rule shadowed research under first-match-wins.
     r = classify("summarize and research the available literature on X", use_ollama_fallback=False)
     assert r["agent"] == "research-lite" and r["tier"] == "medium", r
-    # plain summarize still routes local
+    # plain summarize routes to haiku in-platform (never local-ollama —
+    # 2026-06-12 policy: triage targets platform models only)
     r2 = classify("summarize this paragraph for me", use_ollama_fallback=False)
-    assert r2["agent"] == "local-ollama", r2
+    assert r2["agent"] == "general-purpose" and r2["model"] == "haiku", r2
 
 
 def test_quoted_bait_does_not_trigger_cheap_rules():
@@ -215,6 +218,35 @@ def test_setup_prompt_silent_without_llm_is_intended():
     r = classify(p, use_ollama_fallback=False)
     assert r["confidence"] < 0.7, r
     assert emit_context(p, use_ollama_fallback=False) == ""
+
+
+def test_session_context_prompts_stay_silent():
+    # live incident 2026-06-12 #2: "summarize what this current suite does"
+    # got a dispatch directive; a fresh subagent cannot see the conversation.
+    for p in [
+        "summarize in plain language what this current suite of skills does",
+        "summarize what we built today",
+        "tldr of what you changed",
+        "research the thing we discussed earlier today",
+    ]:
+        r = classify(p, use_ollama_fallback=False)
+        assert r["source"] == "context-guard", (p, r)
+        assert emit_context(p, use_ollama_fallback=False) == "", p
+    # ...but context-free summarize still routes cheap:
+    r = classify("summarize this paragraph for me", use_ollama_fallback=False)
+    assert r["source"] == "regex" and r["model"] == "haiku", r
+
+
+def test_no_local_models_in_routing_surface():
+    # platform-models-only policy: no rule, enum, or LLM verdict may emit a
+    # local:* model or the local-ollama agent.
+    from classify import RULES, _VALID_AGENTS, _validate_llm_result
+    for rule in RULES:
+        assert rule[2] != "local-ollama", rule
+        assert not rule[3].startswith("local:"), rule
+    assert "local-ollama" not in _VALID_AGENTS
+    assert _validate_llm_result(
+        {"tier": "simple", "agent": "local-ollama", "confidence": 0.9}) is None
 
 
 def main():

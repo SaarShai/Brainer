@@ -76,3 +76,16 @@ Enforcement note: the directive is advisory by design — the main model can
 (and sometimes should) override it; failure mode 3 documents this. Mining
 showed overrides are usually correct on context-heavy prompts, so no
 mechanical enforcement is added.
+
+## 2026-06-12 live incidents #2/#3 — context-blind routing
+
+Two same-day production misroutes after the hardening pass:
+1. "summarize … what this current suite of skills does" → `local-ollama` directive. A context-blind subagent can't answer a question about the session; main model had to evaluate-and-override (directive was net-negative tokens).
+2. LLM fallback routed a triage-policy question to `local-ollama/haiku`.
+
+Fixes (locked by `test_session_context_prompts_stay_silent`, `test_no_local_models_in_routing_surface`):
+- **context-guard**: prompts referencing the current session/conversation short-circuit to hard/none before any classifier runs.
+- **platform-models-only policy**: `local-ollama` and `local:*` removed from RULES, the LLM schema, and `_VALID_AGENTS`. Triage routes only to in-platform small models (haiku/sonnet). Local models remain available for explicit manual dispatch.
+- LLM prompt gained a context-reference → `agent="none"` rule.
+
+Design lesson: a directive the main model must override costs MORE than no directive — every guard errs toward silence.

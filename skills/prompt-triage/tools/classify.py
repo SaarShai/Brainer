@@ -7,8 +7,8 @@ Two-tier classifier:
 
 Output (stdout, JSON one-line):
   {"tier": "simple|medium|hard|unknown",
-   "agent": "wiki-note|quick-fix|research-lite|local-ollama|triage|none",
-   "model": "haiku|sonnet|opus|local:<model>",
+   "agent": "wiki-note|quick-fix|research-lite|general-purpose|none",
+   "model": "haiku|sonnet|opus",
    "confidence": 0.0-1.0,
    "reason": "<short>",
    "lean_context": ["paths or globs to load"]}
@@ -114,14 +114,12 @@ RULES = [
     # (codex review 2026-06-12 — the summarize rule was shadowing this one).
     (r"\b(?:research|survey|find repos?|investigate|literature)\b",
      "medium", "research-lite", "sonnet", 0.8, "research-lite task", []),
-    # Summarize this file / path / log / etc.
-    # M2 fix: was `local:gemma4:26b` — gemma4 is not a published Ollama tag and
-    # `ollama show gemma4:26b` returns "model not found" on our setup. qwen3:8b
-    # is the project's default small local model (used by `local-ollama` rule
-    # below) and handles summarization fine. If a future op wants gemma3, they
-    # should explicitly pin a real published tag (e.g., `gemma3:27b`).
+    # Summarize this file / path / log / etc. Routes to haiku (2026-06-12
+    # policy: triage only routes to smaller IN-PLATFORM models — haiku/sonnet
+    # in Claude Code — never out-of-platform local models; those are for
+    # explicit manual dispatch only).
     (r"\b(?:summari[sz]e|tldr|abstract|condense|rewrite)\b",
-     "simple", "local-ollama", "local:qwen3:8b", 0.8, "summarization -- local model fine",
+     "simple", "general-purpose", "haiku", 0.8, "summarization -- haiku fine",
      []),
     # Install / setup / configure. Conf 0.6 (was 0.75): "configure the auth
     # system" is routinely complex — transcript mining (2026-06-12) found
@@ -135,9 +133,6 @@ RULES = [
     # Commit/push — mechanical
     (r"^\s*(?:commit|push|git (?:add|commit|push|stash))\b",
      "simple", "quick-fix", "haiku", 0.9, "git mechanical", []),
-    # Explicit local/free/cheap hint
-    (r"\b(?:cheap|local|free|no api|ollama)\b",
-     "simple", "local-ollama", "local:qwen3:8b", 0.8, "explicit local hint", []),
     # Long-context local hint (no dedicated subagent yet; fall through to opus,
     # which the user can manually route to a local long-context model if needed).
     # Previous rule emitted agent="turboquant-local" but no such agent ships;
@@ -171,6 +166,26 @@ COMPLEX_HINTS = re.compile(
     r"multi[-\s]?file|across|system|integration)\b",
     re.I,
 )
+
+
+# Prompts that lean on the CURRENT conversation/session state can never be
+# cheaply dispatched — a fresh subagent has no access to the chat history, so
+# any directive forces the main model to evaluate-and-override (worse than
+# silence; live incident 2026-06-12: "summarize what this current suite does"
+# routed to a context-blind local model). Silence is the only safe verdict.
+CONTEXT_HINTS = re.compile(
+    r"\b(?:this (?:session|conversation|chat|repo|project|suite|codebase|branch)|"
+    r"current (?:session|suite|repo|project|state)|"
+    r"we (?:built|made|did|changed|discussed|decided)|"
+    r"you (?:said|did|made|created|wrote|changed|suggested)|"
+    r"your (?:last|previous|earlier)|as discussed|earlier today|"
+    r"so far|this session'?s)\b",
+    re.I,
+)
+
+
+def _needs_session_context(prompt: str) -> bool:
+    return bool(CONTEXT_HINTS.search(prompt.translate(_UNICODE_FOLD)))
 
 
 def _looks_complex(prompt: str) -> bool:
@@ -237,10 +252,11 @@ def _resolve_ollama_model(timeout: int = 1) -> str | None:
     return None
 
 LLM_PROMPT = """Classify this user task for an LLM agent. Output ONLY one-line JSON:
-{"tier":"simple|medium|hard","agent":"wiki-note|quick-fix|research-lite|local-ollama|none","model":"haiku|sonnet|opus|local:qwen3:8b","confidence":0-1,"reason":"<15 words"}
+{"tier":"simple|medium|hard","agent":"wiki-note|quick-fix|research-lite|general-purpose|none","model":"haiku|sonnet|opus","confidence":0-1,"reason":"<15 words"}
 
 Rules:
 - simple = single file edit, add note, one-line fix, factual question, summarize
+- If the task references the current conversation/session ("what we did", "this suite") output agent="none" — subagents cannot see chat history
 - medium = multi-step but bounded (research a topic, refactor one file, write one script)
 - hard = multi-file, architecture, design, novel reasoning
 - A task bundling 3+ distinct objectives (e.g. review AND research AND implement AND test) is hard
@@ -284,7 +300,7 @@ def ollama_classify(prompt: str, model: str | None = None, timeout: int = 2) -> 
 
 
 _VALID_TIERS = {"simple", "medium", "hard"}
-_VALID_AGENTS = {"wiki-note", "quick-fix", "research-lite", "local-ollama", "none"}
+_VALID_AGENTS = {"wiki-note", "quick-fix", "research-lite", "general-purpose", "none"}
 
 
 def _validate_llm_result(obj: dict) -> dict | None:
@@ -320,6 +336,14 @@ except ValueError:  # bad env value must degrade to the default, never crash the
 
 
 def classify(prompt: str, use_ollama_fallback: bool = True) -> dict:
+    # Session-context guard runs FIRST: no classifier (regex or LLM) can know
+    # what's in the conversation, so any verdict on these prompts is noise the
+    # main model must spend tokens overriding.
+    if _needs_session_context(prompt):
+        return {"tier": "hard", "agent": "none", "model": "opus",
+                "confidence": 1.0,
+                "reason": "references current session context; subagents cannot see it",
+                "lean_context": [], "source": "context-guard"}
     if len(prompt) > LENGTH_GATE_CHARS:
         return {"tier": "hard", "agent": "none", "model": "opus",
                 "confidence": 1.0,
