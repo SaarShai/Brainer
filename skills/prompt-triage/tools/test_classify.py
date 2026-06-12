@@ -80,10 +80,18 @@ def test_complex_hints_alone_fail_closed_without_llm():
 
 
 def test_low_confidence_never_emits_directive():
-    # The long-ctx rule classifies at conf 0.6 / tier hard — silent either way;
-    # also verify the explicit confidence gate via a synthetic medium result.
-    p = "we need the 70b long-context variant for this"
+    # Non-vacuous gate check (codex round-3: the old fixture was already
+    # tier=hard, so it stayed silent even with the gate deleted). The setup
+    # rule yields simple/quick-fix at conf 0.6 — routable agent+tier, silent
+    # ONLY because of the <0.7 confidence gate.
+    p = "install the hook"
+    r = classify(p, use_ollama_fallback=False)
+    assert r["tier"] == "simple" and r["agent"] == "quick-fix", r
+    assert r["confidence"] < 0.7, r
     assert emit_context(p, use_ollama_fallback=False) == ""
+    # legacy fixture (tier-hard path) still silent too
+    assert emit_context("we need the 70b long-context variant for this",
+                        use_ollama_fallback=False) == ""
 
 
 def test_high_confidence_simple_emits_directive():
@@ -152,8 +160,9 @@ def test_llm_schema_echo_and_garbage_rejected():
                                  "confidence": "0-1"}) is None                    # bad conf
     assert _validate_llm_result({"tier": "simple", "agent": "quick-fix",
                                  "confidence": 1.7}) is None                      # out of range
+    # missing model → clamped to the tier default (haiku for simple)
     ok = _validate_llm_result({"tier": "simple", "agent": "quick-fix", "confidence": 0.9})
-    assert ok and ok["model"] == "opus" and ok["lean_context"] == [], ok
+    assert ok and ok["model"] == "haiku" and ok["lean_context"] == [], ok
 
 
 def test_non_string_prompt_never_crashes():
@@ -228,6 +237,12 @@ def test_session_context_prompts_stay_silent():
         "summarize what we built today",
         "tldr of what you changed",
         "research the thing we discussed earlier today",
+        # codex round-3: contractions / modifiers / thread phrasing
+        "summarize what we've built today",
+        "tldr of what you just changed",
+        "summarize this thread",
+        "summarize our previous conversation",
+        "note down what we were discussing",
     ]:
         r = classify(p, use_ollama_fallback=False)
         assert r["source"] == "context-guard", (p, r)
@@ -235,6 +250,22 @@ def test_session_context_prompts_stay_silent():
     # ...but context-free summarize still routes cheap:
     r = classify("summarize this paragraph for me", use_ollama_fallback=False)
     assert r["source"] == "regex" and r["model"] == "haiku", r
+    # ...and filesystem-state references stay routable — a subagent CAN read
+    # the repo (codex round-3 over-match: "this branch" was silencing git):
+    r = classify("commit and push this branch", use_ollama_fallback=False)
+    assert r["source"] == "regex" and r["agent"] == "quick-fix", r
+
+
+def test_long_git_prompt_downgraded():
+    # replay audit 2026-06-12: multi-clause close-out prompts start with
+    # "commit ... and push" but bundle more work; must stay silent.
+    p = ("commit everything and push. check there is nothing you left running "
+         "(agents in the background or on devices) and if yes - let them finish "
+         "if needed and then close.")
+    assert len(p) > 120
+    assert emit_context(p, use_ollama_fallback=False) == ""
+    # short form still routes
+    assert "haiku" in emit_context("commit and push", use_ollama_fallback=False)
 
 
 def test_no_local_models_in_routing_surface():
@@ -247,6 +278,14 @@ def test_no_local_models_in_routing_surface():
     assert "local-ollama" not in _VALID_AGENTS
     assert _validate_llm_result(
         {"tier": "simple", "agent": "local-ollama", "confidence": 0.9}) is None
+    # codex round-3: valid agent + out-of-platform model must be CLAMPED to
+    # the tier default, never passed through.
+    r = _validate_llm_result({"tier": "simple", "agent": "quick-fix",
+                              "model": "local:foo", "confidence": 0.9})
+    assert r and r["model"] == "haiku", r
+    r = _validate_llm_result({"tier": "medium", "agent": "research-lite",
+                              "model": "gpt-4o", "confidence": 0.9})
+    assert r and r["model"] == "sonnet", r
 
 
 def main():

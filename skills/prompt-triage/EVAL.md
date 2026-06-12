@@ -89,3 +89,11 @@ Fixes (locked by `test_session_context_prompts_stay_silent`, `test_no_local_mode
 - LLM prompt gained a context-reference → `agent="none"` rule.
 
 Design lesson: a directive the main model must override costs MORE than no directive — every guard errs toward silence.
+
+## 2026-06-12 round-3 stress/bench + codex adversarial pass
+
+Benchmarks (this device): hook regex/guard path p50 67ms; LLM fallback warm 655–928ms under a single 2s TOTAL deadline (was 1s tags + 2s generate = 3s worst case). Fuzz 2×5,000 garbage/adversarial prompts: 0 crashes, 0 local-model leaks, 0 sub-0.7 directives, 0 length-gate bypasses.
+
+Historical replay (`scripts/replay_triage.py`, now suite check #34): of 25 prompts that ever received a directive, 21 now correctly silent, 4 still routed (all short git-mechanical), 0 violations. New downgrade: `^commit...` rule drops to 0.6 when prompt >120 chars (multi-clause close-outs bundle non-mechanical work).
+
+Codex round-3 fixes: `_validate_llm_result` clamps out-of-platform `model` values to tier defaults (haiku/sonnet/opus only); CONTEXT_HINTS gained contractions/modifiers ("we've built", "you just changed", "this thread", "our previous conversation") and DROPPED "this repo/branch/codebase" (filesystem state is subagent-readable — "commit and push this branch" keeps its cheap route); confidence-gate test made non-vacuous.

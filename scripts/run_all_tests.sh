@@ -74,6 +74,15 @@ done
 # 6. Hook self-test suites
 run "hook:compliance-canary" bash skills/compliance-canary/tools/test.sh
 
+# 7. Triage replay audit — re-classifies every historically-routed prompt with
+# the current classifier; fails on local-model / low-conf / length-gate
+# violations. Needs real session transcripts, so skip where none exist (CI).
+if ls ~/.claude/projects/-Users-za-Documents-Brainer/*.jsonl >/dev/null 2>&1; then
+  run "audit:triage-replay" python3 scripts/replay_triage.py
+else
+  echo "SKIP triage replay audit (no local transcripts)"
+fi
+
 echo
 if [ "$FAIL" -eq 0 ]; then
   echo "run_all_tests: $PASS/$PASS PASS"

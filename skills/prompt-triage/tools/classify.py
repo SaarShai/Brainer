@@ -173,11 +173,18 @@ COMPLEX_HINTS = re.compile(
 # any directive forces the main model to evaluate-and-override (worse than
 # silence; live incident 2026-06-12: "summarize what this current suite does"
 # routed to a context-blind local model). Silence is the only safe verdict.
+# Scope note: "this repo/branch/codebase" deliberately NOT matched — a
+# subagent CAN read the filesystem, so those stay routable ("commit and push
+# this branch" must keep its cheap route; codex round-3). Only references to
+# the *conversation* — which no subagent can see — trigger the guard.
 CONTEXT_HINTS = re.compile(
-    r"\b(?:this (?:session|conversation|chat|repo|project|suite|codebase|branch)|"
-    r"current (?:session|suite|repo|project|state)|"
-    r"we (?:built|made|did|changed|discussed|decided)|"
-    r"you (?:said|did|made|created|wrote|changed|suggested)|"
+    r"\b(?:this (?:session|conversation|chat|thread)|"
+    r"current (?:session|suite|state)|"
+    r"our (?:previous|earlier|last) (?:conversation|session|chat|discussion)|"
+    r"we(?:'ve| have| were| just)? (?:built|made|did|done|changed|"
+    r"discuss(?:ed|ing)|decided|been (?:doing|working))|"
+    r"you(?:'ve| have| were| just)? (?:said|did|done|made|created|wrote|"
+    r"written|changed|suggested)|"
     r"your (?:last|previous|earlier)|as discussed|earlier today|"
     r"so far|this session'?s)\b",
     re.I,
@@ -231,7 +238,7 @@ PREFERRED_MODELS = [
 ]
 
 
-def _resolve_ollama_model(timeout: int = 1) -> str | None:
+def _resolve_ollama_model(timeout: float = 1) -> str | None:
     env = os.environ.get("AGENTS_TRIAGE_OLLAMA_MODEL")
     if env:
         return env
@@ -269,10 +276,18 @@ TASK: {task}
 JSON:"""
 
 
-def ollama_classify(prompt: str, model: str | None = None, timeout: int = 2) -> dict | None:
-    model = model or _resolve_ollama_model()
+def ollama_classify(prompt: str, model: str | None = None, timeout: float = 2) -> dict | None:
+    """`timeout` is the TOTAL budget. Tag resolution and generation previously
+    stacked their own timeouts (1s + 2s = 3s worst case on a hook path billed
+    as 2s; codex round-3) — now resolution spends at most 0.5s and generation
+    gets whatever remains of the single deadline."""
+    import time as _time
+    deadline = _time.monotonic() + timeout
+    if model is None:
+        model = _resolve_ollama_model(timeout=min(0.5, timeout / 4))
     if model is None:
         return None
+    timeout = max(0.1, deadline - _time.monotonic())
     # Head + tail (was: head only at 800) — long stack-trace prompts ended
     # with the actual imperative; we used to drop it. 2000 chars ≈ 500 tokens.
     full = LLM_PROMPT.replace("{task}", _smart_truncate(prompt, 2000))
@@ -301,6 +316,7 @@ def ollama_classify(prompt: str, model: str | None = None, timeout: int = 2) -> 
 
 _VALID_TIERS = {"simple", "medium", "hard"}
 _VALID_AGENTS = {"wiki-note", "quick-fix", "research-lite", "general-purpose", "none"}
+_VALID_MODELS = {"haiku", "sonnet", "opus"}
 
 
 def _validate_llm_result(obj: dict) -> dict | None:
@@ -318,7 +334,11 @@ def _validate_llm_result(obj: dict) -> dict | None:
     if not (0.0 <= conf <= 1.0):
         return None
     obj["confidence"] = conf
-    obj.setdefault("model", "opus")
+    # Model must be in-platform (codex round-3: a valid-agent response with
+    # "model":"local:foo" slipped through). Out-of-enum → clamp to the
+    # tier-appropriate platform default, never pass through verbatim.
+    if obj.get("model") not in _VALID_MODELS:
+        obj["model"] = {"simple": "haiku", "medium": "sonnet"}.get(tier, "opus")
     obj.setdefault("reason", "llm")
     obj["lean_context"] = obj.get("lean_context") or []
     return obj
@@ -350,6 +370,13 @@ def classify(prompt: str, use_ollama_fallback: bool = True) -> dict:
                 "reason": f"prompt >{LENGTH_GATE_CHARS} chars; main model handles long briefs",
                 "lean_context": [], "source": "length-gate"}
     fast = regex_classify(prompt)
+    # "commit and push" earns 0.9 only when that's the WHOLE ask. A long
+    # close-out prompt starting with "commit everything and push. check
+    # there is nothing left running..." (replay audit 2026-06-12) bundles
+    # work beyond quick-fix; downgrade below the directive gate.
+    if fast and fast["reason"] == "git mechanical" and len(prompt) > 120:
+        fast["confidence"] = 0.6
+        fast["reason"] += " (downgraded: long multi-clause prompt)"
     # If the prompt contains complex-work hints (audit / refactor / architect /
     # comprehensive / etc), force LLM classification regardless of regex hit.
     # Cheap regex routing on complex prompts was sending high-stakes work to haiku.

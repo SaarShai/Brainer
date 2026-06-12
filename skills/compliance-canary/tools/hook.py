@@ -201,18 +201,34 @@ def read_transcript_tail(path: str, cap: int = TRANSCRIPT_LINE_CAP) -> list[dict
     p = Path(path)
     if not p.is_file():
         return []
+    # Byte-tail read (codex round-3): readlines() loaded the WHOLE transcript
+    # on every hook fire — O(file) memory on a hot path. Seek to the last
+    # TAIL_BYTES instead; transcripts only grow, the cap only needs the tail.
+    TAIL_BYTES = 8_000_000
     try:
-        with open(p, "r", encoding="utf-8", errors="replace") as f:
-            lines = f.readlines()
+        size = p.stat().st_size
+        with open(p, "rb") as f:
+            if size > TAIL_BYTES:
+                f.seek(size - TAIL_BYTES)
+                f.readline()  # drop the partial line at the seek point
+            raw = f.read().decode("utf-8", errors="replace")
     except OSError as e:
         log_err(f"transcript-read-fail path={path} err={e!r}")
         return []
     events: list[dict] = []
-    for line in lines[-cap:]:
+    for line in raw.splitlines()[-cap:]:
         try:
-            events.append(json.loads(line))
+            obj = json.loads(line)
         except json.JSONDecodeError:
             continue
+        # Parseable-but-malformed guard (codex round-3): a line like `123` or
+        # {"message": "bad"} crashed detectors via .get() on non-dicts —
+        # violating the always-exit-0 contract. Normalize here, once.
+        if not isinstance(obj, dict):
+            continue
+        if "message" in obj and not isinstance(obj["message"], dict):
+            obj["message"] = {}
+        events.append(obj)
     return events
 
 

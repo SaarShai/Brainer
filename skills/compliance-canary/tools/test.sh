@@ -375,6 +375,21 @@ print(json.dumps({'session_id':'s28','transcript_path':sys.argv[1],'hook_event_n
 out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc28" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk27" $HOOK)
 if [ -z "$out" ]; then ok "ordinary prompt silent"; else no "ordinary prompt silent" "got: $(echo "$out" | head -c100)"; fi
 
+echo "[29] malformed transcript events: parseable non-dict lines never crash (exit 0)"
+TX="$TRANSCRIPT_DIR/t29.jsonl"
+write_transcript "$TX" "$(assistant_text 'normal message' u1)"
+# parseable-but-malformed: bare scalar, list, message-as-string (codex round-3)
+printf '123\n["a","b"]\n{"type":"assistant","message":"bad"}\n{"type":"user","message":42}\n' >> "$TX"
+payload=$(python3 -c "
+import json,sys
+print(json.dumps({'session_id':'s29','transcript_path':sys.argv[1],'hook_event_name':'UserPromptSubmit','prompt':'ping'}))
+" "$TX")
+if printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc29" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk27" $HOOK >/dev/null 2>"$STATE_ROOT/t29.err"; then
+  ok "malformed events exit 0"
+else
+  no "malformed events exit 0" "stderr: $(head -c150 "$STATE_ROOT/t29.err")"
+fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then
