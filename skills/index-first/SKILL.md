@@ -66,9 +66,3 @@ Known issues (graphify 0.8.17, measured 2026-05-23):
 - `graphify query` (NL) picks weak start nodes for symbol-precision questions (50% evidence rate vs 92% for `explain`) — prefer `explain` whenever the question names a symbol.
 
 (Four other 0.8.17 bugs that affected this skill — `affected`/`benchmark` schema crash, `cluster-only` silent refusal on node-count drift, `update` not evicting stale nodes, `explain` truncating connections with no expansion flag — are fixed in the build that `./install.sh` installs. See [EVAL.md](EVAL.md) for the bug list, regression tests, and the install source.)
-
-## Lineage
-
-Distilled from `colbymchenry/codegraph` — the generalizable parts of its agent-instruction template: one-call composition, batched exploration, confidence-scored name resolution, structured-filter + FTS composition. Their measured savings on real codebases (VS Code, Django, Tokio, …): ~59% fewer tokens, ~70% fewer tool calls, scaling with corpus size. Pattern applies to any indexed corpus, not just code.
-
-Related skills: [`semantic-diff`](../semantic-diff/SKILL.md) (file-re-read diff — a per-file index), [`wiki-memory`](../wiki-memory/SKILL.md) (the manually-curated prose analog), [`lean-execution`](../lean-execution/SKILL.md) (general scope pruning).

@@ -39,3 +39,20 @@ Raw: [`eval/results/prompt-triage.json`](../../eval/results/prompt-triage.json)
 ## Failure modes
 
 To be filled in after analysis of result outputs (see raw JSON for individual trial outputs).
+
+## Moved from SKILL.md (2026-06-12 SkillReducer-criteria audit)
+
+_Provenance/rationale below is maintainer context, not runtime instruction — relocated so the lazy-loaded body stays actionable._
+
+## Cost math (informal)
+
+- Without triage: opus reads prompt → thinks → acts → writes → verifies. ~3-8K tokens.
+- With triage: hook (0 tokens) → opus reads directive + prompt → emits Task (~200 tokens) → haiku subagent does work (~500-2000 tokens).
+- Net: ~70-90% token cost reduction on simple tasks (informal estimate; see EVAL.md for measured numbers).
+
+## Lineage
+
+- OpenRouter / Not Diamond routing layer.
+- RouteLLM (ICLR 2025).
+- Anthropic SDK Task tool + subagent_type.
+- Orchestrator-worker multi-agent papers 2024-2026.

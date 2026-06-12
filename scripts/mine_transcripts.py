@@ -98,6 +98,15 @@ def analyze_session(path):
     # 10. Output tokens
     output_tokens_total = 0
 
+    # 11. Prompt-cache accounting (ccmeter-lite; token-based, no $$ — prices
+    # drift and hardcoding unverified prices is a recorded anti-pattern).
+    # A large cache_creation event after the session's first means a prefix
+    # segment re-keyed (bust) — each one paid a write where a read was hoped.
+    cache_read_total = 0
+    cache_creation_total = 0
+    input_tokens_total = 0
+    cache_creation_events = []             # (lineno, creation_tokens)
+
     # For triage: capture the most recent user prompt text before each triage
     last_user_prompt = ""
 
@@ -116,6 +125,13 @@ def analyze_session(path):
             # usage
             usage = msg.get("usage", {})
             output_tokens_total += usage.get("output_tokens", 0)
+            cr = usage.get("cache_read_input_tokens", 0) or 0
+            cc = usage.get("cache_creation_input_tokens", 0) or 0
+            cache_read_total += cr
+            cache_creation_total += cc
+            input_tokens_total += usage.get("input_tokens", 0) or 0
+            if cc > 1024:
+                cache_creation_events.append((lineno, cc))
 
             model = msg.get("model", "")
             content = msg.get("content", [])
@@ -265,6 +281,16 @@ def analyze_session(path):
         "interruption_count": interruption_count,
         "subagent_calls": subagent_calls,
         "output_tokens_total": output_tokens_total,
+        "cache": {
+            "read_tokens": cache_read_total,
+            "creation_tokens": cache_creation_total,
+            "uncached_input_tokens": input_tokens_total,
+            "hit_ratio": round(
+                cache_read_total / (cache_read_total + cache_creation_total + input_tokens_total), 4
+            ) if (cache_read_total + cache_creation_total + input_tokens_total) else None,
+            "bust_events_gt1k": len(cache_creation_events),
+            "top3_creations": sorted(cache_creation_events, key=lambda x: -x[1])[:3],
+        },
     }
 
 
@@ -589,10 +615,32 @@ def main():
     print("Interpreting...", file=sys.stderr)
     issues = interpret(agg)
 
+    cache_rows = [
+        {"session": s["session_id"][:8], **s["cache"]}
+        for s in sessions if s.get("cache")
+    ]
+    tot_read = sum(r["read_tokens"] for r in cache_rows)
+    tot_create = sum(r["creation_tokens"] for r in cache_rows)
+    tot_uncached = sum(r["uncached_input_tokens"] for r in cache_rows)
+    denom = tot_read + tot_create + tot_uncached
     report = {
         "aggregate": agg,
+        "cache": {
+            "per_session": cache_rows,
+            "total_read": tot_read,
+            "total_creation": tot_create,
+            "total_uncached_input": tot_uncached,
+            "overall_hit_ratio": round(tot_read / denom, 4) if denom else None,
+        },
         "top_issues": issues,
     }
+    print("\nCACHE (read / creation / uncached / hit-ratio / busts>1k):", file=sys.stderr)
+    for r in cache_rows:
+        print(f"  {r['session']}: {r['read_tokens']:,} / {r['creation_tokens']:,} / "
+              f"{r['uncached_input_tokens']:,} / {r['hit_ratio']} / {r['bust_events_gt1k']}",
+              file=sys.stderr)
+    if denom:
+        print(f"  OVERALL hit ratio: {report['cache']['overall_hit_ratio']}", file=sys.stderr)
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:

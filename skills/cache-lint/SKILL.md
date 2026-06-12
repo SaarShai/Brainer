@@ -83,7 +83,3 @@ python skills/cache-lint/tools/cache_lint.py audit . --list-targets
 - [`verify-before-completion`](../verify-before-completion/SKILL.md) — same shape: evidence before claims, run before merging.
 - [`compliance-canary`](../compliance-canary/SKILL.md) — complementary live-session monitor; pair with `cache-lint` for static + dynamic coverage.
 - [`prompt-triage`](../prompt-triage/SKILL.md) — routes to cheaper models, but routing decisions on the *hot path* (Rule 4) are cache-busts. cache-lint flags this conflict.
-
-## Status
-
-Skill body + linter shipped with heuristics for rules 2, 4, 5, 6 (deterministic) and 1, 3 (mtime-based diff). Eval target: identify ≥1 cache-bust smell in 3 of 5 real-world Claude Code projects sampled.

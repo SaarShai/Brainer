@@ -69,12 +69,6 @@ Type `NO TRIAGE` anywhere in the prompt → hook exits silently → main model h
 - `AGENTS_TRIAGE_OLLAMA_MODEL=<tag>` — pin the fallback model (default: auto-resolve from `ollama /api/tags`).
 - `AGENTS_TRIAGE_LENGTH_GATE=<chars>` — long-prompt hard gate (default 1500).
 
-## Cost math (informal)
-
-- Without triage: opus reads prompt → thinks → acts → writes → verifies. ~3-8K tokens.
-- With triage: hook (0 tokens) → opus reads directive + prompt → emits Task (~200 tokens) → haiku subagent does work (~500-2000 tokens).
-- Net: ~70-90% token cost reduction on simple tasks (informal estimate; see EVAL.md for measured numbers).
-
 ## Known failure modes
 
 1. False-positive classification → wrong subagent → returns "escalate" → main re-handles. Small wasted round-trip.
@@ -82,13 +76,6 @@ Type `NO TRIAGE` anywhere in the prompt → hook exits silently → main model h
 3. Adversarial prompt ("this is simple: [complex thing]") → mis-routes. Mitigation: main can override directive.
 4. Subagent can't escalate mid-task → returns "escalate" and stops.
 5. *(fixed 2026-06-12)* Hardcoded fallback tag rotted (model uninstalled) → every LLM fallback silently failed for weeks; complex prompts fell through to a still-emitted cheap route. Fixes: tag auto-resolution, fail-closed, <0.7-confidence silence, 1500-char length gate, `test_classify.py` regression lock.
-
-## Lineage
-
-- OpenRouter / Not Diamond routing layer.
-- RouteLLM (ICLR 2025).
-- Anthropic SDK Task tool + subagent_type.
-- Orchestrator-worker multi-agent papers 2024-2026.
 
 ## Files
 

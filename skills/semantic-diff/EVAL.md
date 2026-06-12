@@ -36,3 +36,11 @@ Raw: [`eval/results/semantic-diff.json`](../../eval/results/semantic-diff.json)
 ## Failure modes
 
 To be filled in after analysis of result outputs (see raw JSON for individual trial outputs).
+
+## Moved from SKILL.md (2026-06-12 SkillReducer-criteria audit)
+
+_Provenance/rationale below is maintainer context, not runtime instruction — relocated so the lazy-loaded body stays actionable._
+
+## Lineage
+
+Inspired by cocoindex-code (AST MCP, claims 70% reduction + 80-90% cache hit). Our scope is narrower (file re-read diff, not full codebase index) and our measurements are repeatable on the published dataset.

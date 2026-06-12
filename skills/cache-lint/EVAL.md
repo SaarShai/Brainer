@@ -52,3 +52,11 @@ For external eval:
 - Doesn't catch dynamic content injected by hooks at runtime (only static files).
 - Fingerprint baseline is per-project; can't compare two projects.
 - 4-chars-per-token estimate (Rule 5) is rough — fine for "tiny vs huge" but not for precise sizing decisions.
+
+## Moved from SKILL.md (2026-06-12 SkillReducer-criteria audit)
+
+_Provenance/rationale below is maintainer context, not runtime instruction — relocated so the lazy-loaded body stays actionable._
+
+## Status
+
+Skill body + linter shipped with heuristics for rules 2, 4, 5, 6 (deterministic) and 1, 3 (mtime-based diff). Eval target: identify ≥1 cache-bust smell in 3 of 5 real-world Claude Code projects sampled.

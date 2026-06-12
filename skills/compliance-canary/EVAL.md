@@ -92,3 +92,20 @@ bash skills/compliance-canary/tools/test.sh
 - LLM-judge probes (semantic, not syntactic). Cleanest v2 add.
 - Edit-vs-Write tool-choice drift detector. Easy v2 add.
 - Cross-session drift trends (week-over-week regression in a project). Belongs in `wiki-memory` long-term, not here.
+
+## Moved from SKILL.md (2026-06-12 SkillReducer-criteria audit)
+
+_Provenance/rationale below is maintainer context, not runtime instruction — relocated so the lazy-loaded body stays actionable._
+
+## Why it exists
+
+`skill-pulse` re-anchors active skill rules unconditionally every N turns. That's good for slow attention decay but spends tokens on turns where the model is actually compliant. `compliance-canary` is the **symptomatic complement**: it stays silent until measurable drift shows up in the assistant's output, then pinpoints which rule was broken and how.
+
+Together: pulse for prevention, canary for detection.
+
+## Lineage
+
+- [delta-hq/cc-canary](https://github.com/delta-hq/cc-canary) (65★) — direct forerunner. Forensic JSONL drift detector with no in-loop intervention. `compliance-canary` is essentially "cc-canary's probes, but in-loop and per-skill-declared."
+- [`skill-pulse`](../skill-pulse/SKILL.md) — sibling skill, same hook event, complementary pattern.
+- arXiv [2512.10172 — Offscript](https://arxiv.org/abs/2512.10172) — auditor LLM identifies adherence failures in 86.4% of conversations. Validates that drift is widespread and worth detecting.
+- [Michaelliv/pi-system-reminders](https://github.com/Michaelliv/pi-system-reminders) — reactive system-reminders SDK; same intervention shape as this hook's output.

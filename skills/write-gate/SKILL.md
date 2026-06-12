@@ -83,16 +83,6 @@ Before persistent write:
 3. On exit 1: read the explanation. Either revise the candidate (add the reason, cite evidence, drop the filler) or drop the write entirely. Do not bypass.
 4. Bypass is only legitimate when the user explicitly says "save it anyway" or "I know it's thin, save it" — record the override in `wiki/log.md`.
 
-## What this prevents
-
-Without a content gate, memory fills with:
-- "We decided to use library X" with no reason → can't be re-evaluated later
-- Recaps of conversation already in the transcript
-- Speculation cached as fact
-- Trivia inflated into procedures
-
-Result: noisy memory → wrong context injected → worse answers. This skill makes write-side quality the bottleneck instead of post-hoc cleanup.
-
 ## Anti-patterns
 
 - Don't gate non-persistent state (todos, scratch pads). The gate is for stuff that will be re-read across sessions.

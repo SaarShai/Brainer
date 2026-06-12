@@ -108,17 +108,6 @@ Always exits 0. Verified edge cases:
 
 Errors are logged to stderr with ISO timestamps; the user's prompt proceeds.
 
-## Lineage
-
-- [google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli) — adjacent: in-loop loop detection (a different failure mode; left to host loop-protection)
-- [Cline Focus Chain](https://docs.cline.bot/features/focus-chain) — closest production analog (re-injects every 6 messages) but pulses todos, not skill rules
-- [Cursor `alwaysApply: true`](https://forum.cursor.com/t/alwaysapply-true-rules-are-being-completely-ignored-now/158551) — every-prompt re-inject, widely reported failure mode in long sessions
-- [delta-hq/cc-canary](https://github.com/delta-hq/cc-canary) — forensic drift detector (offline post-hoc), no in-loop intervention
-- [anthropics/claude-code#22421](https://github.com/anthropics/claude-code/issues/22421) — closed feature request documenting the gap this fills
-- arXiv [2510.07777](https://arxiv.org/html/2510.07777) — empirical basis for timed reminders
-- arXiv [2411.07037 LIFBench](https://arxiv.org/abs/2411.07037), [2402.10962](https://arxiv.org/abs/2402.10962) — instruction-stability benchmarks
-- [Michaelliv/pi-system-reminders](https://github.com/Michaelliv/pi-system-reminders) — reactive system-reminders SDK (related but condition-triggered, not periodic)
-
 ## Known gaps (v1)
 
 - No drift detector. A `Stop` hook scanning recent assistant messages for per-skill drift signals (`caveman` verbosity, `done!`-without-verify, etc.) is the natural v2 (`compliance-canary`).

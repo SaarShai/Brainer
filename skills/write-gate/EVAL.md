@@ -44,3 +44,17 @@ Status: design + smoke tests shipped; project-local A/B pending the wiki-memory 
 - Heuristic regex / phrase matching; cannot catch a decision phrased entirely in metaphor.
 - English-only. Phrase tables would need translation for non-English wikis.
 - No semantic novelty check — a write that scores high but duplicates an existing page still passes the gate. Dedup is `wiki-memory`'s job.
+
+## Moved from SKILL.md (2026-06-12 SkillReducer-criteria audit)
+
+_Provenance/rationale below is maintainer context, not runtime instruction — relocated so the lazy-loaded body stays actionable._
+
+## What this prevents
+
+Without a content gate, memory fills with:
+- "We decided to use library X" with no reason → can't be re-evaluated later
+- Recaps of conversation already in the transcript
+- Speculation cached as fact
+- Trivia inflated into procedures
+
+Result: noisy memory → wrong context injected → worse answers. This skill makes write-side quality the bottleneck instead of post-hoc cleanup.

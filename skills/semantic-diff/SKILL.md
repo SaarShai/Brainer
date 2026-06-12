@@ -59,7 +59,3 @@ tools/
 ├── install.sh
 └── INSTALL.md        # per-host install
 ```
-
-## Lineage
-
-Inspired by cocoindex-code (AST MCP, claims 70% reduction + 80-90% cache hit). Our scope is narrower (file re-read diff, not full codebase index) and our measurements are repeatable on the published dataset.

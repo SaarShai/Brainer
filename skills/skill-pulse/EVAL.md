@@ -72,3 +72,18 @@ Should print `skill-pulse test.sh: N/N PASS` at the end.
 - Per-skill drift detection (`compliance-canary` — held for v2)
 - Style judging via LLM (forensic, post-hoc; see `delta-hq/cc-canary`)
 - Eliminating drift entirely (the paper explicitly says interventions reduce, not remove)
+
+## Moved from SKILL.md (2026-06-12 SkillReducer-criteria audit)
+
+_Provenance/rationale below is maintainer context, not runtime instruction — relocated so the lazy-loaded body stays actionable._
+
+## Lineage
+
+- [google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli) — adjacent: in-loop loop detection (a different failure mode; left to host loop-protection)
+- [Cline Focus Chain](https://docs.cline.bot/features/focus-chain) — closest production analog (re-injects every 6 messages) but pulses todos, not skill rules
+- [Cursor `alwaysApply: true`](https://forum.cursor.com/t/alwaysapply-true-rules-are-being-completely-ignored-now/158551) — every-prompt re-inject, widely reported failure mode in long sessions
+- [delta-hq/cc-canary](https://github.com/delta-hq/cc-canary) — forensic drift detector (offline post-hoc), no in-loop intervention
+- [anthropics/claude-code#22421](https://github.com/anthropics/claude-code/issues/22421) — closed feature request documenting the gap this fills
+- arXiv [2510.07777](https://arxiv.org/html/2510.07777) — empirical basis for timed reminders
+- arXiv [2411.07037 LIFBench](https://arxiv.org/abs/2411.07037), [2402.10962](https://arxiv.org/abs/2402.10962) — instruction-stability benchmarks
+- [Michaelliv/pi-system-reminders](https://github.com/Michaelliv/pi-system-reminders) — reactive system-reminders SDK (related but condition-triggered, not periodic)
