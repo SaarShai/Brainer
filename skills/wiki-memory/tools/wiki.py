@@ -314,6 +314,10 @@ def render_template(text: str, values: dict[str, str]) -> str:
     return pattern.sub(repl, text)
 
 
+class WikiReadOnEmptyError(RuntimeError):
+    """Read op against a repo with no wiki root — graceful empty, never scaffold."""
+
+
 class WikiStore:
     def __init__(self, root: str | Path):
         self.root = Path(root).expanduser().resolve()
@@ -571,6 +575,13 @@ class WikiStore:
         return {"indexed": len(pages), "db": str(self.db_path), "fts5": fts_enabled}
 
     def _ensure_db(self) -> None:
+        # Read paths (search/fetch/timeline/context) must NOT scaffold a wiki
+        # where none exists — `wiki.py search` in a repo without wiki/ used to
+        # mkdir the whole tree via index()->init() (found by codex cross-host
+        # smoke in PROMPTER, 2026-06-12, where it also broke read-only
+        # sandboxes). No root → no results; only writes create the tree.
+        if not self.root.exists():
+            raise WikiReadOnEmptyError(f"no wiki at {self.root}")
         if not self.db_path.exists():
             self.index()
             return
@@ -1752,6 +1763,14 @@ def _cli_main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
     root = Path(args.root).expanduser().resolve() if args.root else _cli_default_root()
     store = WikiStore(root)
+    try:
+        return _cli_dispatch(args, store, root)
+    except WikiReadOnEmptyError:
+        _cli_print({"results": [], "note": f"no wiki at {root} — read ops never create one; run `wiki.py init` to start"})
+        return 0
+
+
+def _cli_dispatch(args, store, root) -> int:
 
     if args.cmd == "init":
         _cli_print(store.init())

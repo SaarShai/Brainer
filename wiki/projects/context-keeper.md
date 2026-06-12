@@ -68,12 +68,13 @@ Ran on current session transcript (9277ec1e, ~150 assistant turns):
 - `pre-compact.js` stub: logs timestamp. **No content.**
 - Anthropic `/compact`: LLM prose summary. **Loses structured facts.**
 
-Unique: schema-stable regex extraction + markdown output that survives compaction, coupled with a pointer injected into compaction context.
+Unique: schema-stable extraction (structured `tool_use` walks for commands/files since 2026-06-12; regex for paths/URLs/errors/failures) + markdown output that survives compaction, coupled with a pointer injected into compaction context.
 
 ## Caveats
-- Transcript format changes could break parsing (Anthropic-internal). Extract uses `ev.message.content` fallback to `ev.content`.
+- Transcript format changes could break parsing (Anthropic-internal). Extract uses `ev.message.content` fallback to `ev.content`; parseable-non-dict lines and `message`-as-non-dict are normalized at `iter_events` (2026-06-12 — previously crashed extraction silently, losing the snapshot).
 - Regex path filter requires file extension; may miss some paths.
-- `failed_attempts` regex is heuristic; capture rationale in the handoff or wiki page when you need it.
+- `failed_attempts` is keyword-first windowing (2026-06-12 rewrite — the old leading-`{10,150}` regex went quadratic on long unbroken lines: 23s → 0.5s per 10k events); heuristic either way — capture rationale in the handoff or wiki page when you need it.
+- Tests: `tools/tests/test_extract.py` (crash, fidelity, linear-time bound) — in `run_all_tests.sh`.
 
 ## Next
 - Add `decisions` extraction from `<thinking>` blocks (currently skipped — encrypted signature).

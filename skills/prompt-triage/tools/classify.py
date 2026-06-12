@@ -223,6 +223,13 @@ def _looks_complex(prompt: str) -> bool:
         return True
     if _multi_objective(prompt):
         return True
+    # Multi-paragraph prompts are briefs, not single dispatchable tasks —
+    # incident #6 (2026-06-12): a 3-workstream brief at 758 chars with zero
+    # imperative-start sentences cheap-routed because "extract.py rewrite"
+    # (noun, mid-list) hit the summarize rule's \brewrite\b. Cheap-routable
+    # tasks are one-or-two-liners; structure means scope.
+    if prompt.count("\n") >= 3:
+        return True
     # Unicode-fold only — do NOT quote-strip here. Stripping quotes guards the
     # cheap-route rules against quoted bait (safe direction); stripping them
     # from the complex guard would REMOVE protection for quoted complex asks

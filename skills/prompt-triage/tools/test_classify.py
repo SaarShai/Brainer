@@ -273,6 +273,23 @@ def test_multi_objective_prompt_never_routes_cheap():
     assert r2["agent"] == "research-lite" and r2["source"] == "regex", r2
 
 
+def test_multiline_brief_never_routes_cheap():
+    # incident #6 (2026-06-12): 758-char 3-workstream brief cheap-routed via
+    # \brewrite\b matching the NOUN in "extract.py rewrite". Multi-paragraph
+    # structure (>=3 newlines) now flags complex regardless of keywords.
+    p = ("you may continue. continue with:\n"
+         "Cross-host smoke test — exercise the host wiring.\n"
+         "Baseline — measure gains; re-mine after a week.\n"
+         "wiki-refresh pass — today churned code paths (extract.py rewrite).")
+    assert len(p) < 800
+    r = classify(p, use_ollama_fallback=False)
+    assert r["source"] in ("fail-closed", "context-guard"), r
+    assert emit_context(p, use_ollama_fallback=False) == ""
+    # one-line summarize with a single trailing newline still routes
+    r2 = classify("summarize this paragraph for me\n", use_ollama_fallback=False)
+    assert r2["source"] == "regex" and r2["model"] == "haiku", r2
+
+
 def test_long_git_prompt_downgraded():
     # replay audit 2026-06-12: multi-clause close-out prompts start with
     # "commit ... and push" but bundle more work; must stay silent.
