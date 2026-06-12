@@ -1710,6 +1710,9 @@ def _cli_main(argv: list[str] | None = None) -> int:
     sub.add_parser("index", help="Rebuild the SQLite search index.")
 
     sp = sub.add_parser("lint", help="Stale claims, orphans, broken links, duplicate titles, hub gravity-wells.")
+    sp.add_argument("--json", action="store_true",
+                    help="Full JSON report (default: one-line-per-category summary — "
+                         "the full dump measured 22KB+ on this repo and flooded agent context).")
     sp.add_argument("--strict", action="store_true",
                     help="Enforce v2 frontmatter on every page (not just v2/templated).")
     sp.add_argument("--stale-days", type=int, default=180,
@@ -1766,12 +1769,30 @@ def _cli_main(argv: list[str] | None = None) -> int:
     elif args.cmd == "index":
         _cli_print(store.index())
     elif args.cmd == "lint":
-        _cli_print(store.lint_pages(
+        report = store.lint_pages(
             strict=args.strict,
             stale_days=args.stale_days,
             hub_threshold=args.hub_threshold,
             extra_roots=args.scope or None,
-        ))
+        )
+        if args.json:
+            _cli_print(report)
+        else:
+            # Compact default: a clean category is one line, a dirty one shows
+            # count + first 3 items. `--json` for the machine-readable dump.
+            issues = 0
+            for key, val in report.items():
+                if isinstance(val, list):
+                    if val:
+                        issues += len(val)
+                        head = ", ".join(str(v)[:60] for v in val[:3])
+                        more = f" (+{len(val) - 3} more)" if len(val) > 3 else ""
+                        print(f"{key}: {len(val)} — {head}{more}")
+                    else:
+                        print(f"{key}: ok")
+                else:
+                    print(f"{key}: {val}")
+            print(f"lint: {'CLEAN' if issues == 0 else f'{issues} issue(s)'} (--json for full report)")
     elif args.cmd == "import-audit":
         _cli_print(store.import_audit(args.manifest))
     elif args.cmd == "overlap":

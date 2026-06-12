@@ -31,7 +31,7 @@ notice when context matches one (e.g. `wiki-memory` for "have we done X").
 
 - `cache-lint` — Audit a Claude Code project for prompt-cache hygiene against Anthropic's six cache rules (ordering, dynamic-content injection, tool stability, model switching, breakpoint sizing, fork safety)
 - `caveman-ultra` — Terse output style
-- `compliance-canary` — UserPromptSubmit hook that scans recent assistant messages for per-skill drift signals (filler phrases, word-count creep, "done"-without-verification, custom regex)
+- `compliance-canary` — Use when long sessions show drift symptoms — filler creep, word-count growth, done-claims without evidence, repeated tool errors
 - `context-keeper` — PreCompact hook that extracts structured state (files, commands, errors, numbers, decisions, failures) from the transcript before compaction
 - `index-first` — Prefer pre-built indexes over chains of grep/read/scan
 - `lean-execution` — Prune plans, process, context, and delegation to the smallest safe path

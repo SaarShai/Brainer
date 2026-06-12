@@ -31,13 +31,13 @@ Skills compound across axes (output × input × routing × memory) but **diminis
 
 **Workload-aware install:** keep the auto-wired hook skills (`prompt-triage`, `context-keeper`) and `caveman-ultra` everywhere; `output-filter` is worth wiring on noisy-Bash workloads but ships no auto-installer — wire it by hand (pipe form or a PostToolUse/Bash hook). Trim the discipline skills (`plan-first-execute`, `lean-execution`, `verify-before-completion`) on machines that mostly do quick imperative work.
 
-**Default install path:** two skills carry `auto-install: false` so `./install.sh` does not run their `tools/install.sh` — `skill-pulse` and `compliance-canary` (anti-drift UserPromptSubmit hooks; Exp9 shows canary > pulse and they overlap, so both stay opt-in). They stay symlinked and listed; enable explicitly with `bash skills/<name>/tools/install.sh`. The default hook path keeps `prompt-triage` (UserPromptSubmit, measured −20.9%) and `context-keeper` (PreCompact, measured). The former auto-wired `loop-breaker` (PreToolUse) and the opt-in `compress-context` were **cut at v1.6.0** (see *Catalog cuts*).
+**Default install path:** all 16 skills are default-installed since v1.7. `skill-pulse` and `compliance-canary` (anti-drift UserPromptSubmit hooks) were opt-in until the cross-model long-run replicated their uplift on a second model family (canary +0.44 ×2 families, pulse +0.27; see *Cross-model long-run*) — promoted to `auto-install: true` in `bc2ec0d` alongside the caveman-ultra drift-hardening they enforce. Exp9's "canary > pulse, `both` ≯ canary" still holds: on constrained installs keep canary, drop pulse first. The default hook path: `prompt-triage` (UserPromptSubmit, measured −20.9%), `context-keeper` (PreCompact, measured), `skill-pulse` + `compliance-canary` (UserPromptSubmit). The former auto-wired `loop-breaker` (PreToolUse) and the opt-in `compress-context` were **cut at v1.6.0** (see *Catalog cuts*).
 
 ## Headline numbers
 
 | Metric | Value | Source |
 |---|---|---|
-| Always-on context tax (15 skill descriptions) | **998 tokens** (~0.50% of 200K) — down from 1642 (**−644, −39.2%**): trigger-verified description trim + six catalog cuts (`handoff-from`, `memory-decay`, `compress-context`, `session-recall`, `loop-breaker`, `handoff` — see *Catalog cuts*) | `eval/results/static_cost.json` · `eval/exp8_trigger/` |
+| Always-on context tax (16 skill descriptions) | **~1080 tokens** (~0.54% of 200K) — the 998 15-skill figure plus `think` (+94, added v1.6.2) and net description edits (canary trigger-first rewrite). Down from 1642 (−34%) via trigger-verified trims + six catalog cuts (see *Catalog cuts*). Reduction path: SkillReducer-style audit (GOAL.md backlog) | `eval/results/static_cost.json` · `eval/exp8_trigger/` |
 | Best per-call output reduction (caveman-ultra) | **−86.4%** output (N=50), **+0.13 judge** (prior N=15) | `eval/results/caveman-ultra.json` + `.judged.json` |
 | Best discipline combo (caveman + lean) | **−87.7%** output | `eval/results/caveman+lean.json` |
 | End-to-end routing savings (prompt-triage, N=13 mixed prompts) | **−20.9%** total tokens, 100% classification accuracy | `eval/results/prompt-triage.json` |
@@ -232,7 +232,7 @@ Closes the gain-gap on **skill-pulse** + **compliance-canary** (both were correc
 - **Both hooks deliver a real measured gain** — they restore decayed instruction-adherence. The "effect-unmeasured" gap is closed: neither is useless.
 - **Canary (reactive) beats pulse (periodic)** on absolute adherence (0.56 vs 0.36) AND token-efficiency (1.48 vs 1.38 /1k) — confirms the "reactive > unconditional" prior with numbers.
 - **`both` barely beats canary alone** (+0.04 adherence for +12 tokens) → stacking has diminishing returns; **canary is the sweet spot**.
-- **Implication:** supports the lean call — keep the reactive canary, fold/retire the periodic pulse (it adds little once canary fires). Both stay opt-in (`auto-install: false`) until this replicates.
+- **Implication:** supports the lean call — keep the reactive canary, fold/retire the periodic pulse (it adds little once canary fires). *(Resolved: the replication condition was met by the M3 llama3.1 long-run — canary +0.44 on a 2nd family — so both were promoted to default-on at v1.7; on constrained installs drop pulse first.)*
 - Caveats: single model (qwen2.5:7b), single run, n=26 turns; the ack-token is a clean *proxy* for "a skill rule the agent must keep following," not the skills' actual filler/verbosity probes. Direction is clear; not a tight CI. (The Phase-1 gate first mis-reported "floor" — an early-third window diluted the fast decay; fixed to use the first scored turns.)
 
 ## Exp10 — cache-lint detection accuracy (`eval/exp10_cache_lint/`)

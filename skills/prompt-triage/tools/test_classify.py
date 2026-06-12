@@ -1,0 +1,175 @@
+#!/usr/bin/env python3
+"""Deterministic regression tests for classify.py — no pytest, no network.
+
+Every test runs with use_ollama_fallback=False so results are stable on any
+machine. The fail-closed cases below regression-lock the 2026-06-12 incident:
+a long multi-objective orchestration prompt matched the `research` regex,
+got confidence-downgraded by the complex-hints guard, the LLM fallback was
+silently dead (model tag not installed), and the hook still emitted a
+"Strong recommendation" to dispatch to a cheap subagent.
+"""
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+from classify import (  # noqa: E402
+    _resolve_ollama_model,
+    classify,
+    emit_context,
+    is_bypass,
+)
+
+# The shape of the incident prompt: long (>800 chars), multi-objective, and
+# carrying both a cheap-route regex keyword ("research") and complex-work hints.
+# One copy (~1.1k chars) sits between the 800-char complex threshold and the
+# 1500-char length gate — exercising fail-closed. Doubled (~2.2k chars) it
+# crosses the length gate — exercising the short-circuit.
+INCIDENT_PROMPT_MID = (
+    "review this project and write a goal for yourself for optimizing this "
+    "repo and set of skills for token usage, context window, learning and "
+    "self-improving, memory management, delegation and orchestration. you may "
+    "make changes to skills and tools that we built. you may run tests. "
+    "i want to make sure that what we have is robust, well tested, functional, "
+    "provides gains, reliable, and efficient. below are resources (e.g. github "
+    "repos) you should review and decide how to use and learn from. "
+    "you should review session logs and other documentation of previous "
+    "sessions and try to identify patterns, repeated issues and obstacles, "
+    "room for improvement and increased efficiency and reliability. "
+    "research the available literature, survey the repos, investigate the "
+    "failures, and audit the suite end to end. "
+)
+INCIDENT_PROMPT = INCIDENT_PROMPT_MID * 2  # past the 1500-char length gate
+
+
+def test_simple_imperatives_still_route_cheap():
+    r = classify("commit and push", use_ollama_fallback=False)
+    assert r["tier"] == "simple" and r["model"] == "haiku", r
+    assert r["source"] == "regex", r
+
+    r = classify("what is the capital of France?", use_ollama_fallback=False)
+    assert r["tier"] == "simple" and r["agent"] == "research-lite", r
+
+
+def test_short_research_prompt_unchanged():
+    r = classify("research the history of the QWERTY layout", use_ollama_fallback=False)
+    assert r["tier"] == "medium" and r["agent"] == "research-lite", r
+    assert r["source"] == "regex", r
+
+
+def test_incident_prompt_fails_closed_without_llm():
+    assert 800 < len(INCIDENT_PROMPT_MID) <= 1500, len(INCIDENT_PROMPT_MID)
+    r = classify(INCIDENT_PROMPT_MID, use_ollama_fallback=False)
+    assert r["tier"] == "hard", r
+    assert r["agent"] == "none", r
+    assert r["source"] == "fail-closed", r
+    # And the hook must emit NOTHING for it.
+    assert emit_context(INCIDENT_PROMPT_MID, use_ollama_fallback=False) == ""
+
+
+def test_complex_hints_alone_fail_closed_without_llm():
+    # Short prompt, cheap-route keyword + complex hint ("audit").
+    p = "research and audit the production deployment pipeline"
+    r = classify(p, use_ollama_fallback=False)
+    assert r["source"] == "fail-closed", r
+    assert emit_context(p, use_ollama_fallback=False) == ""
+
+
+def test_low_confidence_never_emits_directive():
+    # The long-ctx rule classifies at conf 0.6 / tier hard — silent either way;
+    # also verify the explicit confidence gate via a synthetic medium result.
+    p = "we need the 70b long-context variant for this"
+    assert emit_context(p, use_ollama_fallback=False) == ""
+
+
+def test_high_confidence_simple_emits_directive():
+    out = emit_context("commit and push", use_ollama_fallback=False)
+    assert "agents-triage" in out and "haiku" in out, out[:200]
+
+
+def test_bypass_flags():
+    assert is_bypass("NO TRIAGE just do it")
+    assert is_bypass("/opus think hard about this")
+    assert not is_bypass("cat /opus/file.md")
+    assert emit_context("NO TRIAGE research everything", use_ollama_fallback=False) == ""
+
+
+def test_length_gate_blocks_cheap_route_even_with_llm():
+    # >1500 chars → hard/none regardless of fallback availability; the gate
+    # must short-circuit BEFORE any LLM call (so this stays offline-stable).
+    r = classify(INCIDENT_PROMPT, use_ollama_fallback=True)
+    assert r["source"] == "length-gate", r
+    assert r["tier"] == "hard" and r["agent"] == "none", r
+    assert emit_context(INCIDENT_PROMPT, use_ollama_fallback=True) == ""
+
+
+def test_env_pin_wins_model_resolution():
+    os.environ["AGENTS_TRIAGE_OLLAMA_MODEL"] = "pinned:tag"
+    try:
+        assert _resolve_ollama_model() == "pinned:tag"
+    finally:
+        del os.environ["AGENTS_TRIAGE_OLLAMA_MODEL"]
+
+
+def test_bad_length_gate_env_never_crashes_hook():
+    # codex finding #1: unguarded int() on the env var crashed at import.
+    import subprocess
+    here = Path(__file__).parent
+    r = subprocess.run(
+        [sys.executable, str(here / "classify.py"), "commit and push"],
+        env={**os.environ, "AGENTS_TRIAGE_LENGTH_GATE": "banana",
+             "AGENTS_TRIAGE_NO_OLLAMA": "1"},
+        capture_output=True, text=True, timeout=30,
+    )
+    assert r.returncode == 0, r.stderr[-300:]
+    import json
+    out = json.loads(r.stdout)
+    assert out["tier"] == "simple", out
+
+
+def test_llm_simple_verdict_vetoed_on_complex_hints():
+    # codex finding #3: the LLM must not be able to emit the cheapest tier
+    # for a hint-flagged prompt. Monkeypatch the module-level fallback.
+    import classify as mod
+    orig = mod.ollama_classify
+    mod.ollama_classify = lambda *a, **k: {
+        "tier": "simple", "agent": "quick-fix", "model": "haiku",
+        "confidence": 0.9, "reason": "llm says simple"}
+    try:
+        p = "research and audit the production deployment pipeline"
+        r = classify(p, use_ollama_fallback=True)
+        assert r["source"] == "hint-veto", r
+        assert r["tier"] == "hard" and r["agent"] == "none", r
+        # ...but an LLM "medium" verdict on the same prompt is respected.
+        mod.ollama_classify = lambda *a, **k: {
+            "tier": "medium", "agent": "research-lite", "model": "sonnet",
+            "confidence": 0.8, "reason": "bounded research"}
+        r2 = classify(p, use_ollama_fallback=True)
+        assert r2["source"] == "ollama" and r2["tier"] == "medium", r2
+    finally:
+        mod.ollama_classify = orig
+
+
+def test_setup_prompt_silent_without_llm_is_intended():
+    # codex finding #2 flagged this as a regression; it is DELIBERATE:
+    # "setup/configure" prompts are routinely complex (mining: 340-turn
+    # sessions triaged "simple setup"), so without an LLM to check, the
+    # directive stays silent and the main model handles the prompt.
+    p = "setup the dev environment"
+    r = classify(p, use_ollama_fallback=False)
+    assert r["confidence"] < 0.7, r
+    assert emit_context(p, use_ollama_fallback=False) == ""
+
+
+def main():
+    fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
+    for fn in fns:
+        fn()
+        print(f"pass {fn.__name__}")
+    print(f"OK ({len(fns)} tests)")
+
+
+if __name__ == "__main__":
+    main()

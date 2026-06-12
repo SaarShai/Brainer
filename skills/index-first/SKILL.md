@@ -16,6 +16,7 @@ If a structured index already answers the question, scanning raw text repeats wo
 - About to grep + read multiple files (or threads, or tickets) to trace something.
 - About to read N related items sequentially.
 - An index is in scope: `codegraph`, `repomap`, `ctags`, `semantic-diff` snapshot, **`graphify-out/graph.json`** (see Recipe below), a wiki search endpoint, Linear/Jira/GitHub Issues APIs, an email/thread search tool.
+- Hook-wiring questions in a Brainer-equipped repo ("which hooks are wired / where's the entry / what installer wrote this") → read `skills/HOOKS_MAP.md` (generated). Transcript mining found agents re-deriving this by reading 8 files, identically, in separate sessions.
 
 ## Protocol
 

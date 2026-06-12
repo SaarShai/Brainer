@@ -1,6 +1,7 @@
 import tempfile
 import os
 import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from semdiff import read_smart
 
 def run():
@@ -24,6 +25,5 @@ def run():
         assert ("alpha", "beta", 1.0) in meta2["renamed"]
 
 if __name__ == "__main__":
-    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
     run()
     print("pass")

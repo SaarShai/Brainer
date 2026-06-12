@@ -13,7 +13,7 @@ Use for tasks with >3 steps, unclear scope, multiple files, risk, or architectur
 Steps:
 1. Inspect discoverable facts.
 2. Identify unknowns. Ask the user only the 1–3 **load-bearing** questions whose answer changes the plan's shape; resolve nice-to-knows during execution.
-3. Draft plan with phases and verification.
+3. Draft plan with phases and verification. End it with a `done means:` block — ≤5 verifiable exit criteria derived from the user's ask. Completion is judged against THIS block, re-read at the end, not against your memory of it. For multi-session or multi-agent work the plan lives on disk (PLAN.md / task packet) and outranks any in-context restatement.
 4. Simplify (see `lean-execution`): drop ceremony, duplicate checks, speculative docs, any step that doesn't reduce risk or produce evidence.
 5. Get approval if host workflow requires it.
 6. Execute.

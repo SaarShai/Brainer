@@ -17,13 +17,17 @@ Before any completion/success claim:
 1. Identify the command, inspection, or checklist that proves it.
 2. Run or perform it fresh.
 3. Read the output or result.
-4. Report the exact verification and any remaining risk.
+4. Re-read the ORIGINAL ask (or the plan's `done means:` block) and check each criterion — code-level green is not goal-level done.
+5. Report the exact verification and any remaining risk.
 
 Do not claim:
 - tests pass without a fresh test run
 - lint/build is clean without running it
 - bug is fixed without reproducing the original symptom or a regression test
 - delegated work is correct without inspecting result/diff
+- ship/merge-ready without Live Proof: exercise the changed path on the real built artifact or service — a mock or simulation does not count
+
+When dispatching verification to a subagent: mid-tier model (sonnet-class) with read-only tools is the default — verifying is cheaper than making; escalate only when the artifact demands frontier reasoning.
 
 If verification is impossible, say what was not verified and why.
 

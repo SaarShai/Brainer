@@ -309,6 +309,52 @@ out=$(call cc19 sk19 "$TX" s19)
 count=$(echo "$out" | grep -c '^- ' || true)
 if [ "$count" -le 4 ]; then ok "probe count capped at 4 (got $count)"; else no "probe cap" "got $count"; fi
 
+echo "[24] repeated_tool_error: 2+ matching tool errors fire"
+PROBES='[{"id":"ewr","kind":"repeated_tool_error","pattern":"File has not been read yet","min_count":2,"message":"read before edit"}]'
+make_skill_with_probes sk24 cv "$PROBES"
+user_tool_error() {
+  python3 -c "
+import json,sys
+print(json.dumps({'type':'user',
+                  'message':{'role':'user','content':[{'type':'tool_result','is_error':True,'content':sys.argv[1]}]}}))
+" "$1"
+}
+TX="$TRANSCRIPT_DIR/t24.jsonl"
+write_transcript "$TX" \
+  "$(assistant_text 'editing now' u1)" \
+  "$(user_tool_error '<tool_use_error>File has not been read yet. Read it first before writing to it.</tool_use_error>')" \
+  "$(assistant_text 'retrying' u2)" \
+  "$(user_tool_error '<tool_use_error>File has not been read yet. Read it first before writing to it.</tool_use_error>')"
+out=$(call cc24 sk24 "$TX" s24)
+if emitted "$out" && echo "$out" | grep -q 'repeated_tool_error'; then ok "repeated tool error fires at min_count=2"; else no "repeated tool error fires" "got: $(echo "$out" | head -c120)"; fi
+
+echo "[25] repeated_tool_error: single occurrence stays silent"
+TX="$TRANSCRIPT_DIR/t25.jsonl"
+write_transcript "$TX" \
+  "$(assistant_text 'editing now' u1)" \
+  "$(user_tool_error '<tool_use_error>File has not been read yet.</tool_use_error>')" \
+  "$(assistant_text 'recovered, read then edited' u2)"
+out=$(call cc25 sk24 "$TX" s25)
+if [ -z "$out" ]; then ok "single error → silent"; else no "single error → silent" "got: $(echo "$out" | head -c100)"; fi
+
+echo "[26] repeated_tool_error: list-of-blocks content shape also detected"
+user_tool_error_blocks() {
+  python3 -c "
+import json,sys
+print(json.dumps({'type':'user',
+                  'message':{'role':'user','content':[{'type':'tool_result','is_error':True,
+                    'content':[{'type':'text','text':sys.argv[1]}]}]}}))
+" "$1"
+}
+TX="$TRANSCRIPT_DIR/t26.jsonl"
+write_transcript "$TX" \
+  "$(assistant_text 'editing now' u1)" \
+  "$(user_tool_error_blocks '<tool_use_error>File has not been read yet.</tool_use_error>')" \
+  "$(assistant_text 'retrying' u2)" \
+  "$(user_tool_error '<tool_use_error>File has not been read yet.</tool_use_error>')"
+out=$(call cc26 sk24 "$TX" s26)
+if emitted "$out" && echo "$out" | grep -q 'repeated_tool_error'; then ok "mixed string+blocks content detected"; else no "mixed string+blocks content detected" "got: $(echo "$out" | head -c120)"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then

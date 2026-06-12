@@ -433,6 +433,9 @@ install_claude_code() {
   done
   inject_catalog_into_doc "$REPO_ROOT/CLAUDE.md"
   ensure_global_output_style_hooks
+  # Regenerate the hooks map (pre-built index for hook-wiring questions;
+  # see skills/HOOKS_MAP.md + index-first). Non-fatal: map is an optimization.
+  run "python3 '$REPO_ROOT/scripts/gen_hooks_map.py'" || echo "    [warn] gen_hooks_map failed (non-fatal)"
 }
 
 install_codex() {

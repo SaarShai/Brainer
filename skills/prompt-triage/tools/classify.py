@@ -105,9 +105,12 @@ RULES = [
     # Research: find repos, survey literature
     (r"\b(?:research|survey|find repos?|investigate|literature)\b",
      "medium", "research-lite", "sonnet", 0.8, "research-lite task", []),
-    # Install / setup / configure
+    # Install / setup / configure. Conf 0.6 (was 0.75): "configure the auth
+    # system" is routinely complex — transcript mining (2026-06-12) found
+    # 340-turn sessions triaged "simple setup". 0.6 forces the LLM fallback;
+    # with no LLM available the directive gate (<0.7) keeps it silent.
     (r"\b(?:install|setup|configure|add\s+hook|register\s+mcp)\b",
-     "simple", "quick-fix", "haiku", 0.75, "setup task", []),
+     "simple", "quick-fix", "haiku", 0.6, "setup task", []),
     # Complex signals — multi-file refactor, architecture, design
     (r"\b(?:refactor|architect|design|redesign|implement.{0,20}system|multi[-\s]?file|across)\b",
      "hard", "none", "opus", 0.9, "complex task -- opus appropriate", []),
@@ -173,6 +176,42 @@ def _smart_truncate(prompt: str, budget: int = 2000) -> str:
 
 
 OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
+OLLAMA_TAGS_URL = "http://127.0.0.1:11434/api/tags"
+
+# Fallback-model resolution. Hardcoding one tag rots silently when machines
+# change (the shipped `qwen3:8b` default was absent on the dev machine for
+# weeks — every LLM fallback failed silently and complex prompts fell through
+# to the regex-low-conf path; caught 2026-06-12 when a misroute hit production).
+# Resolution order:
+#   1. AGENTS_TRIAGE_OLLAMA_MODEL env (explicit pin)
+#   2. first PREFERRED_MODELS entry present in `ollama /api/tags` (exact, then
+#      family-prefix match so qwen2.5:7b-instruct matches a qwen2.5:* tag)
+#   3. None — caller falls back to fail-closed handling, never a random model
+#      (a stray 30B+ reasoning model would blow the timeout AND page 19GB in).
+PREFERRED_MODELS = [
+    "qwen3:8b", "qwen2.5:7b-instruct", "llama3.1:8b", "gemma2:9b", "phi4:14b",
+]
+
+
+def _resolve_ollama_model(timeout: int = 1) -> str | None:
+    env = os.environ.get("AGENTS_TRIAGE_OLLAMA_MODEL")
+    if env:
+        return env
+    try:
+        with urllib.request.urlopen(OLLAMA_TAGS_URL, timeout=timeout) as r:
+            names = [m.get("name", "") for m in json.loads(r.read()).get("models", [])]
+    except Exception:
+        return None
+    name_set = set(names)
+    for pref in PREFERRED_MODELS:
+        if pref in name_set:
+            return pref
+    for pref in PREFERRED_MODELS:
+        family = pref.split(":")[0]
+        for n in names:
+            if n.split(":")[0] == family:
+                return n
+    return None
 
 LLM_PROMPT = """Classify this user task for an LLM agent. Output ONLY one-line JSON:
 {"tier":"simple|medium|hard","agent":"wiki-note|quick-fix|research-lite|local-ollama|none","model":"haiku|sonnet|opus|local:qwen3:8b","confidence":0-1,"reason":"<15 words"}
@@ -181,6 +220,7 @@ Rules:
 - simple = single file edit, add note, one-line fix, factual question, summarize
 - medium = multi-step but bounded (research a topic, refactor one file, write one script)
 - hard = multi-file, architecture, design, novel reasoning
+- A task bundling 3+ distinct objectives (e.g. review AND research AND implement AND test) is hard
 - agent="none" means fall through to main model (opus)
 - Prefer lowest capable tier. Haiku ~$0.25/M-tok input; sonnet ~$3; opus ~$15.
 - If task mentions "simple", "quick", "tiny" — bias simple.
@@ -190,7 +230,10 @@ TASK: {task}
 JSON:"""
 
 
-def ollama_classify(prompt: str, model: str = "qwen3:8b", timeout: int = 2) -> dict | None:
+def ollama_classify(prompt: str, model: str | None = None, timeout: int = 2) -> dict | None:
+    model = model or _resolve_ollama_model()
+    if model is None:
+        return None
     # Head + tail (was: head only at 800) — long stack-trace prompts ended
     # with the actual imperative; we used to drop it. 2000 chars ≈ 500 tokens.
     full = LLM_PROMPT.replace("{task}", _smart_truncate(prompt, 2000))
@@ -198,6 +241,10 @@ def ollama_classify(prompt: str, model: str = "qwen3:8b", timeout: int = 2) -> d
         full += " /no_think"
     data = json.dumps({
         "model": model, "prompt": full, "stream": False, "think": False,
+        # keep_alive 2h: a cold 5GB model load blows the 2s timeout, so the
+        # first fallback of a session may fail-closed (safe); keeping the
+        # model resident makes every subsequent fallback hit the warm path.
+        "keep_alive": "2h",
         "options": {"num_predict": 80, "temperature": 0.0, "seed": 42},
     }).encode()
     req = urllib.request.Request(OLLAMA_URL, data=data,
@@ -214,7 +261,23 @@ def ollama_classify(prompt: str, model: str = "qwen3:8b", timeout: int = 2) -> d
     return obj
 
 
+# Above this many chars, no cheap-route directive is ever emitted — not even
+# on an LLM verdict. A 7B classifier rated a 4k-char multi-objective
+# orchestration prompt "medium/research-lite" (2026-06-12); the cost asymmetry
+# (cheap-routing complex work vs. main-model handling something simple) makes
+# the hard gate the right default. Pin with AGENTS_TRIAGE_LENGTH_GATE.
+try:
+    LENGTH_GATE_CHARS = int(os.environ.get("AGENTS_TRIAGE_LENGTH_GATE", "1500"))
+except ValueError:  # bad env value must degrade to the default, never crash the hook
+    LENGTH_GATE_CHARS = 1500
+
+
 def classify(prompt: str, use_ollama_fallback: bool = True) -> dict:
+    if len(prompt) > LENGTH_GATE_CHARS:
+        return {"tier": "hard", "agent": "none", "model": "opus",
+                "confidence": 1.0,
+                "reason": f"prompt >{LENGTH_GATE_CHARS} chars; main model handles long briefs",
+                "lean_context": [], "source": "length-gate"}
     fast = regex_classify(prompt)
     # If the prompt contains complex-work hints (audit / refactor / architect /
     # comprehensive / etc), force LLM classification regardless of regex hit.
@@ -230,7 +293,26 @@ def classify(prompt: str, use_ollama_fallback: bool = True) -> dict:
         if llm:
             llm["source"] = "ollama"
             llm.setdefault("lean_context", [])
+            # Hint veto (codex review 2026-06-12): a 7B "simple" verdict does
+            # not overrule complex-work hints — the LLM may still route medium,
+            # but the cheapest tier on a hint-flagged prompt is exactly the
+            # asymmetric mistake this skill must never make.
+            if llm.get("tier") == "simple" and _looks_complex(prompt):
+                return {"tier": "hard", "agent": "none", "model": "opus",
+                        "confidence": 0.0,
+                        "reason": "LLM said simple but complex-work hints present; defer to main model",
+                        "lean_context": [], "source": "hint-veto"}
             return llm
+    # Fail CLOSED on complex prompts: if the prompt carries complex-work hints
+    # and no LLM was available to overrule the regex, never emit the (cheap)
+    # regex route — defer to the main model. The old fail-open path shipped a
+    # "Strong recommendation: dispatch to <cheap agent>" for a multi-objective
+    # orchestration prompt (2026-06-12 incident).
+    if fast and _looks_complex(prompt):
+        return {"tier": "hard", "agent": "none", "model": "opus",
+                "confidence": 0.0,
+                "reason": "complex-work hints + LLM fallback unavailable; defer to main model",
+                "lean_context": [], "source": "fail-closed"}
     if fast:
         fast["source"] = "regex-low-conf"
         return fast
@@ -290,6 +372,13 @@ def emit_context(prompt: str, use_ollama_fallback: bool = True) -> str:
     # If main-model required (tier=hard or agent=none), emit nothing — preserves
     # the prior hook.sh behavior of early-exiting on these classifications.
     if result.get("tier") == "hard" or result.get("agent") == "none":
+        return ""
+    # A "Strong recommendation" below 0.7 confidence is miscalibrated language;
+    # silence lets the main model proceed normally (the safe direction).
+    try:
+        if float(result.get("confidence", 0)) < 0.7:
+            return ""
+    except (TypeError, ValueError):
         return ""
     cls_json = json.dumps(result)
     # Keep this block byte-for-byte compatible with the prior hook.sh heredoc

@@ -1,6 +1,6 @@
 ---
 name: compliance-canary
-description: UserPromptSubmit hook that scans recent assistant messages for per-skill drift signals (filler phrases, word-count creep, "done"-without-verification, custom regex). Injects a targeted corrective <system-reminder> when a probe fires. Complement to skill-pulse — pulse re-anchors unconditionally; canary intervenes only when symptoms appear.
+description: Use when long sessions show drift symptoms — filler creep, word-count growth, done-claims without evidence, repeated tool errors. UserPromptSubmit hook scanning recent messages + tool results against per-skill drift_probes.json; injects targeted correctives. Complement to skill-pulse (pulse re-anchors unconditionally; canary fires only on symptoms).
 model: haiku
 effort: low
 tools: [Bash, Read, Write]

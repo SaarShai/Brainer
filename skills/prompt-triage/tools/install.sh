@@ -84,13 +84,32 @@ chmod +x "$TOOLS_DIR/hook.sh" "$TOOLS_DIR/classify.py"
 echo "[3/3] hook wiring ($SETTINGS)"
 merge_settings
 
+# Verify the LLM-fallback path is actually serviceable. A dead fallback is
+# silent in production (classify.py fails closed), so surface it at install
+# time — the one moment a human is watching.
+FALLBACK_MODEL=$(python3 -c "
+import sys; sys.path.insert(0, '$TOOLS_DIR')
+from classify import _resolve_ollama_model
+print(_resolve_ollama_model() or '')" 2>/dev/null || echo "")
+if [ -n "$FALLBACK_MODEL" ]; then
+    echo "ollama fallback: OK (resolved: $FALLBACK_MODEL)"
+else
+    echo "WARNING: no usable Ollama fallback model found."
+    echo "  Complex-hinted prompts will fail closed (defer to main model) —"
+    echo "  safe but less precise. To enable the LLM fallback:"
+    echo "    ollama pull qwen2.5:7b-instruct   # or any PREFERRED_MODELS tag"
+    echo "    export AGENTS_TRIAGE_OLLAMA_MODEL=<tag>  # to pin explicitly"
+fi
+
 cat <<EOF
 Installed prompt-triage into repo-local .claude.
 
 Override per-prompt: include "NO TRIAGE" anywhere in your message.
 
 Env:
-  AGENTS_TRIAGE_NO_OLLAMA=1     disable Ollama fallback (regex-only)
+  AGENTS_TRIAGE_NO_OLLAMA=1            disable Ollama fallback (regex-only)
+  AGENTS_TRIAGE_OLLAMA_MODEL=<tag>     pin fallback model (default: auto-resolve)
+  AGENTS_TRIAGE_LENGTH_GATE=<chars>    long-prompt hard gate (default 1500)
 
 Test the classifier:
   python3 $TOOLS_DIR/classify.py "add a note to the wiki about X"

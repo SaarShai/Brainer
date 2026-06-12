@@ -60,3 +60,4 @@ eval/longrun/results/*.log
 # the small .judged.json delta results ARE committed
 eval/results/verify_rejudge_*.json
 !eval/results/verify_rejudge_*.judged.json
+scratch/

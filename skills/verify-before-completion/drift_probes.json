@@ -8,5 +8,13 @@
     "lookback_tool_uses": 5,
     "message": "recent reply claims work is done/fixed/passing without a verification tool call in the last 5 tool uses — run a fresh check (test, build, grep, curl, etc.) and quote its output",
     "severity": "warn"
+  },
+  {
+    "id": "edit-without-read",
+    "kind": "repeated_tool_error",
+    "pattern": "File has not been read yet",
+    "min_count": 2,
+    "message": "2+ Edit/Write attempts failed with 'File has not been read yet' — Read the target file with the Read tool before editing; bash cat/sed output does not register as a read",
+    "severity": "warn"
   }
 ]

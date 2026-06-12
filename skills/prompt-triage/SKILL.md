@@ -16,8 +16,10 @@ Heavy default model (opus, high-effort) burns tokens deciding what model a task 
 ### Layer 1: pre-model hook (`UserPromptSubmit`)
 
 `tools/hook.sh` runs BEFORE main model sees prompt. Calls `tools/classify.py`:
+- **Length gate** (0ms) — prompts >1500 chars never get a cheap-route directive (`AGENTS_TRIAGE_LENGTH_GATE` to tune). Long briefs are the main model's job.
 - **Regex fast-path** (<5ms) matches known patterns.
-- **Ollama fallback** (<1.5s) — local `qwen3:8b` classifies if regex uncertain.
+- **Ollama fallback** (<1.5s) — local small model classifies if regex uncertain. Model auto-resolves from installed tags (preference order in `PREFERRED_MODELS`; pin with `AGENTS_TRIAGE_OLLAMA_MODEL`). First call of a session may miss while the model cold-loads (`keep_alive=2h` keeps it warm after).
+- **Fail-closed** — a prompt carrying complex-work hints with no LLM available defers to the main model; no directive is emitted below 0.7 confidence.
 
 Outputs JSON + directive block appended to context:
 
@@ -64,6 +66,8 @@ Type `NO TRIAGE` anywhere in the prompt → hook exits silently → main model h
 ## Environment vars
 
 - `AGENTS_TRIAGE_NO_OLLAMA=1` — skip Ollama fallback, regex-only.
+- `AGENTS_TRIAGE_OLLAMA_MODEL=<tag>` — pin the fallback model (default: auto-resolve from `ollama /api/tags`).
+- `AGENTS_TRIAGE_LENGTH_GATE=<chars>` — long-prompt hard gate (default 1500).
 
 ## Cost math (informal)
 
@@ -74,9 +78,10 @@ Type `NO TRIAGE` anywhere in the prompt → hook exits silently → main model h
 ## Known failure modes
 
 1. False-positive classification → wrong subagent → returns "escalate" → main re-handles. Small wasted round-trip.
-2. Ollama down → regex-only. Coverage narrower.
+2. Ollama down → regex-only, and complex-hinted prompts fail CLOSED (defer to main model) rather than emitting a cheap route.
 3. Adversarial prompt ("this is simple: [complex thing]") → mis-routes. Mitigation: main can override directive.
 4. Subagent can't escalate mid-task → returns "escalate" and stops.
+5. *(fixed 2026-06-12)* Hardcoded fallback tag rotted (model uninstalled) → every LLM fallback silently failed for weeks; complex prompts fell through to a still-emitted cheap route. Fixes: tag auto-resolution, fail-closed, <0.7-confidence silence, 1500-char length gate, `test_classify.py` regression lock.
 
 ## Lineage
 
@@ -89,9 +94,11 @@ Type `NO TRIAGE` anywhere in the prompt → hook exits silently → main model h
 
 ```
 tools/
-├── classify.py     # regex + Ollama classifier
-├── hook.sh         # UserPromptSubmit entry
-├── install.sh      # wires into project-local .claude/
+├── classify.py        # regex + Ollama classifier (length gate, fail-closed)
+├── test_classify.py   # deterministic regression tests (no network)
+├── triage_xmodel.py   # cross-model corpus check for the LLM-fallback path
+├── hook.sh            # UserPromptSubmit entry
+├── install.sh         # wires into project-local .claude/; verifies fallback model
 └── agents/
     ├── wiki-note.md
     ├── quick-fix.md
