@@ -1,0 +1,69 @@
+{
+  "skill": "hotpath",
+  "shape": "perf",
+  "elapsed_s": 0.246,
+  "passed": true,
+  "summary": {
+    "cases": 8,
+    "failed": 0,
+    "slowest_ms": 22.47
+  },
+  "findings": [
+    {
+      "case": "context-keeper:PATH_RE:50k-slash-run",
+      "status": "ok",
+      "ms": 4.54,
+      "budget_ms": 2000.0,
+      "headroom_x": 440.8
+    },
+    {
+      "case": "context-keeper:regex_extract:40kb-slash-block",
+      "status": "ok",
+      "ms": 5.12,
+      "budget_ms": 3000.0,
+      "headroom_x": 585.7
+    },
+    {
+      "case": "cache-lint:audit-rule2:5k-substitutions",
+      "status": "ok",
+      "ms": 6.28,
+      "budget_ms": 2000.0,
+      "headroom_x": 318.3
+    },
+    {
+      "case": "cache-lint:audit-rule2:5k-typography",
+      "status": "ok",
+      "ms": 12.36,
+      "budget_ms": 2000.0,
+      "headroom_x": 161.9
+    },
+    {
+      "case": "output-filter:filter_text:10k-ansi-lines",
+      "status": "ok",
+      "ms": 22.47,
+      "budget_ms": 2000.0,
+      "headroom_x": 89.0
+    },
+    {
+      "case": "write-gate:score_text:200kb-decision",
+      "status": "ok",
+      "ms": 15.63,
+      "budget_ms": 1500.0,
+      "headroom_x": 95.9
+    },
+    {
+      "case": "prompt-triage:classify:1499-char-adversarial",
+      "status": "ok",
+      "ms": 0.16,
+      "budget_ms": 1500.0,
+      "headroom_x": 9456.3
+    },
+    {
+      "case": "compliance-canary:claim_without_evidence:big-haystack",
+      "status": "ok",
+      "ms": 0.73,
+      "budget_ms": 1000.0,
+      "headroom_x": 1366.0
+    }
+  ]
+}
