@@ -259,6 +259,141 @@ def test_fingerprint_baseline_creates_then_detects_change() -> None:
         assert warns, "changed skill description should WARN on rule 3"
 
 
+def test_rule6_non_dict_settings_does_not_crash() -> None:
+    """REGRESSION: a valid-JSON-but-non-dict settings.json (top-level list/
+    string/number/null) used to raise AttributeError on `data.get("hooks")`
+    and abort the ENTIRE audit. Must skip the file and finish cleanly."""
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        _setup(root, {
+            "CLAUDE.md": "# Project\n\n" + ("Content. " * 300),
+            # valid JSON, but the top level is a list — has no "hooks" key
+            ".claude/settings.json": "[1, 2, 3]",
+            # a real Stop-hook write elsewhere must still be caught after the
+            # non-dict file is skipped (audit must not abort)
+            ".claude/hooks/bad.json": json.dumps({
+                "hooks": {"Stop": [{"command": "echo done >> CLAUDE.md"}]}
+            }),
+        })
+        report = audit(root, rule_filter=6)  # must not raise
+        fails = [f for f in report.findings if f.rule == 6 and f.severity == "FAIL"]
+        assert fails, "audit must survive the non-dict file and still flag the real write"
+
+
+def test_rule2_inline_triple_backtick_does_not_downgrade() -> None:
+    """REGRESSION: a single stray INLINE ``` run used to flip global fence
+    parity, downgrading a genuine top-level $(…) cache-bust from FAIL to WARN
+    (and CI exit 2 -> 1, slipping past a fail-only gate). Only line-leading
+    ``` markers may toggle fence state."""
+    dollar = chr(36)
+    triple = chr(96) * 3
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        _setup(root, {
+            "CLAUDE.md": (
+                "# Project\n\n"
+                "Prose with an inline stray " + triple + " marker mid-sentence.\n\n"
+                "Real top-level cache-bust: " + dollar + "(date)\n"
+                + ("\nPadding line. " * 400)
+            ),
+        })
+        report = audit(root, rule_filter=2)
+        fails = [f for f in report.findings if f.rule == 2 and f.severity == "FAIL"]
+        assert fails, "genuine top-level $(…) after an inline ``` must FAIL, not WARN"
+
+
+def test_rule6_interpreter_flags_and_bare_relative_paths() -> None:
+    """REGRESSION: SCRIPT_INVOKE_RE missed `python3 -u scripts/x.py` (flags
+    between interpreter and script) and bare relative paths like
+    `.claude/hooks/run.sh` — a prefix-writing hot-path hook went undetected."""
+    # Variant A: interpreter with a flag before the script.
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        _setup(root, {
+            ".claude/settings.json": json.dumps({
+                "hooks": {"UserPromptSubmit": [{"command": "python3 -u scripts/reflect.py"}]},
+            }),
+            "scripts/reflect.py": (
+                "import pathlib\n"
+                "p = pathlib.Path('CLAUDE.md')\n"
+                "p.write_text('updated\\n')\n"
+            ),
+        })
+        report = audit(root, rule_filter=6)
+        fails = [f for f in report.findings if f.rule == 6 and f.severity == "FAIL"]
+        assert fails, "`python3 -u scripts/x.py` write must be detected"
+        assert any("reflect.py" in f.file for f in fails), f"should cite the script: {fails}"
+
+    # Variant B: bare relative direct-invocation path (no ./ prefix, no interpreter).
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        _setup(root, {
+            ".claude/settings.json": json.dumps({
+                "hooks": {"Stop": [{"command": ".claude/hooks/run.sh"}]},
+            }),
+            ".claude/hooks/run.sh": "#!/bin/bash\necho done >> CLAUDE.md\n",
+        })
+        report = audit(root, rule_filter=6)
+        fails = [f for f in report.findings if f.rule == 6 and f.severity == "FAIL"]
+        assert fails, "bare relative `.claude/hooks/run.sh` write must be detected"
+
+
+def test_rule2_cap_is_per_pattern_and_skips_typography() -> None:
+    """REGRESSION: the per-file cap was shared across all 9 patterns AND ran
+    before the inline-code skip. Result: once $(…) hit the cap, distinct
+    classes (wall-clock, ${ENV}, RNG) were wholly suppressed, and backticked
+    typography after the cap was miscounted as suppressed real findings."""
+    dollar = chr(36)
+    bt = chr(96)
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        lines = ["# Project", ""]
+        for i in range(6):  # 6 genuine $(…) — one over the cap of 5
+            lines.append(f"Bust {i}: {dollar}(date)")
+        for i in range(20):  # backticked typography — must be SKIPPED, not suppressed
+            lines.append(f"Example: {bt}{dollar}(date){bt}")
+        # distinct classes that must still emit despite $(…) hitting the cap
+        lines.append("Wall clock: datetime.now()")
+        lines.append("Env: " + dollar + "{HOME}")
+        lines.append("RNG: " + dollar + "RANDOM")
+        _setup(root, {"CLAUDE.md": "\n".join(lines) + "\n" + ("Padding. " * 400)})
+        report = audit(root, rule_filter=2)
+        titles = {f.title for f in report.findings if f.rule == 2 and f.severity == "FAIL"}
+        assert any("wall-clock" in t for t in titles), f"wall-clock must still emit: {titles}"
+        assert any("braced env" in t for t in titles), f"${{ENV}} must still emit: {titles}"
+        assert any("RNG" in t for t in titles), f"RNG must still emit: {titles}"
+        # suppressed summary must count only the 1 over-cap genuine match, not the 20 typography
+        supp = [f for f in report.findings if f.rule == 2 and "suppressed" in f.title]
+        assert len(supp) == 1, f"exactly one pattern over cap: {[f.title for f in supp]}"
+        assert " +1 " in (" " + supp[0].title + " "), \
+            f"only the 6th genuine $(…) is suppressed, not typography: {supp[0].title}"
+
+
+def test_rule3_detects_block_scalar_description_drift() -> None:
+    """REGRESSION: for a YAML block scalar (`description: >` / `|`) the old
+    `^description:\\s*(.+)$` capture was just ">"/"|" (constant), so multi-line
+    description edits never re-keyed the cache. Continuation lines must be
+    folded into the fingerprint."""
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        _setup(root, {
+            "skills/foo/SKILL.md": (
+                "---\nname: foo\ndescription: >\n"
+                "  First multiline description.\n  Use when X happens.\n---\n# Foo\n"
+            ),
+        })
+        report1 = audit(root, rule_filter=1)
+        assert any(f.rule == 1 and "initialized" in f.title for f in report1.findings)
+        # mutate only the indented continuation; the `>` marker line is unchanged
+        (root / "skills/foo/SKILL.md").write_text(
+            "---\nname: foo\ndescription: >\n"
+            "  Completely different multiline text.\n  Use when Y happens.\n---\n# Foo\n"
+        )
+        report2 = audit(root, rule_filter=1)
+        warns = [f for f in report2.findings if f.rule == 3]
+        assert warns, "changed block-scalar description must WARN on rule 3"
+
+
 def main() -> int:
     tests = [
         test_clean_project_passes,
@@ -276,6 +411,11 @@ def main() -> int:
         test_sizing_thresholds_match_docs,
         test_fingerprint_refused_in_non_claude_project,
         test_fingerprint_baseline_creates_then_detects_change,
+        test_rule6_non_dict_settings_does_not_crash,
+        test_rule2_inline_triple_backtick_does_not_downgrade,
+        test_rule6_interpreter_flags_and_bare_relative_paths,
+        test_rule2_cap_is_per_pattern_and_skips_typography,
+        test_rule3_detects_block_scalar_description_drift,
     ]
     failed = 0
     for t in tests:

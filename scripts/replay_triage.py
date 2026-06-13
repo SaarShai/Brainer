@@ -15,7 +15,8 @@ import glob, json, os, sys
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO, "skills", "prompt-triage", "tools"))
 os.environ.setdefault("AGENTS_TRIAGE_NO_OLLAMA", "1")  # deterministic by default
-from classify import emit_context  # noqa: E402
+import classify as _classify  # noqa: E402
+from classify import classify, emit_context  # noqa: E402
 
 DEFAULT_GLOB = os.path.expanduser(
     "~/.claude/projects/-Users-za-Documents-Brainer/*.jsonl")
@@ -45,16 +46,34 @@ def main() -> int:
     prompts = historically_triaged_prompts(pattern)
     emitted, violations = [], []
     for p in prompts:
-        d = emit_context(p, use_ollama_fallback=False)
-        if not d:
-            continue
-        emitted.append(p)
-        r = json.loads(d.splitlines()[1])
+        # Two kinds of guard, scoped to where each violation can actually occur:
+        #
+        # (1) local-model — a platform-policy violation at the DECISION level:
+        #     classify() must never route to an out-of-platform local model,
+        #     emitted or not (_VALID_MODELS clamping enforces this). Checked on
+        #     the raw verdict UNCONDITIONALLY, so a broken clamp is caught even
+        #     if emit_context would have silenced the directive.
+        #
+        # (2) low-confidence / length-gate-bypass — these are properties of an
+        #     EMITTED directive: emit_context already silences sub-0.7 and
+        #     length-gated verdicts (returns ""), and a deliberately-gated
+        #     low-conf verdict is correct behavior, not a regression. So these
+        #     two fire only when the emit gate FAILS to silence a forbidden
+        #     verdict — i.e. they guard the gate itself. They are reachable only
+        #     via that gate-break path, by construction; that is the regression
+        #     worth catching, not a claim that every sub-0.7 verdict is a bug.
+        #
+        # We classify directly (robust dict) rather than string-parsing the
+        # emitted directive, and use emit_context purely as the would-emit oracle.
+        r = classify(p, use_ollama_fallback=False)
+        would_emit = bool(emit_context(p, use_ollama_fallback=False))
+        if would_emit:
+            emitted.append(p)
         if r.get("model", "").startswith("local:") or r.get("agent") == "local-ollama":
             violations.append(("local-model", p[:80], r))
-        if float(r.get("confidence", 0)) < 0.7:
+        if would_emit and float(r.get("confidence", 0)) < 0.7:
             violations.append(("low-confidence", p[:80], r))
-        if len(p) > 1500:
+        if would_emit and len(p) > _classify.LENGTH_GATE_CHARS:
             violations.append(("length-gate-bypass", len(p), r))
     print(f"replayed {len(prompts)} historically-triaged prompts: "
           f"{len(emitted)} still routed, {len(prompts) - len(emitted)} silent, "

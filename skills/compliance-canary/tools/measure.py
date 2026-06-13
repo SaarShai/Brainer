@@ -32,7 +32,9 @@ from hook import (  # type: ignore  # noqa: E402
     discover_probes,
     read_transcript_tail,
     recent_assistant_messages,
+    recent_tool_errors,
     recent_tool_uses,
+    trajectory_stats,
 )
 
 
@@ -53,13 +55,21 @@ def analyze_one(path: Path, probes: list[dict], window: int) -> dict:
     events = read_transcript_tail(str(path), cap=10_000)
     messages = recent_assistant_messages(events, window)
     tool_uses = recent_tool_uses(events, n=20)
+    # Match the live hook's full detector signature: without tool_errors and
+    # traj_stats, the trajectory_drift / repeated_tool_error detectors always
+    # report 0 fires — a silent false-negative for the exact calibration this
+    # tool exists for. user_correction still can't fire offline (no synthetic
+    # user prompt in a transcript) — that's expected, user_prompt="" here.
+    tool_errors = recent_tool_errors(events)
+    traj = trajectory_stats(events)
     fires: list[dict] = []
     for probe in probes:
         kind = probe.get("kind")
         if kind not in DETECTORS:
             continue
         try:
-            result = DETECTORS[kind](probe, messages, tool_uses)
+            result = DETECTORS[kind](probe, messages, tool_uses, tool_errors,
+                                     user_prompt="", traj_stats=traj)
         except Exception as e:
             result = None
             sys.stderr.write(f"  ! detector error probe={probe.get('_probe_id')} err={e!r}\n")

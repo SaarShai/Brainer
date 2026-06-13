@@ -89,6 +89,10 @@ WHY_CLAUSES = (
     "because", "so that", "to avoid", "in order to",
     "due to", "in favor of", "rather than", "the reason",
 )
+# Word-boundary match so a marker can't fire inside an unrelated word
+# ("overdue tomorrow" → "due to", "reasoning" → "the reason"). Naked substring
+# matching let reasonless decisions slip past the why-gate.
+WHY_RE = re.compile(r"\b(?:" + "|".join(re.escape(w) for w in WHY_CLAUSES) + r")\b")
 CODE_FENCE_PAIR_RE = re.compile(r"```.*?```", re.DOTALL)
 
 NUMBER_RE = re.compile(
@@ -212,7 +216,7 @@ def score_text(text: str, kind: str, weights: dict[str, float] | None = None) ->
     # Strip fenced code blocks first so a `# because reasons` comment inside ``` ```
     # can't satisfy the gate. The check is on prose, not code.
     prose_lc = CODE_FENCE_PAIR_RE.sub(" ", text).lower()
-    s.has_why = any(w in prose_lc for w in WHY_CLAUSES)
+    s.has_why = WHY_RE.search(prose_lc) is not None
     if s.has_why:
         v = weights["why_clause"]
         s.features["why_clause"] = v
@@ -279,7 +283,12 @@ def load_config() -> tuple[float, bool, dict[str, float]]:
             except (TypeError, ValueError):
                 pass
         if "require_why_for_decisions" in cfg:
-            require_why = bool(cfg["require_why_for_decisions"])
+            # The fallback parser (no PyYAML) stores values as STRINGS, so a naked
+            # bool("false") is truthy and silently ignores `require_why_for_decisions: false`.
+            # Parse the bool explicitly. (PyYAML path already yields a real bool, which
+            # passes through the isinstance check untouched.)
+            val = cfg["require_why_for_decisions"]
+            require_why = val if isinstance(val, bool) else str(val).strip().lower() not in ("false", "0", "no", "off", "")
         # Only consult weights if it's a real dict — fallback parser skips it.
         raw_weights = cfg.get("weights")
         if isinstance(raw_weights, dict):

@@ -14,7 +14,7 @@ from typing import Any
 from config import load_config
 
 
-ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+ANSI = re.compile(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[@-Z\\-_])")
 DEFAULT_KEEP = re.compile(r"(error|fail|fatal|traceback|exception)", re.I)
 DEFAULT_COLLAPSE = [re.compile(r"\r"), re.compile(r"\d+%\s*$")]
 

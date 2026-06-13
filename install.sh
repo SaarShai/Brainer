@@ -232,6 +232,17 @@ inject_catalog_into_doc() {
     return 0
   fi
 
+  if grep -q 'brainer:skills-catalog:start' "$target" && ! grep -q 'brainer:skills-catalog:end' "$target"; then
+    # Start sentinel present but END sentinel missing (hand-edit removed it /
+    # interrupted write). The awk replace below sets skip=1 at the start and
+    # only clears it at the end sentinel — with no end sentinel, skip stays 1
+    # to EOF and ALL content after the start sentinel (including real user
+    # prose) is silently dropped. Refuse to rewrite; warn instead of truncate.
+    echo "    [skip] $target has catalog start sentinel but no end sentinel — refusing to rewrite (would truncate everything after it). Restore the end sentinel ($CATALOG_END) or remove the start sentinel, then re-run." >&2
+    rm -f "$block_tmp"
+    return 0
+  fi
+
   if grep -q 'brainer:skills-catalog:start' "$target"; then
     local out; out=$(mktemp)
     awk -v blockfile="$block_tmp" -v start="$CATALOG_START" -v end="$CATALOG_END" '

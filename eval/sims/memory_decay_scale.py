@@ -19,7 +19,7 @@ import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(REPO / "skills/memory-decay/tools"))
+sys.path.insert(0, str(REPO / "skills/wiki-memory/tools"))
 from decay import (  # noqa: E402
     DEFAULT_HALFLIFE_DAYS, EVIDENCE_PROTECT_THRESHOLD, PROTECTED_DIRS,
     PROTECTED_TYPES, decay_all, lambda_from_halflife,

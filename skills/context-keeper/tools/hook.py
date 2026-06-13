@@ -46,7 +46,8 @@ def main() -> int:
 
     try:
         subprocess.run(
-            [sys.executable, str(extract_py), tp, "--pointer-only", "--session-id", sid or "unknown"],
+            [sys.executable, str(extract_py), tp, "--pointer-only",
+             "--session-id", sid or "unknown", "--trigger", trigger or "auto"],
             timeout=30,
             check=False,
             env=env,

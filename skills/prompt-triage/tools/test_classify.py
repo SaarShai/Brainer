@@ -43,6 +43,15 @@ INCIDENT_PROMPT_MID = (
 )
 INCIDENT_PROMPT = INCIDENT_PROMPT_MID * 2  # past the 1500-char length gate
 
+# Neutral long fixture for the length-gate test: a single-line factual
+# question with NO session-ref phrases, <3 newlines, and <3 imperative
+# sentences — so it bypasses the context-guard and brief-gate and falls
+# straight onto the >LENGTH_GATE_CHARS path. (The old test reused
+# INCIDENT_PROMPT, which contains "we built" and so tripped the EARLIER
+# context-guard — the length-gate branch was never exercised, letting a
+# mutation that deletes the gate survive.)
+NEUTRAL_LONG_PROMPT = ("what is the capital of France " * 60).strip() + "?"
+
 
 def test_simple_imperatives_still_route_cheap():
     r = classify("commit and push", use_ollama_fallback=False)
@@ -109,10 +118,17 @@ def test_bypass_flags():
 def test_length_gate_blocks_cheap_route_even_with_llm():
     # >1500 chars → hard/none regardless of fallback availability; the gate
     # must short-circuit BEFORE any LLM call (so this stays offline-stable).
-    r = classify(INCIDENT_PROMPT, use_ollama_fallback=True)
-    assert r["source"] in ("length-gate", "context-guard"), r
+    # Uses a NEUTRAL fixture (no session-ref phrases, <3 newlines, <3
+    # imperatives) so the earlier context-guard / brief-gate cannot shadow the
+    # length-gate — the assertion is source=="length-gate" EXACTLY, which a
+    # mutation deleting the gate would fail (it would fall through to the regex
+    # research-lite route or default, never length-gate).
+    assert len(NEUTRAL_LONG_PROMPT) > 1500, len(NEUTRAL_LONG_PROMPT)
+    assert NEUTRAL_LONG_PROMPT.count("\n") < 3
+    r = classify(NEUTRAL_LONG_PROMPT, use_ollama_fallback=True)
+    assert r["source"] == "length-gate", r
     assert r["tier"] == "hard" and r["agent"] == "none", r
-    assert emit_context(INCIDENT_PROMPT, use_ollama_fallback=True) == ""
+    assert emit_context(NEUTRAL_LONG_PROMPT, use_ollama_fallback=True) == ""
 
 
 def test_env_pin_wins_model_resolution():
@@ -121,6 +137,45 @@ def test_env_pin_wins_model_resolution():
         assert _resolve_ollama_model() == "pinned:tag"
     finally:
         del os.environ["AGENTS_TRIAGE_OLLAMA_MODEL"]
+
+
+def test_only_oversized_models_resolves_to_none():
+    # Major logic fix: the old family-prefix fallback returned ANY same-family
+    # installed tag regardless of size, so a machine carrying only qwen3:32b /
+    # llama3.1:70b got a 30B+/70B model — violating the docstring contract
+    # (never a random model that would blow the timeout AND page ~19GB in).
+    # With only oversized variants installed, resolution must return None.
+    import json as _json
+    import urllib.request as _ur
+    import classify as mod
+
+    os.environ.pop("AGENTS_TRIAGE_OLLAMA_MODEL", None)
+
+    class _FakeResp:
+        def __init__(self, payload):
+            self._p = _json.dumps(payload).encode()
+
+        def read(self):
+            return self._p
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    orig = _ur.urlopen
+    _ur.urlopen = lambda *a, **k: _FakeResp(
+        {"models": [{"name": "qwen3:32b"}, {"name": "llama3.1:70b"}]})
+    try:
+        assert mod._resolve_ollama_model() is None
+        # ...and an exact small-tag hit still resolves (regression guard that
+        # the fix didn't break the happy path).
+        _ur.urlopen = lambda *a, **k: _FakeResp(
+            {"models": [{"name": "qwen3:32b"}, {"name": "qwen3:8b"}]})
+        assert mod._resolve_ollama_model() == "qwen3:8b"
+    finally:
+        _ur.urlopen = orig
 
 
 def test_research_outranks_summarize_on_mixed_prompts():
@@ -214,6 +269,35 @@ def test_llm_simple_verdict_vetoed_on_complex_hints():
             "confidence": 0.8, "reason": "bounded research"}
         r2 = classify(p, use_ollama_fallback=True)
         assert r2["source"] == "ollama" and r2["tier"] == "medium", r2
+    finally:
+        mod.ollama_classify = orig
+
+
+def test_llm_medium_haiku_verdict_vetoed_on_complex_hints():
+    # Major logic fix: the veto previously fired ONLY when tier=="simple", but
+    # _validate_llm_result passes any in-enum model verbatim — so a verdict of
+    # tier="medium", model="haiku" on an audit/refactor-hinted prompt slipped
+    # through and dispatched audit work to haiku. The veto now also fires when
+    # the LLM named the cheapest model (haiku) under complex hints.
+    import classify as mod
+    orig = mod.ollama_classify
+    mod.ollama_classify = lambda *a, **k: {
+        "tier": "medium", "agent": "research-lite", "model": "haiku",
+        "confidence": 0.8, "reason": "llm says medium but cheap model"}
+    try:
+        p = "research and audit the production deployment pipeline"
+        r = classify(p, use_ollama_fallback=True)
+        assert r["source"] == "hint-veto", r
+        assert r["tier"] == "hard" and r["agent"] == "none", r
+        assert "haiku" not in emit_context(p, use_ollama_fallback=True)
+        assert emit_context(p, use_ollama_fallback=True) == ""
+        # ...but a medium/SONNET verdict on the same prompt is still respected
+        # (only the cheapest model is vetoed, not all of medium).
+        mod.ollama_classify = lambda *a, **k: {
+            "tier": "medium", "agent": "research-lite", "model": "sonnet",
+            "confidence": 0.8, "reason": "bounded research"}
+        r2 = classify(p, use_ollama_fallback=True)
+        assert r2["source"] == "ollama" and r2["model"] == "sonnet", r2
     finally:
         mod.ollama_classify = orig
 

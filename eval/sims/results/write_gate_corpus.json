@@ -1,14 +1,14 @@
 {
   "threshold": 3.0,
-  "elapsed_s": 0.047,
+  "elapsed_s": 0.05,
   "real_corpus": {
-    "n_pages": 169,
-    "overall_acceptance": 0.751,
+    "n_pages": 174,
+    "overall_acceptance": 0.764,
     "by_kind": {
       "fact": {
-        "n": 164,
-        "acceptance_rate": 0.774,
-        "mean_score": 4.88
+        "n": 169,
+        "acceptance_rate": 0.787,
+        "mean_score": 5.17
       },
       "decision": {
         "n": 2,
@@ -36,7 +36,7 @@
         "score": 3.5,
         "has_why": false,
         "passed": true,
-        "size": 1534
+        "size": 1528
       },
       {
         "path": "L4_archive/2026-04-24-handoff-codex-context-refresh.md",
@@ -49,7 +49,7 @@
       {
         "path": "L4_archive/2026-04-24-summ-codex-manual.md",
         "kind": "fact",
-        "score": 8.0,
+        "score": 10.0,
         "has_why": true,
         "passed": true,
         "size": 7807
@@ -76,7 +76,7 @@
         "score": 1.5,
         "has_why": false,
         "passed": false,
-        "size": 322
+        "size": 393
       },
       {
         "path": "concepts/caveman-output-compression.md",
@@ -84,15 +84,31 @@
         "score": 2.0,
         "has_why": false,
         "passed": false,
-        "size": 509
+        "size": 503
+      },
+      {
+        "path": "concepts/cross-model-ollama-eval-gotchas.md",
+        "kind": "fact",
+        "score": 10.0,
+        "has_why": false,
+        "passed": true,
+        "size": 1227
+      },
+      {
+        "path": "concepts/demote-vs-description-tax.md",
+        "kind": "fact",
+        "score": 9.0,
+        "has_why": true,
+        "passed": true,
+        "size": 1172
       },
       {
         "path": "concepts/devices-inventory.md",
         "kind": "fact",
-        "score": 9.0,
+        "score": 11.0,
         "has_why": false,
         "passed": true,
-        "size": 10990
+        "size": 10984
       },
       {
         "path": "concepts/framework-hardening-adoption.md",
@@ -100,7 +116,7 @@
         "score": 10.0,
         "has_why": true,
         "passed": true,
-        "size": 5020
+        "size": 5697
       },
       {
         "path": "concepts/karpathy-wiki.md",
@@ -108,7 +124,7 @@
         "score": 1.0,
         "has_why": false,
         "passed": false,
-        "size": 381
+        "size": 389
       },
       {
         "path": "concepts/kv-cache-eviction.md",
@@ -116,7 +132,7 @@
         "score": 0.0,
         "has_why": false,
         "passed": false,
-        "size": 253
+        "size": 247
       },
       {
         "path": "concepts/lean-execution.md",
@@ -124,7 +140,7 @@
         "score": 7.5,
         "has_why": true,
         "passed": true,
-        "size": 3350
+        "size": 3344
       },
       {
         "path": "concepts/llmlingua.md",
@@ -132,7 +148,7 @@
         "score": 0.5,
         "has_why": false,
         "passed": false,
-        "size": 325
+        "size": 319
       },
       {
         "path": "concepts/local-model-setup.md",
@@ -143,12 +159,20 @@
         "size": 3740
       },
       {
+        "path": "concepts/measure-triggers-by-decision-marker.md",
+        "kind": "fact",
+        "score": 8.5,
+        "has_why": true,
+        "passed": true,
+        "size": 1062
+      },
+      {
         "path": "concepts/optimization-axes.md",
         "kind": "fact",
         "score": 6.5,
         "has_why": false,
         "passed": true,
-        "size": 3105
+        "size": 3804
       },
       {
         "path": "concepts/prefix-caching.md",
@@ -156,7 +180,15 @@
         "score": 4.5,
         "has_why": false,
         "passed": true,
-        "size": 1021
+        "size": 1014
+      },
+      {
+        "path": "concepts/recurring-defect-classes.md",
+        "kind": "fact",
+        "score": 13.5,
+        "has_why": true,
+        "passed": true,
+        "size": 5945
       },
       {
         "path": "concepts/semantic-diff-edits.md",
@@ -172,7 +204,7 @@
         "score": 1.5,
         "has_why": true,
         "passed": false,
-        "size": 233
+        "size": 274
       },
       {
         "path": "concepts/structured-outputs.md",
@@ -188,7 +220,7 @@
         "score": 4.5,
         "has_why": false,
         "passed": true,
-        "size": 1671
+        "size": 1692
       },
       {
         "path": "concepts/turboquant-kv-cache.md",
@@ -196,7 +228,7 @@
         "score": 10.5,
         "has_why": false,
         "passed": true,
-        "size": 7243
+        "size": 7231
       },
       {
         "path": "concepts/unsloth-distill.md",
@@ -204,7 +236,7 @@
         "score": 1.5,
         "has_why": false,
         "passed": false,
-        "size": 207
+        "size": 225
       },
       {
         "path": "concepts/wiki-governance.md",
@@ -215,20 +247,28 @@
         "size": 2769
       },
       {
-        "path": "index.md",
+        "path": "concepts/write-gate-not-truth-filter.md",
         "kind": "fact",
         "score": 7.5,
+        "has_why": true,
+        "passed": true,
+        "size": 1231
+      },
+      {
+        "path": "index.md",
+        "kind": "fact",
+        "score": 7.0,
         "has_why": false,
         "passed": true,
-        "size": 2650
+        "size": 2623
       },
       {
         "path": "log.md",
         "kind": "fact",
-        "score": 18.5,
+        "score": 17.0,
         "has_why": true,
         "passed": true,
-        "size": 37658
+        "size": 57170
       },
       {
         "path": "patterns/compound-compression-pipeline.md",
@@ -236,7 +276,7 @@
         "score": 0.0,
         "has_why": false,
         "passed": false,
-        "size": 267
+        "size": 394
       },
       {
         "path": "patterns/tiny-model-router.md",
@@ -244,7 +284,7 @@
         "score": 0.0,
         "has_why": false,
         "passed": false,
-        "size": 252
+        "size": 245
       },
       {
         "path": "patterns/wiki-query-shortcircuit.md",
@@ -252,7 +292,7 @@
         "score": 1.0,
         "has_why": false,
         "passed": false,
-        "size": 236
+        "size": 229
       },
       {
         "path": "people/jesse-vincent.md",
@@ -260,7 +300,7 @@
         "score": 0.0,
         "has_why": false,
         "passed": false,
-        "size": 238
+        "size": 232
       },
       {
         "path": "people/julius-brussee.md",
@@ -292,23 +332,23 @@
         "score": 9.0,
         "has_why": false,
         "passed": true,
-        "size": 2583
+        "size": 2571
       },
       {
         "path": "projects/context-keeper.md",
         "kind": "fact",
-        "score": 7.0,
+        "score": 9.0,
         "has_why": false,
         "passed": true,
-        "size": 3008
+        "size": 3512
       },
       {
         "path": "projects/context-refresh.md",
         "kind": "fact",
-        "score": 5.0,
+        "score": 7.5,
         "has_why": false,
         "passed": true,
-        "size": 1514
+        "size": 1644
       },
       {
         "path": "projects/delegate-router.md",
@@ -316,7 +356,7 @@
         "score": 6.5,
         "has_why": false,
         "passed": true,
-        "size": 1843
+        "size": 1930
       },
       {
         "path": "projects/semdiff.md",
@@ -324,7 +364,7 @@
         "score": 6.5,
         "has_why": false,
         "passed": true,
-        "size": 2913
+        "size": 2907
       },
       {
         "path": "projects/wiki-search.md",
@@ -332,7 +372,7 @@
         "score": 13.5,
         "has_why": false,
         "passed": true,
-        "size": 2504
+        "size": 2600
       },
       {
         "path": "raw/2026-04-17-research-brief.md",
@@ -649,7 +689,7 @@
       {
         "path": "raw/m5-outputs-2026-04-18/B20_skill_sop_format.md",
         "kind": "fact",
-        "score": 9.0,
+        "score": 11.0,
         "has_why": false,
         "passed": true,
         "size": 2640
@@ -833,7 +873,7 @@
       {
         "path": "raw/m5-outputs-2026-04-18/B43_supersession_tag_heuristic.md",
         "kind": "fact",
-        "score": 4.5,
+        "score": 6.5,
         "has_why": true,
         "passed": true,
         "size": 2080
@@ -961,7 +1001,7 @@
       {
         "path": "raw/m5-outputs-2026-04-18/B58_bench_aggregator_template.md",
         "kind": "fact",
-        "score": 7.0,
+        "score": 9.0,
         "has_why": false,
         "passed": true,
         "size": 2355
@@ -993,7 +1033,7 @@
       {
         "path": "raw/m5-outputs-2026-04-18/B61_adversarial_nightly_report.md",
         "kind": "fact",
-        "score": 9.0,
+        "score": 11.0,
         "has_why": false,
         "passed": true,
         "size": 4753
@@ -1049,7 +1089,7 @@
       {
         "path": "raw/m5-outputs-2026-04-18/B68_stable_release_cadence.md",
         "kind": "fact",
-        "score": 3.5,
+        "score": 5.5,
         "has_why": false,
         "passed": true,
         "size": 1676
@@ -1097,7 +1137,7 @@
       {
         "path": "raw/m5-outputs-2026-04-18/B73_implement_report_aggregator.md",
         "kind": "fact",
-        "score": 3.5,
+        "score": 5.5,
         "has_why": false,
         "passed": true,
         "size": 3519
@@ -1113,7 +1153,7 @@
       {
         "path": "raw/m5-outputs-2026-04-18/B75_implement_adversarial_nightly.md",
         "kind": "fact",
-        "score": 3.5,
+        "score": 5.5,
         "has_why": false,
         "passed": true,
         "size": 1188
@@ -1121,7 +1161,7 @@
       {
         "path": "raw/m5-outputs-2026-04-18/B76_adv_category_ambiguity.md",
         "kind": "fact",
-        "score": 3.5,
+        "score": 5.5,
         "has_why": false,
         "passed": true,
         "size": 1706
@@ -1145,9 +1185,9 @@
       {
         "path": "raw/m5-outputs-2026-04-18/B79_adv_category_role_inversion.md",
         "kind": "fact",
-        "score": 2.5,
+        "score": 4.5,
         "has_why": false,
-        "passed": false,
+        "passed": true,
         "size": 1371
       },
       {
@@ -1332,7 +1372,7 @@
         "score": 7.5,
         "has_why": false,
         "passed": true,
-        "size": 4572
+        "size": 4560
       },
       {
         "path": "templates/decision.template.md",
@@ -1356,7 +1396,7 @@
         "score": 5.5,
         "has_why": false,
         "passed": true,
-        "size": 790
+        "size": 778
       },
       {
         "path": "templates/page.template.md",

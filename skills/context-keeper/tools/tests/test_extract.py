@@ -10,12 +10,15 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from extract import iter_events, regex_extract  # noqa: E402
+from extract import PATH_RE, iter_events, regex_extract  # noqa: E402
+
+_EXTRACT_PY = Path(__file__).parent.parent / "extract.py"
 
 
 def _write_jsonl(lines: list) -> str:
@@ -93,6 +96,69 @@ def test_long_unbroken_lines_extract_in_linear_time():
     elapsed = time.perf_counter() - t
     assert elapsed < 10, f"extract took {elapsed:.1f}s on 2k events — quadratic regression?"
     assert out.get("failed_attempts"), "failure sentences should still be captured"
+
+
+def test_same_minute_extractions_do_not_collide():
+    # Two PreCompact events for one session in the same UTC minute must NOT
+    # overwrite each other. Minute-granularity filenames silently dropped the
+    # first checkpoint (data loss); seconds + trigger + numeric suffix fix it.
+    transcript = _write_jsonl([
+        _user("build the exporter"),
+        {"type": "assistant", "message": {"role": "assistant", "content": [
+            {"type": "tool_use", "name": "Bash",
+             "input": {"command": "pytest tests/ -x"}}]}},
+    ])
+    workdir = tempfile.mkdtemp()
+    env = dict(os.environ, TOKEN_ECONOMY_ROOT=workdir)
+    sessions = Path(workdir) / ".brainer" / "sessions"
+    try:
+        for _ in range(2):
+            r = subprocess.run(
+                [sys.executable, str(_EXTRACT_PY), transcript,
+                 "--pointer-only", "--session-id", "deadbeefcafef00d",
+                 "--trigger", "manual"],
+                env=env, capture_output=True, text=True,
+            )
+            assert r.returncode == 0, r.stderr
+        written = sorted(sessions.glob("*.md"))
+        # Both checkpoints survive — the first is not clobbered by the second.
+        assert len(written) == 2, [p.name for p in written]
+        assert written[0].name != written[1].name, [p.name for p in written]
+    finally:
+        os.remove(transcript)
+        import shutil
+        shutil.rmtree(workdir, ignore_errors=True)
+
+
+def test_path_re_captures_bare_relative_path():
+    # PATH_RE used to force a leading /, ~/, ./ or ../, dropping bare relative
+    # multi-segment paths (api/auth.py, src/foo.ts) from files_touched.
+    assert "api/auth.py" in PATH_RE.findall("touched api/auth.py today")
+    assert "src/foo.ts" in PATH_RE.findall("edit src/foo.ts please")
+    # Still captures the prefixed forms and absolute paths.
+    assert "./local/x.md" in PATH_RE.findall("see ./local/x.md")
+    assert "/Users/za/extract.py" in PATH_RE.findall("at /Users/za/extract.py")
+    # Bare single-segment filenames are NOT paths (no internal slash) — unchanged.
+    assert PATH_RE.findall("just foo.py here") == []
+    # End-to-end: bare relative path lands in files_touched.
+    out = regex_extract([_assistant("I edited api/auth.py to fix the bug")])
+    assert "api/auth.py" in out.get("files_touched", []), out.get("files_touched")
+
+
+def test_bash_command_captured_from_top_level_content():
+    # Top-level-content events (no "message" key) put content at ev["content"].
+    # The structural tool_use walk read the (None) message content, so the Bash
+    # command — and files_created from Write — were silently lost for that shape.
+    events = [
+        {"type": "assistant",
+         "content": [{"type": "tool_use", "name": "Bash",
+                      "input": {"command": "ruff check src/ --fix"}},
+                     {"type": "tool_use", "name": "Write",
+                      "input": {"file_path": "out/report.md"}}]},
+    ]
+    out = regex_extract(events)
+    assert "ruff check src/ --fix" in out.get("commands_run", []), out.get("commands_run")
+    assert "out/report.md" in out.get("files_created", []), out.get("files_created")
 
 
 def main():

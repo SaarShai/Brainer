@@ -299,11 +299,11 @@ def _resolve_ollama_model(timeout: float = 1) -> str | None:
     for pref in PREFERRED_MODELS:
         if pref in name_set:
             return pref
-    for pref in PREFERRED_MODELS:
-        family = pref.split(":")[0]
-        for n in names:
-            if n.split(":")[0] == family:
-                return n
+    # No exact PREFERRED_MODELS hit ⇒ None (the docstring contract). The old
+    # family-prefix fallback (`qwen3:8b`'s family "qwen3" matching ANY qwen3:*
+    # tag) returned oversized variants — on a machine carrying only qwen3:32b /
+    # llama3.1:70b it shipped a 30B+/70B model that blows the timeout AND pages
+    # ~19GB in. Honour fail-closed: an exact small-tag pin or env override only.
     return None
 
 LLM_PROMPT = """Classify this user task for an LLM agent. Output ONLY one-line JSON:
@@ -468,10 +468,17 @@ def classify(prompt: str, use_ollama_fallback: bool = True) -> dict:
             # prompts): the LLM must not reopen a route the regex layer
             # deliberately closed (simulated-week sweep 2026-06-12).
             downgraded = bool(fast and "downgraded" in fast.get("reason", ""))
-            if llm.get("tier") == "simple" and (_looks_complex(prompt) or downgraded):
+            # The veto also fires when the LLM kept tier="medium" but still
+            # named the CHEAPEST model (haiku) — _validate_llm_result passes any
+            # in-enum model verbatim, so a medium/haiku verdict on an
+            # audit/refactor-hinted prompt would otherwise dispatch high-stakes
+            # work to haiku. Cheapest-model-on-a-hint-flagged-prompt is the same
+            # asymmetric mistake whether the tier says simple or medium.
+            cheap = llm.get("tier") == "simple" or llm.get("model") == "haiku"
+            if cheap and (_looks_complex(prompt) or downgraded):
                 return {"tier": "hard", "agent": "none", "model": "opus",
                         "confidence": 0.0,
-                        "reason": "LLM said simple but complex-work hints present; defer to main model",
+                        "reason": "LLM picked the cheapest model but complex-work hints present; defer to main model",
                         "lean_context": [], "source": "hint-veto"}
             return llm
     # Fail CLOSED on complex prompts: if the prompt carries complex-work hints

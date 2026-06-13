@@ -1,7 +1,7 @@
 {
   "skill": "wiki_memory",
   "shape": "fuzz",
-  "elapsed_s": 0.08858895301818848,
+  "elapsed_s": 0.08130717277526855,
   "passed": true,
   "summary": {
     "n_cases": 20,

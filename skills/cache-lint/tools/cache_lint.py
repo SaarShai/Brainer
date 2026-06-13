@@ -150,19 +150,37 @@ def check_dynamic_content(report: Report, files: list[Path]) -> None:
         # Cache once instead of on every match — the per-match splitlines() was
         # O(file) × O(matches), giving an effective O(n²) on adversarial input.
         lines = text.splitlines()
-        # Pre-compute fence positions once per file (O(n) instead of per-match scan)
-        fences = [m.start() for m in re.finditer(r"```", text)]
-        emitted = 0
-        suppressed = 0
+        # Pre-compute fence positions once per file (O(n) instead of per-match scan).
+        # CommonMark fences must BEGIN a line (after ≤3 spaces of indent); only those
+        # toggle code-block state. Inline ``` runs in prose must NOT flip parity —
+        # otherwise a single stray inline triple-backtick downgrades every genuine
+        # top-level $(…) cache-bust after it from FAIL to WARN.
+        fences = [m.start() for m in re.finditer(r"(?m)^[ \t]*```", text)]
+        # Pre-compute inline-code (`…`) spans once per file as well, so the
+        # typography skip below is O(log n) per match instead of re-scanning the
+        # line on every match. Without this the typography-before-cap ordering
+        # makes a pathological single-line file ('$(date) ' * 5000) O(n²) (~7s,
+        # a DoS the fuzz battery's dos_under_2s case guards).
+        code_spans = _inline_code_spans(text)
+        span_starts = [s for s, _ in code_spans]
+        # Cap is PER pattern-label, not shared across all 9 patterns — otherwise
+        # once one class (e.g. $(…)) hits the cap, every distinct class after it
+        # (wall-clock, ${ENV}, RNG, jinja) is wholly suppressed under a false
+        # "same root cause" line.
+        emitted_by_label: dict[str, int] = {}
+        suppressed_by_label: dict[str, int] = {}
         for rx, label in DYNAMIC_PATTERNS:
             for m in rx.finditer(text):
-                # Hard cap — report 5 instances per (rule, file), summarise the rest.
-                if emitted >= MAX_FINDINGS_PER_RULE_PER_FILE:
-                    suppressed += 1
+                # Typography skip FIRST — backticked `$(…)` is inline-code, never a
+                # reportable finding, so it must not consume cap budget nor inflate
+                # the suppressed count.
+                if _pos_in_spans(span_starts, code_spans, m.start()):
+                    continue  # typography; skip
+                # Hard cap — report N genuine instances per (label, file), summarise the rest.
+                if emitted_by_label.get(label, 0) >= MAX_FINDINGS_PER_RULE_PER_FILE:
+                    suppressed_by_label[label] = suppressed_by_label.get(label, 0) + 1
                     continue
                 line = text.count("\n", 0, m.start()) + 1
-                if _inside_inline_code(text, m.start()):
-                    continue  # typography; skip
                 in_fence = _inside_fence_fast(fences, m.start())
                 sev: Severity = "WARN" if in_fence else "FAIL"
                 report.add(Finding(
@@ -173,18 +191,23 @@ def check_dynamic_content(report: Report, files: list[Path]) -> None:
                     line=line,
                     detail=lines[line - 1][:160] if line - 1 < len(lines) else "",
                 ))
-                emitted += 1
-        if suppressed:
+                emitted_by_label[label] = emitted_by_label.get(label, 0) + 1
+        for label, suppressed in suppressed_by_label.items():
             report.add(Finding(
                 rule=2, severity="WARN",
-                title=f"+{suppressed} more dynamic-content matches suppressed (cap {MAX_FINDINGS_PER_RULE_PER_FILE})",
+                title=f"+{suppressed} more '{label}' match(es) suppressed (cap {MAX_FINDINGS_PER_RULE_PER_FILE} per pattern)",
                 file=str(p),
-                detail="Fix the visible occurrences and re-run; the suppressed ones likely share the same root cause.",
+                detail="Fix the visible occurrences of this pattern and re-run to surface the rest.",
             ))
 
 
 def _inside_fence_fast(fence_positions: list[int], pos: int) -> bool:
-    """O(log n) variant using pre-computed fence positions."""
+    """O(log n) variant using pre-computed fence positions.
+
+    `fence_positions` must contain only line-leading ``` markers (CommonMark
+    fences), so parity counts complete open/close fence pairs. Inline ``` runs
+    in prose are excluded by the caller's regex and never flip parity.
+    """
     import bisect
     return bisect.bisect_right(fence_positions, pos) % 2 == 1
 
@@ -206,6 +229,41 @@ def _inside_inline_code(text: str, pos: int) -> bool:
     masked = re.sub(r"`{3,}", lambda m: " " * len(m.group(0)), line)
     ticks_before = sum(1 for i, c in enumerate(masked) if c == "`" and i < rel_pos)
     return ticks_before % 2 == 1
+
+
+def _inline_code_spans(text: str) -> list[tuple[int, int]]:
+    """Absolute (start, end) char spans of `…` inline code across the whole
+    file, computed in one O(n) pass so membership is O(log n) per query (via
+    _pos_in_spans) instead of the O(line) rescan _inside_inline_code does.
+    Preserves that function's per-line parity: triple-backtick (or longer) runs
+    are masked out, ticks pair open→close per line, and a dangling open tick
+    extends the span to end of line.
+    """
+    spans: list[tuple[int, int]] = []
+    offset = 0
+    for line in text.splitlines(keepends=True):
+        masked = re.sub(r"`{3,}", lambda m: " " * len(m.group(0)), line)
+        ticks = [offset + i for i, c in enumerate(masked) if c == "`"]
+        line_end = offset + len(line.rstrip("\n"))
+        i = 0
+        while i < len(ticks):
+            start = ticks[i]
+            end = ticks[i + 1] if i + 1 < len(ticks) else line_end
+            spans.append((start, end))
+            i += 2
+        offset += len(line)
+    return spans
+
+
+def _pos_in_spans(span_starts: list[int], spans: list[tuple[int, int]], pos: int) -> bool:
+    """True if pos lies inside an inline-code span (open < pos <= close),
+    matching _inside_inline_code's odd-ticks-before semantics. O(log n)."""
+    import bisect
+    i = bisect.bisect_right(span_starts, pos) - 1
+    if i < 0:
+        return False
+    start, end = spans[i]
+    return start < pos <= end
 
 
 # --- Rule 5: breakpoint sizing --------------------------------------------
@@ -297,8 +355,16 @@ INLINE_WRITE_RE = re.compile(
 #   2. direct script invocation — `./script.sh`, `/abs/path/x.py`, `./run.mjs`
 SCRIPT_INVOKE_RE = re.compile(
     r"\b(?:python3?|node|bash|sh|deno(?:\s+run)?|bun|npx\s+tsx|ts-node|tsx|uv\s+run|pnpm\s+(?:dlx|exec))"
+    # Allow interpreter flags/options between the interpreter and the script path,
+    # e.g. `python3 -u scripts/x.py`, `node --experimental-modules x.mjs`.
+    r"(?:\s+-{1,2}[\w=.-]+)*"
     r"\s+([^\s'\"&|;]+\.(?:py|js|mjs|cjs|ts|tsx|sh|bash))"
-    r"|(?<![\w-])((?:\./|/)[^\s'\"&|;]+\.(?:py|js|mjs|cjs|ts|tsx|sh|bash))(?=\s|$)"
+    # Direct invocation: absolute (/abs/x.py), explicit relative (./run.sh), OR a
+    # bare relative path containing a directory separator (.claude/hooks/run.sh,
+    # scripts/foo.sh) — the latter is still a hot-path hook we must follow.
+    # Terminate on whitespace, end-of-string, or a quote/JSON delimiter (the path
+    # is usually embedded in `"command": ".../run.sh"`).
+    r"|(?<![\w-])((?:\./|/)?[^\s'\"&|;]*/[^\s'\"&|;]+\.(?:py|js|mjs|cjs|ts|tsx|sh|bash))(?=[\s'\"&|;]|$)"
 )
 
 
@@ -356,6 +422,11 @@ def check_fork_safety(report: Report, files: list[Path]) -> None:
         try:
             data = json.loads(p.read_text(errors="ignore"))
         except Exception:
+            continue
+        if not isinstance(data, dict):
+            # Valid JSON whose top level is a list/string/number/null has no
+            # "hooks" key to read — and `data.get(...)` would AttributeError and
+            # abort the whole audit. Skip such files.
             continue
         hooks = data.get("hooks", {})
         if not isinstance(hooks, dict):
@@ -423,6 +494,41 @@ def _is_claude_code_project(root: Path) -> bool:
     return any(m.exists() for m in markers)
 
 
+def _extract_description(text: str) -> str:
+    """Return the normalized description value from SKILL.md frontmatter.
+
+    Handles both inline (`description: foo`) and YAML block scalars
+    (`description: >` / `description: |` / a bare `description:` with the value
+    on following indented lines). For block scalars, gather the indented
+    continuation lines so description-drift fires for multi-line descriptions —
+    a plain `^description:\\s*(.+)$` capture would only see the ">"/"|" marker
+    (a constant), so multi-line edits would never re-key the cache.
+    """
+    lines = text.splitlines()
+    for i, ln in enumerate(lines):
+        m = re.match(r"^description:\s*(.*)$", ln)
+        if not m:
+            continue
+        value = m.group(1).strip()
+        # Block scalar (>, |, with optional chomp/indent indicators) or an empty
+        # value → the real content is on the following indented lines.
+        if value == "" or re.fullmatch(r"[>|][+-]?\d*", value):
+            cont: list[str] = []
+            for nxt in lines[i + 1:]:
+                if nxt.strip() == "":
+                    cont.append("")
+                    continue
+                # Indented continuation lines belong to the block scalar; the first
+                # non-indented line (e.g. next key or the closing `---`) ends it.
+                if re.match(r"^\s+\S", nxt):
+                    cont.append(nxt.strip())
+                else:
+                    break
+            return " ".join(part for part in cont if part).strip()
+        return value
+    return ""
+
+
 def compute_fingerprint(root: Path) -> dict[str, str]:
     fp: dict[str, str] = {}
     for p in (root.glob(SKILL_GLOB)):
@@ -431,8 +537,7 @@ def compute_fingerprint(root: Path) -> dict[str, str]:
         except Exception:
             continue
         # description-only hash; body changes don't affect cache key
-        m = re.search(r"^description:\s*(.+)$", text, re.M)
-        desc = (m.group(1) if m else "").strip()
+        desc = _extract_description(text)
         fp[str(p.relative_to(root))] = hashlib.sha256(desc.encode("utf-8")).hexdigest()[:12]
     for name in PREFIX_FILES:
         p = root / name

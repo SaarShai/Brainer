@@ -95,6 +95,11 @@ def skills_root() -> Path:
 def state_lock(path: Path):
     lock_path = path.with_suffix(path.suffix + ".lock")
     fh = None
+    # Setup (mkdir/open/flock) is best-effort: on failure we log and proceed
+    # lockless rather than blocking the user's prompt. This is a SEPARATE try
+    # from the yield — a body exception must propagate cleanly, not be caught
+    # here (which would double-yield and corrupt the generator protocol,
+    # raising RuntimeError and breaking the always-exit-0 contract).
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         fh = open(lock_path, "a+")
@@ -102,9 +107,15 @@ def state_lock(path: Path):
             fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
         except (OSError, AttributeError) as e:
             log_err(f"lock-skip path={lock_path} err={e!r}")
-        yield
     except Exception as e:
         log_err(f"lock-open-fail path={lock_path} err={e!r}")
+        if fh is not None:
+            try:
+                fh.close()
+            except Exception:
+                pass
+            fh = None
+    try:
         yield
     finally:
         if fh is not None:
@@ -346,7 +357,9 @@ def detect_word_count_per_message(probe: dict, messages: list[dict], _tool_uses,
     if not messages:
         return None
     threshold = float(probe.get("threshold", 80))
-    window = min(int(probe.get("window", MSG_WINDOW_DEFAULT)), len(messages))
+    # Clamp window to [1, len(messages)]: window=0 would make messages[-0:] the
+    # WHOLE list (a silent off-by-everything), and a negative window is nonsense.
+    window = max(1, min(int(probe.get("window", MSG_WINDOW_DEFAULT)), len(messages)))
     recent = messages[-window:]
     counts = [len(m["text"].split()) for m in recent]
     avg = sum(counts) / len(counts)
@@ -378,6 +391,13 @@ def detect_claim_without_evidence(probe: dict, messages: list[dict], tool_uses: 
         "verify_keywords",
         ["test", "pytest", "make", "build", "check", "lint", "curl", "verify"],
     )]
+    # Word-boundary match, not plain substring: short keywords (ls, cat, wc, rg)
+    # otherwise match inside unrelated words (results, category, rebuild), so an
+    # incidental Bash command falsely counts as verification and the done-claim
+    # warning is wrongly suppressed.
+    verify_re = None
+    if verify_keywords:
+        verify_re = re.compile(r"\b(" + "|".join(re.escape(k) for k in verify_keywords) + r")\b")
     try:
         lookback = int(probe.get("lookback_tool_uses", 5))
     except (TypeError, ValueError):
@@ -392,7 +412,7 @@ def detect_claim_without_evidence(probe: dict, messages: list[dict], tool_uses: 
         else:
             haystack_parts.append(json.dumps(tu["input"]))
         haystack = " ".join(haystack_parts).lower()
-        if any(kw in haystack for kw in verify_keywords):
+        if verify_re is not None and verify_re.search(haystack):
             return None  # evidence found
     return {
         "claim": claim_match.group(0),
@@ -620,9 +640,23 @@ def main() -> int:
     if not events:
         return 0
 
-    messages = recent_assistant_messages(events, MSG_WINDOW_DEFAULT)
-    if not messages:
-        return 0
+    # Fetch enough messages for the LARGEST declared word_count window — and
+    # never early-return on empty: tool_use-only turns (the norm during error
+    # loops) have no assistant TEXT, but that's exactly when the non-text
+    # detectors (trajectory_drift, repeated_tool_error, user_correction) must
+    # still run. The text detectors already no-op on []. (probes are discovered
+    # above, so reading their windows here is safe.)
+    WORD_COUNT_WINDOW_CAP = 50
+    max_window = max(
+        [MSG_WINDOW_DEFAULT]
+        + [
+            min(int(p.get("window", MSG_WINDOW_DEFAULT)), WORD_COUNT_WINDOW_CAP)
+            for p in probes
+            if p.get("kind") == "word_count_per_message"
+            and str(p.get("window", MSG_WINDOW_DEFAULT)).lstrip("-").isdigit()
+        ]
+    )
+    messages = recent_assistant_messages(events, max_window) or []
     tool_uses = recent_tool_uses(events, n=10)
     tool_errors = recent_tool_errors(events)
 

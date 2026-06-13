@@ -57,7 +57,11 @@ def lint_one(path: Path) -> list[str]:
     # Deprecation stubs ("DEPRECATED — use X. Do not use.") must NOT carry
     # trigger keywords — their whole point is to never fire (PROMPTER field
     # deploy 2026-06-12: linter demanded 'Use when' on do-not-use stubs).
-    deprecated = desc.strip().upper().startswith("DEPRECATED")
+    # Match the canonical stub SHAPE, not just a "DEPRECATED" prefix: the old
+    # `startswith("DEPRECATED")` falsely exempted real skills like
+    # "Deprecated-API scanner" (a live trigger that legitimately needs 'Use
+    # when'). Require the do-not-use marker that only a real stub carries.
+    deprecated = bool(re.match(r"\s*DEPRECATED\b.*\bdo not use\b", desc, re.I | re.S))
     if not slash_only and not deprecated and not any(h in desc_lc for h in TRIGGER_HINTS):
         issues.append("description should front-load trigger keywords (e.g. 'Use when...', 'Trigger on...')")
     # Section headings are recommended only for longer skill bodies. 40-line

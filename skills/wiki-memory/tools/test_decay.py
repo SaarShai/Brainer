@@ -140,6 +140,39 @@ def test_evidence_count_protects() -> None:
         assert "evidence_count" in page.protection_reason
 
 
+def test_evidence_count_boundary() -> None:
+    """BOUNDARY: protection is `ev >= threshold` (threshold=3). evidence_count==3
+    (exactly at threshold) MUST be protected; evidence_count==2 (just below) must
+    NOT be. This kills a `>=` → `>` mutation, which would leave the ==3 page
+    unprotected."""
+    assert EVIDENCE_PROTECT_THRESHOLD == 3, EVIDENCE_PROTECT_THRESHOLD
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td) / "wiki"
+        root.mkdir()
+        (root / "schema.md").write_text("schema\n")
+        _setup(root, {
+            "L2_facts/at-threshold.md": _page("AtThreshold", 0.9, "2024-01-01",
+                                              extra={"evidence_count": "3"}),
+            "L2_facts/below-threshold.md": _page("BelowThreshold", 0.9, "2024-01-01",
+                                                 extra={"evidence_count": "2"}),
+        })
+        report = decay_all(
+            wiki_root=root, halflife_days=DEFAULT_HALFLIFE_DAYS,
+            today=dt.date(2026, 1, 1), apply=True, archive_threshold=0.0,
+            protected_types=PROTECTED_TYPES, protected_dirs=PROTECTED_DIRS,
+            evidence_threshold=EVIDENCE_PROTECT_THRESHOLD,
+        )
+        at_thr = next(p for p in report.pages if "at-threshold" in p.path)
+        below = next(p for p in report.pages if "below-threshold" in p.path)
+        # ==threshold: protected (kills >= → > mutation)
+        assert at_thr.protected, at_thr
+        assert "evidence_count" in at_thr.protection_reason
+        assert "confidence: 0.90" in (root / "L2_facts/at-threshold.md").read_text()
+        # <threshold: NOT protected, so it decays
+        assert not below.protected, below
+        assert "confidence: 0.90" not in (root / "L2_facts/below-threshold.md").read_text()
+
+
 def test_l3_sops_dir_protected() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = Path(td) / "wiki"
@@ -325,6 +358,7 @@ def main() -> int:
         test_decay_apply_writes_new_confidence,
         test_protected_error_type_does_not_decay,
         test_evidence_count_protects,
+        test_evidence_count_boundary,
         test_l3_sops_dir_protected,
         test_quoted_confidence_rewrite,
         test_crlf_and_bom_frontmatter,

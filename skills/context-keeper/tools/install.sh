@@ -31,8 +31,14 @@ settings_path.parent.mkdir(parents=True, exist_ok=True)
 if settings_path.exists():
     try:
         data = json.loads(settings_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        data = {}
+    except json.JSONDecodeError as e:
+        # NEVER write back over a corrupt/truncated settings.json — that
+        # silently erases the user's other hooks/permissions (codex review
+        # 2026-06-12). Abort; the human fixes or removes the broken file.
+        sys.stderr.write(
+            f"ABORT: {settings_path} exists but is not valid JSON ({e}).\n"
+            f"Fix or remove it, then re-run this installer.\n")
+        sys.exit(1)
 else:
     data = {}
 

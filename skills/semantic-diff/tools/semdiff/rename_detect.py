@@ -24,7 +24,7 @@ def detect_renames(prev_snapshot, curr_snapshot, prev_bodies, curr_bodies):
             ids.remove(new_name)
         new_id_map[new_name] = ids
     
-    results = []
+    candidates = []
     for old_name in removed_names:
         old_ids = old_id_map[old_name]
         for new_name in added_names:
@@ -36,7 +36,20 @@ def detect_renames(prev_snapshot, curr_snapshot, prev_bodies, curr_bodies):
             else:
                 similarity = common / total
             if similarity > 0.7:
-                results.append((old_name, new_name, similarity))
-    
-    results.sort(key=lambda x: -x[2])
+                candidates.append((old_name, new_name, similarity))
+
+    # Greedy 1:1 assignment: take candidates best-first, claiming each old and
+    # each new name at most once. A genuinely-new function that merely shares a
+    # boilerplate identifier set with some removed function is left unclaimed,
+    # so core.render_diff keeps it in `added` and renders its body.
+    candidates.sort(key=lambda x: -x[2])
+    results = []
+    claimed_old = set()
+    claimed_new = set()
+    for old_name, new_name, similarity in candidates:
+        if old_name in claimed_old or new_name in claimed_new:
+            continue
+        claimed_old.add(old_name)
+        claimed_new.add(new_name)
+        results.append((old_name, new_name, similarity))
     return results

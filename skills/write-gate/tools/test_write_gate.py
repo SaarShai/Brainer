@@ -32,9 +32,17 @@ def test_decisions_need_why() -> None:
 
 
 def test_filler_recap_rejected() -> None:
-    # Filler-only text scores below threshold
-    txt = "Basically what we did was some things. In summary, stuff happened. To recap, we did it."
-    assert_rejects(txt, "fact", "pure filler")
+    # Load-bearing: the text carries REAL positive signal (arch + numbers ≈ 3.5,
+    # above threshold), so the only reason it rejects is the filler penalty.
+    # If the filler weight were mutated to 0, the positive signal would carry it
+    # over threshold and this reject would fail — that's the mutation we want killed.
+    dirty = ("In summary, the ingestion worker writes to Postgres and is 12ms p50. "
+             "To recap, index is 320MB on disk. Long story short.")
+    assert_rejects(dirty, "fact", "filler drags real signal under threshold")
+
+    # Positive control: identical claims minus the filler phrases must PASS.
+    clean = "The ingestion worker writes to Postgres and is 12ms p50. Index is 320MB on disk."
+    assert_passes(clean, "fact", "same text without filler passes (proves penalty is load-bearing)")
 
 
 def test_error_lesson_passes() -> None:
@@ -56,9 +64,17 @@ def test_architecture_with_code() -> None:
 
 
 def test_speculation_drops_score() -> None:
-    # Mild signal, but speculation drags it under
-    txt = "Maybe we should probably use Redis. I think it could maybe work."
-    assert_rejects(txt, "fact", "speculation-only")
+    # Load-bearing: the text carries REAL positive signal (arch + numbers ≈ 3.5,
+    # above threshold), so the only reason it rejects is the speculation penalty.
+    # If the speculation weight were mutated to 0, the positive signal would carry
+    # it over threshold and this reject would fail — the mutation we want killed.
+    dirty = ("The cache layer runs on Redis and is 320MB. Reads are 12ms p50 "
+             "against the index. I think it could maybe work, possibly.")
+    assert_rejects(dirty, "fact", "speculation drags real signal under threshold")
+
+    # Positive control: identical claims minus the speculation phrases must PASS.
+    clean = "The cache layer runs on Redis and is 320MB. Reads are 12ms p50 against the index."
+    assert_passes(clean, "fact", "same text without speculation passes (proves penalty is load-bearing)")
 
 
 def test_entity_cap() -> None:
@@ -94,6 +110,27 @@ def test_since_no_longer_satisfies_why_clause() -> None:
     txt = "We chose pgvector over Qdrant. Tracked since yesterday."
     s = score_text(txt, "decision")
     assert not s.has_why, "'since' alone should no longer count as a why-clause"
+
+
+def test_why_clauses_need_word_boundaries() -> None:
+    """REGRESSION: naked substring matching let why-markers fire inside unrelated
+    words — 'overdue tomorrow' matched 'due to', 'reasoning' matched 'the reason' —
+    so reasonless decisions slipped past the why-gate."""
+    # 'overdue' must NOT satisfy via 'due to'; 'reasoning' must NOT via 'the reason'.
+    txt = "We chose pgvector over Qdrant. The migration is overdue tomorrow. Reasoning ongoing."
+    s = score_text(txt, "decision")
+    assert not s.has_why, "boundary-less why-marker fired inside an unrelated word"
+    ok, _ = decide(s, "decision", DEFAULT_THRESHOLD, require_why=True)
+    assert not ok, "reasonless decision must reject when no genuine why-clause is present"
+
+    # Genuine markers still fire on word boundaries.
+    for good in (
+        "We chose pgvector because dev parity matters.",
+        "We chose pgvector due to dev parity.",
+        "We chose pgvector in favor of dev parity.",
+        "We chose pgvector so that local equals prod.",
+    ):
+        assert score_text(good, "decision").has_why, f"genuine why-clause missed: {good!r}"
 
 
 def test_entity_overlap_is_fast_on_large_input() -> None:
@@ -136,6 +173,7 @@ def main() -> int:
         test_metrics_only_below_threshold,
         test_why_clause_inside_fence_does_not_satisfy_gate,
         test_since_no_longer_satisfies_why_clause,
+        test_why_clauses_need_word_boundaries,
         test_entity_overlap_is_fast_on_large_input,
     ]
     failed = 0

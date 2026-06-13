@@ -20,7 +20,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "skills/write-gate/tools"))
-sys.path.insert(0, str(REPO / "skills/memory-decay/tools"))
+sys.path.insert(0, str(REPO / "skills/wiki-memory/tools"))
 sys.path.insert(0, str(REPO / "skills/cache-lint/tools"))
 
 from write_gate import DEFAULT_THRESHOLD, decide, score_text  # noqa: E402

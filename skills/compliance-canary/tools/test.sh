@@ -425,6 +425,85 @@ TX="$TRANSCRIPT_DIR/t32.jsonl"
 out=$(call cc32 sk30 "$TX" s32)
 if [ -z "$out" ]; then ok "healthy rate silent"; else no "healthy rate silent" "got: $(echo "$out" | head -c100)"; fi
 
+echo "[33] tool_use-only transcript (no assistant prose): trajectory_drift still fires"
+# Regression guard: main() must NOT early-return when the recent window has no
+# assistant TEXT. Error-loop turns are tool_use-only — exactly when the
+# non-text detectors must run. (Pre-fix, an `if not messages: return 0` here
+# silenced trajectory_drift/repeated_tool_error/user_correction.)
+PROBES='[{"id":"traj","kind":"trajectory_drift","min_tool_calls":4,"max_error_rate":0.5,"message":"error loop"}]'
+make_skill_with_probes sk33 traj "$PROBES"
+TX="$TRANSCRIPT_DIR/t33.jsonl"
+# NO assistant_text anywhere — only tool_use + tool_error events
+write_transcript "$TX" \
+  "$(assistant_tool_use Bash '{"command":"x"}')" \
+  "$(user_tool_error 'boom one')" \
+  "$(assistant_tool_use Bash '{"command":"y"}')" \
+  "$(user_tool_error 'boom two')" \
+  "$(assistant_tool_use Read '{"file_path":"/a"}')" \
+  "$(assistant_tool_use Read '{"file_path":"/b"}')"
+out=$(call cc33 sk33 "$TX" s33)
+if emitted "$out" && echo "$out" | grep -q 'trajectory_drift'; then ok "trajectory_drift fires with no assistant prose"; else no "trajectory_drift fires with no assistant prose" "got: $(echo "$out" | head -c150)"; fi
+
+echo "[34] tool_use-only transcript (no assistant prose): user_correction still fires"
+# Same regression guard for the prompt-driven detector: correction must fire
+# even when no assistant text precedes it.
+PROBES='[{"id":"uc","kind":"user_correction","pattern":"(?i)(?:^\\s*no[,. ]|i said\\b)","message":"harvest the correction"}]'
+make_skill_with_probes sk34 cv "$PROBES"
+TX="$TRANSCRIPT_DIR/t34.jsonl"
+write_transcript "$TX" \
+  "$(assistant_tool_use Edit '{"file_path":"/x","old_string":"a","new_string":"b"}')"
+payload=$(python3 -c "
+import json,sys
+print(json.dumps({'session_id':'s34','transcript_path':sys.argv[1],'hook_event_name':'UserPromptSubmit','prompt':'no, I said use spaces'}))
+" "$TX")
+out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc34" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk34" $HOOK)
+if emitted "$out" && echo "$out" | grep -q 'user_correction'; then ok "user_correction fires with no assistant prose"; else no "user_correction fires with no assistant prose" "got: $(echo "$out" | head -c150)"; fi
+
+echo "[35] claim_without_evidence: incidental substring ('cat' inside 'category') does NOT count as verification"
+# Word-boundary fix: short verify keywords (cat, ls, build) must not match
+# inside unrelated words. Bash ran 'mkdir category' — the keyword 'cat' is a
+# substring of 'category' but NOT a standalone command, so it is NOT real
+# verification and the done-claim must STILL fire.
+PROBES='[{"id":"unverified","kind":"claim_without_evidence","claim_pattern":"(?i)\\b(done|fixed)\\b","verify_tools":["Bash"],"verify_keywords":["cat","ls","build"]}]'
+make_skill_with_probes sk35 vbc "$PROBES"
+TX="$TRANSCRIPT_DIR/t35.jsonl"
+write_transcript "$TX" \
+  "$(assistant_tool_use Bash '{"command":"mkdir category && echo tools rebuild"}')" \
+  "$(assistant_text 'all done!' u1)"
+out=$(call cc35 sk35 "$TX" s35)
+if emitted "$out" && echo "$out" | grep -q 'claim_without_evidence'; then ok "incidental 'cat'/'ls'/'build' substrings do NOT suppress claim probe"; else no "incidental substrings do NOT suppress claim probe" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[36] claim_without_evidence: a real 'cat' command (word-bounded) DOES count as verification"
+# True-positive preservation: the same keyword as a standalone token must still
+# register as evidence and silence the claim.
+TX="$TRANSCRIPT_DIR/t36.jsonl"
+write_transcript "$TX" \
+  "$(assistant_tool_use Bash '{"command":"cat build/output.log"}')" \
+  "$(assistant_text 'all done!' u1)"
+out=$(call cc36 sk35 "$TX" s36)
+if [ -z "$out" ]; then ok "real 'cat' counts as verification → silent"; else no "real 'cat' counts as verification → silent" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[37] state_lock: a body exception propagates cleanly (not swallowed/replaced)"
+# Exception-safety fix: with state_lock(path) must let a body ValueError
+# propagate as ValueError — pre-fix the contextmanager double-yielded and the
+# real exception was replaced by RuntimeError('generator didn't stop ...').
+LOCKDIR="$STATE_ROOT/lock37"
+mkdir -p "$LOCKDIR"
+res=$(python3 -c "
+import sys
+sys.path.insert(0, '$TOOLS_DIR')
+from pathlib import Path
+from hook import state_lock
+try:
+    with state_lock(Path('$LOCKDIR/x.json')):
+        raise ValueError('boom-body')
+except ValueError as e:
+    print('VALUEERROR:' + str(e))
+except Exception as e:
+    print('OTHER:' + type(e).__name__ + ':' + str(e))
+" 2>/dev/null)
+if [ "$res" = "VALUEERROR:boom-body" ]; then ok "body ValueError propagates cleanly"; else no "body ValueError propagates cleanly" "got: $res"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then

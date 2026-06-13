@@ -314,6 +314,85 @@ def render_template(text: str, values: dict[str, str]) -> str:
     return pattern.sub(repl, text)
 
 
+_TRUST_LINE_RE = re.compile(r"""^trust:\s*["']?asserted["']?\s*$""", re.M)
+_ANY_TRUST_LINE_RE = re.compile(r"^trust:.*$", re.M)
+
+
+def _set_trust_frontmatter(text: str, value: str) -> str:
+    """Set the `trust:` frontmatter key to `value`, scoped to FRONTMATTER ONLY.
+
+    Used by new_page so `--trust` is honored regardless of whether the template
+    carries a `{{trust}}` placeholder (only page.template.md does — handoff/
+    decision/source-summary/import-manifest don't, so a templated page would
+    otherwise default to asserted and lose every resolve() contest).
+
+    Overwrites an existing trust line, inserts one if absent, or synthesizes a
+    minimal frontmatter block if the page has none. Never touches the body.
+    """
+    line = f"trust: {value}"
+    m = _FRONTMATTER_OPEN_RE.match(text)
+    if not m:
+        return f"---\n{line}\n---\n\n" + text
+    fm_start = m.end()
+    close = _FRONTMATTER_CLOSE_RE.search(text, fm_start)
+    if close is None:
+        return f"---\n{line}\n---\n\n" + text
+    head = text[:fm_start]
+    fm_block = text[fm_start:close.start()]
+    tail = text[close.start():]
+    if _ANY_TRUST_LINE_RE.search(fm_block):
+        new_block = _ANY_TRUST_LINE_RE.sub(line, fm_block, count=1)
+    else:
+        new_block = line + "\n" + fm_block
+    return head + new_block + tail
+
+
+def _promote_trust_frontmatter(text: str) -> str:
+    """Promote a page's `trust:` to `corroborated`, scoped to FRONTMATTER ONLY.
+
+    Returns the new text (unchanged if already promoted / nothing to do).
+
+    Three cases, all idempotent on a second pass:
+      1. Frontmatter has a `trust: asserted` line (quoted or not) -> rewrite that
+         one line to `trust: corroborated`.
+      2. Frontmatter exists but has no trust line -> insert `trust: corroborated`
+         as the first frontmatter key.
+      3. No leading frontmatter at all -> synthesize a minimal
+         `---\ntrust: corroborated\n---\n\n` prefix so the promotion persists and
+         the page stops re-qualifying.
+
+    The old implementation ran the bare `trust: asserted` regex against the RAW
+    whole document (re.M, no frontmatter boundary), which (a) missed quoted
+    values and then prepended a *second* trust key (duplicate, asserted wins,
+    unbounded re-qualification), (b) rewrote a body line that happened to read
+    `trust: asserted` while never promoting the frontmatter, and (c) silently
+    no-op'd no-frontmatter pages. Scoping to the frontmatter span fixes all three.
+    """
+    m = _FRONTMATTER_OPEN_RE.match(text)
+    if not m:
+        # Case 3: no frontmatter — synthesize a minimal one.
+        return "---\ntrust: corroborated\n---\n\n" + text
+    fm_start = m.end()
+    close = _FRONTMATTER_CLOSE_RE.search(text, fm_start)
+    if close is None:
+        # Open fence but no close — malformed; treat like no frontmatter and
+        # prepend rather than risk corrupting the body.
+        return "---\ntrust: corroborated\n---\n\n" + text
+    head = text[:fm_start]               # includes the opening `---\n` (+ any BOM)
+    fm_block = text[fm_start:close.start()]
+    tail = text[close.start():]          # the closing `\n---\n...` + body
+    if _TRUST_LINE_RE.search(fm_block):
+        # Case 1: rewrite the existing asserted trust line (count=1).
+        new_block = _TRUST_LINE_RE.sub("trust: corroborated", fm_block, count=1)
+        return head + new_block + tail
+    # Already at/above corroborated? Leave it (idempotency for re-runs).
+    if re.search(r"^trust:\s*", fm_block, re.M):
+        return text
+    # Case 2: frontmatter without a trust line — insert one as the first key.
+    new_block = "trust: corroborated\n" + fm_block
+    return head + new_block + tail
+
+
 class WikiReadOnEmptyError(RuntimeError):
     """Read op against a repo with no wiki root — graceful empty, never scaffold."""
 
@@ -583,6 +662,13 @@ class WikiStore:
         if not self.root.exists():
             raise WikiReadOnEmptyError(f"no wiki at {self.root}")
         if not self.db_path.exists():
+            # An existing-but-empty/un-indexed root is read-equivalent to a
+            # missing one: scaffolding ~15 dirs/files on a READ op (search/
+            # fetch/timeline) violates the read-never-scaffold guarantee and
+            # crashes with PermissionError in a read-only sandbox. Only build
+            # the index when there is actually markdown content to index.
+            if not self.iter_markdown():
+                raise WikiReadOnEmptyError(f"no wiki content at {self.root}")
             self.index()
             return
         try:
@@ -770,7 +856,7 @@ class WikiStore:
             },
         }
 
-    def fetch(self, item_id: str) -> dict[str, Any]:
+    def fetch(self, item_id: str, bump: bool = True) -> dict[str, Any]:
         self._ensure_db()
         key = item_id.removesuffix(".md")
         with sqlite3.connect(self.db_path) as conn:
@@ -778,7 +864,11 @@ class WikiStore:
             row = conn.execute("SELECT * FROM docs WHERE id = ? OR path = ?", (key, item_id)).fetchone()
         if not row:
             raise KeyError(f"wiki page not found: {item_id}")
-        self._bump_usage(row["id"])
+        # bump=False is the metadata-only read path (e.g. timeline): it must not
+        # inflate the fetch-reuse ledger that consolidate() reads — only an
+        # explicit `fetch` counts as use (SKILL.md / _bump_usage docstring).
+        if bump:
+            self._bump_usage(row["id"])
         return {
             "id": row["id"],
             "path": row["path"],
@@ -789,7 +879,9 @@ class WikiStore:
         }
 
     def timeline(self, item_id: str, window: int = 3) -> dict[str, Any]:
-        page = self.fetch(item_id)
+        # bump=False: timeline is a metadata-only read; it must not count as a
+        # fetch in the reuse ledger that consolidate() consumes.
+        page = self.fetch(item_id, bump=False)
         pages = self.pages()
         target_id = page["id"]
         target_title = page["title"]
@@ -1367,13 +1459,30 @@ class WikiStore:
     def _bump_usage(self, page_id: str) -> None:
         """Fetch-count ledger feeding `consolidate` — reuse is the cheapest
         honest corroboration signal we have. Never on the search path (too
-        noisy); only an explicit fetch counts as use."""
+        noisy); only an explicit fetch counts as use.
+
+        Write atomically: dump to a temp file in state_dir, then os.replace onto
+        usage.json. A non-atomic write that's interrupted mid-flight leaves a
+        truncated/corrupt usage.json — both _bump_usage and consolidate `except`
+        to {}, which would permanently zero the ledger."""
+        import os
         try:
             self.state_dir.mkdir(exist_ok=True)
             path = self._usage_path()
             data = json.loads(path.read_text()) if path.exists() else {}
             data[page_id] = int(data.get(page_id, 0)) + 1
-            path.write_text(json.dumps(data, indent=0, sort_keys=True))
+            tmp = path.with_name(path.name + f".tmp.{os.getpid()}")
+            try:
+                tmp.write_text(json.dumps(data, indent=0, sort_keys=True))
+                os.replace(tmp, path)
+            except Exception:
+                # Leave the existing (consistent) usage.json untouched rather
+                # than half-writing it; clean up the temp if it was created.
+                try:
+                    tmp.unlink()
+                except OSError:
+                    pass
+                raise
         except Exception:
             pass  # usage tracking must never break a read
 
@@ -1406,16 +1515,10 @@ class WikiStore:
             for cand in promote:
                 ppath = cand.pop("_path")
                 text = ppath.read_text(encoding="utf-8")
-                if re.search(r"^trust:\s*asserted\s*$", text, re.M):
-                    ppath.write_text(re.sub(r"^trust:\s*asserted\s*$",
-                                            "trust: corroborated", text, count=1, flags=re.M),
-                                     encoding="utf-8")
-                elif text.startswith("---\n"):
-                    text = text.replace("---\n", "---\ntrust: corroborated\n", 1)
-                    ppath.write_text(text, encoding="utf-8")
-                else:
-                    continue
-                applied.append(cand["id"])
+                new_text = _promote_trust_frontmatter(text)
+                if new_text != text:
+                    ppath.write_text(new_text, encoding="utf-8")
+                    applied.append(cand["id"])
             if applied:
                 self._invalidate_caches()
         for cand in promote:
@@ -1589,15 +1692,22 @@ class WikiStore:
         target = self.root / target_dir / filename
         if target.exists():
             raise FileExistsError(target)
+        trust_value = trust if trust in TRUST_TIERS else DEFAULT_TRUST
         content = render_template(
             content_template,
             {
                 "title": title,
                 "domain": domain,
                 "date": today,
-                "trust": trust if trust in TRUST_TIERS else DEFAULT_TRUST,
+                "trust": trust_value,
             },
         )
+        # Honor --trust for ALL templates, not just the one carrying a {{trust}}
+        # placeholder (only page.template.md does). Inject/overwrite the trust
+        # frontmatter key programmatically so handoff/decision/source-summary/
+        # import-manifest pages don't silently default to asserted and lose
+        # every resolve() contest.
+        content = _set_trust_frontmatter(content, trust_value)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
         self.append_log("update", title, f"Created `{target.relative_to(self.root).as_posix()}` from `{template}` template.")
