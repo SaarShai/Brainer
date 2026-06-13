@@ -2,44 +2,44 @@
   "reports": [
     {
       "skill": "write-gate",
-      "n": 56,
+      "n": 60,
       "acc_reliable": true,
-      "baseline_acc": 0.9643,
+      "baseline_acc": 0.9667,
       "rules": [
         {
           "rule": "weight:decision",
           "flips": 8,
-          "acc_delta": -0.1429
+          "acc_delta": -0.1333
         },
         {
           "rule": "weight:error",
           "flips": 4,
-          "acc_delta": -0.0714
+          "acc_delta": -0.0667
         },
         {
           "rule": "weight:architecture",
-          "flips": 7,
-          "acc_delta": -0.125
+          "flips": 9,
+          "acc_delta": -0.15
         },
         {
           "rule": "weight:code_block",
           "flips": 1,
-          "acc_delta": -0.0179
+          "acc_delta": -0.0167
         },
         {
           "rule": "weight:numbers",
-          "flips": 3,
-          "acc_delta": -0.0536
+          "flips": 5,
+          "acc_delta": -0.0833
         },
         {
           "rule": "weight:why_clause",
           "flips": 5,
-          "acc_delta": -0.0893
+          "acc_delta": -0.0833
         },
         {
           "rule": "weight:procedure",
           "flips": 2,
-          "acc_delta": -0.0357
+          "acc_delta": -0.0333
         },
         {
           "rule": "weight:entity_overlap",
@@ -48,18 +48,18 @@
         },
         {
           "rule": "weight:filler",
-          "flips": 0,
-          "acc_delta": 0.0
+          "flips": 1,
+          "acc_delta": -0.0167
         },
         {
           "rule": "weight:speculation",
-          "flips": 0,
-          "acc_delta": 0.0
+          "flips": 1,
+          "acc_delta": -0.0167
         },
         {
           "rule": "why_gate(require_why)",
           "flips": 5,
-          "acc_delta": -0.0893
+          "acc_delta": -0.0833
         }
       ]
     },
@@ -98,14 +98,6 @@
     [
       "write-gate",
       "weight:entity_overlap"
-    ],
-    [
-      "write-gate",
-      "weight:filler"
-    ],
-    [
-      "write-gate",
-      "weight:speculation"
     ],
     [
       "prompt-triage",

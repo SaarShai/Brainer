@@ -1,6 +1,6 @@
 {
   "threshold": 3.0,
-  "elapsed_s": 0.056,
+  "elapsed_s": 0.054,
   "real_corpus": {
     "n_pages": 174,
     "overall_acceptance": 0.764,
@@ -268,7 +268,7 @@
         "score": 17.0,
         "has_why": true,
         "passed": true,
-        "size": 58198
+        "size": 59852
       },
       {
         "path": "patterns/compound-compression-pipeline.md",
