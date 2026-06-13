@@ -268,7 +268,7 @@
         "score": 17.0,
         "has_why": true,
         "passed": true,
-        "size": 57170
+        "size": 58198
       },
       {
         "path": "patterns/compound-compression-pipeline.md",

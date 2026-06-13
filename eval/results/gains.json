@@ -1,0 +1,36 @@
+[
+  {
+    "skill": "output-filter",
+    "metric": "token reduction on noisy log",
+    "value": 83.6,
+    "unit": "% fewer tokens (est)",
+    "baseline": "unfiltered stream",
+    "signal_preserved": true,
+    "detail": "4127->677 est tokens"
+  },
+  {
+    "skill": "skill-pulse",
+    "metric": "re-anchor payload / 1000 turns",
+    "value": 97.05,
+    "unit": "% fewer tokens vs full-body re-injection",
+    "baseline": "re-inject 8 full SKILL.md bodies every 4 turns",
+    "detail": "76,250 vs 2,586,000 tok/1000-turns (8 skills)"
+  },
+  {
+    "skill": "write-gate",
+    "metric": "candidate-memory noise rejected",
+    "value": 37.1,
+    "unit": "% of candidate tokens kept out of durable memory",
+    "baseline": "ungated (admit every candidate)",
+    "detail": "898/1427 est tokens admitted"
+  },
+  {
+    "skill": "cache-lint",
+    "metric": "billed prefix tokens saved by fixing a Rule-2 FAIL",
+    "value": 87.4,
+    "unit": "% fewer billed prefix tokens over 20 turns",
+    "baseline": "unfixed dynamic-content FAIL (full cache-write each turn)",
+    "detail": "FAIL detected=True; 41,350->5,210 billed tok @N=20",
+    "hitrate_uplift_pp": 95.0
+  }
+]

@@ -1,0 +1,119 @@
+{
+  "reports": [
+    {
+      "skill": "write-gate",
+      "n": 56,
+      "acc_reliable": true,
+      "baseline_acc": 0.9643,
+      "rules": [
+        {
+          "rule": "weight:decision",
+          "flips": 8,
+          "acc_delta": -0.1429
+        },
+        {
+          "rule": "weight:error",
+          "flips": 4,
+          "acc_delta": -0.0714
+        },
+        {
+          "rule": "weight:architecture",
+          "flips": 7,
+          "acc_delta": -0.125
+        },
+        {
+          "rule": "weight:code_block",
+          "flips": 1,
+          "acc_delta": -0.0179
+        },
+        {
+          "rule": "weight:numbers",
+          "flips": 3,
+          "acc_delta": -0.0536
+        },
+        {
+          "rule": "weight:why_clause",
+          "flips": 5,
+          "acc_delta": -0.0893
+        },
+        {
+          "rule": "weight:procedure",
+          "flips": 2,
+          "acc_delta": -0.0357
+        },
+        {
+          "rule": "weight:entity_overlap",
+          "flips": 0,
+          "acc_delta": 0.0
+        },
+        {
+          "rule": "weight:filler",
+          "flips": 0,
+          "acc_delta": 0.0
+        },
+        {
+          "rule": "weight:speculation",
+          "flips": 0,
+          "acc_delta": 0.0
+        },
+        {
+          "rule": "why_gate(require_why)",
+          "flips": 5,
+          "acc_delta": -0.0893
+        }
+      ]
+    },
+    {
+      "skill": "prompt-triage",
+      "n": 48,
+      "acc_reliable": false,
+      "baseline_acc": 0.6667,
+      "baseline_note": "acc indicative only \u2014 corpus schema predates current guards",
+      "rules": [
+        {
+          "rule": "context-guard(_needs_session_context)",
+          "flips": 2,
+          "acc_delta": 0.0208
+        },
+        {
+          "rule": "brief-gate(_multi_objective)",
+          "flips": 0,
+          "acc_delta": 0.0
+        },
+        {
+          "rule": "complex-hints(_looks_complex)",
+          "flips": 2,
+          "acc_delta": 0.0
+        },
+        {
+          "rule": "length-gate(LENGTH_GATE_CHARS)",
+          "flips": 0,
+          "acc_delta": 0.0
+        }
+      ]
+    }
+  ],
+  "harmful": [],
+  "dead": [
+    [
+      "write-gate",
+      "weight:entity_overlap"
+    ],
+    [
+      "write-gate",
+      "weight:filler"
+    ],
+    [
+      "write-gate",
+      "weight:speculation"
+    ],
+    [
+      "prompt-triage",
+      "brief-gate(_multi_objective)"
+    ],
+    [
+      "prompt-triage",
+      "length-gate(LENGTH_GATE_CHARS)"
+    ]
+  ]
+}

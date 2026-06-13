@@ -107,6 +107,46 @@ class that bit us twice today); **H4** finally puts numbers on the prose skills.
 "how efficient/reliable is skill X, and what should change" a query you *run*, not estimate.
 
 ---
+
+## First measured results (2026-06-13) — H1/H3/H4 built + run
+
+Built the harnesses and ran them. Artifacts: `eval/results/{ablation,gains,behavioral}.json`;
+tools: `eval/ablation.py`, `eval/gains.py`, `eval/behavioral.py`.
+
+**H1 — ablation (`eval/ablation.py`, deterministic, wired into the gate as `ablation-guard`).**
+Finding: **skills are well-tuned; no rule is net-harmful.** write-gate feature hierarchy by
+decision-flips: decision (8) > architecture (7) > why_clause/why-gate (5) > error (4) >
+numbers (3) > procedure (2) > code_block (1), all load-bearing; filler/speculation/entity_overlap
+are low-impact defense-in-depth (0 corpus flips — kept, not trimmed). prompt-triage: context-guard
+and complex-hints change decisions; brief-gate/length-gate are unit-tested rather than in this
+corpus. The harness treats triage `acc_delta` as indicative-only (its corpus schema predates the
+current guards) so it never raises a false "harmful" verdict. Gate guard fires only if a write-gate
+feature ever becomes net-harmful (a real miscalibration signal).
+
+**H3 — gain-vs-baseline (`eval/gains.py`, deterministic). Headline gains in honest units:**
+
+| skill | gain | vs baseline |
+|---|---|---|
+| skill-pulse | **97.0%** fewer tokens (76k vs 2.59M / 1000 turns) | re-injecting 8 full SKILL.md bodies every 4 turns |
+| cache-lint | **87.4%** fewer billed prefix tokens / 20 turns (hit-rate +95pp) | unfixed Rule-2 FAIL — *fills EVAL.md's flagged-unmeasured ≥30%* |
+| output-filter | **83.6%** fewer tokens, signal preserved | unfiltered noisy stream |
+| write-gate | **37.1%** of candidate tokens kept out of memory | ungated (admit every candidate) |
+
+**H4 — behavioral (`eval/behavioral.py`, qwen2.5:7b-instruct, seeds 0/1, deterministic scoring,
+NOT gated — model-dependent tier).**
+- caveman-ultra: **95.2%** mean output-token reduction with skill body vs without. Honest weak-spot
+  surfaced: **verbatim preservation 1/2** on the 7B (drops a protected path/number under terse
+  pressure — small-model instruction-following limit, not a skill defect).
+- think: sycophancy **0 → 0** — honest null on this model/corpus (7B resists the bait either way;
+  needs a sycophancy-prone model or stronger bait to show lift).
+
+**Net:** no skill code needed changing (forcing one would be the bloat/regression risk to avoid).
+Four previously-estimated/unmeasured gains are now measured numbers, the suite has evidence it is
+well-tuned, and the ablation guard locks in "no feature goes net-harmful." Honest gaps left as
+noted future work (triage corpus schema stale vs current guards; think's behavioral metric needs
+better bait), not papered over.
+
+---
 <!-- AUTO-GENERATED per-skill detail; synthesis section is hand-written above the marker. -->
 
 ## cache-lint  ·  has_tools=True

@@ -78,6 +78,11 @@ done
 # 5b. Deterministic eval sims (offline; exit code is the verdict)
 run "sims" python3 eval/sims/run_all.py --quiet
 
+# 5c. Ablation guard — fails only if a write-gate feature becomes NET-HARMFUL on
+# the labeled corpus (removing it would improve accuracy). A real miscalibration
+# signal; 0-flip/low-impact features are reported but never fail the gate.
+run "ablation-guard" python3 eval/ablation.py --json
+
 # 6. Hook self-test suites
 run "hook:compliance-canary" bash skills/compliance-canary/tools/test.sh
 run "hook:skill-pulse" bash skills/skill-pulse/tools/test.sh
