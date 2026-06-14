@@ -35,6 +35,8 @@ graphify query "<page subject>"   # OR Grep — confirm where the code lives NOW
 
 **`protected: true` pages** (type ∈ error/lesson/sop/procedure, or `L3_sops/`) report drift but are not auto-actioned — a lesson stays protective even when its example code is gone. Surface, never auto-delete.
 
+**Epistemic lenses (periodic, report-only — heuristic aids, never gates).** Three further `wiki.py` verbs (defined in [`wiki-memory`](../wiki-memory/SKILL.md)) feed refresh decisions: `maturity` → `demotion_candidates` route into the contradiction pass below, `promotion_candidates` into Update/Consolidate; `synth-candidates` → cluster groups into Consolidate; `claim-audit` → thin-evidence pages into Replace/Delete review. Per-claim typing is noisy (measured) — read aggregates, treat outputs as candidates to confirm, not verdicts.
+
 ## Scope
 
 Default: all material pages (`L2_facts/`, `concepts/`, `patterns/`, `projects/`, `queries/`). Exclude `raw/` (immutable), index/log/schema/L0/L1, and support dirs. A scope hint (module, dir, tag, filename) narrows via `wiki.py search` first.
