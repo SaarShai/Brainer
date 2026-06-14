@@ -350,6 +350,15 @@ class TestContradictScan(unittest.TestCase):
         self.assertEqual(r["verb"], "supersede")
         self.assertEqual(r["keep"], "concepts/na")
 
+    def test_resolution_unpadded_dates_dispute(self):
+        # raw-string date compare used to invert newer-wins; unparseable -> dispute (C2)
+        _write(self.root, "concepts/u1.md", _v2("U", extra={"tags": "[u]", "updated": "2026-9-1"},
+               body="\n# U\n\nRaw pages are immutable after creation here.\n"))
+        _write(self.root, "concepts/u2.md", _v2("U", extra={"tags": "[u]", "updated": "2026-10-1"},
+               body="\n# U\n\nRaw pages are not immutable after creation here.\n"))
+        cand = next(c for c in WikiStore(self.root).contradict_scan()["candidates"] if c.get("polarity_conflicts"))
+        self.assertEqual(cand["suggested_resolution"]["basis"], "unparseable recency")
+
     def test_resolution_dispute_when_equal(self):
         # equal trust AND recency -> dispute (flag both)
         _write(self.root, "concepts/da.md", _v2("Block", extra={"tags": "[blk]"},
@@ -622,6 +631,31 @@ class TestMaturity(unittest.TestCase):
         WikiStore(self.root).maturity()
         self.assertEqual(before, sorted(p.name for p in self.root.rglob("*.md")))
 
+    def test_self_contradiction_not_demoted(self):
+        # a page that lists ITSELF in contradicts: is not a conflict-driven demotion (C8)
+        _write(self.root, "concepts/selfc.md",
+               _v2("Self", type_="sop", extra={"contradicts": "[[concepts/selfc]]"},
+                   body="\n# Self\n\nAlways X here. Never Y here. Do not Z. Ensure W exists.\n"))
+        rep = WikiStore(self.root).maturity()
+        self.assertNotIn("concepts/selfc", {c["id"] for c in rep["demotion_candidates"]})
+
+    def test_contradicted_page_not_double_counted(self):
+        # type=lesson + contradicted + observation-stage + cited 3x -> demote ONLY (C14)
+        _write(self.root, "concepts/both.md",
+               _v2("Both", type_="lesson", extra={"contradicts": "[[concepts/other]]"},
+                   body="\n# Both\n\nThe measured latency was 5ms in this run. "
+                        "All 12 integration tests passed cleanly here. "
+                        "The cold build took 4 seconds on this machine.\n"))
+        _write(self.root, "concepts/other.md", _v2("Other", body="\n# Other\n\nplaceholder target here.\n"))
+        for x in "xyz":
+            _write(self.root, f"concepts/cb{x}.md",
+                   _v2(f"Cb{x}", body=f"\n# Cb{x}\n\nsee [[concepts/both]] for detail {x} here now\n"))
+        rep = WikiStore(self.root).maturity(promote_inbound=3)
+        dem = {c["id"] for c in rep["demotion_candidates"]}
+        pro = {c["id"] for c in rep["promotion_candidates"]}
+        self.assertIn("concepts/both", dem)
+        self.assertNotIn("concepts/both", pro)
+
     def test_falsifier_regex(self):
         from wiki import _FALSIFIER_RE
         self.assertTrue(_FALSIFIER_RE.search("This breaks when the cache is cold."))
@@ -641,8 +675,13 @@ class TestExclusionsAndKeyedNumbers(unittest.TestCase):
         from wiki import keyed_numbers
         # "generate 3 variants" must record '3', NOT '3vari' (unit grabbed across space)
         self.assertEqual(keyed_numbers("generate 3 variants per run").get("generate"), {"3"})
-        # adjacent units still attach
-        self.assertEqual(keyed_numbers("latency 113ms here").get("latency"), {"113ms"})
+        # unit is DROPPED from the stored value (review C4) so '113ms' and '113'
+        # collide rather than spuriously diverging
+        self.assertEqual(keyed_numbers("latency 113ms here").get("latency"), {"113"})
+        self.assertEqual(keyed_numbers("timeout 30s").get("timeout"),
+                         keyed_numbers("timeout 30").get("timeout"))
+        # copula phrasing keys the SUBJECT, not 'is'/'was' (review C1/C13)
+        self.assertEqual(keyed_numbers("p99 latency is 200ms").get("latency"), {"200"})
 
     def test_vendor_dir_excluded_from_knowledge(self):
         tmp = tempfile.TemporaryDirectory()
@@ -702,6 +741,15 @@ class TestCalibration(unittest.TestCase):
         WikiStore(self.root).calibration()
         self.assertEqual(before, sorted(p.name for p in self.root.rglob("*.md")))
 
+    def test_nonfinite_confidence_skipped(self):
+        # nan/inf confidence must not crash, emit invalid JSON, or be mis-flagged (C3)
+        _write(self.root, "concepts/nanp.md",
+               _v2("Nan", extra={"confidence": "nan"}, body="\n# Nan\n\nbody here.\n"))
+        rep = WikiStore(self.root).calibration()
+        ids = {r["id"] for r in rep["overconfident"] + rep["underconfident"]}
+        self.assertNotIn("concepts/nanp", ids)
+        json.dumps(rep, allow_nan=False)  # must be strict-JSON serializable
+
 
 class TestHealth(unittest.TestCase):
     def setUp(self):
@@ -757,6 +805,16 @@ class TestGaps(unittest.TestCase):
         before = sorted(p.name for p in self.root.rglob("*.md"))
         WikiStore(self.root).gaps()
         self.assertEqual(before, sorted(p.name for p in self.root.rglob("*.md")))
+
+    def test_degenerate_targets_skipped(self):
+        # [[?]] / [[ ]] must not produce an empty-string concept gap (C9)
+        _write(self.root, "concepts/deg.md",
+               _v2("Deg", body="\n# Deg\n\nbad [[?]] and [[   ]] plus [[?planned-x]] and [[?planned-x]]\n"))
+        rep = WikiStore(self.root).gaps(min_refs=1)
+        concepts = {g["concept"] for g in rep["gaps"]}
+        self.assertNotIn("", concepts)
+        self.assertNotIn("   ", concepts)
+        self.assertIn("planned-x", concepts)
 
 
 class TestCLISmoke(unittest.TestCase):
