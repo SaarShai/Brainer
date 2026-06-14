@@ -6,8 +6,8 @@ domain: framework
 tier: semantic
 confidence: 0.75
 created: 2026-04-25
-updated: 2026-06-06
-verified: 2026-06-06
+updated: 2026-06-14
+verified: 2026-06-14
 sources: [https://github.com/obra/superpowers, raw/2026-04-17-research-brief.md, raw/2026-04-18-karpathy-wiki-spinoffs.md]
 supersedes: []
 superseded-by:
@@ -32,7 +32,7 @@ Superpowers is useful to Brainer less as a dependency and more as a workflow pat
 ## Applied In This Repo
 
 - The skills catalog (`skills/SKILLS_INDEX.md`) points to skills on demand instead of loading every workflow.
-- `skills/handoff/SKILL.md` keeps handoff behavior behind a trigger.
+- Handoff behavior (skill since removed) once kept handoff discipline behind a trigger.
 - `skills/lean-execution/SKILL.md` enforces compact result packets instead of transcripts for delegated workers.
 - Per-skill test suites (e.g. `skills/wiki-memory/tools/test_refresh.py`) pin contracts so workflow drift is caught.
 

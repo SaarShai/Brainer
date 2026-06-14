@@ -6,9 +6,9 @@ domain: "agent-operations"
 tier: semantic
 confidence: 0.9
 created: "2026-04-26"
-updated: "2026-04-26"
-verified: "2026-04-26"
-sources: [start.md, L0_rules.md, skills/lean-execution/SKILL.md, skills/wiki-write/SKILL.md, skills/subagent-orchestrator/SKILL.md, https://github.com/addyosmani/agent-skills, https://github.com/openai/skills, https://github.com/memodb-io/Acontext, https://agilemanifesto.org/principles, https://global.toyota/en/company/vision-and-philosophy/production-system/, https://www.martinfowler.com/bliki/Yagni.html, https://basecamp.com/shapeup/2.2-chapter-08, https://developers.openai.com/cookbook/examples/agents_sdk/session_memory, https://code.claude.com/docs/en/best-practices]
+updated: "2026-06-14"
+verified: "2026-06-14"
+sources: [start.md, L0_rules.md, skills/lean-execution/SKILL.md, https://github.com/addyosmani/agent-skills, https://github.com/openai/skills, https://github.com/memodb-io/Acontext, https://agilemanifesto.org/principles, https://global.toyota/en/company/vision-and-philosophy/production-system/, https://www.martinfowler.com/bliki/Yagni.html, https://basecamp.com/shapeup/2.2-chapter-08, https://developers.openai.com/cookbook/examples/agents_sdk/session_memory, https://code.claude.com/docs/en/best-practices]
 supersedes: []
 superseded-by:
 tags: [lean, planning, delegation, context, process-rot]
@@ -41,8 +41,8 @@ Brainer should treat plans, context, delegation, and process artifacts as invent
 - Add a startup trigger for simplification/process-rot checks.
 - Add an L0 rule to prune plans before execution.
 - Update `plan-first-execute` with a simplification pass and low-risk planning bypass.
-- Update `subagent-orchestrator` with an overhead gate and compact result budget.
-- Update `wiki-write` to prefer enriching existing pages, skip trivial learnings, and record applicability/prevention for reusable procedures and failures.
+- Update the former subagent-orchestrator skill (now merged into prompt-triage) with an overhead gate and compact result budget.
+- Update the former wiki-write skill (now folded into wiki-memory and write-gate) to prefer enriching existing pages, skip trivial learnings, and record applicability/prevention for reusable procedures and failures.
 
 ## Not Imported
 

@@ -3,6 +3,8 @@ type: project
 tags: [compaction, context-management, memory, hooks]
 confidence: med
 evidence_count: 1
+updated: 2026-06-14
+verified: 2026-06-14
 ---
 
 # context-keeper — structured state preservation before compaction
@@ -74,7 +76,7 @@ Unique: schema-stable extraction (structured `tool_use` walks for commands/files
 - Transcript format changes could break parsing (Anthropic-internal). Extract uses `ev.message.content` fallback to `ev.content`; parseable-non-dict lines and `message`-as-non-dict are normalized at `iter_events` (2026-06-12 — previously crashed extraction silently, losing the snapshot).
 - Regex path filter requires file extension; may miss some paths.
 - `failed_attempts` is keyword-first windowing (2026-06-12 rewrite — the old leading-`{10,150}` regex went quadratic on long unbroken lines: 23s → 0.5s per 10k events); heuristic either way — capture rationale in the handoff or wiki page when you need it.
-- Tests: `tools/tests/test_extract.py` (crash, fidelity, linear-time bound) — in `run_all_tests.sh`.
+- Tests: `skills/context-keeper/tools/tests/test_extract.py` (crash, fidelity, linear-time bound) — in `run_all_tests.sh`.
 
 ## Next
 - Add `decisions` extraction from `<thinking>` blocks (currently skipped — encrypted signature).
