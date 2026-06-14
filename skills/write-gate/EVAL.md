@@ -58,3 +58,7 @@ Without a content gate, memory fills with:
 - Trivia inflated into procedures
 
 Result: noisy memory → wrong context injected → worse answers. This skill makes write-side quality the bottleneck instead of post-hoc cleanup.
+
+## Measured gain (2026-06-13, `eval/gains.py` + `eval/ablation.py`)
+
+The gate keeps **38% of candidate-memory tokens out of durable storage** vs ungated (admit-all) on the labeled corpus — quantifies the memory-pollution prevented. H1 ablation confirms the 7 positive features are load-bearing and the filler/speculation penalties ARE decisive at the decision boundary (a hedged fact `…maybe holds 320MB…` scores +2.0 REJECT vs +3.5 KEEP without the penalty); boundary cases added to `write_gate_labeled.jsonl` so those penalties are now regression-covered. FP=0 preserved.

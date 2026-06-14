@@ -45,6 +45,7 @@ For external eval:
 - **True-positive rate** on a hand-labeled set of 20 Claude Code projects with known cache-bust patterns. Target: ≥80%.
 - **False-positive rate** on the same projects. Target: ≤10%. The dropped backtick check was a direct response to FP overhead.
 - **$/session impact** when paired with `vnmoorthy/ccmeter` telemetry on a project before/after fixing FAILs. Target: ≥30% cache-hit-rate uplift on a project that previously had a Rule 2 or Rule 6 FAIL.
+  - **Measured (2026-06-13, static model — `eval/gains.py`):** fixing a Rule-2 dynamic-content FAIL on a ~1,500-token prefix yields **87.4% fewer billed prefix tokens over a 20-turn session** (cache-hit-rate 0→95%), under Anthropic's published cache pricing (write 1.25×, read 0.1×). This clears the ≥30% target statically; live ccmeter telemetry remains the field confirmation. H1 ablation (`eval/ablation.py`) separately confirms all three Rule-2 mechanisms (typography-skip, per-pattern-cap, fence-parity) are load-bearing.
 
 ## Known limits
 

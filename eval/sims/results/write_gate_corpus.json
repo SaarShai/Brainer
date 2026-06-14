@@ -1,6 +1,6 @@
 {
   "threshold": 3.0,
-  "elapsed_s": 0.056,
+  "elapsed_s": 0.055,
   "real_corpus": {
     "n_pages": 174,
     "overall_acceptance": 0.764,

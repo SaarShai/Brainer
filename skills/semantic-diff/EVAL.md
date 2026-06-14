@@ -44,3 +44,7 @@ _Provenance/rationale below is maintainer context, not runtime instruction — r
 ## Lineage
 
 Inspired by cocoindex-code (AST MCP, claims 70% reduction + 80-90% cache hit). Our scope is narrower (file re-read diff, not full codebase index) and our measurements are repeatable on the published dataset.
+
+## Measured gain (2026-06-13, `eval/gains.py`)
+
+**97.3% fewer tokens** re-reading a 446-line file after a 2-function edit (4,672→127 est tokens), **break-even after R*=2 re-reads** vs naive full re-read — confirms the AST-node-diff savings claim deterministically. tree_sitter-guarded.

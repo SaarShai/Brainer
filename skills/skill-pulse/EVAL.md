@@ -87,3 +87,7 @@ _Provenance/rationale below is maintainer context, not runtime instruction — r
 - arXiv [2510.07777](https://arxiv.org/html/2510.07777) — empirical basis for timed reminders
 - arXiv [2411.07037 LIFBench](https://arxiv.org/abs/2411.07037), [2402.10962](https://arxiv.org/abs/2402.10962) — instruction-stability benchmarks
 - [Michaelliv/pi-system-reminders](https://github.com/Michaelliv/pi-system-reminders) — reactive system-reminders SDK (related but condition-triggered, not periodic)
+
+## Measured gain (2026-06-13, `eval/gains.py`)
+
+The pulse re-anchor payload costs **97% fewer tokens per 1000 turns** (~76k) than re-injecting the 8 pulse skills' full SKILL.md bodies at the same cadence (~2.59M) — the token economy that justifies periodic one-line reminders over full re-reads. Deterministic; computed from the real catalog.
