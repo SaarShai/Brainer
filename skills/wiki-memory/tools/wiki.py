@@ -401,7 +401,10 @@ def rewrite_wikilinks_to_okf(body: str, resolve) -> str:
 
 
 _NUM_RE = re.compile(r"(?<![\w.])(\d+(?:\.\d+)?)")
-_KEYED_NUM_RE = re.compile(r"([A-Za-z][A-Za-z0-9_\- ]{1,40}?)[\s:=]+(\d+(?:\.\d+)?)\s*([%A-Za-z]{0,4})")
+# Unit is ADJACENT-ONLY (no whitespace before it): "113ms"/"405d"/"50%" attach a
+# unit; "generate 3 variants" does NOT grab "vari" across the space (that junk
+# 'unit' produced spurious '3vari' contradiction keys on PROMPTER).
+_KEYED_NUM_RE = re.compile(r"([A-Za-z][A-Za-z0-9_\- ]{1,40}?)[\s:=]+(\d+(?:\.\d+)?)(%|[a-z]{1,2})?\b")
 _NEGATION = {"no", "not", "never", "cannot", "can't", "won't", "isn't", "aren't", "doesn't", "don't", "without", "false"}
 
 
@@ -432,6 +435,90 @@ def fenced_text(body: str) -> str:
         if in_fence:
             out.append(line)
     return "".join(out)
+
+
+_NEG_RE = re.compile(r"\b(not|no|never|cannot|can't|won't|isn't|aren't|doesn't|don't|without|n't)\b", re.I)
+# Curated antonym pairs for polarity-conflict detection (high-precision; expand
+# conservatively — a wrong pair causes false contradictions).
+_ANTONYM_PAIRS = [
+    ("immutable", "mutable"), ("enabled", "disabled"), ("enable", "disable"),
+    ("always", "never"), ("safe", "unsafe"), ("open", "closed"),
+    ("deterministic", "nondeterministic"), ("sync", "async"),
+    ("synchronous", "asynchronous"), ("allowed", "forbidden"),
+    ("required", "optional"), ("active", "inactive"),
+    ("true", "false"), ("pass", "fail"), ("present", "absent"),
+    ("stateful", "stateless"), ("blocking", "nonblocking"),
+]
+
+
+def _negation_parity(s: str) -> int:
+    return len(_NEG_RE.findall(s)) % 2
+
+
+# A claim earns "rule" status only if it states what would FALSIFY it (Popper;
+# LangMem's critique-then-propose). Presence check, deterministic.
+_FALSIFIER_RE = re.compile(
+    r"\b(falsifi\w+|disprov\w+|refut\w+|counterexample|"
+    r"(?:breaks?|fails?|wrong|invalid\w*|untrue|stops? (?:holding|applying)) (?:when|if)|"
+    r"no longer (?:holds|true|applies|valid))\b", re.I)
+
+
+def has_falsifier(page: Page) -> bool:
+    """Does the page state a falsification condition (in body or `falsifies:` /
+    `falsified-by:` frontmatter)? A rule without one is really an assertion."""
+    if any(k in page.frontmatter for k in ("falsifies", "falsified-by", "falsifier")):
+        return True
+    return bool(_FALSIFIER_RE.search(strip_fenced_code(page.body)))
+
+
+def suggest_resolution(a: Page, b: Page, has_polarity: bool) -> dict[str, str]:
+    """Given a detected contradiction between two pages, suggest the RESOLUTION
+    VERB (report-only). Borrowed from Zep (invalidate-don't-delete, newer info
+    prioritized) + mem0 (polarity contradiction -> invalidate; value change ->
+    supersede) + our trust tiers — made deterministic on frontmatter we already
+    have (trust, updated). The agent confirms and wires the edge; nothing here
+    mutates.
+      - invalidate : polarity contradiction — keep the higher-trust/newer page,
+        mark the other `contradicts:` and demote it.
+      - supersede  : numeric value change — newer/higher-trust value wins
+        (`superseded-by`).
+      - dispute    : equal trust AND equal recency — flag both, serve neither.
+    """
+    ra = TRUST_TIERS.get(str(a.frontmatter.get("trust", "asserted")).strip().strip("\"'"), 1.0)
+    rb = TRUST_TIERS.get(str(b.frontmatter.get("trust", "asserted")).strip().strip("\"'"), 1.0)
+    da = str(a.frontmatter.get("updated", "")).strip().strip("\"'")
+    db = str(b.frontmatter.get("updated", "")).strip().strip("\"'")
+    verb = "invalidate" if has_polarity else "supersede"
+    if ra != rb:
+        keep, drop, basis = (a, b, "trust") if ra > rb else (b, a, "trust")
+    elif da != db:
+        keep, drop, basis = (a, b, "recency") if da > db else (b, a, "recency")
+    else:
+        return {"verb": "dispute", "basis": "equal trust and recency", "keep": "", "resolve": ""}
+    return {"verb": verb, "basis": basis, "keep": keep.id, "resolve": drop.id}
+
+
+def polarity_conflict(a: str, b: str, min_overlap: float = 0.6) -> str | None:
+    """Detect a polarity contradiction between two short claims: near-identical
+    wording (content-token Jaccard >= min_overlap) but OPPOSITE polarity — either
+    a negation flip ("X is immutable" vs "X is not immutable") or an antonym swap
+    ("fails closed" vs "fails open"). High overlap requirement keeps precision
+    high (the FP-killer for contradiction detectors). Returns the signal kind or
+    None."""
+    ta, tb = content_tokens(a), content_tokens(b)
+    if not ta or not tb or jaccard(ta, tb) < min_overlap:
+        return None
+    if _negation_parity(a) != _negation_parity(b):
+        return "negation_flip"
+    for x, y in _ANTONYM_PAIRS:
+        # FP guard (stress test): a sentence ENUMERATING both poles ("enabled or
+        # disabled") is not a polarity claim — only flag when each side asserts a
+        # DIFFERENT single pole.
+        if (x in ta) == (y in ta) or (x in tb) == (y in tb):
+            continue
+        if (x in ta and y in tb) or (y in ta and x in tb):
+            return "antonym"
+    return None
 
 
 def redundancy_index(title: str, body: str, echo_tokens: set[str]) -> float:
@@ -598,6 +685,11 @@ class WikiStore:
         for path in self.root.rglob("*.md"):
             if any(part in SKIP_PARTS for part in path.parts):
                 continue
+            # Skip a directory literally named `*.md` (rglob matches it) and
+            # broken symlinks — read_page would otherwise crash IsADirectoryError
+            # (found by stress test). is_file() also rejects dangling links.
+            if not path.is_file():
+                continue
             # H4 fix: rglob follows symlinks by default. A symlink resolving
             # outside self.root made page_id raise ValueError in relative_to.
             # Skip anything that doesn't actually live under the wiki root.
@@ -621,7 +713,12 @@ class WikiStore:
         cached = self._page_cache.get(path)
         if cached is not None and cached[0] == mtime:
             return cached[1]
-        text = path.read_text(encoding="utf-8", errors="replace")
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            # unreadable (permission denied, is-a-directory, transient) — treat as
+            # empty rather than crashing every command that scans pages.
+            text = ""
         fm, body = parse_frontmatter(text)
         title = ""
         for line in body.splitlines():
@@ -1792,7 +1889,14 @@ class WikiStore:
 
     # --- knowledge pages selector (shared by OKF export + quality scans) ----
     _META_FILES = {"index.md", "log.md", "schema.md", "L0_rules.md", "L1_index.md", "README.md"}
-    _SUPPORT_DIRS = {"templates", "skills", "prompts", "hooks", "configs", "extensions", "adapters"}
+    # Non-knowledge dirs excluded from the epistemic lenses. Skill-support dirs
+    # PLUS vendored/third-party/build trees — found on PROMPTER (1800+ vendor/
+    # files flooded contradict-scan with 417 junk candidates + 31s). A memory
+    # wiki's knowledge lives in its tiers, never in vendor/build/test trees.
+    _SUPPORT_DIRS = {"templates", "skills", "prompts", "hooks", "configs", "extensions",
+                     "adapters", "vendor", "node_modules", "dist", "build", "target",
+                     "fixtures", "golden", "goldens", "eval", "evals", "examples",
+                     "demo", "demos", "bench", "tests", "test", "site-packages"}
 
     def _knowledge_pages(self, include_raw: bool = True) -> list[Page]:
         out = []
@@ -1940,8 +2044,12 @@ class WikiStore:
         """Surface CANDIDATE cross-page contradictions (the detection layer OKF's
         absence_of_contradictions metric has and we lacked — we only stored
         DECLARED `contradicts:` edges). Deterministic, conservative: same-subject
-        page pairs with diverging numbers for a shared key, minus already-declared
-        edges. Candidates are for an agent/judge to confirm, NOT confirmed truth."""
+        page pairs with (a) diverging numbers for a shared key, or (b) a polarity
+        conflict (negation-flip / antonym on near-identical wording), minus
+        already-declared edges. Type-aware: polarity is skipped when BOTH pages are
+        judgment-dominant (opinion×opinion is expected divergence, not a
+        contradiction). Candidates are for an agent/judge to confirm, NOT truth."""
+        import claim_grade as _cg  # lazy; same tools/ dir
         pages = [p for p in self._knowledge_pages(include_raw=False) if p.frontmatter]
 
         def declared(a: Page, b: Page) -> bool:
@@ -1952,13 +2060,35 @@ class WikiStore:
             return (b.id in an or Path(b.id).name in an
                     or a.id in bn or Path(a.id).name in bn)
 
+        def sentences(body: str) -> list[str]:
+            out = []
+            for s in re.split(r"(?<=[.!?])\s+|\n[-*]\s+|\n{2,}", strip_fenced_code(body)):
+                s = s.strip(" -*\t")
+                if 12 <= len(s) <= 200 and not s.lstrip().startswith("#"):
+                    out.append(s)
+                if len(out) >= 40:
+                    break
+            return out
+
+        # precompute per-page once (was O(N^2) recomputation of content_tokens in
+        # the pair loop — 16.6s at 100 pages, found by stress test): sentences,
+        # judgment-dominance, title/body token sets, tag sets (empty tags dropped).
+        sents = [sentences(p.body) for p in pages]
+        ttok = [content_tokens(p.title) for p in pages]
+        btok = [content_tokens(p.body) for p in pages]
+        tagsets = [set(t for t in p.tags if t) for p in pages]
+        jdom = []
+        for p in pages:
+            h = _cg.grade_text(p.body)["klass_histogram"]
+            jdom.append(h["judgment"] > max(h["data"], h["directive"]))
+
         cands: list[dict[str, Any]] = []
         for i in range(len(pages)):
             for j in range(i + 1, len(pages)):
                 a, b = pages[i], pages[j]
-                title_j = jaccard(content_tokens(a.title), content_tokens(b.title))
-                cont_j = jaccard(content_tokens(a.body), content_tokens(b.body))
-                same_subject = ((set(a.tags) & set(b.tags)) and title_j >= 0.34) or cont_j >= 0.5 or title_j >= 0.5
+                title_j = jaccard(ttok[i], ttok[j])
+                cont_j = jaccard(btok[i], btok[j])
+                same_subject = ((tagsets[i] & tagsets[j]) and title_j >= 0.34) or cont_j >= 0.5 or title_j >= 0.5
                 if not same_subject or declared(a, b):
                     continue
                 ka, kb = keyed_numbers(a.body), keyed_numbers(b.body)
@@ -1966,17 +2096,29 @@ class WikiStore:
                     {"key": key, "a": sorted(ka[key]), "b": sorted(kb[key])}
                     for key in sorted(set(ka) & set(kb)) if ka[key].isdisjoint(kb[key])
                 ]
-                if signals:
+                pol: list[dict[str, str]] = []
+                if not (jdom[i] and jdom[j]):  # skip opinion×opinion divergence
+                    for x in sents[i]:
+                        for y in sents[j]:
+                            kind = polarity_conflict(x, y)
+                            if kind:
+                                pol.append({"kind": kind, "a_sentence": x[:160], "b_sentence": y[:160]})
+                                break
+                        if len(pol) >= 5:
+                            break
+                if signals or pol:
                     cands.append({
                         "a": a.id, "b": b.id,
                         "title_overlap": round(title_j, 3),
                         "content_overlap": round(cont_j, 3),
                         "numeric_divergence": signals[:5],
+                        "polarity_conflicts": pol[:5],
+                        "suggested_resolution": suggest_resolution(a, b, bool(pol)),
                     })
-        cands.sort(key=lambda c: (-len(c["numeric_divergence"]), c["a"], c["b"]))
+        cands.sort(key=lambda c: (-(len(c["numeric_divergence"]) + len(c["polarity_conflicts"])), c["a"], c["b"]))
         return {"scanned": len(pages), "candidate_count": len(cands),
                 "candidates": cands[:k],
-                "note": "candidates for agent/judge confirmation; structural signal only, not confirmed contradictions"}
+                "note": "candidates for agent/judge confirmation; structural (numeric/polarity) signal only, not confirmed contradictions"}
 
     def novelty(self, threshold: float = 0.5) -> dict[str, Any]:
         """Intra-page redundancy_index (OKF enrichment-eval lens): does a page add
@@ -2024,6 +2166,205 @@ class WikiStore:
                 "claims_with_missing_artifact": sum(1 for c in claims if c["missing_refs"]),
                 "claims": claims,
                 "note": "deterministic existence-grounding; semantic prose-vs-code check is a judge step (wiki-refresh)"}
+
+    def claim_audit(self, scope: str | None = None, judgment_ratio: float = 0.6,
+                    min_claims: int = 4) -> dict[str, Any]:
+        """REPORT-ONLY claim-quality lens (the 'data vs opinion vs decision' angle).
+
+        Grades each page's claims by epistemic klass (data / directive / judgment)
+        via claim_grade and flags pages that are judgment-heavy with little data
+        backing — an opinion/hypothesis page masquerading as durable memory.
+
+        Honest limit (measured, 2026-06 blind validation): per-claim typing of
+        messy prose is NOISY — even independent human annotators agree only ~40%
+        unanimously on SOP fragments. So this is a HEURISTIC LENS for an agent to
+        interpret, never a gate. The grader abstains (`unknown`) on unmarked text;
+        aggregate ratios are more robust than any single label.
+        """
+        import claim_grade as _cg  # lazy; same tools/ dir
+        pages = self._knowledge_pages(include_raw=False)
+        if scope:
+            sid = scope.removesuffix(".md")
+            pages = [p for p in pages if p.id == sid or Path(p.id).name == Path(sid).name]
+        rows: list[dict[str, Any]] = []
+        flagged: list[dict[str, Any]] = []
+        for p in pages:
+            if not p.frontmatter:
+                continue
+            h = _cg.grade_text(p.body)["klass_histogram"]
+            graded = h["data"] + h["directive"] + h["judgment"]
+            if graded < min_claims:
+                continue
+            jr = round(h["judgment"] / graded, 2)
+            dr = round(h["data"] / graded, 2)
+            row = {"id": p.id, "type": p.type, "graded_claims": graded,
+                   "data": h["data"], "directive": h["directive"],
+                   "judgment": h["judgment"], "abstained": h["unclassified"],
+                   "judgment_ratio": jr, "data_ratio": dr}
+            rows.append(row)
+            # opinion/hypothesis-heavy page with little empirical backing, and not
+            # a type where that's expected (decisions/queries can be judgment-led).
+            if jr >= judgment_ratio and dr < 0.15 and p.type not in {"decision", "query"}:
+                flagged.append({**row, "flag": "judgment-heavy-weak-evidence"})
+        rows.sort(key=lambda r: -r["judgment_ratio"])
+        return {"scanned": len(rows), "flagged": flagged, "rows": rows,
+                "note": "report-only heuristic lens; per-claim typing is noisy, interpret aggregates not single labels"}
+
+    def synth_candidates(self, min_cluster: int = 3, min_shared_tags: int = 2) -> dict[str, Any]:
+        """REPORT-ONLY synthesis surfacer (the 'synthesizing knowledge' angle).
+
+        The DEdup tools (overlap/consolidate) find pages that are the SAME; this
+        finds CLUSTERS of distinct same-SUBJECT pages ripe for a higher-order
+        synthesis note (RAPTOR / GraphRAG community-summary pattern). Deterministic
+        clustering surfaces candidates; an agent writes the actual synthesis (the
+        'detector surfaces, agent/judge confirms' pattern). An edge = pages share
+        >= min_shared_tags tags OR one wikilinks the other; connected components of
+        size >= min_cluster are candidates. Flags clusters that already have a
+        likely synthesis parent (a member linking >=half the others) so we don't
+        re-propose work already done.
+        """
+        min_cluster = max(2, min_cluster)  # a "cluster" of 1 is not a synthesis candidate
+        pages = [p for p in self._knowledge_pages(include_raw=False) if p.frontmatter]
+        n = len(pages)
+        parent = list(range(n))
+
+        def find(x: int) -> int:
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        def union(a: int, b: int) -> None:
+            parent[find(a)] = find(b)
+
+        idx = {p.id: i for i, p in enumerate(pages)}
+        stem = {}
+        for i, p in enumerate(pages):
+            stem.setdefault(Path(p.id).name, i)
+        tagsets = [set(t for t in p.tags if t) for p in pages]  # drop empty-string tags
+        linksets = []
+        for p in pages:
+            ls = set()
+            for l in p.links:
+                lid = l.removesuffix(".md").lstrip("?")
+                if lid in idx:
+                    ls.add(idx[lid])
+                elif Path(lid).name in stem:
+                    ls.add(stem[Path(lid).name])
+            linksets.append(ls)
+        # Edge = shared TAGS only. Wikilink adjacency was tried as an edge too but
+        # transitively merged the densely-interlinked wiki into one giant
+        # component (measured on the live wiki: 30+ pages, empty shared tags).
+        # Links are used below ONLY to detect an existing synthesis parent.
+        for i in range(n):
+            for j in range(i + 1, n):
+                if len(tagsets[i] & tagsets[j]) >= min_shared_tags:
+                    union(i, j)
+        from collections import defaultdict
+        clusters: dict[int, list[int]] = defaultdict(list)
+        for i in range(n):
+            clusters[find(i)].append(i)
+        out = []
+        for members in clusters.values():
+            if len(members) < min_cluster:
+                continue
+            ids = sorted(pages[m].id for m in members)
+            shared = set.intersection(*[tagsets[m] for m in members]) if members else set()
+            # existing-synthesis heuristic: a member that links to >= half the rest
+            parent_id = None
+            mset = set(members)
+            for m in members:
+                if len(linksets[m] & (mset - {m})) >= (len(members) - 1) / 2:
+                    parent_id = pages[m].id
+                    break
+            out.append({"members": ids, "size": len(ids),
+                        "shared_tags": sorted(shared),
+                        "likely_existing_parent": parent_id})
+        out.sort(key=lambda c: -c["size"])
+        return {"clusters": len(out),
+                "candidates": [c for c in out if not c["likely_existing_parent"]],
+                "already_synthesized": [c for c in out if c["likely_existing_parent"]],
+                "note": "report-only; clusters of same-subject pages an agent could synthesize into a higher-order note"}
+
+    def maturity(self, promote_inbound: int = 3) -> dict[str, Any]:
+        """REPORT-ONLY observation->hypothesis->rule maturity lens (the ladder angle).
+
+        Maturity is a SEPARATE axis from trust (evidence strength): a page can be
+        verified-trust yet superseded-maturity. Infers each page's dominant stage
+        from its claim mix (claim_grade) + type, then surfaces two actionable,
+        currently-unsurfaced signals:
+          - promotion: a hypothesis/observation page still `trust: asserted` but
+            cited many times (corroborated by reuse) -> distill/verify toward a rule.
+          - conflict-driven demotion: a rule/verified page carrying a `contradicts:`
+            edge -> a contradicted rule must be reviewed, not silently trusted.
+        Heuristic (claim typing is noisy) — candidates for an agent, not auto-edits.
+        """
+        import claim_grade as _cg  # lazy; same tools/ dir
+        pages = [p for p in self._knowledge_pages(include_raw=False) if p.frontmatter]
+        # self-contained inbound count (wikilinks resolved to ids/stems)
+        ids = {p.id for p in pages}
+        stem = {}
+        for p in pages:
+            stem.setdefault(Path(p.id).name, p.id)
+        inbound_src: dict[str, list[str]] = {p.id: [] for p in pages}
+        for p in pages:
+            for l in p.links:
+                lid = l.removesuffix(".md").lstrip("?")
+                tgt = lid if lid in ids else stem.get(Path(lid).name)
+                if tgt and tgt != p.id:
+                    inbound_src[tgt].append(p.id)
+
+        def stage_of(p: Page) -> str | None:
+            h = _cg.grade_text(p.body)["klass_histogram"]
+            data, direc, judg = h["data"], h["directive"], h["judgment"]
+            if data + direc + judg == 0:
+                return None  # no graded claims -> no stage
+            if direc > 0 and direc >= data and direc >= judg:
+                return "rule"
+            if judg > data:
+                return "hypothesis"
+            if data > 0:
+                return "observation"
+            return "mixed"
+
+        # pass 1: stage of every gradable page (one grade_text call each), so a
+        # candidate can weigh WHICH pages cite it.
+        graded = {}
+        for p in pages:
+            s = stage_of(p)
+            if s is not None:
+                graded[p.id] = s
+        hist = {"observation": 0, "hypothesis": 0, "rule": 0, "mixed": 0}
+        for s in graded.values():
+            hist[s] += 1
+
+        promote, demote = [], []
+        for p in pages:
+            stage = graded.get(p.id)
+            if stage is None:
+                continue
+            trust = str(p.frontmatter.get("trust", "asserted")).strip().strip("\"'") or "asserted"
+            ptype = p.frontmatter.get("type", "")
+            contradicted = bool(re.findall(r"\[\[([^\]]+)\]\]", p.frontmatter.get("contradicts", "")))
+            inb = len(inbound_src[p.id])
+            if (stage == "rule" or ptype in {"rule", "sop", "lesson", "error"}
+                    or trust in {"verified", "user_confirmed"}) and contradicted:
+                demote.append({"id": p.id, "stage": stage, "type": ptype, "trust": trust,
+                               "reason": "contradicted rule/verified — review for demotion (conflict-driven)"})
+            if stage in {"hypothesis", "observation"} and trust == "asserted" and inb >= promote_inbound:
+                # evidence-accrual (A-MEM): citations FROM observation-stage pages
+                # are corroborating evidence; raw popularity is not.
+                corrob = sum(1 for src in inbound_src[p.id] if graded.get(src) == "observation")
+                fals = has_falsifier(p)
+                reason = f"cited {inb}x ({corrob} from observations) while still asserted — corroborate/distill toward a rule"
+                if not fals:
+                    reason += " (state a falsification condition before promoting to rule)"
+                promote.append({"id": p.id, "stage": stage, "inbound": inb,
+                                "corroborating_inbound": corrob, "has_falsifier": fals, "reason": reason})
+        promote.sort(key=lambda r: (-r["corroborating_inbound"], -r["inbound"]))
+        return {"histogram": hist, "promotion_candidates": promote,
+                "demotion_candidates": demote,
+                "note": "report-only obs>hyp>rule lens (maturity != trust); reuses claim_grade stage + contradicts + link graph; corroborating_inbound = citations from observation pages (A-MEM evidence accrual)"}
 
     # GRAFT 3 — discoverability. A curated store only compounds if a fresh /
     # plugin-less agent knows it exists, how to query it, and when. Check whether
@@ -2357,6 +2698,17 @@ def _cli_main(argv: list[str] | None = None) -> int:
     sp.add_argument("item_id")
     sp.add_argument("--code-root", default=None)
 
+    sp = sub.add_parser("claim-audit", help="Report-only claim-quality lens: per-page data/directive/judgment mix; flags judgment-heavy pages with weak evidence. Heuristic, not a gate.")
+    sp.add_argument("--scope", default=None, help="Limit to one page id/path.")
+    sp.add_argument("--judgment-ratio", type=float, default=0.6)
+
+    sp = sub.add_parser("synth-candidates", help="Report-only synthesis surfacer: clusters of same-subject pages ripe for a higher-order synthesis note.")
+    sp.add_argument("--min-cluster", type=int, default=3)
+    sp.add_argument("--min-shared-tags", type=int, default=2)
+
+    sp = sub.add_parser("maturity", help="Report-only observation>hypothesis>rule lens: promotion (cited-while-asserted) + conflict-driven demotion (contradicted rule/verified) candidates.")
+    sp.add_argument("--promote-inbound", type=int, default=3)
+
     args = p.parse_args(argv)
     root = Path(args.root).expanduser().resolve() if args.root else _cli_default_root()
     store = WikiStore(root)
@@ -2447,6 +2799,12 @@ def _cli_dispatch(args, store, root) -> int:
         _cli_print(store.novelty(threshold=args.threshold))
     elif args.cmd == "claim-ground":
         _cli_print(store.claim_ground(args.item_id, code_root=args.code_root))
+    elif args.cmd == "claim-audit":
+        _cli_print(store.claim_audit(scope=args.scope, judgment_ratio=args.judgment_ratio))
+    elif args.cmd == "synth-candidates":
+        _cli_print(store.synth_candidates(min_cluster=args.min_cluster, min_shared_tags=args.min_shared_tags))
+    elif args.cmd == "maturity":
+        _cli_print(store.maturity(promote_inbound=args.promote_inbound))
     else:  # unreachable — argparse enforces choices
         p.error(f"unknown subcommand: {args.cmd}")
     return 0

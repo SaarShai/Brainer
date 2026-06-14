@@ -57,6 +57,8 @@ UNIT_TESTS=(
   skills/wiki-memory/tools/test_refresh.py
   skills/wiki-memory/tools/test_resolve.py
   skills/wiki-memory/tools/test_okf.py
+  skills/wiki-memory/tools/test_claim_grade.py
+  skills/wiki-memory/tools/test_sim_eval.py
   skills/wiki-memory/tools/test_config.py
 )
 # semantic-diff needs tree-sitter; SKIP (not FAIL) where the dep is absent

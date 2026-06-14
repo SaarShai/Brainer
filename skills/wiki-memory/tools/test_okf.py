@@ -12,6 +12,7 @@ Run:
 from __future__ import annotations
 
 import subprocess
+import json
 import sys
 import tempfile
 import unittest
@@ -308,6 +309,56 @@ class TestContradictScan(unittest.TestCase):
         rep = WikiStore(self.root).contradict_scan()
         self.assertEqual(rep["candidate_count"], 0, rep)
 
+    def test_detects_polarity_conflict(self):
+        # same-subject pages, near-identical wording, negation flip -> polarity
+        _write(self.root, "concepts/pa.md",
+               _v2("Raw immutability", extra={"tags": "[raw, mem]"},
+                   body="\n# Raw immutability\n\nRaw source pages are immutable after creation here.\n"))
+        _write(self.root, "concepts/pb.md",
+               _v2("Raw immutability", extra={"tags": "[raw, mem]"},
+                   body="\n# Raw immutability\n\nRaw source pages are not immutable after creation here.\n"))
+        rep = WikiStore(self.root).contradict_scan()
+        kinds = [pc["kind"] for c in rep["candidates"] for pc in c.get("polarity_conflicts", [])]
+        self.assertIn("negation_flip", kinds)
+
+    def test_numeric_candidate_still_has_polarity_field(self):
+        # additive: numeric candidates now also carry a (possibly empty) polarity field
+        self._decay_pair()
+        rep = WikiStore(self.root).contradict_scan()
+        self.assertTrue(all("polarity_conflicts" in c for c in rep["candidates"]))
+
+    def test_resolution_invalidate_by_recency(self):
+        # polarity contradiction, newer page wins -> invalidate the older
+        _write(self.root, "concepts/ra.md", _v2("Imm", extra={"tags": "[imm]", "updated": "2026-01-01"},
+               body="\n# Imm\n\nRaw source pages are immutable after creation here.\n"))
+        _write(self.root, "concepts/rb.md", _v2("Imm", extra={"tags": "[imm]", "updated": "2026-03-01"},
+               body="\n# Imm\n\nRaw source pages are not immutable after creation here.\n"))
+        cand = next(c for c in WikiStore(self.root).contradict_scan()["candidates"] if c.get("polarity_conflicts"))
+        r = cand["suggested_resolution"]
+        self.assertEqual(r["verb"], "invalidate")
+        self.assertEqual(r["keep"], "concepts/rb")
+        self.assertEqual(r["resolve"], "concepts/ra")
+
+    def test_resolution_supersede_by_trust(self):
+        # numeric value change, higher-trust value wins -> supersede
+        _write(self.root, "concepts/na.md", _v2("Cfg", extra={"tags": "[cfg]", "trust": "verified"},
+               body="\n# Cfg\n\nDefault timeout 30s in this hot path.\n"))
+        _write(self.root, "concepts/nb.md", _v2("Cfg", extra={"tags": "[cfg]", "trust": "asserted"},
+               body="\n# Cfg\n\nDefault timeout 90s in this hot path.\n"))
+        cand = next(c for c in WikiStore(self.root).contradict_scan()["candidates"] if c.get("numeric_divergence"))
+        r = cand["suggested_resolution"]
+        self.assertEqual(r["verb"], "supersede")
+        self.assertEqual(r["keep"], "concepts/na")
+
+    def test_resolution_dispute_when_equal(self):
+        # equal trust AND recency -> dispute (flag both)
+        _write(self.root, "concepts/da.md", _v2("Block", extra={"tags": "[blk]"},
+               body="\n# Block\n\nThe append ledger is blocking on every commit here.\n"))
+        _write(self.root, "concepts/db.md", _v2("Block", extra={"tags": "[blk]"},
+               body="\n# Block\n\nThe append ledger is nonblocking on every commit here.\n"))
+        cand = next(c for c in WikiStore(self.root).contradict_scan()["candidates"] if c.get("polarity_conflicts"))
+        self.assertEqual(cand["suggested_resolution"]["verb"], "dispute")
+
 
 class TestNoveltyAndClaimGround(unittest.TestCase):
     def setUp(self):
@@ -348,6 +399,311 @@ class TestNoveltyAndClaimGround(unittest.TestCase):
         self.assertEqual(rep["claims_with_missing_artifact"], 1, rep)
         missing = [c for c in rep["claims"] if c["missing_refs"]][0]
         self.assertIn("src/gone.py", missing["missing_refs"])
+
+
+class TestClaimAudit(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / "wiki"
+        self.root.mkdir(parents=True)
+        _write(self.root, "index.md", "# Index\n")
+        _write(self.root, "log.md", "# Log\n")
+        # judgment-heavy (opinion) concept page -> should flag (>=4 claims, each >=5 words)
+        _write(self.root, "concepts/opinion.md",
+               _v2("Opinion heavy", type_="concept",
+                   body="\n# Opinion heavy\n\nThe new API design is much cleaner overall. "
+                        "The updated layout feels far nicer to use. "
+                        "It is more elegant than the previous version. "
+                        "The old structure was considerably uglier than this.\n"))
+        # data-heavy page -> should NOT flag
+        _write(self.root, "concepts/data.md",
+               _v2("Data heavy", type_="concept",
+                   body="\n# Data heavy\n\nLatency measured 113ms on the regex path. "
+                        "12 tests passed with no failures recorded. The cold build took 4.2s. "
+                        "Indexed 175 pages on 2026-06-14 here.\n"))
+        # decision page that is judgment-led -> exempt from flag
+        _write(self.root, "queries/decision.md",
+               _v2("Decision page", type_="decision",
+                   body="\n# Decision page\n\nThe new approach feels much cleaner overall. "
+                        "It seems clearly nicer to work with. "
+                        "The design is more elegant than before. "
+                        "This reads considerably better than the old one.\n"))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_flags_judgment_heavy_weak_evidence(self):
+        rep = WikiStore(self.root).claim_audit()
+        flagged = {f["id"] for f in rep["flagged"]}
+        self.assertIn("concepts/opinion", flagged)
+
+    def test_data_heavy_not_flagged(self):
+        rep = WikiStore(self.root).claim_audit()
+        flagged = {f["id"] for f in rep["flagged"]}
+        self.assertNotIn("concepts/data", flagged)
+        row = next((r for r in rep["rows"] if r["id"] == "concepts/data"), None)
+        self.assertIsNotNone(row)
+        self.assertGreater(row["data"], row["judgment"])
+
+    def test_decision_type_exempt(self):
+        # a judgment-led page typed `decision` is not flagged (decisions are
+        # expected to be directive/judgment-led, not evidence-led)
+        rep = WikiStore(self.root).claim_audit()
+        self.assertNotIn("queries/decision", {f["id"] for f in rep["flagged"]})
+
+    def test_report_only_no_writes(self):
+        before = sorted(p.name for p in self.root.rglob("*.md"))
+        WikiStore(self.root).claim_audit()
+        after = sorted(p.name for p in self.root.rglob("*.md"))
+        self.assertEqual(before, after)  # report-only: mutates nothing
+
+
+class TestSynthCandidates(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / "wiki"
+        self.root.mkdir(parents=True)
+        _write(self.root, "index.md", "# Index\n")
+        _write(self.root, "log.md", "# Log\n")
+        # group 1: 3 same-subject pages sharing 2 tags, no interlinks -> candidate
+        for x in "abc":
+            _write(self.root, f"concepts/g1{x}.md",
+                   _v2(f"G1{x}", extra={"tags": "[alpha, beta]"}, body=f"\n# G1{x}\n\nbody {x}\n"))
+        # group 2: hub links the other two (+shared tags) -> already-synthesized
+        _write(self.root, "concepts/g2hub.md",
+               _v2("G2 hub", extra={"tags": "[gamma, delta]"},
+                   body="\n# G2 hub\n\noverview [[concepts/g2a]] [[concepts/g2b]]\n"))
+        for x in "ab":
+            _write(self.root, f"concepts/g2{x}.md",
+                   _v2(f"G2{x}", extra={"tags": "[gamma, delta]"}, body=f"\n# G2{x}\n\nbody {x}\n"))
+        # isolated page (unique tag) -> not clustered
+        _write(self.root, "concepts/iso.md",
+               _v2("Iso", extra={"tags": "[zeta]"}, body="\n# Iso\n\nalone\n"))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_surfaces_same_subject_cluster(self):
+        rep = WikiStore(self.root).synth_candidates()
+        cand_members = [set(c["members"]) for c in rep["candidates"]]
+        self.assertIn({"concepts/g1a", "concepts/g1b", "concepts/g1c"}, cand_members)
+
+    def test_detects_existing_synthesis_parent(self):
+        rep = WikiStore(self.root).synth_candidates()
+        synthd = {c["likely_existing_parent"] for c in rep["already_synthesized"]}
+        self.assertIn("concepts/g2hub", synthd)
+
+    def test_isolated_page_not_clustered(self):
+        rep = WikiStore(self.root).synth_candidates()
+        allmembers = set()
+        for c in rep["candidates"] + rep["already_synthesized"]:
+            allmembers |= set(c["members"])
+        self.assertNotIn("concepts/iso", allmembers)
+
+    def test_report_only_no_writes(self):
+        before = sorted(p.name for p in self.root.rglob("*.md"))
+        WikiStore(self.root).synth_candidates()
+        self.assertEqual(before, sorted(p.name for p in self.root.rglob("*.md")))
+
+
+class TestPolarityConflict(unittest.TestCase):
+    def test_detects_negation_flip(self):
+        from wiki import polarity_conflict
+        self.assertEqual(polarity_conflict(
+            "raw pages are immutable after creation",
+            "raw pages are not immutable after creation"), "negation_flip")
+
+    def test_detects_antonym_swap(self):
+        from wiki import polarity_conflict
+        self.assertEqual(polarity_conflict(
+            "the hook fails closed on error path",
+            "the hook fails open on error path"), "antonym")
+        self.assertEqual(polarity_conflict(
+            "the cache layer is enabled by default here",
+            "the cache layer is disabled by default here"), "antonym")
+
+    def test_low_overlap_not_flagged(self):
+        from wiki import polarity_conflict
+        self.assertIsNone(polarity_conflict(
+            "the build passed all checks today",
+            "the integration tests failed on windows"))
+
+    def test_different_choice_not_a_polarity_conflict(self):
+        from wiki import polarity_conflict
+        # different value, not opposite polarity -> not a contradiction here
+        self.assertIsNone(polarity_conflict(
+            "we use tabs for indentation in this repo",
+            "we use spaces for indentation in this repo"))
+
+    def test_cross_subject_antonym_gated_by_overlap(self):
+        from wiki import polarity_conflict
+        # antonym present but different subjects -> low overlap -> not flagged
+        self.assertIsNone(polarity_conflict(
+            "the wiki page is immutable",
+            "the config file is mutable"))
+
+    def test_enumeration_both_poles_not_flagged(self):
+        from wiki import polarity_conflict
+        # both sentences ENUMERATE both poles -> not a polarity claim (FP guard)
+        self.assertIsNone(polarity_conflict(
+            "the runtime can be synchronous or asynchronous depending on config",
+            "the runtime can be synchronous or asynchronous depending on the mode"))
+
+
+class TestScanRobustness(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / "wiki"
+        self.root.mkdir(parents=True)
+        _write(self.root, "index.md", "# Index\n")
+        _write(self.root, "log.md", "# Log\n")
+        # a DIRECTORY literally named *.md (rglob matches it -> must be skipped)
+        (self.root / "concepts" / "weird.md").mkdir(parents=True)
+        _write(self.root, "concepts/real.md",
+               _v2("Real", body="\n# Real\n\nMeasured 5ms on the path here today.\n"))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_directory_named_md_does_not_crash_any_scan(self):
+        st = WikiStore(self.root)
+        # none of the page-scanning commands should raise on a dir named *.md
+        st.claim_audit()
+        st.synth_candidates()
+        st.maturity()
+        st.contradict_scan()
+        # and the real page is still seen
+        self.assertIn("concepts/real", {p.id for p in st.pages()})
+
+
+class TestMaturity(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / "wiki"
+        self.root.mkdir(parents=True)
+        _write(self.root, "index.md", "# Index\n")
+        _write(self.root, "log.md", "# Log\n")
+        # hypothesis-stage page (hedge-heavy), asserted, cited by 3 others -> promote
+        _write(self.root, "concepts/hyp.md",
+               _v2("Hyp", type_="concept",
+                   body="\n# Hyp\n\nThis might be the root cause here. It probably stems from cold load. "
+                        "It seems likely under concurrency. We may need a separate axis for this.\n"))
+        for x in "abc":
+            _write(self.root, f"concepts/cite{x}.md",
+                   _v2(f"Cite{x}", type_="concept", body=f"\n# Cite{x}\n\nsee [[concepts/hyp]] for detail {x}\n"))
+        # rule/sop page carrying a contradicts edge -> conflict-driven demotion
+        _write(self.root, "concepts/rule.md",
+               _v2("Rule", type_="sop", extra={"contradicts": "[[concepts/other]]"},
+                   body="\n# Rule\n\nAlways retrieve before reasoning. Never promote via reuse alone. "
+                        "Do not rewrite raw pages. Ensure backlinks exist.\n"))
+        _write(self.root, "concepts/other.md",
+               _v2("Other", type_="concept", body="\n# Other\n\nsome other claim measured at 5ms\n"))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_promotion_candidate_cited_while_asserted(self):
+        rep = WikiStore(self.root).maturity(promote_inbound=3)
+        self.assertIn("concepts/hyp", {c["id"] for c in rep["promotion_candidates"]})
+
+    def test_conflict_driven_demotion(self):
+        rep = WikiStore(self.root).maturity()
+        self.assertIn("concepts/rule", {c["id"] for c in rep["demotion_candidates"]})
+
+    def test_histogram_has_stages(self):
+        rep = WikiStore(self.root).maturity()
+        self.assertEqual(set(rep["histogram"]), {"observation", "hypothesis", "rule", "mixed"})
+        # the hedge-heavy page lands hypothesis; the directive sop lands rule
+        self.assertGreaterEqual(rep["histogram"]["hypothesis"], 1)
+        self.assertGreaterEqual(rep["histogram"]["rule"], 1)
+
+    def test_report_only_no_writes(self):
+        before = sorted(p.name for p in self.root.rglob("*.md"))
+        WikiStore(self.root).maturity()
+        self.assertEqual(before, sorted(p.name for p in self.root.rglob("*.md")))
+
+    def test_falsifier_regex(self):
+        from wiki import _FALSIFIER_RE
+        self.assertTrue(_FALSIFIER_RE.search("This breaks when the cache is cold."))
+        self.assertTrue(_FALSIFIER_RE.search("Falsified if measured latency exceeds 1s."))
+        self.assertFalse(_FALSIFIER_RE.search("Always retrieve before reasoning here."))
+
+    def test_promotion_flags_missing_falsifier(self):
+        # the hedge-heavy promotion candidate states no falsifier -> flagged
+        rep = WikiStore(self.root).maturity(promote_inbound=3)
+        hyp = next(c for c in rep["promotion_candidates"] if c["id"] == "concepts/hyp")
+        self.assertFalse(hyp["has_falsifier"])
+        self.assertIn("falsification", hyp["reason"])
+
+
+class TestExclusionsAndKeyedNumbers(unittest.TestCase):
+    def test_keyed_numbers_no_cross_space_unit(self):
+        from wiki import keyed_numbers
+        # "generate 3 variants" must record '3', NOT '3vari' (unit grabbed across space)
+        self.assertEqual(keyed_numbers("generate 3 variants per run").get("generate"), {"3"})
+        # adjacent units still attach
+        self.assertEqual(keyed_numbers("latency 113ms here").get("latency"), {"113ms"})
+
+    def test_vendor_dir_excluded_from_knowledge(self):
+        tmp = tempfile.TemporaryDirectory()
+        root = Path(tmp.name) / "wiki"
+        root.mkdir(parents=True)
+        _write(root, "index.md", "# i\n")
+        _write(root, "log.md", "# l\n")
+        _write(root, "concepts/real.md", _v2("Real", body="\n# Real\n\nMeasured 5ms here.\n"))
+        _write(root, "vendor/x/foo.md", _v2("Vendor", body="\n# Vendor\n\nthird party stuff here.\n"))
+        _write(root, "tests/t.md", _v2("Test", body="\n# Test\n\ntest fixture content here.\n"))
+        ids = {p.id for p in WikiStore(root)._knowledge_pages()}
+        self.assertIn("concepts/real", ids)
+        self.assertNotIn("vendor/x/foo", ids)
+        self.assertNotIn("tests/t", ids)
+        tmp.cleanup()
+
+
+class TestCLISmoke(unittest.TestCase):
+    """End-to-end CLI smoke: each verb runs via subprocess (exercises argparse +
+    dispatch, which method-level unit tests skip) and returns parseable JSON."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / "wiki"
+        self.root.mkdir(parents=True)
+        _write(self.root, "index.md", "# Index\n")
+        _write(self.root, "log.md", "# Log\n")
+        _write(self.root, "concepts/a.md",
+               _v2("Alpha", extra={"tags": "[topic]"},
+                   body="\n# Alpha\n\nLatency measured 113ms here. Always retrieve first.\n"))
+        _write(self.root, "concepts/b.md",
+               _v2("Beta", extra={"tags": "[topic]"},
+                   body="\n# Beta\n\nThe build took 4.2s today. Prefer updates over creates.\n"))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _run(self, *args, want_json=True):
+        r = subprocess.run([sys.executable, str(WIKI_PY), "--root", str(self.root), *args],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, f"{args} -> rc {r.returncode}\n{r.stderr}")
+        if want_json:
+            json.loads(r.stdout)  # raises on invalid JSON
+        return r
+
+    def test_all_new_verbs_smoke(self):
+        out = Path(self.tmp.name) / "bundle"
+        self._run("claim-audit")
+        self._run("synth-candidates")
+        self._run("maturity")
+        self._run("contradict-scan")
+        self._run("novelty")
+        self._run("claim-ground", "concepts/a")
+        self._run("export-okf", "--out", str(out))
+        self._run("okf-validate", "--bundle", str(out))
+
+    def test_claim_grade_cli(self):
+        r = subprocess.run([sys.executable, str(HERE / "claim_grade.py"), "we decided to ship it"],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(json.loads(r.stdout)["type"], "decision")
 
 
 if __name__ == "__main__":
