@@ -528,6 +528,35 @@ PY
 )
 if [ "$m38" = "5 1" ]; then ok "window:5 probe fetched 5 msgs + fired under --window 3"; else no "measure.py per-probe window" "got: $m38 (want '5 1')"; fi
 
+# word_count warrant_pattern: a length-requesting prompt suppresses the creep
+# warning (caveman's own spec: "short UNLESS detail is requested"); a trivial
+# prompt still fires. The warning governs the NEXT reply, so it warrants on the
+# incoming prompt.
+WPROBES='[{"id":"wc","kind":"word_count_per_message","threshold":10,"window":3,"warrant_pattern":"(?i)\\b(explain|think (of|about))\\b"}]'
+make_skill_with_probes sk39 cv "$WPROBES"
+LONGMSG="one two three four five six seven eight nine ten eleven twelve thirteen"  # 13 words > 10
+TXW="$TRANSCRIPT_DIR/t39.jsonl"
+write_transcript "$TXW" \
+  "$(assistant_text "$LONGMSG" u1)" \
+  "$(assistant_text "$LONGMSG" u2)" \
+  "$(assistant_text "$LONGMSG" u3)"
+
+echo "[39] word_count warrant: detail-requesting prompt suppresses the creep warning"
+pay39=$(python3 -c "
+import json,sys
+print(json.dumps({'session_id':'s39','transcript_path':sys.argv[1],'hook_event_name':'UserPromptSubmit','prompt':'explain how this works in depth'}))
+" "$TXW")
+out=$(printf '%s' "$pay39" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc39" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk39" $HOOK)
+if [ -z "$out" ]; then ok "warranted (detail) prompt → creep suppressed"; else no "warranted prompt → suppressed" "got: $(echo "$out" | head -c150)"; fi
+
+echo "[40] word_count warrant: trivial prompt still fires"
+pay40=$(python3 -c "
+import json,sys
+print(json.dumps({'session_id':'s40','transcript_path':sys.argv[1],'hook_event_name':'UserPromptSubmit','prompt':'fix the typo'}))
+" "$TXW")
+out=$(printf '%s' "$pay40" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc40" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk39" $HOOK)
+if emitted "$out" && echo "$out" | grep -q 'word_count_per_message'; then ok "unwarranted (trivial) prompt → creep fires"; else no "trivial prompt → fires" "got: $(echo "$out" | head -c150)"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then

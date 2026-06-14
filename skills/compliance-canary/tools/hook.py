@@ -12,7 +12,8 @@ Per-skill probes are declared in `<.claude/skills>/<name>/drift_probes.json`:
     {"kind": "forbidden_regex", "pattern": "(?i)\\b(certainly|absolutely)\\b",
      "id": "filler", "severity": "warn"},
     {"kind": "word_count_per_message", "threshold": 80, "window": 3,
-     "id": "creep"},
+     "id": "creep",
+     "warrant_pattern": r"(?i)\b(explain|elaborate|detail|in[ -]?depth|deep[ -]?dive|walk me through|comprehensive|thorough(ly)?|step[ -]by[ -]step|summar(y|ize|ise)|overview|report|break ?down|compare|pros and cons|brainstorm|think (of|about|through)|tell me (what|how|why|about|everything)|list( me)? (\d|at least|the|all|every)|\d+ (ways|ideas|options|reasons|examples|things)|why (does|do|is|are|did))\b"},
     {"kind": "claim_without_evidence",
      "claim_pattern": "(?i)\\b(done|fixed|passes)\\b",
      "verify_tools": ["Bash"],
@@ -364,6 +365,20 @@ def detect_word_count_per_message(probe: dict, messages: list[dict], _tool_uses,
     counts = [len(m["text"].split()) for m in recent]
     avg = sum(counts) / len(counts)
     if avg > threshold:
+        # Request-warranted length: this warning governs the NEXT reply
+        # ("tighten next reply"), so suppress it when the imminent prompt
+        # explicitly asks for detail/depth/enumeration. caveman-ultra's own spec
+        # is "keep replies short UNLESS detail is requested" — without this the
+        # probe nags against a reply the skill itself permits (an explicit
+        # "explain"/"summarize"/"think of N ways" turn). Opt-in per probe via
+        # `warrant_pattern`; absent → always fires (prior behavior).
+        warrant = probe.get("warrant_pattern")
+        if warrant and user_prompt:
+            try:
+                if re.search(warrant, user_prompt):
+                    return None
+            except re.error as e:
+                log_err(f"bad-warrant-regex probe={probe.get('_probe_id')} err={e!r}")
         return {
             "avg_words": round(avg, 1),
             "threshold": threshold,
