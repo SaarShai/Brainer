@@ -2143,6 +2143,67 @@ class WikiStore:
                 "already_synthesized": [c for c in out if c["likely_existing_parent"]],
                 "note": "report-only; clusters of same-subject pages an agent could synthesize into a higher-order note"}
 
+    def maturity(self, promote_inbound: int = 3) -> dict[str, Any]:
+        """REPORT-ONLY observation->hypothesis->rule maturity lens (the ladder angle).
+
+        Maturity is a SEPARATE axis from trust (evidence strength): a page can be
+        verified-trust yet superseded-maturity. Infers each page's dominant stage
+        from its claim mix (claim_grade) + type, then surfaces two actionable,
+        currently-unsurfaced signals:
+          - promotion: a hypothesis/observation page still `trust: asserted` but
+            cited many times (corroborated by reuse) -> distill/verify toward a rule.
+          - conflict-driven demotion: a rule/verified page carrying a `contradicts:`
+            edge -> a contradicted rule must be reviewed, not silently trusted.
+        Heuristic (claim typing is noisy) — candidates for an agent, not auto-edits.
+        """
+        import claim_grade as _cg  # lazy; same tools/ dir
+        pages = [p for p in self._knowledge_pages(include_raw=False) if p.frontmatter]
+        # self-contained inbound count (wikilinks resolved to ids/stems)
+        ids = {p.id for p in pages}
+        stem = {}
+        for p in pages:
+            stem.setdefault(Path(p.id).name, p.id)
+        inbound = {p.id: 0 for p in pages}
+        for p in pages:
+            for l in p.links:
+                lid = l.removesuffix(".md").lstrip("?")
+                tgt = lid if lid in ids else stem.get(Path(lid).name)
+                if tgt and tgt != p.id:
+                    inbound[tgt] += 1
+        hist = {"observation": 0, "hypothesis": 0, "rule": 0, "mixed": 0}
+        promote, demote, stages = [], [], {}
+        for p in pages:
+            h = _cg.grade_text(p.body)["klass_histogram"]
+            data, direc, judg = h["data"], h["directive"], h["judgment"]
+            g = data + direc + judg
+            if g == 0:
+                continue
+            if direc > 0 and direc >= data and direc >= judg:
+                stage = "rule"
+            elif judg > data:
+                stage = "hypothesis"
+            elif data > 0:
+                stage = "observation"
+            else:
+                stage = "mixed"
+            hist[stage] += 1
+            stages[p.id] = stage
+            trust = str(p.frontmatter.get("trust", "asserted")).strip().strip("\"'") or "asserted"
+            ptype = p.frontmatter.get("type", "")
+            contradicted = bool(re.findall(r"\[\[([^\]]+)\]\]", p.frontmatter.get("contradicts", "")))
+            inb = inbound.get(p.id, 0)
+            if (stage == "rule" or ptype in {"rule", "sop", "lesson", "error"}
+                    or trust in {"verified", "user_confirmed"}) and contradicted:
+                demote.append({"id": p.id, "stage": stage, "type": ptype, "trust": trust,
+                               "reason": "contradicted rule/verified — review for demotion (conflict-driven)"})
+            if stage in {"hypothesis", "observation"} and trust == "asserted" and inb >= promote_inbound:
+                promote.append({"id": p.id, "stage": stage, "inbound": inb,
+                                "reason": f"cited {inb}x while still asserted — corroborate/distill toward a rule"})
+        promote.sort(key=lambda r: -r["inbound"])
+        return {"histogram": hist, "promotion_candidates": promote,
+                "demotion_candidates": demote,
+                "note": "report-only obs>hyp>rule lens (maturity != trust); reuses claim_grade stage + contradicts + link graph"}
+
     # GRAFT 3 — discoverability. A curated store only compounds if a fresh /
     # plugin-less agent knows it exists, how to query it, and when. Check whether
     # a host instruction file surfaces the wiki; emit a snippet if not. (Installer-
@@ -2483,6 +2544,9 @@ def _cli_main(argv: list[str] | None = None) -> int:
     sp.add_argument("--min-cluster", type=int, default=3)
     sp.add_argument("--min-shared-tags", type=int, default=2)
 
+    sp = sub.add_parser("maturity", help="Report-only observation>hypothesis>rule lens: promotion (cited-while-asserted) + conflict-driven demotion (contradicted rule/verified) candidates.")
+    sp.add_argument("--promote-inbound", type=int, default=3)
+
     args = p.parse_args(argv)
     root = Path(args.root).expanduser().resolve() if args.root else _cli_default_root()
     store = WikiStore(root)
@@ -2577,6 +2641,8 @@ def _cli_dispatch(args, store, root) -> int:
         _cli_print(store.claim_audit(scope=args.scope, judgment_ratio=args.judgment_ratio))
     elif args.cmd == "synth-candidates":
         _cli_print(store.synth_candidates(min_cluster=args.min_cluster, min_shared_tags=args.min_shared_tags))
+    elif args.cmd == "maturity":
+        _cli_print(store.maturity(promote_inbound=args.promote_inbound))
     else:  # unreachable — argparse enforces choices
         p.error(f"unknown subcommand: {args.cmd}")
     return 0

@@ -455,5 +455,52 @@ class TestSynthCandidates(unittest.TestCase):
         self.assertEqual(before, sorted(p.name for p in self.root.rglob("*.md")))
 
 
+class TestMaturity(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / "wiki"
+        self.root.mkdir(parents=True)
+        _write(self.root, "index.md", "# Index\n")
+        _write(self.root, "log.md", "# Log\n")
+        # hypothesis-stage page (hedge-heavy), asserted, cited by 3 others -> promote
+        _write(self.root, "concepts/hyp.md",
+               _v2("Hyp", type_="concept",
+                   body="\n# Hyp\n\nThis might be the root cause here. It probably stems from cold load. "
+                        "It seems likely under concurrency. We may need a separate axis for this.\n"))
+        for x in "abc":
+            _write(self.root, f"concepts/cite{x}.md",
+                   _v2(f"Cite{x}", type_="concept", body=f"\n# Cite{x}\n\nsee [[concepts/hyp]] for detail {x}\n"))
+        # rule/sop page carrying a contradicts edge -> conflict-driven demotion
+        _write(self.root, "concepts/rule.md",
+               _v2("Rule", type_="sop", extra={"contradicts": "[[concepts/other]]"},
+                   body="\n# Rule\n\nAlways retrieve before reasoning. Never promote via reuse alone. "
+                        "Do not rewrite raw pages. Ensure backlinks exist.\n"))
+        _write(self.root, "concepts/other.md",
+               _v2("Other", type_="concept", body="\n# Other\n\nsome other claim measured at 5ms\n"))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_promotion_candidate_cited_while_asserted(self):
+        rep = WikiStore(self.root).maturity(promote_inbound=3)
+        self.assertIn("concepts/hyp", {c["id"] for c in rep["promotion_candidates"]})
+
+    def test_conflict_driven_demotion(self):
+        rep = WikiStore(self.root).maturity()
+        self.assertIn("concepts/rule", {c["id"] for c in rep["demotion_candidates"]})
+
+    def test_histogram_has_stages(self):
+        rep = WikiStore(self.root).maturity()
+        self.assertEqual(set(rep["histogram"]), {"observation", "hypothesis", "rule", "mixed"})
+        # the hedge-heavy page lands hypothesis; the directive sop lands rule
+        self.assertGreaterEqual(rep["histogram"]["hypothesis"], 1)
+        self.assertGreaterEqual(rep["histogram"]["rule"], 1)
+
+    def test_report_only_no_writes(self):
+        before = sorted(p.name for p in self.root.rglob("*.md"))
+        WikiStore(self.root).maturity()
+        self.assertEqual(before, sorted(p.name for p in self.root.rglob("*.md")))
+
+
 if __name__ == "__main__":
     unittest.main()
