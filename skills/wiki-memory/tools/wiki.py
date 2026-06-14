@@ -2306,50 +2306,65 @@ class WikiStore:
         stem = {}
         for p in pages:
             stem.setdefault(Path(p.id).name, p.id)
-        inbound = {p.id: 0 for p in pages}
+        inbound_src: dict[str, list[str]] = {p.id: [] for p in pages}
         for p in pages:
             for l in p.links:
                 lid = l.removesuffix(".md").lstrip("?")
                 tgt = lid if lid in ids else stem.get(Path(lid).name)
                 if tgt and tgt != p.id:
-                    inbound[tgt] += 1
-        hist = {"observation": 0, "hypothesis": 0, "rule": 0, "mixed": 0}
-        promote, demote, stages = [], [], {}
-        for p in pages:
+                    inbound_src[tgt].append(p.id)
+
+        def stage_of(p: Page) -> str | None:
             h = _cg.grade_text(p.body)["klass_histogram"]
             data, direc, judg = h["data"], h["directive"], h["judgment"]
-            g = data + direc + judg
-            if g == 0:
-                continue
+            if data + direc + judg == 0:
+                return None  # no graded claims -> no stage
             if direc > 0 and direc >= data and direc >= judg:
-                stage = "rule"
-            elif judg > data:
-                stage = "hypothesis"
-            elif data > 0:
-                stage = "observation"
-            else:
-                stage = "mixed"
-            hist[stage] += 1
-            stages[p.id] = stage
+                return "rule"
+            if judg > data:
+                return "hypothesis"
+            if data > 0:
+                return "observation"
+            return "mixed"
+
+        # pass 1: stage of every gradable page (one grade_text call each), so a
+        # candidate can weigh WHICH pages cite it.
+        graded = {}
+        for p in pages:
+            s = stage_of(p)
+            if s is not None:
+                graded[p.id] = s
+        hist = {"observation": 0, "hypothesis": 0, "rule": 0, "mixed": 0}
+        for s in graded.values():
+            hist[s] += 1
+
+        promote, demote = [], []
+        for p in pages:
+            stage = graded.get(p.id)
+            if stage is None:
+                continue
             trust = str(p.frontmatter.get("trust", "asserted")).strip().strip("\"'") or "asserted"
             ptype = p.frontmatter.get("type", "")
             contradicted = bool(re.findall(r"\[\[([^\]]+)\]\]", p.frontmatter.get("contradicts", "")))
-            inb = inbound.get(p.id, 0)
+            inb = len(inbound_src[p.id])
             if (stage == "rule" or ptype in {"rule", "sop", "lesson", "error"}
                     or trust in {"verified", "user_confirmed"}) and contradicted:
                 demote.append({"id": p.id, "stage": stage, "type": ptype, "trust": trust,
                                "reason": "contradicted rule/verified — review for demotion (conflict-driven)"})
             if stage in {"hypothesis", "observation"} and trust == "asserted" and inb >= promote_inbound:
+                # evidence-accrual (A-MEM): citations FROM observation-stage pages
+                # are corroborating evidence; raw popularity is not.
+                corrob = sum(1 for src in inbound_src[p.id] if graded.get(src) == "observation")
                 fals = has_falsifier(p)
-                reason = f"cited {inb}x while still asserted — corroborate/distill toward a rule"
+                reason = f"cited {inb}x ({corrob} from observations) while still asserted — corroborate/distill toward a rule"
                 if not fals:
                     reason += " (state a falsification condition before promoting to rule)"
                 promote.append({"id": p.id, "stage": stage, "inbound": inb,
-                                "has_falsifier": fals, "reason": reason})
-        promote.sort(key=lambda r: -r["inbound"])
+                                "corroborating_inbound": corrob, "has_falsifier": fals, "reason": reason})
+        promote.sort(key=lambda r: (-r["corroborating_inbound"], -r["inbound"]))
         return {"histogram": hist, "promotion_candidates": promote,
                 "demotion_candidates": demote,
-                "note": "report-only obs>hyp>rule lens (maturity != trust); reuses claim_grade stage + contradicts + link graph"}
+                "note": "report-only obs>hyp>rule lens (maturity != trust); reuses claim_grade stage + contradicts + link graph; corroborating_inbound = citations from observation pages (A-MEM evidence accrual)"}
 
     # GRAFT 3 — discoverability. A curated store only compounds if a fresh /
     # plugin-less agent knows it exists, how to query it, and when. Check whether
