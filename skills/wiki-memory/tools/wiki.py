@@ -2068,6 +2068,81 @@ class WikiStore:
         return {"scanned": len(rows), "flagged": flagged, "rows": rows,
                 "note": "report-only heuristic lens; per-claim typing is noisy, interpret aggregates not single labels"}
 
+    def synth_candidates(self, min_cluster: int = 3, min_shared_tags: int = 2) -> dict[str, Any]:
+        """REPORT-ONLY synthesis surfacer (the 'synthesizing knowledge' angle).
+
+        The DEdup tools (overlap/consolidate) find pages that are the SAME; this
+        finds CLUSTERS of distinct same-SUBJECT pages ripe for a higher-order
+        synthesis note (RAPTOR / GraphRAG community-summary pattern). Deterministic
+        clustering surfaces candidates; an agent writes the actual synthesis (the
+        'detector surfaces, agent/judge confirms' pattern). An edge = pages share
+        >= min_shared_tags tags OR one wikilinks the other; connected components of
+        size >= min_cluster are candidates. Flags clusters that already have a
+        likely synthesis parent (a member linking >=half the others) so we don't
+        re-propose work already done.
+        """
+        pages = [p for p in self._knowledge_pages(include_raw=False) if p.frontmatter]
+        n = len(pages)
+        parent = list(range(n))
+
+        def find(x: int) -> int:
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        def union(a: int, b: int) -> None:
+            parent[find(a)] = find(b)
+
+        idx = {p.id: i for i, p in enumerate(pages)}
+        stem = {}
+        for i, p in enumerate(pages):
+            stem.setdefault(Path(p.id).name, i)
+        tagsets = [set(p.tags) for p in pages]
+        linksets = []
+        for p in pages:
+            ls = set()
+            for l in p.links:
+                lid = l.removesuffix(".md").lstrip("?")
+                if lid in idx:
+                    ls.add(idx[lid])
+                elif Path(lid).name in stem:
+                    ls.add(stem[Path(lid).name])
+            linksets.append(ls)
+        # Edge = shared TAGS only. Wikilink adjacency was tried as an edge too but
+        # transitively merged the densely-interlinked wiki into one giant
+        # component (measured on the live wiki: 30+ pages, empty shared tags).
+        # Links are used below ONLY to detect an existing synthesis parent.
+        for i in range(n):
+            for j in range(i + 1, n):
+                if len(tagsets[i] & tagsets[j]) >= min_shared_tags:
+                    union(i, j)
+        from collections import defaultdict
+        clusters: dict[int, list[int]] = defaultdict(list)
+        for i in range(n):
+            clusters[find(i)].append(i)
+        out = []
+        for members in clusters.values():
+            if len(members) < min_cluster:
+                continue
+            ids = sorted(pages[m].id for m in members)
+            shared = set.intersection(*[tagsets[m] for m in members]) if members else set()
+            # existing-synthesis heuristic: a member that links to >= half the rest
+            parent_id = None
+            mset = set(members)
+            for m in members:
+                if len(linksets[m] & (mset - {m})) >= (len(members) - 1) / 2:
+                    parent_id = pages[m].id
+                    break
+            out.append({"members": ids, "size": len(ids),
+                        "shared_tags": sorted(shared),
+                        "likely_existing_parent": parent_id})
+        out.sort(key=lambda c: -c["size"])
+        return {"clusters": len(out),
+                "candidates": [c for c in out if not c["likely_existing_parent"]],
+                "already_synthesized": [c for c in out if c["likely_existing_parent"]],
+                "note": "report-only; clusters of same-subject pages an agent could synthesize into a higher-order note"}
+
     # GRAFT 3 — discoverability. A curated store only compounds if a fresh /
     # plugin-less agent knows it exists, how to query it, and when. Check whether
     # a host instruction file surfaces the wiki; emit a snippet if not. (Installer-
@@ -2404,6 +2479,10 @@ def _cli_main(argv: list[str] | None = None) -> int:
     sp.add_argument("--scope", default=None, help="Limit to one page id/path.")
     sp.add_argument("--judgment-ratio", type=float, default=0.6)
 
+    sp = sub.add_parser("synth-candidates", help="Report-only synthesis surfacer: clusters of same-subject pages ripe for a higher-order synthesis note.")
+    sp.add_argument("--min-cluster", type=int, default=3)
+    sp.add_argument("--min-shared-tags", type=int, default=2)
+
     args = p.parse_args(argv)
     root = Path(args.root).expanduser().resolve() if args.root else _cli_default_root()
     store = WikiStore(root)
@@ -2496,6 +2575,8 @@ def _cli_dispatch(args, store, root) -> int:
         _cli_print(store.claim_ground(args.item_id, code_root=args.code_root))
     elif args.cmd == "claim-audit":
         _cli_print(store.claim_audit(scope=args.scope, judgment_ratio=args.judgment_ratio))
+    elif args.cmd == "synth-candidates":
+        _cli_print(store.synth_candidates(min_cluster=args.min_cluster, min_shared_tags=args.min_shared_tags))
     else:  # unreachable — argparse enforces choices
         p.error(f"unknown subcommand: {args.cmd}")
     return 0

@@ -407,5 +407,53 @@ class TestClaimAudit(unittest.TestCase):
         self.assertEqual(before, after)  # report-only: mutates nothing
 
 
+class TestSynthCandidates(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / "wiki"
+        self.root.mkdir(parents=True)
+        _write(self.root, "index.md", "# Index\n")
+        _write(self.root, "log.md", "# Log\n")
+        # group 1: 3 same-subject pages sharing 2 tags, no interlinks -> candidate
+        for x in "abc":
+            _write(self.root, f"concepts/g1{x}.md",
+                   _v2(f"G1{x}", extra={"tags": "[alpha, beta]"}, body=f"\n# G1{x}\n\nbody {x}\n"))
+        # group 2: hub links the other two (+shared tags) -> already-synthesized
+        _write(self.root, "concepts/g2hub.md",
+               _v2("G2 hub", extra={"tags": "[gamma, delta]"},
+                   body="\n# G2 hub\n\noverview [[concepts/g2a]] [[concepts/g2b]]\n"))
+        for x in "ab":
+            _write(self.root, f"concepts/g2{x}.md",
+                   _v2(f"G2{x}", extra={"tags": "[gamma, delta]"}, body=f"\n# G2{x}\n\nbody {x}\n"))
+        # isolated page (unique tag) -> not clustered
+        _write(self.root, "concepts/iso.md",
+               _v2("Iso", extra={"tags": "[zeta]"}, body="\n# Iso\n\nalone\n"))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_surfaces_same_subject_cluster(self):
+        rep = WikiStore(self.root).synth_candidates()
+        cand_members = [set(c["members"]) for c in rep["candidates"]]
+        self.assertIn({"concepts/g1a", "concepts/g1b", "concepts/g1c"}, cand_members)
+
+    def test_detects_existing_synthesis_parent(self):
+        rep = WikiStore(self.root).synth_candidates()
+        synthd = {c["likely_existing_parent"] for c in rep["already_synthesized"]}
+        self.assertIn("concepts/g2hub", synthd)
+
+    def test_isolated_page_not_clustered(self):
+        rep = WikiStore(self.root).synth_candidates()
+        allmembers = set()
+        for c in rep["candidates"] + rep["already_synthesized"]:
+            allmembers |= set(c["members"])
+        self.assertNotIn("concepts/iso", allmembers)
+
+    def test_report_only_no_writes(self):
+        before = sorted(p.name for p in self.root.rglob("*.md"))
+        WikiStore(self.root).synth_candidates()
+        self.assertEqual(before, sorted(p.name for p in self.root.rglob("*.md")))
+
+
 if __name__ == "__main__":
     unittest.main()
