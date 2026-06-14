@@ -85,6 +85,12 @@ run "sims" python3 eval/sims/run_all.py --quiet
 # signal; 0-flip/low-impact features are reported but never fail the gate.
 run "ablation-guard" python3 eval/ablation.py --json
 
+# 5d. Skill-corpus audit — fails if a NEW cross-skill directive conflict or a
+# near-duplicate directive is introduced (standing #3 guard; suite is clean now,
+# mutation-validated so the clean verdict is non-vacuous). Behavioral instruction
+# -efficacy (#2, eval/inert_probe.py) is model-dependent → NOT gated.
+run "skill-audit" python3 eval/skill_audit.py --check
+
 # 6. Hook self-test suites
 run "hook:compliance-canary" bash skills/compliance-canary/tools/test.sh
 run "hook:skill-pulse" bash skills/skill-pulse/tools/test.sh
