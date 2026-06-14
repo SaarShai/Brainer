@@ -12,6 +12,7 @@ Run:
 from __future__ import annotations
 
 import subprocess
+import json
 import sys
 import tempfile
 import unittest
@@ -588,6 +589,52 @@ class TestMaturity(unittest.TestCase):
         before = sorted(p.name for p in self.root.rglob("*.md"))
         WikiStore(self.root).maturity()
         self.assertEqual(before, sorted(p.name for p in self.root.rglob("*.md")))
+
+
+class TestCLISmoke(unittest.TestCase):
+    """End-to-end CLI smoke: each verb runs via subprocess (exercises argparse +
+    dispatch, which method-level unit tests skip) and returns parseable JSON."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / "wiki"
+        self.root.mkdir(parents=True)
+        _write(self.root, "index.md", "# Index\n")
+        _write(self.root, "log.md", "# Log\n")
+        _write(self.root, "concepts/a.md",
+               _v2("Alpha", extra={"tags": "[topic]"},
+                   body="\n# Alpha\n\nLatency measured 113ms here. Always retrieve first.\n"))
+        _write(self.root, "concepts/b.md",
+               _v2("Beta", extra={"tags": "[topic]"},
+                   body="\n# Beta\n\nThe build took 4.2s today. Prefer updates over creates.\n"))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _run(self, *args, want_json=True):
+        r = subprocess.run([sys.executable, str(WIKI_PY), "--root", str(self.root), *args],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, f"{args} -> rc {r.returncode}\n{r.stderr}")
+        if want_json:
+            json.loads(r.stdout)  # raises on invalid JSON
+        return r
+
+    def test_all_new_verbs_smoke(self):
+        out = Path(self.tmp.name) / "bundle"
+        self._run("claim-audit")
+        self._run("synth-candidates")
+        self._run("maturity")
+        self._run("contradict-scan")
+        self._run("novelty")
+        self._run("claim-ground", "concepts/a")
+        self._run("export-okf", "--out", str(out))
+        self._run("okf-validate", "--bundle", str(out))
+
+    def test_claim_grade_cli(self):
+        r = subprocess.run([sys.executable, str(HERE / "claim_grade.py"), "we decided to ship it"],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(json.loads(r.stdout)["type"], "decision")
 
 
 if __name__ == "__main__":
