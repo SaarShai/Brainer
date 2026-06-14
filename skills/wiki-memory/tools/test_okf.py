@@ -703,6 +703,28 @@ class TestCalibration(unittest.TestCase):
         self.assertEqual(before, sorted(p.name for p in self.root.rglob("*.md")))
 
 
+class TestHealth(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / "wiki"
+        self.root.mkdir(parents=True)
+        _write(self.root, "index.md", "# i\n")
+        _write(self.root, "log.md", "# l\n")
+        _write(self.root, "concepts/a.md", _v2("A", extra={"tags": "[t]"},
+               body="\n# A\n\nLatency measured 113ms here. Always retrieve first.\n"))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_health_rolls_up_all_angles(self):
+        rep = WikiStore(self.root).health()
+        self.assertEqual(set(rep["by_angle"]),
+                         {"claim_quality", "contradictions", "synthesis", "maturity",
+                          "completeness", "calibration", "novelty"})
+        self.assertIsInstance(rep["total_findings"], int)
+        self.assertGreaterEqual(rep["total_findings"], 0)
+
+
 class TestGaps(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
