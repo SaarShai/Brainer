@@ -56,6 +56,8 @@ GOLD: list[tuple[str, str]] = [
     ("Resolve conflicts in this order: current request first, then durable preferences", "rule"),
     ("Use this checklist before any tool use with side effects", "rule"),
     ("Cite page IDs or paths in answers and durable notes", "rule"),
+    ("Prompt generation: retrieve the relevant pages before composing", "rule"),
+    ("In coach mode, hold it and ask first before proceeding", "rule"),
     # --- hypothesis (tentative / uncertain) ---
     ("This might be flaky under high concurrency", "hypothesis"),
     ("The latency spike is probably caused by cold model load", "hypothesis"),

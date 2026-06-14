@@ -74,11 +74,15 @@ _IMPERATIVE_VERBS = (
     "downshift write read run set add remove update start begin finish wait map fold "
     "be make do give take call send pull push apply enforce respect honour honor"
 ).split()
-# Bare-imperative directive: sentence-initial base verb, NOT followed by a noun-
-# indicator (of/is/are/was/were/:) which would mean the verb is actually a noun
-# ("List of sources", "Check is green"). Checked AFTER evidence.
+# Bare-imperative directive: a base verb at the sentence start OR right after a
+# clause boundary (leading "In coach mode, hold it" / "Prompt generation: retrieve
+# X"), NOT followed by a noun-indicator (of/is/are/was/were/:) which would mean
+# the verb is a noun ("List of sources", "Check is green"). Checked AFTER evidence
+# so measured claims stay observation. The clause-boundary head is bounded to a
+# short prefix to keep precision (a verb deep in a sentence is usually not the act).
 _IMPERATIVE = re.compile(
-    r"^(?:" + "|".join(_IMPERATIVE_VERBS) + r")\b(?!\s+(?:of|is|are|was|were)\b)(?!\s*:)",
+    r"(?:^|^.{0,40}?[,:]\s+)(?:" + "|".join(_IMPERATIVE_VERBS) + r")\b"
+    r"(?!\s+(?:of|is|are|was|were)\b)(?!\s*:)",
     re.I)
 
 # General normative / conditional directive -> rule.
