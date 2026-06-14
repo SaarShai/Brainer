@@ -5,6 +5,8 @@ tags: [turboquant, kv-cache, llama-cpp, apple-silicon, gguf-stack]
 confidence: med
 evidence_count: 5
 related: [[concepts/optimization-axes]], [[raw/2026-04-20-turboquant-research]], [[raw/2026-04-25-turboquant-adoption-review]]
+updated: 2026-06-14
+verified: 2026-06-14
 ---
 
 # TurboQuant — KV-cache compression (ICLR 2026)
@@ -51,7 +53,7 @@ User's claim verified. TurboQuant compresses the *runtime* KV cache. Weight quan
 Adoption mode: **pattern-reimplementation**. Do not vendor TurboQuant repos into Brainer. Use TheTom/turboquant_plus and TheTom/llama-cpp-turboquant as the operational reference, then encode safe defaults and checks in our docs/scripts.
 
 Additional watchlist:
-- `quantumaikr/quant.cpp`: GGUF-first pure C engine with OpenAI-compatible server; separate engine, Qwen3.6 35B marked experimental.
+- External reference: the quantumaikr quant.cpp engine (external GGUF-first C engine): OpenAI-compatible server; separate engine, Qwen3.6 35B marked experimental.
 - `arozanov/turboquant-mlx`: promising MLX/Metal candidate; no clean EXO path and license needs verification.
 - `varjoranta/turboquant-vllm`, `mitkox/vllm-turboquant`: vLLM/CUDA watchlist, not Apple Silicon path.
 - `back2matching/turboquant`: HF baseline; verify license before reuse.
@@ -109,10 +111,7 @@ Then HTTP requests to `http://localhost:8080/v1/chat/completions` — OpenAI-com
 
 ## Smoke harness
 
-```bash
-scripts/turboquant_smoke.py --json
-scripts/turboquant_smoke.py --require-server --json
-```
+A smoke test script (turboquant_smoke.py, abandoned research, not vendored) performed:
 
 Checks:
 - local wrapper and `llama-server` binary paths
@@ -146,7 +145,7 @@ ln -sfn <blob-path> ~/Library/gguf/<nice-name>.gguf
 
 - Paper: arxiv 2504.19874
 - Google Research blog
-- TheTom/llama-cpp-turboquant README + docs/turboquant-recommendations.md
+- TheTom/llama-cpp-turboquant README (external research reference)
 - Community testing across 30+ testers / multiple GPUs
 - See [[raw/2026-04-20-turboquant-research]] for full subagent survey
 - See [[raw/2026-04-25-turboquant-adoption-review]] for refreshed repo evidence and watchlist

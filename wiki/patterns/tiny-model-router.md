@@ -6,9 +6,9 @@ domain: framework
 tier: procedural
 confidence: 0.65
 created: 2026-04-25
-updated: 2026-04-25
-verified: 2026-04-25
-sources: [projects/delegate-router/README.md, raw/2026-04-17-research-brief.md]
+updated: 2026-06-14
+verified: 2026-06-14
+sources: [projects/delegate-router.md, raw/2026-04-17-research-brief.md]
 supersedes: []
 superseded-by:
 tags: [routing, delegation, models]

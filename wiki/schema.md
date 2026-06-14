@@ -30,11 +30,14 @@ created: YYYY-MM-DD
 updated: YYYY-MM-DD
 verified: YYYY-MM-DD
 sources: []
+resource:            # optional, single-valued: the one live artifact this page documents
 supersedes: []
 superseded-by:
 tags: []
 ---
 ```
+
+`resource:` (optional, OKF-aligned) is the canonical URI/path of the single live artifact a page documents — existence-checkable, unlike the overloaded `sources:` list. Strict lint emits `broken_resource`; `./te wiki audit-refs` resolves it alongside body refs. A `[[?stub]]` wikilink (leading `?`) is a sanctioned forward-ref to not-yet-written knowledge and is exempt from the broken-link error.
 
 Legacy v1 pages remain readable. `./te wiki lint --strict` emits migration warnings for v1 pages and enforces v2 fields on v2/template-generated pages.
 

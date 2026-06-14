@@ -60,6 +60,7 @@ created: YYYY-MM-DD
 updated: YYYY-MM-DD
 verified: YYYY-MM-DD
 sources: []
+resource: path/or/uri        # optional: the ONE live artifact this page documents
 supersedes: []
 superseded-by:
 contradicts: []
@@ -68,6 +69,8 @@ tags: []
 ```
 
 `contradicts:` is optional. Use `[[other-page]]` entries to flag two pages that make incompatible claims about the same subject. Lint surfaces these so an agent resolves them rather than retrieving both as truth.
+
+`resource:` is optional and single-valued (OKF-aligned): the canonical URI/path of the one live artifact a page documents (a code file, a skill dir, a PR). Unlike the overloaded `sources:` provenance list it is existence-checkable — strict lint flags a `broken_resource`, and `audit-refs` resolves it. Use a `[[?stub]]` wikilink (leading `?`) to intentionally point at not-yet-written knowledge without tripping the broken-link error.
 
 Legacy v1 pages remain readable. Strict lint emits migration warnings for v1 pages and enforces v2 fields on v2/template-generated pages.
 
@@ -312,6 +315,143 @@ def render_template(text: str, values: dict[str, str]) -> str:
         # where missing keys produced no substitution).
         return values.get(key, m.group(0))
     return pattern.sub(repl, text)
+
+
+# --- OKF (Open Knowledge Format) interop helpers ---------------------------
+# OKF v0.1 (GoogleCloudPlatform/knowledge-catalog/okf/SPEC.md): a vendor-neutral
+# markdown bundle. Only `type` is required; consumers tolerate unknown types,
+# unknown keys, broken links. Our page_id == OKF concept-id already (path-minus-
+# ext), so export is a frontmatter remap + wikilink rewrite. Governance extras
+# (schema_version/domain/tier/confidence/trust/...) ride along as preserved
+# custom keys — OKF says consumers SHOULD keep them on round-trip.
+OKF_RECOMMENDED_ORDER = ("type", "title", "description", "resource", "tags", "timestamp")
+OKF_RESERVED_FILES = {"index.md", "log.md", "README.md"}
+_OKF_SAFE_SCALAR_RE = re.compile(r"[A-Za-z0-9_./@\-]+$")
+# A WELL-FORMED simple flow list: one bracket pair, no nested brackets, no YAML
+# flow-breaking sequences (": " / " #"). Our own parser emits clean `[a, b]`;
+# but legacy v1 pages stash `related: [[x]], [[y]]` (nested wikilinks) in
+# frontmatter, which is NOT valid YAML flow — those must be quoted as strings.
+_OKF_SAFE_FLOW_LIST_RE = re.compile(r"\[[^\[\]]*\]$")
+
+
+def okf_scalar(value: str) -> str:
+    """Emit a frontmatter scalar/list as deterministic OKF-safe YAML.
+
+    Well-formed flow lists (``[a, b]``) pass through. Plain tokens (dates,
+    slugs, types) stay bare. Everything else — spaces, colons, nested brackets,
+    quotes, newlines — is double-quoted via json so a real YAML parser
+    round-trips it unambiguously (K: never emit raw fenced text or malformed
+    flow as if it were structured).
+    """
+    value = "" if value is None else str(value)
+    if (_OKF_SAFE_FLOW_LIST_RE.fullmatch(value)
+            and ": " not in value and " #" not in value):
+        return value  # clean flow list — keep as-is
+    if value != "" and _OKF_SAFE_SCALAR_RE.fullmatch(value):
+        return value
+    return json.dumps(value, ensure_ascii=False)
+
+
+def okf_frontmatter(merged: dict[str, str]) -> str:
+    """Serialize a merged frontmatter dict to an OKF concept frontmatter block.
+
+    OKF-recommended keys first (spec order), then every remaining key as a
+    preserved custom field. Empty values are dropped so we never emit a blank
+    required `type`.
+    """
+    lines = ["---"]
+    seen: set[str] = set()
+    for key in OKF_RECOMMENDED_ORDER:
+        val = merged.get(key, "")
+        if str(val).strip() == "":
+            continue
+        lines.append(f"{key}: {okf_scalar(val)}")
+        seen.add(key)
+    for key, val in merged.items():
+        if key in seen or str(val).strip() == "":
+            continue
+        lines.append(f"{key}: {okf_scalar(val)}")
+    lines.append("---")
+    return "\n".join(lines) + "\n"
+
+
+def rewrite_wikilinks_to_okf(body: str, resolve) -> str:
+    """Rewrite ``[[target|label]]`` to OKF bundle-relative ``[label](/id.md)``.
+
+    Only rewrites links OUTSIDE fenced code blocks (rewriting inside a fence
+    would corrupt a code example). ``resolve(target)`` returns ``(id, label)``;
+    a leading ``?`` (forward-ref/stub) is stripped and the link is still emitted
+    — OKF consumers MUST tolerate broken links.
+    """
+    out: list[str] = []
+    in_fence = False
+    for line in body.splitlines(keepends=True):
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            out.append(line)
+            continue
+        if in_fence:
+            out.append(line)
+            continue
+        def _repl(m: re.Match) -> str:
+            target_id, label = resolve(m.group(1))
+            return f"[{label}](/{target_id}.md)"
+        out.append(WIKILINK_RE.sub(_repl, line))
+    return "".join(out)
+
+
+_NUM_RE = re.compile(r"(?<![\w.])(\d+(?:\.\d+)?)")
+_KEYED_NUM_RE = re.compile(r"([A-Za-z][A-Za-z0-9_\- ]{1,40}?)[\s:=]+(\d+(?:\.\d+)?)\s*([%A-Za-z]{0,4})")
+_NEGATION = {"no", "not", "never", "cannot", "can't", "won't", "isn't", "aren't", "doesn't", "don't", "without", "false"}
+
+
+def keyed_numbers(text: str) -> dict[str, set[str]]:
+    """Map a lowercased key-phrase token -> set of numeric values stated for it.
+
+    Coarse, deterministic. Used only to SURFACE contradiction candidates for a
+    human/judge to confirm — not a truth oracle.
+    """
+    out: dict[str, set[str]] = {}
+    for key, num, unit in _KEYED_NUM_RE.findall(strip_fenced_code(text)):
+        k = key.strip().lower().split()[-1] if key.strip() else ""
+        if len(k) < 3 or k in _CONTENT_STOP:
+            continue
+        out.setdefault(k, set()).add(num + (unit or ""))
+    return out
+
+
+def fenced_text(body: str) -> str:
+    """Inverse of strip_fenced_code: the text INSIDE ``` fences (the echoed
+    schema/code a page may merely restate)."""
+    out: list[str] = []
+    in_fence = False
+    for line in body.splitlines(keepends=True):
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            out.append(line)
+    return "".join(out)
+
+
+def redundancy_index(title: str, body: str, echo_tokens: set[str]) -> float:
+    """Intra-page novelty: fraction of prose content tokens NOT echoing the page's
+    own headings / fenced schema / cited refs. 1.0 = all-novel, 0.0 = pure echo.
+
+    Orthogonal to overlap()/graphify (those are INTER-document dedup). A page
+    unique vs every other page can still be a tautology that restates its schema.
+    """
+    prose = content_tokens(body)  # strips fenced code already
+    if not prose:
+        return 0.0
+    heading_tokens: set[str] = set()
+    for line in body.splitlines():
+        if line.lstrip().startswith("#"):
+            heading_tokens |= content_tokens(line)
+    heading_tokens |= content_tokens(title)
+    echo = prose & (echo_tokens | heading_tokens)
+    return round(1.0 - len(echo) / len(prose), 3)
+# --- end OKF interop helpers -----------------------------------------------
 
 
 _TRUST_LINE_RE = re.compile(r"""^trust:\s*["']?asserted["']?\s*$""", re.M)
@@ -1007,6 +1147,7 @@ class WikiStore:
             stem_to_id.setdefault(name, p.id)
         incoming: dict[str, int] = {p.id: 0 for p in pages}
         broken = []
+        stub_links: list[dict[str, str]] = []
         missing_frontmatter = []
         supersession = []
         stale_indexes = []
@@ -1089,6 +1230,13 @@ class WikiStore:
                     warn.append({"code": "raw_type_not_raw", "page": p.id})
             for link in p.links:
                 link_id = link.removesuffix(".md")
+                if link_id.startswith("?"):
+                    # Forward-ref / stub: an intentional pointer at not-yet-written
+                    # knowledge. OKF blesses this ("a link whose target does not
+                    # exist is not malformed"). Advisory only — never a strict
+                    # error, and it does not count toward inbound/orphan/hub.
+                    stub_links.append({"from": p.id, "to": link})
+                    continue
                 if link_id in incoming:
                     incoming[link_id] += 1
                 elif Path(link_id).name in stem_to_id:
@@ -1153,6 +1301,7 @@ class WikiStore:
             "pages": len(pages),
             "missing_frontmatter": missing_frontmatter,
             "broken_links": broken,
+            "stub_links": stub_links,
             "orphans": orphans,
             "supersession_candidates": supersession,
             "stale_indexes": stale_indexes,
@@ -1202,6 +1351,13 @@ class WikiStore:
             target_id = target.removesuffix(".md")
             if target_id not in ids and Path(target_id).name not in stems:
                 errors.append({"code": "broken_contradiction", "page": page.id, "target": target})
+        # `resource:` is the OKF canonical-artifact pointer — single-valued, so
+        # trivially existence-checkable (unlike the overloaded `sources:` list).
+        # A repo-relative path that resolves to nothing is a contract violation.
+        resource = str(fm.get("resource", "")).strip().strip("\"'")
+        if resource and not resource.startswith(("http://", "https://", "~", "/")) and "/" in resource:
+            if not ((self.root.parent / resource).exists() or (self.root / resource).exists()):
+                errors.append({"code": "broken_resource", "page": page.id, "target": resource})
 
     def import_audit(self, manifest: str | Path) -> dict[str, Any]:
         manifest_path = Path(manifest).expanduser()
@@ -1585,7 +1741,13 @@ class WikiStore:
             rel_parts = set(page.path.relative_to(self.root).parts) if page.path.is_relative_to(self.root) else set()
             if rel_parts & skip_dirs:
                 continue
-            refs = sorted(extract_refs(page.body))
+            # Body refs + frontmatter artifact pointers. `resource:` is the
+            # canonical-artifact field (OKF); `sources:` is an overloaded
+            # provenance list that silently hides rotted artifact paths because
+            # nothing else resolves it. Existence-check the path-like ones too.
+            fm_text = page.frontmatter.get("resource", "") + "\n" + page.frontmatter.get("sources", "")
+            fm_refs = extract_refs(fm_text)
+            refs = sorted(extract_refs(page.body) | fm_refs)
             if not refs:
                 continue
             present, missing = [], []
@@ -1627,6 +1789,241 @@ class WikiStore:
             "drifted": out,
             "drifted_count": len(out),
         }
+
+    # --- knowledge pages selector (shared by OKF export + quality scans) ----
+    _META_FILES = {"index.md", "log.md", "schema.md", "L0_rules.md", "L1_index.md", "README.md"}
+    _SUPPORT_DIRS = {"templates", "skills", "prompts", "hooks", "configs", "extensions", "adapters"}
+
+    def _knowledge_pages(self, include_raw: bool = True) -> list[Page]:
+        out = []
+        for p in self.pages():
+            if p.path.name in self._META_FILES:
+                continue
+            rel = p.path.relative_to(self.root) if p.path.is_relative_to(self.root) else p.path
+            if set(rel.parts) & self._SUPPORT_DIRS:
+                continue
+            if not include_raw and p.id.startswith("raw/"):
+                continue
+            out.append(p)
+        return out
+
+    def export_okf(self, out_dir: str | Path, okf_version: str = "0.1") -> dict[str, Any]:
+        """Serialize the wiki into a conformant OKF v0.1 bundle (one-way publish).
+
+        page_id == OKF concept-id already (path-minus-ext), so the only real work
+        is the frontmatter remap (timestamp<-updated, description<-preview,
+        title<-body H1) + wikilink rewrite + synthesized index.md/log.md. All our
+        governance extras ride along as preserved custom keys. No import / no live
+        sync — see the deep review; sibling-sync is byte-rsync of skill code, not
+        a knowledge channel.
+        """
+        out = Path(out_dir).expanduser().resolve()
+        out.mkdir(parents=True, exist_ok=True)
+        pages = self.pages()
+        ids = {p.id for p in pages}
+        title_by_id = {p.id: p.title for p in pages}
+        stem_to_id: dict[str, str] = {}
+        for p in pages:
+            stem_to_id.setdefault(Path(p.id).name, p.id)
+
+        def resolve_link(inner: str):
+            raw = inner.strip()
+            label = raw.split("|", 1)[1].strip() if "|" in raw else ""
+            target = normalize_wikilink(raw).lstrip("?")
+            tid = target if target in ids else stem_to_id.get(Path(target).name, target)
+            return tid, (label or title_by_id.get(tid) or Path(tid).name)
+
+        concepts: list[str] = []
+        descr_by_id: dict[str, str] = {}
+        skipped: list[dict[str, str]] = []
+        for p in self._knowledge_pages(include_raw=True):
+            if not p.frontmatter:
+                skipped.append({"id": p.id, "reason": "no_frontmatter"})
+                continue
+            merged = dict(p.frontmatter)
+            t = p.frontmatter.get("type", "")
+            merged["type"] = t if listish_has_value(t) else "note"
+            merged["title"] = p.title
+            if p.preview:
+                merged["description"] = p.preview
+                descr_by_id[p.id] = p.preview
+            ts = p.frontmatter.get("updated") or p.frontmatter.get("created")
+            if ts:
+                merged["timestamp"] = ts
+            body = rewrite_wikilinks_to_okf(p.body, resolve_link)
+            doc = okf_frontmatter(merged) + "\n" + body.lstrip("\n")
+            dest = out / (p.id + ".md")
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_text(doc, encoding="utf-8")
+            concepts.append(p.id)
+
+        # Synthesize per-directory index.md (C-export). Root gets okf_version.
+        dirs: dict[str, dict[str, list[str]]] = {}
+        for cid in concepts:
+            parent = Path(cid).parent.as_posix()
+            parent = "" if parent == "." else parent
+            dirs.setdefault(parent, {"files": [], "subdirs": []})
+            dirs[parent]["files"].append(cid)
+            # register every ancestor dir + its immediate subdir component
+            parts = Path(cid).parts[:-1]
+            for depth in range(len(parts)):
+                d = "/".join(parts[:depth])
+                child = parts[depth]
+                node = dirs.setdefault(d, {"files": [], "subdirs": []})
+                if child not in node["subdirs"]:
+                    node["subdirs"].append(child)
+        index_count = 0
+        for d, node in sorted(dirs.items()):
+            lines: list[str] = []
+            if d == "":
+                lines.append(f'okf_version: "{okf_version}"')
+                lines = ["---", *lines, "---", ""]
+            title = d.rsplit("/", 1)[-1] if d else "Knowledge Bundle"
+            lines.append(f"# {title}")
+            lines.append("")
+            for sub in sorted(node["subdirs"]):
+                lines.append(f"* [{sub}]({sub}/) - subdirectory")
+            for cid in sorted(node["files"]):
+                rel = Path(cid).name + ".md"
+                desc = descr_by_id.get(cid, "")
+                suffix = f" - {desc}" if desc else ""
+                lines.append(f"* [{title_by_id.get(cid, Path(cid).name)}]({rel}){suffix}")
+            target = out / (d if d else ".") / "index.md"
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            index_count += 1
+
+        today = date.today().isoformat()
+        (out / "log.md").write_text(
+            f"# Update Log\n\n## {today}\n* **Export**: generated {len(concepts)} "
+            f"concepts from the Brainer wiki.\n", encoding="utf-8")
+        (out / "README.md").write_text(
+            "# OKF bundle (exported from Brainer wiki)\n\n"
+            "Conformant with OKF v0.1 (GoogleCloudPlatform/knowledge-catalog/okf/SPEC.md).\n"
+            "View the link graph with the upstream static `viz.html` "
+            "(`okf/bundles/<b>/viz.html` in that repo) pointed at this directory.\n",
+            encoding="utf-8")
+
+        conf = self.okf_conformance(out)
+        return {
+            "bundle": str(out),
+            "concepts": len(concepts),
+            "indexes": index_count,
+            "skipped": skipped,
+            "conformant": conf["conformant"],
+            "violations": conf["violations"],
+        }
+
+    def okf_conformance(self, bundle_dir: str | Path) -> dict[str, Any]:
+        """Validate an OKF v0.1 bundle: every non-reserved .md needs parseable
+        frontmatter + non-empty `type`; reserved files (index/log/README) carry no
+        frontmatter except `okf_version` on the root index.md."""
+        b = Path(bundle_dir).expanduser().resolve()
+        violations: list[dict[str, str]] = []
+        concept_count = 0
+        for path in sorted(b.rglob("*.md")):
+            rel = path.relative_to(b).as_posix()
+            fm, _ = parse_frontmatter(path.read_text(encoding="utf-8", errors="replace"))
+            if path.name in OKF_RESERVED_FILES:
+                if fm and not (rel == "index.md" and set(fm.keys()) <= {"okf_version"}):
+                    violations.append({"file": rel, "code": "reserved_has_frontmatter"})
+                continue
+            concept_count += 1
+            if not fm:
+                violations.append({"file": rel, "code": "missing_frontmatter"})
+            elif not listish_has_value(fm.get("type", "")):
+                violations.append({"file": rel, "code": "missing_type"})
+        return {"bundle": str(b), "concepts": concept_count,
+                "violations": violations, "conformant": not violations}
+
+    def contradict_scan(self, k: int = 50) -> dict[str, Any]:
+        """Surface CANDIDATE cross-page contradictions (the detection layer OKF's
+        absence_of_contradictions metric has and we lacked — we only stored
+        DECLARED `contradicts:` edges). Deterministic, conservative: same-subject
+        page pairs with diverging numbers for a shared key, minus already-declared
+        edges. Candidates are for an agent/judge to confirm, NOT confirmed truth."""
+        pages = [p for p in self._knowledge_pages(include_raw=False) if p.frontmatter]
+
+        def declared(a: Page, b: Page) -> bool:
+            def names(v: str) -> set[str]:
+                return {normalize_wikilink(x) for x in re.findall(r"\[\[([^\]]+)\]\]", v)}
+            an = names(a.frontmatter.get("contradicts", ""))
+            bn = names(b.frontmatter.get("contradicts", ""))
+            return (b.id in an or Path(b.id).name in an
+                    or a.id in bn or Path(a.id).name in bn)
+
+        cands: list[dict[str, Any]] = []
+        for i in range(len(pages)):
+            for j in range(i + 1, len(pages)):
+                a, b = pages[i], pages[j]
+                title_j = jaccard(content_tokens(a.title), content_tokens(b.title))
+                cont_j = jaccard(content_tokens(a.body), content_tokens(b.body))
+                same_subject = ((set(a.tags) & set(b.tags)) and title_j >= 0.34) or cont_j >= 0.5 or title_j >= 0.5
+                if not same_subject or declared(a, b):
+                    continue
+                ka, kb = keyed_numbers(a.body), keyed_numbers(b.body)
+                signals = [
+                    {"key": key, "a": sorted(ka[key]), "b": sorted(kb[key])}
+                    for key in sorted(set(ka) & set(kb)) if ka[key].isdisjoint(kb[key])
+                ]
+                if signals:
+                    cands.append({
+                        "a": a.id, "b": b.id,
+                        "title_overlap": round(title_j, 3),
+                        "content_overlap": round(cont_j, 3),
+                        "numeric_divergence": signals[:5],
+                    })
+        cands.sort(key=lambda c: (-len(c["numeric_divergence"]), c["a"], c["b"]))
+        return {"scanned": len(pages), "candidate_count": len(cands),
+                "candidates": cands[:k],
+                "note": "candidates for agent/judge confirmation; structural signal only, not confirmed contradictions"}
+
+    def novelty(self, threshold: float = 0.5) -> dict[str, Any]:
+        """Intra-page redundancy_index (OKF enrichment-eval lens): does a page add
+        novel synthesis or merely echo its own headings / fenced schema / cited
+        refs? Orthogonal to overlap()/graphify (those are INTER-document)."""
+        scores: list[dict[str, Any]] = []
+        for p in self._knowledge_pages(include_raw=False):
+            if not p.frontmatter:
+                continue
+            ref_text = " ".join(sorted(extract_refs(p.body)
+                                       | extract_refs(p.frontmatter.get("sources", ""))
+                                       | extract_refs(p.frontmatter.get("resource", ""))))
+            echo = content_tokens(fenced_text(p.body)) | content_tokens(ref_text.replace("/", " ").replace(".", " "))
+            score = redundancy_index(p.title, p.body, echo)
+            scores.append({"page": p.id, "novelty": score, "low": score < threshold})
+        scores.sort(key=lambda s: s["novelty"])
+        return {"scanned": len(scores), "threshold": threshold,
+                "low_novelty": [s for s in scores if s["low"]],
+                "scores": scores}
+
+    def claim_ground(self, page_id: str, code_root: str | Path | None = None) -> dict[str, Any]:
+        """Sentence-granular claim grounding (deterministic seam for OKF's
+        hallucination_free lens). Extracts prose sentences that cite a code ref
+        and flags those whose cited artifact is GONE — finer than audit-refs.
+        The semantic verdict (does present code actually match the prose?) is a
+        judge step, delegated to wiki-refresh."""
+        page = next((p for p in self.pages()
+                     if p.id == page_id or Path(p.id).name == Path(page_id).name), None)
+        if page is None:
+            return {"error": "page not found", "page": page_id}
+        root_code = Path(code_root).expanduser().resolve() if code_root else self.root.parent
+        prose = strip_fenced_code(page.body).replace("\n", " ")
+        claims: list[dict[str, Any]] = []
+        for sent in re.split(r"(?<=[.!?])\s+", prose):
+            s = sent.strip()
+            if len(s) < 12:
+                continue
+            refs = sorted(extract_refs(s))
+            if not refs:
+                continue
+            missing = [r for r in refs if not ((root_code / r).exists() or (self.root / r).exists())]
+            claims.append({"claim": s[:300], "refs": refs,
+                           "missing_refs": missing, "grounded": not missing})
+        return {"page": page.id, "claims_total": len(claims),
+                "claims_with_missing_artifact": sum(1 for c in claims if c["missing_refs"]),
+                "claims": claims,
+                "note": "deterministic existence-grounding; semantic prose-vs-code check is a judge step (wiki-refresh)"}
 
     # GRAFT 3 — discoverability. A curated store only compounds if a fresh /
     # plugin-less agent knows it exists, how to query it, and when. Check whether
@@ -1909,6 +2306,8 @@ def _cli_main(argv: list[str] | None = None) -> int:
                     help="Enforce v2 frontmatter on every page (not just v2/templated).")
     sp.add_argument("--stale-days", type=int, default=180,
                     help="Threshold for stale `verified:` in days (default 180).")
+    sp.add_argument("--fail-on-error", action="store_true",
+                    help="Exit non-zero when strict lint reports errors (ok:false). Makes strict lint a real gate for CI/import-audit.")
     sp.add_argument("--hub-threshold", type=int, default=20,
                     help="Inbound-link count above which a page is flagged as a gravity-well hub (default 20).")
     sp.add_argument("--scope", action="append", default=[],
@@ -1940,6 +2339,23 @@ def _cli_main(argv: list[str] | None = None) -> int:
 
     sp = sub.add_parser("discoverability", help="Check whether a host instruction file surfaces the wiki store; emit a snippet if not.")
     sp.add_argument("--file", required=True, help="Instruction file to check (e.g. CLAUDE.md, AGENTS.md).")
+
+    sp = sub.add_parser("export-okf", help="One-way serialize the wiki into a conformant OKF v0.1 bundle (publish/share; no import, no sibling sync).")
+    sp.add_argument("--out", required=True, help="Output directory for the OKF bundle.")
+    sp.add_argument("--okf-version", default="0.1")
+
+    sp = sub.add_parser("okf-validate", help="Check an OKF bundle for v0.1 conformance (frontmatter + non-empty type; reserved-file rules).")
+    sp.add_argument("--bundle", required=True, help="OKF bundle directory to validate.")
+
+    sp = sub.add_parser("contradict-scan", help="Surface candidate cross-page contradictions (numeric divergence on a shared key) for agent/judge confirmation. The DETECTION layer above declared contradicts: edges.")
+    sp.add_argument("-k", type=int, default=50)
+
+    sp = sub.add_parser("novelty", help="Intra-page redundancy_index: flag pages that echo their own schema/headings/refs instead of adding synthesis.")
+    sp.add_argument("--threshold", type=float, default=0.5)
+
+    sp = sub.add_parser("claim-ground", help="Sentence-granular claim grounding: flag prose claims whose cited artifact is gone (finer than audit-refs).")
+    sp.add_argument("item_id")
+    sp.add_argument("--code-root", default=None)
 
     args = p.parse_args(argv)
     root = Path(args.root).expanduser().resolve() if args.root else _cli_default_root()
@@ -1999,6 +2415,8 @@ def _cli_dispatch(args, store, root) -> int:
                 else:
                     print(f"{key}: {val}")
             print(f"lint: {'CLEAN' if issues == 0 else f'{issues} issue(s)'} (--json for full report)")
+        if getattr(args, "fail_on_error", False) and report.get("ok") is False:
+            return 1
     elif args.cmd == "import-audit":
         _cli_print(store.import_audit(args.manifest))
     elif args.cmd == "overlap":
@@ -2017,6 +2435,18 @@ def _cli_dispatch(args, store, root) -> int:
         _cli_print(store.audit_refs(code_root=args.code_root, stale_days=args.stale_days))
     elif args.cmd == "discoverability":
         _cli_print(store.discoverability(args.file))
+    elif args.cmd == "export-okf":
+        _cli_print(store.export_okf(args.out, okf_version=args.okf_version))
+    elif args.cmd == "okf-validate":
+        report = store.okf_conformance(args.bundle)
+        _cli_print(report)
+        return 0 if report["conformant"] else 1
+    elif args.cmd == "contradict-scan":
+        _cli_print(store.contradict_scan(k=args.k))
+    elif args.cmd == "novelty":
+        _cli_print(store.novelty(threshold=args.threshold))
+    elif args.cmd == "claim-ground":
+        _cli_print(store.claim_ground(args.item_id, code_root=args.code_root))
     else:  # unreachable — argparse enforces choices
         p.error(f"unknown subcommand: {args.cmd}")
     return 0

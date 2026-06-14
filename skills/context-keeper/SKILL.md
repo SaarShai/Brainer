@@ -37,7 +37,6 @@ tools/
 ├── extract.py     # regex extractor + optional LLM pass
 ├── hook.py        # PreCompact worker: parses stdin payload, invokes extract.py
 ├── hook.sh        # PreCompact shell shim (settings.json points here)
-├── tokens.py      # token estimator helper
 └── install.sh     # wires into project-local .claude/
 ```
 

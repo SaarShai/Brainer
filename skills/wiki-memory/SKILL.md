@@ -133,6 +133,24 @@ If the project has `graphify-out/graph.json` (auto-extracted code graph), do not
 
 When writing a new page, first run `graphify query "<topic>"` (or grep `graphify-out/GRAPH_REPORT.md`); if the answer is already covered by the auto-graph, the page is redundant — skip the write. The reverse also holds: don't try to make graphify carry the *why*; it can't.
 
+## OKF interop & quality scans
+
+Grounded in a deep review of Google's Open Knowledge Format (OKF v0.1, `GoogleCloudPlatform/knowledge-catalog`). Our `page_id` already equals an OKF concept-id (path-minus-ext), so interop is a thin serializer; the higher-value adoptions are the eval-lens detectors our toolchain lacked.
+
+```
+python3 skills/wiki-memory/tools/wiki.py export-okf --out <dir>     # one-way publish to a conformant OKF bundle
+python3 skills/wiki-memory/tools/wiki.py okf-validate --bundle <dir>  # v0.1 conformance check (exit 1 if not)
+python3 skills/wiki-memory/tools/wiki.py contradict-scan            # candidate cross-page contradictions (numeric divergence)
+python3 skills/wiki-memory/tools/wiki.py novelty                    # intra-page redundancy_index (echo-vs-synthesis)
+python3 skills/wiki-memory/tools/wiki.py claim-ground <id>          # flag prose claims whose cited artifact is gone
+```
+
+- **`export-okf`** — serializer only (no import, no sibling sync — sibling-sync is byte-rsync of skill *code*, not a knowledge channel). Remaps frontmatter (`timestamp←updated`, `description←preview`, `title←body H1`), rewrites `[[wikilinks]]`→`/id.md`, synthesizes per-dir `index.md` (+ `okf_version` at root) and `log.md`. All governance keys (trust/confidence/supersedes/…) ride along as OKF custom keys. View the graph with the upstream `viz.html` pointed at the bundle.
+- **`contradict-scan`** (rec F) — the *detection* layer above declared `contradicts:` edges: same-subject pairs with diverging numbers for a shared key, minus already-declared edges. Output is **candidates for confirmation**, not truth — confirm, then write the `contradicts:` edge. Use in [`wiki-refresh`](../wiki-refresh/SKILL.md).
+- **`novelty`** (rec H) — intra-page tautology score, orthogonal to `overlap`/graphify (those are inter-document). Low score = page echoes its own headings/schema/refs; a write-gate / refresh signal.
+- **`claim-ground`** (rec G) — sentence-granular grounding finer than `audit-refs`; the semantic "does present code match the prose" verdict is a judge step for `wiki-refresh`.
+- **`resource:` / `[[?stub]]`** — see schema.md. Relationship-as-page (OKF `references/joins`): promote a content-bearing derivation to its own page, but keep `supersedes`/`contradicts` as typed directional frontmatter, never untyped OKF body links.
+
 ## Optional MCP
 
 `tools/wiki_mcp/` exposes `wiki_search`, `wiki_fetch`, `wiki_timeline`, `wiki_new` for MCP-aware hosts.

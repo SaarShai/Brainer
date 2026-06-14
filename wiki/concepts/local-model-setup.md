@@ -6,9 +6,9 @@ domain: ai-setup
 tier: working
 confidence: 0.9
 created: 2026-04-25
-updated: 2026-06-06
-verified: 2026-06-06
-sources: [concepts/devices-inventory.md, skills/prompt-triage/SKILL.md, skills/context-keeper/SKILL.md, skills/semantic-diff/SKILL.md, skills/handoff/SKILL.md, skills/verify-before-completion/SKILL.md]
+updated: 2026-06-14
+verified: 2026-06-14
+sources: [concepts/devices-inventory.md, skills/prompt-triage/SKILL.md, skills/context-keeper/SKILL.md, skills/semantic-diff/SKILL.md, skills/verify-before-completion/SKILL.md]
 supersedes: []
 superseded-by:
 tags: [infra, devices, models, routing, harnesses]
@@ -35,7 +35,7 @@ M2 is the control plane. See [[concepts/devices-inventory]] for the current clus
 - `skills/caveman-ultra/SKILL.md`
 - `skills/plan-first-execute/SKILL.md`
 - `skills/wiki-memory/SKILL.md` — wiki retrieval + gated writes
-- `skills/handoff/SKILL.md` and `skills/context-keeper/SKILL.md` — context refresh + state preservation
+- `skills/context-keeper/SKILL.md` — context refresh + state preservation
 - `skills/verify-before-completion/SKILL.md`
 - `skills/prompt-triage/SKILL.md` — delegation routing
 
@@ -43,7 +43,7 @@ M2 is the control plane. See [[concepts/devices-inventory]] for the current clus
 
 Set up:
 
-- `skills/compress-context/SKILL.md` (ComCom input compression)
+- The former compress-context skill (now folded into context-keeper) for input compression
 - `skills/semantic-diff/SKILL.md` MCP/plugin
 - `skills/context-keeper/SKILL.md` PreCompact hook
 - `skills/prompt-triage/SKILL.md` triage hook and bundled subagents
@@ -71,6 +71,8 @@ bash skills/prompt-triage/tools/install.sh
 bash skills/context-keeper/tools/install.sh
 bash skills/semantic-diff/tools/install.sh
 ```
+
+Note: compress-context and handoff are now integrated into context-keeper.
 
 ## M1 and M1B: task-capable local inference
 

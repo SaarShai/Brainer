@@ -6,8 +6,8 @@ domain: framework
 tier: semantic
 confidence: high
 created: 2026-06-13
-updated: 2026-06-13
-verified: 2026-06-13
+updated: 2026-06-14
+verified: 2026-06-14
 sources: [skills/compliance-canary/tools/hook.py, skills/wiki-memory/tools/wiki.py, skills/context-keeper/tools/extract.py, skills/cache-lint/tools/cache_lint.py, skills/write-gate/tools/write_gate.py, scripts/run_all_tests.sh]
 evidence_count: 6
 supersedes: []
@@ -40,7 +40,7 @@ Editing/parsing `^trust:…` (or any frontmatter key) over the *entire* file wit
 ## 3. O(n²) / ReDoS from nested quantifiers + weak leading lookbehind
 A path/segment regex like `[\w\-]+(?:/[\w\-]+)+\.(ext)` backtracks
 super-linearly when it can *start* a match at every interior segment.
-- context-keeper `PATH_RE`: a rewrite to catch bare relative paths hit **39 s** on a 50 k-segment slash run / 3.2 s on a 40 KB paste — enough to blow [`context-keeper`](../projects/context-keeper.md)'s 30 s PreCompact subprocess timeout and lose the whole snapshot. It also leaked `https://…/foo.py` URL fragments into `files_touched`.
+- context-keeper `PATH_RE`: a rewrite to catch bare relative paths hit **39 s** on a 50 k-segment slash run / 3.2 s on a 40 KB paste — enough to blow [[projects/context-keeper]]'s 30 s PreCompact subprocess timeout and lose the whole snapshot. It also leaked `https://…/foo.py` URL fragments into `files_touched`.
 - cache-lint typography skip: moving an O(line) per-match check before the cap made `'$(date) '*5000` take 7 s (the fuzz battery's `dos_under_2s` case caught it).
 - **Rule:** a *strong leading negative-lookbehind* (`(?<![\w\-./~])`) limits match starts to token boundaries → linear even with the segment group. For per-match work inside a loop, precompute spans once (O(n)) and test membership with `bisect` (O(log n)), mirroring `_inside_fence_fast`. **Benchmark every new path/segment regex on an adversarial slash-run before committing.** This file has a documented 23 s incident in its history — the lesson keeps re-applying.
 
@@ -58,7 +58,7 @@ Four distinct shapes, all of which let the bug back in silently:
 
 ## 6. The single verdict gate must run every deterministic suite
 `scripts/run_all_tests.sh` ("exit code is the verdict") never invoked
-`eval/sims/run_all.py`, `skill-pulse/test.sh`, or a new output-filter test — so two
+`eval/sims/run_all.py`, `skills/skill-pulse/tools/test.sh`, or a new output-filter test — so two
 sims sat **dead** (stale `skills/memory-decay/tools` import path after the
 memory-decay→wiki-memory consolidation) and green for weeks, and a shipping hook's
 24-assertion suite was outside CI.
