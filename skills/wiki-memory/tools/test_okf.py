@@ -622,6 +622,19 @@ class TestMaturity(unittest.TestCase):
         WikiStore(self.root).maturity()
         self.assertEqual(before, sorted(p.name for p in self.root.rglob("*.md")))
 
+    def test_falsifier_regex(self):
+        from wiki import _FALSIFIER_RE
+        self.assertTrue(_FALSIFIER_RE.search("This breaks when the cache is cold."))
+        self.assertTrue(_FALSIFIER_RE.search("Falsified if measured latency exceeds 1s."))
+        self.assertFalse(_FALSIFIER_RE.search("Always retrieve before reasoning here."))
+
+    def test_promotion_flags_missing_falsifier(self):
+        # the hedge-heavy promotion candidate states no falsifier -> flagged
+        rep = WikiStore(self.root).maturity(promote_inbound=3)
+        hyp = next(c for c in rep["promotion_candidates"] if c["id"] == "concepts/hyp")
+        self.assertFalse(hyp["has_falsifier"])
+        self.assertIn("falsification", hyp["reason"])
+
 
 class TestExclusionsAndKeyedNumbers(unittest.TestCase):
     def test_keyed_numbers_no_cross_space_unit(self):

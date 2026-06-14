@@ -455,6 +455,22 @@ def _negation_parity(s: str) -> int:
     return len(_NEG_RE.findall(s)) % 2
 
 
+# A claim earns "rule" status only if it states what would FALSIFY it (Popper;
+# LangMem's critique-then-propose). Presence check, deterministic.
+_FALSIFIER_RE = re.compile(
+    r"\b(falsifi\w+|disprov\w+|refut\w+|counterexample|"
+    r"(?:breaks?|fails?|wrong|invalid\w*|untrue|stops? (?:holding|applying)) (?:when|if)|"
+    r"no longer (?:holds|true|applies|valid))\b", re.I)
+
+
+def has_falsifier(page: Page) -> bool:
+    """Does the page state a falsification condition (in body or `falsifies:` /
+    `falsified-by:` frontmatter)? A rule without one is really an assertion."""
+    if any(k in page.frontmatter for k in ("falsifies", "falsified-by", "falsifier")):
+        return True
+    return bool(_FALSIFIER_RE.search(strip_fenced_code(page.body)))
+
+
 def suggest_resolution(a: Page, b: Page, has_polarity: bool) -> dict[str, str]:
     """Given a detected contradiction between two pages, suggest the RESOLUTION
     VERB (report-only). Borrowed from Zep (invalidate-don't-delete, newer info
@@ -2324,8 +2340,12 @@ class WikiStore:
                 demote.append({"id": p.id, "stage": stage, "type": ptype, "trust": trust,
                                "reason": "contradicted rule/verified — review for demotion (conflict-driven)"})
             if stage in {"hypothesis", "observation"} and trust == "asserted" and inb >= promote_inbound:
+                fals = has_falsifier(p)
+                reason = f"cited {inb}x while still asserted — corroborate/distill toward a rule"
+                if not fals:
+                    reason += " (state a falsification condition before promoting to rule)"
                 promote.append({"id": p.id, "stage": stage, "inbound": inb,
-                                "reason": f"cited {inb}x while still asserted — corroborate/distill toward a rule"})
+                                "has_falsifier": fals, "reason": reason})
         promote.sort(key=lambda r: -r["inbound"])
         return {"histogram": hist, "promotion_candidates": promote,
                 "demotion_candidates": demote,
