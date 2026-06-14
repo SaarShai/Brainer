@@ -327,6 +327,38 @@ class TestContradictScan(unittest.TestCase):
         rep = WikiStore(self.root).contradict_scan()
         self.assertTrue(all("polarity_conflicts" in c for c in rep["candidates"]))
 
+    def test_resolution_invalidate_by_recency(self):
+        # polarity contradiction, newer page wins -> invalidate the older
+        _write(self.root, "concepts/ra.md", _v2("Imm", extra={"tags": "[imm]", "updated": "2026-01-01"},
+               body="\n# Imm\n\nRaw source pages are immutable after creation here.\n"))
+        _write(self.root, "concepts/rb.md", _v2("Imm", extra={"tags": "[imm]", "updated": "2026-03-01"},
+               body="\n# Imm\n\nRaw source pages are not immutable after creation here.\n"))
+        cand = next(c for c in WikiStore(self.root).contradict_scan()["candidates"] if c.get("polarity_conflicts"))
+        r = cand["suggested_resolution"]
+        self.assertEqual(r["verb"], "invalidate")
+        self.assertEqual(r["keep"], "concepts/rb")
+        self.assertEqual(r["resolve"], "concepts/ra")
+
+    def test_resolution_supersede_by_trust(self):
+        # numeric value change, higher-trust value wins -> supersede
+        _write(self.root, "concepts/na.md", _v2("Cfg", extra={"tags": "[cfg]", "trust": "verified"},
+               body="\n# Cfg\n\nDefault timeout 30s in this hot path.\n"))
+        _write(self.root, "concepts/nb.md", _v2("Cfg", extra={"tags": "[cfg]", "trust": "asserted"},
+               body="\n# Cfg\n\nDefault timeout 90s in this hot path.\n"))
+        cand = next(c for c in WikiStore(self.root).contradict_scan()["candidates"] if c.get("numeric_divergence"))
+        r = cand["suggested_resolution"]
+        self.assertEqual(r["verb"], "supersede")
+        self.assertEqual(r["keep"], "concepts/na")
+
+    def test_resolution_dispute_when_equal(self):
+        # equal trust AND recency -> dispute (flag both)
+        _write(self.root, "concepts/da.md", _v2("Block", extra={"tags": "[blk]"},
+               body="\n# Block\n\nThe append ledger is blocking on every commit here.\n"))
+        _write(self.root, "concepts/db.md", _v2("Block", extra={"tags": "[blk]"},
+               body="\n# Block\n\nThe append ledger is nonblocking on every commit here.\n"))
+        cand = next(c for c in WikiStore(self.root).contradict_scan()["candidates"] if c.get("polarity_conflicts"))
+        self.assertEqual(cand["suggested_resolution"]["verb"], "dispute")
+
 
 class TestNoveltyAndClaimGround(unittest.TestCase):
     def setUp(self):

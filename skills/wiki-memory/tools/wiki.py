@@ -455,6 +455,33 @@ def _negation_parity(s: str) -> int:
     return len(_NEG_RE.findall(s)) % 2
 
 
+def suggest_resolution(a: Page, b: Page, has_polarity: bool) -> dict[str, str]:
+    """Given a detected contradiction between two pages, suggest the RESOLUTION
+    VERB (report-only). Borrowed from Zep (invalidate-don't-delete, newer info
+    prioritized) + mem0 (polarity contradiction -> invalidate; value change ->
+    supersede) + our trust tiers — made deterministic on frontmatter we already
+    have (trust, updated). The agent confirms and wires the edge; nothing here
+    mutates.
+      - invalidate : polarity contradiction — keep the higher-trust/newer page,
+        mark the other `contradicts:` and demote it.
+      - supersede  : numeric value change — newer/higher-trust value wins
+        (`superseded-by`).
+      - dispute    : equal trust AND equal recency — flag both, serve neither.
+    """
+    ra = TRUST_TIERS.get(str(a.frontmatter.get("trust", "asserted")).strip().strip("\"'"), 1.0)
+    rb = TRUST_TIERS.get(str(b.frontmatter.get("trust", "asserted")).strip().strip("\"'"), 1.0)
+    da = str(a.frontmatter.get("updated", "")).strip().strip("\"'")
+    db = str(b.frontmatter.get("updated", "")).strip().strip("\"'")
+    verb = "invalidate" if has_polarity else "supersede"
+    if ra != rb:
+        keep, drop, basis = (a, b, "trust") if ra > rb else (b, a, "trust")
+    elif da != db:
+        keep, drop, basis = (a, b, "recency") if da > db else (b, a, "recency")
+    else:
+        return {"verb": "dispute", "basis": "equal trust and recency", "keep": "", "resolve": ""}
+    return {"verb": verb, "basis": basis, "keep": keep.id, "resolve": drop.id}
+
+
 def polarity_conflict(a: str, b: str, min_overlap: float = 0.6) -> str | None:
     """Detect a polarity contradiction between two short claims: near-identical
     wording (content-token Jaccard >= min_overlap) but OPPOSITE polarity — either
@@ -2070,6 +2097,7 @@ class WikiStore:
                         "content_overlap": round(cont_j, 3),
                         "numeric_divergence": signals[:5],
                         "polarity_conflicts": pol[:5],
+                        "suggested_resolution": suggest_resolution(a, b, bool(pol)),
                     })
         cands.sort(key=lambda c: (-(len(c["numeric_divergence"]) + len(c["polarity_conflicts"])), c["a"], c["b"]))
         return {"scanned": len(pages), "candidate_count": len(cands),
