@@ -26,9 +26,15 @@ NLI models, numeric truth-scores, or >5 types):
 import re
 
 CLAIM_TYPES = ("observation", "decision", "rule", "hypothesis", "opinion")
+# `unknown` is the abstention sentinel (no epistemic marker fired) — NOT a 6th
+# type. Blind-validation (2026-06) showed forcing unmarked prose into a type
+# (esp. default->observation on directive-heavy SOPs) tanks precision; honest
+# abstention + high precision on what we DO emit serves the downstream
+# contradiction/synthesis layers better than false confidence.
 KLASS = {"observation": "data",
          "decision": "directive", "rule": "directive",
-         "hypothesis": "judgment", "opinion": "judgment"}
+         "hypothesis": "judgment", "opinion": "judgment",
+         "unknown": "unclassified"}
 
 # --- marker inventories (word-boundary, case-insensitive) -------------------
 # Uncertainty / tentativeness -> hypothesis signal.
@@ -58,9 +64,21 @@ _FP_TASTE = re.compile(r"\bi (?:like|love|hate|dislike|prefer|find)\b", re.I)
 # phrased in imperative mood without an always/never/must marker. High-precision
 # curated verb list, anchored at start. Checked AFTER evidence so "Run took 4.2s"
 # (past tense + measurement) stays an observation.
+_IMPERATIVE_VERBS = (
+    "resolve ensure avoid keep use prefer treat record check confirm verify store "
+    "gate route skip ask stop drop favour favor cite retrieve list distinguish define "
+    "capture decide flag mark note name pick choose default prioritise prioritize scope "
+    "limit restrict require document validate track surface propose suggest recommend "
+    "separate group cluster merge split hold log return raise handle prevent allow deny "
+    "grant expand reduce simplify prune batch cache lint label tag sort filter escalate "
+    "downshift write read run set add remove update start begin finish wait map fold "
+    "be make do give take call send pull push apply enforce respect honour honor"
+).split()
+# Bare-imperative directive: sentence-initial base verb, NOT followed by a noun-
+# indicator (of/is/are/was/were/:) which would mean the verb is actually a noun
+# ("List of sources", "Check is green"). Checked AFTER evidence.
 _IMPERATIVE = re.compile(
-    r"^(resolve|ensure|avoid|keep|use|prefer|treat|record|check|confirm|verify|"
-    r"default to|store|gate|route|skip|ask|stop|drop|favour|favor|cite|retrieve)\b",
+    r"^(?:" + "|".join(_IMPERATIVE_VERBS) + r")\b(?!\s+(?:of|is|are|was|were)\b)(?!\s*:)",
     re.I)
 
 # General normative / conditional directive -> rule.
@@ -71,15 +89,17 @@ _RULE = re.compile(
     r"|(\bif\b.+\bthen\b)|(\bwhen\b.+\b(?:do|use|run|prefer|avoid)\b)",
     re.I)
 
-# Empirical / measured / dated -> observation (data).
+# Empirical / measured / dated / located -> observation (data).
 _EVIDENCE = re.compile(
     r"(\b(measured|observed|recorded|logged|benchmarked|profiled|"
     r"ran\b.+\b(?:and|got|returned|showed)|returned|reported|"
-    r"passed|failed|errored|crashed|timed out|reproduc\w+)\b)"
+    r"passed|failed|errored|crashed|timed out|reproduc\w+|"
+    r"lives? (?:at|in)|located (?:at|in)|defined (?:at|in)|found (?:at|in))\b)"
     r"|(\b\d+(?:\.\d+)?\s*(?:ms|s\b|sec|%|x\b|tokens?|lines?|tests?|cases?|"
     r"files?|bytes?|kb|mb|gb|commits?|times|iterations?))"
     r"|(\b(?:v|version\s*)\d+(?:\.\d+)+)"
-    r"|(\b\d{4}-\d{2}-\d{2}\b)",
+    r"|(\b\d{4}-\d{2}-\d{2}\b)"
+    r"|([\w./-]+\.(?:py|js|ts|md|sh|json|yaml|yml|toml)(?::\d+)?\b)",  # path/locator ref
     re.I)
 
 # Subjective evaluation w/o measurement -> opinion.
@@ -170,11 +190,11 @@ def grade_claim(text: str) -> dict:
     if opinion:
         markers.append("opinion")
         return out("opinion")
-    # 8. No strong signal: default to observation (a plain declarative factual
-    #    statement). Default minimises an "unknown" bucket while staying honest;
-    #    measured on the corpus.
-    markers.append("default:observation+causal" if _CAUSAL.search(clean) else "default:observation")
-    return out("observation")
+    # 9. No epistemic marker fired -> ABSTAIN (unknown). Honest: do not force
+    #    unmarked prose into a type. Downstream layers treat unknown as
+    #    "not actionable" (no hard contradiction, not promoted).
+    markers.append("abstain")
+    return out("unknown")
 
 
 _HEADING_RE = re.compile(r"^\s*#{1,6}\s")
@@ -198,7 +218,7 @@ def grade_text(text: str) -> dict:
     clean = _strip_noise(body)
     spans = re.split(r"(?<=[.!?])\s+|\n[-*]\s+|\n{2,}", clean)
     claims = []
-    hist = {"data": 0, "directive": 0, "judgment": 0}
+    hist = {"data": 0, "directive": 0, "judgment": 0, "unclassified": 0}
     for s in spans:
         s = s.strip(" -*\t")
         if len(s) < 12:

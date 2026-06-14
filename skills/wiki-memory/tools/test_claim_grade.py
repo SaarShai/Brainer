@@ -83,42 +83,42 @@ TRAPS = {
     "Prefer updating an existing page over creating a new one": "rule",
 }
 
-OVERALL_MIN = 0.82
-PER_CLASS_RECALL_MIN = 0.6
+# Honest precision/coverage bars (abstention `unknown` counts against coverage,
+# NOT against precision — high precision on emitted types is the goal; recall is
+# secondary; see the blind-validation finding in claim_grade.py).
+PRECISION_MIN = 0.88
+COVERAGE_MIN = 0.75
 
 
 class TestClaimGrade(unittest.TestCase):
     def _predict(self):
-        preds = [(t, exp, grade_claim(t)["type"]) for t, exp in GOLD]
-        return preds
+        return [(t, exp, grade_claim(t)["type"]) for t, exp in GOLD]
 
-    def test_overall_accuracy(self):
+    def test_precision_when_confident(self):
         preds = self._predict()
-        correct = sum(1 for _, exp, got in preds if exp == got)
-        acc = correct / len(preds)
-        if acc < OVERALL_MIN:
-            wrong = [f"\n  {exp:11s} != {got:11s} :: {t[:60]}" for t, exp, got in preds if exp != got]
-            self.fail(f"overall accuracy {acc:.3f} < {OVERALL_MIN} ({correct}/{len(preds)})" + "".join(wrong))
+        emitted = [(t, exp, got) for t, exp, got in preds if got != "unknown"]
+        correct = sum(1 for _, exp, got in emitted if exp == got)
+        prec = correct / len(emitted) if emitted else 0.0
+        if prec < PRECISION_MIN:
+            wrong = [f"\n  {exp:11s} != {got:11s} :: {t[:60]}" for t, exp, got in emitted if exp != got]
+            self.fail(f"precision {prec:.3f} < {PRECISION_MIN} ({correct}/{len(emitted)} emitted)" + "".join(wrong))
 
-    def test_per_class_recall(self):
+    def test_coverage(self):
         preds = self._predict()
-        tp = defaultdict(int)
-        tot = defaultdict(int)
-        for _, exp, got in preds:
-            tot[exp] += 1
-            if exp == got:
-                tp[exp] += 1
-        for cls in set(tot):
-            recall = tp[cls] / tot[cls]
-            self.assertGreaterEqual(recall, PER_CLASS_RECALL_MIN,
-                                    f"class '{cls}' recall {recall:.2f} < {PER_CLASS_RECALL_MIN} ({tp[cls]}/{tot[cls]})")
+        emitted = sum(1 for _, _, got in preds if got != "unknown")
+        cov = emitted / len(preds)
+        if cov < COVERAGE_MIN:
+            abst = [f"\n  abstained on {exp:11s} :: {t[:60]}" for t, exp, got in preds if got == "unknown"]
+            self.fail(f"coverage {cov:.3f} < {COVERAGE_MIN} ({emitted}/{len(preds)})" + "".join(abst))
 
-    def test_coarse_klass_accuracy(self):
-        # data / directive / judgment roll-up — what contradiction type-awareness needs.
+    def test_coarse_klass_precision(self):
+        # data / directive / judgment roll-up on emitted — what contradiction
+        # type-awareness needs.
         preds = self._predict()
-        correct = sum(1 for _, exp, got in preds if KLASS[exp] == KLASS[got])
-        acc = correct / len(preds)
-        self.assertGreaterEqual(acc, 0.88, f"coarse klass accuracy {acc:.3f} < 0.88")
+        emitted = [(exp, got) for _, exp, got in preds if got != "unknown"]
+        correct = sum(1 for exp, got in emitted if KLASS[exp] == KLASS[got])
+        acc = correct / len(emitted) if emitted else 0.0
+        self.assertGreaterEqual(acc, 0.88, f"coarse klass precision {acc:.3f} < 0.88")
 
     def test_named_traps(self):
         for text, exp in TRAPS.items():
