@@ -1,69 +1,69 @@
 {
   "skill": "hotpath",
   "shape": "perf",
-  "elapsed_s": 0.229,
+  "elapsed_s": 0.236,
   "passed": true,
   "summary": {
     "cases": 8,
     "failed": 0,
-    "slowest_ms": 21.62
+    "slowest_ms": 22.11
   },
   "findings": [
     {
       "case": "context-keeper:PATH_RE:50k-slash-run",
       "status": "ok",
-      "ms": 4.43,
+      "ms": 4.49,
       "budget_ms": 2000.0,
-      "headroom_x": 451.2
+      "headroom_x": 445.1
     },
     {
       "case": "context-keeper:regex_extract:40kb-slash-block",
       "status": "ok",
-      "ms": 5.14,
+      "ms": 5.3,
       "budget_ms": 3000.0,
-      "headroom_x": 583.7
+      "headroom_x": 566.0
     },
     {
       "case": "cache-lint:audit-rule2:5k-substitutions",
       "status": "ok",
-      "ms": 5.78,
+      "ms": 6.05,
       "budget_ms": 2000.0,
-      "headroom_x": 345.8
+      "headroom_x": 330.5
     },
     {
       "case": "cache-lint:audit-rule2:5k-typography",
       "status": "ok",
-      "ms": 11.95,
+      "ms": 12.49,
       "budget_ms": 2000.0,
-      "headroom_x": 167.3
+      "headroom_x": 160.1
     },
     {
       "case": "output-filter:filter_text:10k-ansi-lines",
       "status": "ok",
-      "ms": 21.62,
+      "ms": 22.11,
       "budget_ms": 2000.0,
-      "headroom_x": 92.5
+      "headroom_x": 90.5
     },
     {
       "case": "write-gate:score_text:200kb-decision",
       "status": "ok",
-      "ms": 14.72,
+      "ms": 15.55,
       "budget_ms": 1500.0,
-      "headroom_x": 101.9
+      "headroom_x": 96.5
     },
     {
       "case": "prompt-triage:classify:1499-char-adversarial",
       "status": "ok",
       "ms": 0.16,
       "budget_ms": 1500.0,
-      "headroom_x": 9419.2
+      "headroom_x": 9116.3
     },
     {
       "case": "compliance-canary:claim_without_evidence:big-haystack",
       "status": "ok",
-      "ms": 0.77,
+      "ms": 0.76,
       "budget_ms": 1000.0,
-      "headroom_x": 1300.8
+      "headroom_x": 1308.3
     }
   ]
 }

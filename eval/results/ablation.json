@@ -91,6 +91,30 @@
           "acc_delta": 0.0
         }
       ]
+    },
+    {
+      "skill": "cache-lint",
+      "n": 6,
+      "acc_reliable": false,
+      "baseline_acc": 0.0,
+      "baseline_note": "rule-2 finding-set; flips = findings changed when a mechanism is ablated",
+      "rules": [
+        {
+          "rule": "typography-skip(_pos_in_spans)",
+          "flips": 8,
+          "acc_delta": 0.0
+        },
+        {
+          "rule": "fence-parity(_inside_fence_fast)",
+          "flips": 2,
+          "acc_delta": 0.0
+        },
+        {
+          "rule": "per-pattern-cap(MAX_FINDINGS)",
+          "flips": 6,
+          "acc_delta": 0.0
+        }
+      ]
     }
   ],
   "harmful": [],

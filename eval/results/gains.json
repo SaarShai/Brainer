@@ -19,10 +19,10 @@
   {
     "skill": "write-gate",
     "metric": "candidate-memory noise rejected",
-    "value": 37.1,
+    "value": 38.0,
     "unit": "% of candidate tokens kept out of durable memory",
     "baseline": "ungated (admit every candidate)",
-    "detail": "898/1427 est tokens admitted"
+    "detail": "932/1504 est tokens admitted"
   },
   {
     "skill": "cache-lint",
@@ -32,5 +32,13 @@
     "baseline": "unfixed dynamic-content FAIL (full cache-write each turn)",
     "detail": "FAIL detected=True; 41,350->5,210 billed tok @N=20",
     "hitrate_uplift_pp": 95.0
+  },
+  {
+    "skill": "semantic-diff",
+    "metric": "token savings on a re-read after a small edit",
+    "value": 97.3,
+    "unit": "% fewer tokens vs full re-read",
+    "baseline": "naive full file re-read",
+    "detail": "4672->127 est tokens; break-even after R*=2 re-reads"
   }
 ]

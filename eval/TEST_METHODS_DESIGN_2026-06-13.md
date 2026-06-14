@@ -128,9 +128,14 @@ feature ever becomes net-harmful (a real miscalibration signal).
 | skill | gain | vs baseline |
 |---|---|---|
 | skill-pulse | **97.0%** fewer tokens (76k vs 2.59M / 1000 turns) | re-injecting 8 full SKILL.md bodies every 4 turns |
+| semantic-diff | **97.3%** fewer tokens on a re-read after a small edit (break-even R*=2) | naive full file re-read |
 | cache-lint | **87.4%** fewer billed prefix tokens / 20 turns (hit-rate +95pp) | unfixed Rule-2 FAIL — *fills EVAL.md's flagged-unmeasured ≥30%* |
 | output-filter | **83.6%** fewer tokens, signal preserved | unfiltered noisy stream |
-| write-gate | **37.1%** of candidate tokens kept out of memory | ungated (admit every candidate) |
+| write-gate | **38.0%** of candidate tokens kept out of memory | ungated (admit every candidate) |
+
+(H1 also now attributes cache-lint's Rule-2 mechanisms: typography-skip, per-pattern-cap, and
+fence-parity all change the finding set when ablated — each is load-bearing. Coverage: H3 = 5
+skills, H1 = 3 skills, H4 = 2 prose skills — all eval-side, no change to any skill's footprint.)
 
 **H4 — behavioral (`eval/behavioral.py`, qwen2.5:7b-instruct, seeds 0/1, deterministic scoring,
 NOT gated — model-dependent tier).**

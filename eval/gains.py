@@ -125,7 +125,41 @@ def gain_cache_lint() -> dict:
             "hitrate_uplift_pp": round((N - 1) / N * 100, 1)}
 
 
-GAINS = [gain_output_filter, gain_skill_pulse, gain_write_gate, gain_cache_lint]
+def gain_semantic_diff() -> dict:
+    """Tokens saved re-reading a file via AST-node diff vs a full re-read, after a
+    small edit — the skill's signature claim. Also the break-even read count R*
+    (after how many re-reads the one-time full snapshot has paid for itself).
+    Skipped cleanly if tree_sitter is absent."""
+    try:
+        import tree_sitter  # noqa: F401
+    except Exception:
+        return {"skill": "semantic-diff", "metric": "re-read token savings (skipped)",
+                "value": None, "unit": "tree_sitter not importable", "baseline": "-", "detail": "skip"}
+    core = import_skill_module("semantic-diff", "semdiff.core")
+    # use a real repo source file; edit two function bodies in a temp copy
+    src = (REPO / "skills/wiki-memory/tools/decay.py").read_text()
+    d = Path(tempfile.mkdtemp(prefix="gains_sd_")); f = d / "decay.py"
+    f.write_text(src)
+    prev = core.snapshot_full(f)
+    edited = src.replace("def lambda_from_halflife(", "def lambda_from_halflife(  # edited\n    _marker = 1\n    return None\ndef _unused_(", 1)
+    if edited == src:  # fallback: perturb the first function found
+        edited = src.replace("return", "return  # edited", 1)
+    f.write_text(edited)
+    diff_text, _meta = core.render_diff(f, prev)
+    full_tok = estimate_tokens(edited)
+    diff_tok = estimate_tokens(diff_text)
+    pct = round((full_tok - diff_tok) / full_tok * 100, 1) if full_tok else 0.0
+    # break-even: cumulative naive = R*full; smart = full(snapshot) + R*diff.
+    # smart < naive  ⟺  full + R*diff < R*full  ⟺  R > full/(full-diff)  → R* = ceil(that)+0 reads of savings start
+    import math
+    rstar = math.ceil(full_tok / (full_tok - diff_tok)) if full_tok > diff_tok else None
+    return {"skill": "semantic-diff", "metric": "token savings on a re-read after a small edit",
+            "value": pct, "unit": "% fewer tokens vs full re-read",
+            "baseline": "naive full file re-read",
+            "detail": f"{full_tok}->{diff_tok} est tokens; break-even after R*={rstar} re-reads"}
+
+
+GAINS = [gain_output_filter, gain_skill_pulse, gain_write_gate, gain_cache_lint, gain_semantic_diff]
 
 
 def main() -> int:
@@ -147,6 +181,8 @@ def main() -> int:
     for r in rows:
         if "error" in r:
             print(f"  {r['skill']:14}  ERROR: {r['error']}"); continue
+        if r.get("value") is None:
+            print(f"  {r['skill']:14}  (skipped: {r['unit']})\n"); continue
         print(f"  {r['skill']:14}  {r['value']}{r['unit'].split()[0]:>6}  {r['unit']}")
         print(f"  {'':14}  {r['metric']}  ·  vs {r['baseline']}")
         print(f"  {'':14}  ({r['detail']})\n")

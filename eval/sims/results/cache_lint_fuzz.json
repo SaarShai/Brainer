@@ -1,7 +1,7 @@
 {
   "n_cases": 19,
   "crashes": 0,
-  "total_elapsed_s": 0.119,
+  "total_elapsed_s": 0.124,
   "correctness": {
     "node_modules_skipped": true,
     "nested_plugin_discovered": true,
@@ -78,7 +78,7 @@
     {
       "case": "huge_claude",
       "ok": true,
-      "elapsed_ms": 70,
+      "elapsed_ms": 72,
       "n_targets": 1,
       "n_findings": 2,
       "fails": 0,
@@ -123,7 +123,7 @@
     {
       "case": "many_skills",
       "ok": true,
-      "elapsed_ms": 7,
+      "elapsed_ms": 9,
       "n_targets": 51,
       "n_findings": 2,
       "fails": 0,

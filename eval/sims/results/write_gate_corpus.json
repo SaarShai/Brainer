@@ -1,6 +1,6 @@
 {
   "threshold": 3.0,
-  "elapsed_s": 0.054,
+  "elapsed_s": 0.056,
   "real_corpus": {
     "n_pages": 174,
     "overall_acceptance": 0.764,
@@ -8,7 +8,7 @@
       "fact": {
         "n": 169,
         "acceptance_rate": 0.787,
-        "mean_score": 5.17
+        "mean_score": 5.16
       },
       "decision": {
         "n": 2,
@@ -265,10 +265,10 @@
       {
         "path": "log.md",
         "kind": "fact",
-        "score": 17.0,
+        "score": 15.5,
         "has_why": true,
         "passed": true,
-        "size": 59852
+        "size": 61180
       },
       {
         "path": "patterns/compound-compression-pipeline.md",
