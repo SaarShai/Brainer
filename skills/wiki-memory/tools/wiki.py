@@ -442,7 +442,7 @@ _ANTONYM_PAIRS = [
     ("always", "never"), ("safe", "unsafe"), ("open", "closed"),
     ("deterministic", "nondeterministic"), ("sync", "async"),
     ("synchronous", "asynchronous"), ("allowed", "forbidden"),
-    ("required", "optional"), ("active", "inactive"), ("on", "off"),
+    ("required", "optional"), ("active", "inactive"),
     ("true", "false"), ("pass", "fail"), ("present", "absent"),
     ("stateful", "stateless"), ("blocking", "nonblocking"),
 ]
@@ -465,6 +465,11 @@ def polarity_conflict(a: str, b: str, min_overlap: float = 0.6) -> str | None:
     if _negation_parity(a) != _negation_parity(b):
         return "negation_flip"
     for x, y in _ANTONYM_PAIRS:
+        # FP guard (stress test): a sentence ENUMERATING both poles ("enabled or
+        # disabled") is not a polarity claim — only flag when each side asserts a
+        # DIFFERENT single pole.
+        if (x in ta) == (y in ta) or (x in tb) == (y in tb):
+            continue
         if (x in ta and y in tb) or (y in ta and x in tb):
             return "antonym"
     return None
@@ -634,6 +639,11 @@ class WikiStore:
         for path in self.root.rglob("*.md"):
             if any(part in SKIP_PARTS for part in path.parts):
                 continue
+            # Skip a directory literally named `*.md` (rglob matches it) and
+            # broken symlinks — read_page would otherwise crash IsADirectoryError
+            # (found by stress test). is_file() also rejects dangling links.
+            if not path.is_file():
+                continue
             # H4 fix: rglob follows symlinks by default. A symlink resolving
             # outside self.root made page_id raise ValueError in relative_to.
             # Skip anything that doesn't actually live under the wiki root.
@@ -657,7 +667,12 @@ class WikiStore:
         cached = self._page_cache.get(path)
         if cached is not None and cached[0] == mtime:
             return cached[1]
-        text = path.read_text(encoding="utf-8", errors="replace")
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            # unreadable (permission denied, is-a-directory, transient) — treat as
+            # empty rather than crashing every command that scans pages.
+            text = ""
         fm, body = parse_frontmatter(text)
         title = ""
         for line in body.splitlines():
@@ -2002,8 +2017,13 @@ class WikiStore:
                     break
             return out
 
-        # precompute per-page: sentences + judgment-dominance (for type-awareness)
+        # precompute per-page once (was O(N^2) recomputation of content_tokens in
+        # the pair loop — 16.6s at 100 pages, found by stress test): sentences,
+        # judgment-dominance, title/body token sets, tag sets (empty tags dropped).
         sents = [sentences(p.body) for p in pages]
+        ttok = [content_tokens(p.title) for p in pages]
+        btok = [content_tokens(p.body) for p in pages]
+        tagsets = [set(t for t in p.tags if t) for p in pages]
         jdom = []
         for p in pages:
             h = _cg.grade_text(p.body)["klass_histogram"]
@@ -2013,9 +2033,9 @@ class WikiStore:
         for i in range(len(pages)):
             for j in range(i + 1, len(pages)):
                 a, b = pages[i], pages[j]
-                title_j = jaccard(content_tokens(a.title), content_tokens(b.title))
-                cont_j = jaccard(content_tokens(a.body), content_tokens(b.body))
-                same_subject = ((set(a.tags) & set(b.tags)) and title_j >= 0.34) or cont_j >= 0.5 or title_j >= 0.5
+                title_j = jaccard(ttok[i], ttok[j])
+                cont_j = jaccard(btok[i], btok[j])
+                same_subject = ((tagsets[i] & tagsets[j]) and title_j >= 0.34) or cont_j >= 0.5 or title_j >= 0.5
                 if not same_subject or declared(a, b):
                     continue
                 ka, kb = keyed_numbers(a.body), keyed_numbers(b.body)
@@ -2149,6 +2169,7 @@ class WikiStore:
         likely synthesis parent (a member linking >=half the others) so we don't
         re-propose work already done.
         """
+        min_cluster = max(2, min_cluster)  # a "cluster" of 1 is not a synthesis candidate
         pages = [p for p in self._knowledge_pages(include_raw=False) if p.frontmatter]
         n = len(pages)
         parent = list(range(n))
@@ -2166,7 +2187,7 @@ class WikiStore:
         stem = {}
         for i, p in enumerate(pages):
             stem.setdefault(Path(p.id).name, i)
-        tagsets = [set(p.tags) for p in pages]
+        tagsets = [set(t for t in p.tags if t) for p in pages]  # drop empty-string tags
         linksets = []
         for p in pages:
             ls = set()

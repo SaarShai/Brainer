@@ -125,6 +125,22 @@ class TestClaimGrade(unittest.TestCase):
             got = grade_claim(text)["type"]
             self.assertEqual(got, exp, f"trap misclassified: {text!r} -> {got} (want {exp})")
 
+    def test_no_redos_on_long_unpunctuated_input(self):
+        # bounded regexes + length cap: pathological input must not hang (was 42s)
+        import time
+        t = time.time()
+        grade_claim("if " * 50000)
+        grade_claim("when " * 40000)
+        from claim_grade import grade_text
+        grade_text("if when " * 30000)
+        self.assertLess(time.time() - t, 1.0)
+
+    def test_non_str_and_noise_inputs(self):
+        # defensive coercion + non-alpha abstain (no crash on wrong types)
+        self.assertEqual(grade_claim(123)["type"], "unknown")
+        self.assertEqual(grade_claim("0 0 100% 9ms 42 ...")["type"], "unknown")
+        self.assertEqual(grade_claim(None)["type"], "unknown")
+
     def test_orthogonal_to_truth(self):
         # a confident WRONG claim still grades by form, not truth
         self.assertEqual(grade_claim("The build took 999999ms")["type"], "observation")

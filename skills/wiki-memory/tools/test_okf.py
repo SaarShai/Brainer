@@ -509,6 +509,39 @@ class TestPolarityConflict(unittest.TestCase):
             "the wiki page is immutable",
             "the config file is mutable"))
 
+    def test_enumeration_both_poles_not_flagged(self):
+        from wiki import polarity_conflict
+        # both sentences ENUMERATE both poles -> not a polarity claim (FP guard)
+        self.assertIsNone(polarity_conflict(
+            "the runtime can be synchronous or asynchronous depending on config",
+            "the runtime can be synchronous or asynchronous depending on the mode"))
+
+
+class TestScanRobustness(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / "wiki"
+        self.root.mkdir(parents=True)
+        _write(self.root, "index.md", "# Index\n")
+        _write(self.root, "log.md", "# Log\n")
+        # a DIRECTORY literally named *.md (rglob matches it -> must be skipped)
+        (self.root / "concepts" / "weird.md").mkdir(parents=True)
+        _write(self.root, "concepts/real.md",
+               _v2("Real", body="\n# Real\n\nMeasured 5ms on the path here today.\n"))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_directory_named_md_does_not_crash_any_scan(self):
+        st = WikiStore(self.root)
+        # none of the page-scanning commands should raise on a dir named *.md
+        st.claim_audit()
+        st.synth_candidates()
+        st.maturity()
+        st.contradict_scan()
+        # and the real page is still seen
+        self.assertIn("concepts/real", {p.id for p in st.pages()})
+
 
 class TestMaturity(unittest.TestCase):
     def setUp(self):

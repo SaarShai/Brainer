@@ -48,7 +48,7 @@ _HEDGE = re.compile(
 # hedge cannot demote it) from SOFT (tentative/future, a hedge -> hypothesis).
 _DECISION_FIRM = re.compile(
     r"\b(decided?|decision\b|chose|chosen|choosing|opted|settled on|"
-    r"deprecat(?:ed|ing)?|rejected .* in fav(?:o)?ur of|picked|"
+    r"deprecat(?:ed|ing)?|rejected .{0,80}? in fav(?:o)?ur of|picked|"
     r"standardiz(?:ed|ing) on)\b",
     re.I)
 _DECISION_SOFT = re.compile(
@@ -82,17 +82,20 @@ _IMPERATIVE = re.compile(
     re.I)
 
 # General normative / conditional directive -> rule.
+# NB: gaps between anchors are BOUNDED (.{0,N}?) — an unbounded `.+`/`.*` between
+# word anchors backtracks catastrophically (ReDoS): a 73KB un-punctuated "if ..."
+# paragraph hung claim-audit ~10s+ (found by stress test). Real claims are short.
 _RULE = re.compile(
     r"(\b(always|never|must(?:\s+not)?|should(?:\s+not)?|shall|ought to|"
-    r"avoid|ensure|require[ds]?|do not|don'?t|prefer\b.*\bover\b|"
+    r"avoid|ensure|require[ds]?|do not|don'?t|prefer\b.{0,60}?\bover\b|"
     r"only (?:ever|when)|rule:|policy:|convention:)\b)"
-    r"|(\bif\b.+\bthen\b)|(\bwhen\b.+\b(?:do|use|run|prefer|avoid)\b)",
+    r"|(\bif\b.{1,80}?\bthen\b)|(\bwhen\b.{1,80}?\b(?:do|use|run|prefer|avoid)\b)",
     re.I)
 
 # Empirical / measured / dated / located -> observation (data).
 _EVIDENCE = re.compile(
     r"(\b(measured|observed|recorded|logged|benchmarked|profiled|"
-    r"ran\b.+\b(?:and|got|returned|showed)|returned|reported|"
+    r"ran\b.{0,60}?\b(?:and|got|returned|showed)|returned|reported|"
     r"passed|failed|errored|crashed|timed out|reproduc\w+|"
     r"lives? (?:at|in)|located (?:at|in)|defined (?:at|in)|found (?:at|in))\b)"
     r"|(\b\d+(?:\.\d+)?\s*(?:ms|s\b|sec|%|x\b|tokens?|lines?|tests?|cases?|"
@@ -132,9 +135,21 @@ def grade_claim(text: str) -> dict:
     decision/rule to a hypothesis:
       explicit-decision > rule > (hedge -> hypothesis) > observation > opinion > soft-decision
     """
-    raw = (text or "").strip()
-    clean = _strip_noise(raw)
+    # Defensive: coerce non-str (a future in-process caller may hand int/bytes);
+    # cap length — a "claim" is a sentence, markers appear early, and scanning a
+    # 200KB blob is both wrong and a ReDoS surface. Both found by stress test.
+    if not isinstance(text, str):
+        text = "" if text is None else str(text)
+    raw = text.strip()
+    clean = _strip_noise(raw)[:2000]
     markers: list[str] = []
+
+    # Mostly-non-alphabetic input (pure numbers/punctuation) is noise, not data —
+    # abstain rather than grade it `observation` on a bare number match.
+    letters = sum(c.isalpha() for c in raw)
+    if raw and letters / len(raw) < 0.3:
+        return {"type": "unknown", "klass": KLASS["unknown"],
+                "has_evidence": False, "has_hedge": False, "markers": ["abstain:non-alpha"]}
 
     hedge = bool(_HEDGE.search(clean))
     evidence = bool(_EVIDENCE.search(clean))
@@ -214,7 +229,9 @@ def grade_text(text: str) -> dict:
     + a klass histogram. Skips non-claim chrome: YAML frontmatter, headings,
     table rows, and bare `key: value` lines (so a page's structure isn't graded
     as data)."""
-    body = _strip_frontmatter(text or "")
+    if not isinstance(text, str):
+        text = "" if text is None else str(text)
+    body = _strip_frontmatter(text)
     clean = _strip_noise(body)
     spans = re.split(r"(?<=[.!?])\s+|\n[-*]\s+|\n{2,}", clean)
     claims = []
