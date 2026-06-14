@@ -43,26 +43,26 @@ graphify extract .
 
 | Skill | Trigger | Desc tokens | Notes |
 |---|---|---:|---|
-| [caveman-ultra](skills/caveman-ultra/SKILL.md) | session-start, "be terse" | 81 | Terse output style. ~65% output reduction reported (juliusbrussee/caveman lineage). |
-| [plan-first-execute](skills/plan-first-execute/SKILL.md) | task > 3 steps | 70 | Plan-mode gate. |
+| [caveman-ultra](skills/caveman-ultra/SKILL.md) | session-start, "be terse" | 68 | Terse output style. ~65% output reduction reported (juliusbrussee/caveman lineage). |
+| [plan-first-execute](skills/plan-first-execute/SKILL.md) | task > 3 steps | 50 | Plan-mode gate. |
 | [think](skills/think/SKILL.md) | `/think` (manual; slash-only) | 81 | How an agent should think: first-principles, reduce/simplify, research-and-borrow, experiment-to-falsify, no flattery; ideation + 5-whys + pre-mortem/inversion. Frontier A/B: posture **neutral for Opus** (+0.07) but **load-bearing for weak models** (7b failed the traps); restructured Always/When-relevant; slash-only `/think`. See [EVAL](skills/think/EVAL.md). |
-| [lean-execution](skills/lean-execution/SKILL.md) | "simplify / lean / prune" | 63 | Pruning rule. |
-| [verify-before-completion](skills/verify-before-completion/SKILL.md) | before any "done" claim | 49 | Evidence-first. |
-| [wiki-memory](skills/wiki-memory/SKILL.md) | retrieve OR write durable | 108 | Tier-aware (L0–L4) repo-local markdown wiki. |
-| [prompt-triage](skills/prompt-triage/SKILL.md) | UserPromptSubmit hook | 89 | Pre-model regex+Ollama classifier; routes simple tasks to cheap models. |
-| [context-keeper](skills/context-keeper/SKILL.md) | PreCompact hook | 80 | Structured memory before compaction. |
-| [semantic-diff](skills/semantic-diff/SKILL.md) | file re-read | 99 | AST-node diff. 95.5% measured savings on argparse.py re-reads. |
-| [index-first](skills/index-first/SKILL.md) | "where is X used / what calls Y" | ~110 | Prefer pre-built indexes / composite verbs over grep+read chains. Eval pending. (colbymchenry/codegraph lineage.) |
-| [output-filter](skills/output-filter/SKILL.md) | terminal output hook | 99 | Strip ANSI/progress/dup noise; preserves errors. |
-| [skill-pulse](skills/skill-pulse/SKILL.md) | UserPromptSubmit hook | 61 | **Default-on since v1.7** (`auto-install: true`). Every N turns re-injects active skills' `pulse_reminder` rules. Paper-calibrated (arXiv 2510.07777). |
-| [compliance-canary](skills/compliance-canary/SKILL.md) | UserPromptSubmit hook | 52 | **Default-on since v1.7** (`auto-install: true`). Scans recent replies against per-skill `drift_probes.json`; injects targeted correctives. Symptomatic complement to `skill-pulse`. |
-| [write-gate](skills/write-gate/SKILL.md) | before any persistent write | ~120 | Content-quality gate on durable memory. Signal-score (ogham lineage) + why-clause enforcement (codenamev lineage). Prevents reasonless decisions and recap-style writes. |
-| [wiki-refresh](skills/wiki-refresh/SKILL.md) | "refresh wiki / audit vs code" | 87 | Code-grounded reconcile of wiki pages (Keep/Update/Consolidate/Replace/Delete) via `audit-refs`; emits typed `contradicts:` edges. Ground-truth reconcile. |
-| [cache-lint](skills/cache-lint/SKILL.md) | before merging hooks/skills, CI | ~110 | Static audit against Anthropic's 6 prompt-cache rules (ussumant lineage). FAIL on dynamic content above breakpoint, prefix mutation by Stop-hooks, etc. |
+| [lean-execution](skills/lean-execution/SKILL.md) | "simplify / lean / prune" | 51 | Pruning rule. |
+| [verify-before-completion](skills/verify-before-completion/SKILL.md) | before any "done" claim | 34 | Evidence-first. |
+| [wiki-memory](skills/wiki-memory/SKILL.md) | retrieve OR write durable | 90 | Tier-aware (L0–L4) repo-local markdown wiki. |
+| [prompt-triage](skills/prompt-triage/SKILL.md) | UserPromptSubmit hook | 69 | Pre-model regex+Ollama classifier; routes simple tasks to cheap models. |
+| [context-keeper](skills/context-keeper/SKILL.md) | PreCompact hook | 55 | Structured memory before compaction. |
+| [semantic-diff](skills/semantic-diff/SKILL.md) | file re-read | 80 | AST-node diff. 95.5% measured savings on argparse.py re-reads. |
+| [index-first](skills/index-first/SKILL.md) | "where is X used / what calls Y" | 81 | Prefer pre-built indexes / composite verbs over grep+read chains. Eval pending. (colbymchenry/codegraph lineage.) |
+| [output-filter](skills/output-filter/SKILL.md) | terminal output hook | 70 | Strip ANSI/progress/dup noise; preserves errors. |
+| [skill-pulse](skills/skill-pulse/SKILL.md) | UserPromptSubmit hook | 59 | **Default-on since v1.7** (`auto-install: true`). Every N turns re-injects active skills' `pulse_reminder` rules. Paper-calibrated (arXiv 2510.07777). |
+| [compliance-canary](skills/compliance-canary/SKILL.md) | UserPromptSubmit hook | 71 | **Default-on since v1.7** (`auto-install: true`). Scans recent replies against per-skill `drift_probes.json`; injects targeted correctives. Symptomatic complement to `skill-pulse`. |
+| [write-gate](skills/write-gate/SKILL.md) | before any persistent write | 72 | Content-quality gate on durable memory. Signal-score (ogham lineage) + why-clause enforcement (codenamev lineage). Prevents reasonless decisions and recap-style writes. |
+| [wiki-refresh](skills/wiki-refresh/SKILL.md) | "refresh wiki / audit vs code" | 76 | Code-grounded reconcile of wiki pages (Keep/Update/Consolidate/Replace/Delete) via `audit-refs`; emits typed `contradicts:` edges. Ground-truth reconcile. |
+| [cache-lint](skills/cache-lint/SKILL.md) | before merging hooks/skills, CI | 71 | Static audit against Anthropic's 6 prompt-cache rules (ussumant lineage). FAIL on dynamic content above breakpoint, prefix mutation by Stop-hooks, etc. |
 
-**Always-resident context tax (16 descriptions): ~1,079 tokens.** Roughly 0.5% of a 200K context window. (Opt-in skills' descriptions are still resident; only their tools/hooks are off by default.)
+**Always-resident context tax (16 descriptions): ~1,078 tokens.** Roughly 0.5% of a 200K context window. Every skill's description is resident; hook scripts and `tools/` load only when fired, adding no resident tax.
 
-Full body cost (worst case, all loaded at once): ~16,800 tokens. In practice, only the triggered skill's body loads.
+Full body cost (worst case, all loaded at once): ~17,200 tokens. In practice, only the triggered skill's body loads.
 
 See [eval/results/static_cost.json](eval/results/static_cost.json) for the full measurement.
 

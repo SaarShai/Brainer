@@ -29,33 +29,32 @@ Agent uses tier-1 → evaluates relevance → tier-2 or tier-3 only on hits.
 CLI:
 
 ```bash
-./te wiki index
-./te wiki search "context refresh"
-./te wiki timeline projects/context-keeper-v2/README
-./te wiki fetch projects/context-keeper-v2/README
-./te wiki context "context refresh implementation"
-./te code map "WikiStore context"
+python3 skills/wiki-memory/tools/wiki.py index
+python3 skills/wiki-memory/tools/wiki.py search "context refresh"
+python3 skills/wiki-memory/tools/wiki.py timeline projects/context-keeper
+python3 skills/wiki-memory/tools/wiki.py fetch projects/context-keeper
+# context() and code_map() are Python / MCP-API only (below) — not wiki.py CLI subcommands
 ```
 
 Python:
 
 ```python
 import sys
-sys.path.insert(0, "projects/wiki-search")
+sys.path.insert(0, "skills/wiki-memory/tools/wiki_mcp")
 from wiki_search import wiki_search, wiki_timeline, wiki_fetch, wiki_context, code_map
 ```
 
 MCP:
 
 ```bash
-python projects/wiki-search/mcp_server.py
+python3 skills/wiki-memory/tools/wiki_mcp/mcp_server.py
 ```
 
 ## Implementation
 
-- Core code: `token_economy/wiki.py`.
-- Wrapper: `projects/wiki-search/wiki_search.py`.
-- MCP adapter: `projects/wiki-search/mcp_server.py`.
+- Core code: `skills/wiki-memory/tools/wiki.py`.
+- Wrapper: `skills/wiki-memory/tools/wiki_mcp/wiki_search.py`.
+- MCP adapter: `skills/wiki-memory/tools/wiki_mcp/mcp_server.py`.
 - SQLite FTS5 index at `.brainer/wiki.sqlite3`.
 - L1 pointer index at `L1_index.md`.
 - Ranking uses title/tag/path matches, tier weighting, backlinks, confidence, recency, raw downranking, and supersession rejection.
