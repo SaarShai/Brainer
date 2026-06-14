@@ -46,7 +46,7 @@ backed by default and our constraint is no-ML-deps.
    without a recorded `falsifies:` clause; deterministic presence check in write-gate.
 5. **Quality-delta gate** (mem0 enrich-vs-rephrase) — write-gate from "is this signal?"
    to "does it add info over what we hold?" via token-delta on the same subject key.
-6. **Louvain community synthesis** (txtai) — cluster the existing `[[wikilink]]` graph
+6. **Louvain community synthesis** (txtai) — cluster the existing wikilink graph
    for `synth-candidates`, *iff* it beats tag-only clustering on the live wiki
    (falsify first; pure-python `networkx`, no ML).
 
