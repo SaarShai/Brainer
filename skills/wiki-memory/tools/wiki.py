@@ -434,6 +434,42 @@ def fenced_text(body: str) -> str:
     return "".join(out)
 
 
+_NEG_RE = re.compile(r"\b(not|no|never|cannot|can't|won't|isn't|aren't|doesn't|don't|without|n't)\b", re.I)
+# Curated antonym pairs for polarity-conflict detection (high-precision; expand
+# conservatively — a wrong pair causes false contradictions).
+_ANTONYM_PAIRS = [
+    ("immutable", "mutable"), ("enabled", "disabled"), ("enable", "disable"),
+    ("always", "never"), ("safe", "unsafe"), ("open", "closed"),
+    ("deterministic", "nondeterministic"), ("sync", "async"),
+    ("synchronous", "asynchronous"), ("allowed", "forbidden"),
+    ("required", "optional"), ("active", "inactive"), ("on", "off"),
+    ("true", "false"), ("pass", "fail"), ("present", "absent"),
+    ("stateful", "stateless"), ("blocking", "nonblocking"),
+]
+
+
+def _negation_parity(s: str) -> int:
+    return len(_NEG_RE.findall(s)) % 2
+
+
+def polarity_conflict(a: str, b: str, min_overlap: float = 0.6) -> str | None:
+    """Detect a polarity contradiction between two short claims: near-identical
+    wording (content-token Jaccard >= min_overlap) but OPPOSITE polarity — either
+    a negation flip ("X is immutable" vs "X is not immutable") or an antonym swap
+    ("fails closed" vs "fails open"). High overlap requirement keeps precision
+    high (the FP-killer for contradiction detectors). Returns the signal kind or
+    None."""
+    ta, tb = content_tokens(a), content_tokens(b)
+    if not ta or not tb or jaccard(ta, tb) < min_overlap:
+        return None
+    if _negation_parity(a) != _negation_parity(b):
+        return "negation_flip"
+    for x, y in _ANTONYM_PAIRS:
+        if (x in ta and y in tb) or (y in ta and x in tb):
+            return "antonym"
+    return None
+
+
 def redundancy_index(title: str, body: str, echo_tokens: set[str]) -> float:
     """Intra-page novelty: fraction of prose content tokens NOT echoing the page's
     own headings / fenced schema / cited refs. 1.0 = all-novel, 0.0 = pure echo.
@@ -1940,8 +1976,12 @@ class WikiStore:
         """Surface CANDIDATE cross-page contradictions (the detection layer OKF's
         absence_of_contradictions metric has and we lacked — we only stored
         DECLARED `contradicts:` edges). Deterministic, conservative: same-subject
-        page pairs with diverging numbers for a shared key, minus already-declared
-        edges. Candidates are for an agent/judge to confirm, NOT confirmed truth."""
+        page pairs with (a) diverging numbers for a shared key, or (b) a polarity
+        conflict (negation-flip / antonym on near-identical wording), minus
+        already-declared edges. Type-aware: polarity is skipped when BOTH pages are
+        judgment-dominant (opinion×opinion is expected divergence, not a
+        contradiction). Candidates are for an agent/judge to confirm, NOT truth."""
+        import claim_grade as _cg  # lazy; same tools/ dir
         pages = [p for p in self._knowledge_pages(include_raw=False) if p.frontmatter]
 
         def declared(a: Page, b: Page) -> bool:
@@ -1951,6 +1991,23 @@ class WikiStore:
             bn = names(b.frontmatter.get("contradicts", ""))
             return (b.id in an or Path(b.id).name in an
                     or a.id in bn or Path(a.id).name in bn)
+
+        def sentences(body: str) -> list[str]:
+            out = []
+            for s in re.split(r"(?<=[.!?])\s+|\n[-*]\s+|\n{2,}", strip_fenced_code(body)):
+                s = s.strip(" -*\t")
+                if 12 <= len(s) <= 200 and not s.lstrip().startswith("#"):
+                    out.append(s)
+                if len(out) >= 40:
+                    break
+            return out
+
+        # precompute per-page: sentences + judgment-dominance (for type-awareness)
+        sents = [sentences(p.body) for p in pages]
+        jdom = []
+        for p in pages:
+            h = _cg.grade_text(p.body)["klass_histogram"]
+            jdom.append(h["judgment"] > max(h["data"], h["directive"]))
 
         cands: list[dict[str, Any]] = []
         for i in range(len(pages)):
@@ -1966,17 +2023,28 @@ class WikiStore:
                     {"key": key, "a": sorted(ka[key]), "b": sorted(kb[key])}
                     for key in sorted(set(ka) & set(kb)) if ka[key].isdisjoint(kb[key])
                 ]
-                if signals:
+                pol: list[dict[str, str]] = []
+                if not (jdom[i] and jdom[j]):  # skip opinion×opinion divergence
+                    for x in sents[i]:
+                        for y in sents[j]:
+                            kind = polarity_conflict(x, y)
+                            if kind:
+                                pol.append({"kind": kind, "a_sentence": x[:160], "b_sentence": y[:160]})
+                                break
+                        if len(pol) >= 5:
+                            break
+                if signals or pol:
                     cands.append({
                         "a": a.id, "b": b.id,
                         "title_overlap": round(title_j, 3),
                         "content_overlap": round(cont_j, 3),
                         "numeric_divergence": signals[:5],
+                        "polarity_conflicts": pol[:5],
                     })
-        cands.sort(key=lambda c: (-len(c["numeric_divergence"]), c["a"], c["b"]))
+        cands.sort(key=lambda c: (-(len(c["numeric_divergence"]) + len(c["polarity_conflicts"])), c["a"], c["b"]))
         return {"scanned": len(pages), "candidate_count": len(cands),
                 "candidates": cands[:k],
-                "note": "candidates for agent/judge confirmation; structural signal only, not confirmed contradictions"}
+                "note": "candidates for agent/judge confirmation; structural (numeric/polarity) signal only, not confirmed contradictions"}
 
     def novelty(self, threshold: float = 0.5) -> dict[str, Any]:
         """Intra-page redundancy_index (OKF enrichment-eval lens): does a page add

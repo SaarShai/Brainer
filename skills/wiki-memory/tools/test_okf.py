@@ -308,6 +308,24 @@ class TestContradictScan(unittest.TestCase):
         rep = WikiStore(self.root).contradict_scan()
         self.assertEqual(rep["candidate_count"], 0, rep)
 
+    def test_detects_polarity_conflict(self):
+        # same-subject pages, near-identical wording, negation flip -> polarity
+        _write(self.root, "concepts/pa.md",
+               _v2("Raw immutability", extra={"tags": "[raw, mem]"},
+                   body="\n# Raw immutability\n\nRaw source pages are immutable after creation here.\n"))
+        _write(self.root, "concepts/pb.md",
+               _v2("Raw immutability", extra={"tags": "[raw, mem]"},
+                   body="\n# Raw immutability\n\nRaw source pages are not immutable after creation here.\n"))
+        rep = WikiStore(self.root).contradict_scan()
+        kinds = [pc["kind"] for c in rep["candidates"] for pc in c.get("polarity_conflicts", [])]
+        self.assertIn("negation_flip", kinds)
+
+    def test_numeric_candidate_still_has_polarity_field(self):
+        # additive: numeric candidates now also carry a (possibly empty) polarity field
+        self._decay_pair()
+        rep = WikiStore(self.root).contradict_scan()
+        self.assertTrue(all("polarity_conflicts" in c for c in rep["candidates"]))
+
 
 class TestNoveltyAndClaimGround(unittest.TestCase):
     def setUp(self):
@@ -453,6 +471,43 @@ class TestSynthCandidates(unittest.TestCase):
         before = sorted(p.name for p in self.root.rglob("*.md"))
         WikiStore(self.root).synth_candidates()
         self.assertEqual(before, sorted(p.name for p in self.root.rglob("*.md")))
+
+
+class TestPolarityConflict(unittest.TestCase):
+    def test_detects_negation_flip(self):
+        from wiki import polarity_conflict
+        self.assertEqual(polarity_conflict(
+            "raw pages are immutable after creation",
+            "raw pages are not immutable after creation"), "negation_flip")
+
+    def test_detects_antonym_swap(self):
+        from wiki import polarity_conflict
+        self.assertEqual(polarity_conflict(
+            "the hook fails closed on error path",
+            "the hook fails open on error path"), "antonym")
+        self.assertEqual(polarity_conflict(
+            "the cache layer is enabled by default here",
+            "the cache layer is disabled by default here"), "antonym")
+
+    def test_low_overlap_not_flagged(self):
+        from wiki import polarity_conflict
+        self.assertIsNone(polarity_conflict(
+            "the build passed all checks today",
+            "the integration tests failed on windows"))
+
+    def test_different_choice_not_a_polarity_conflict(self):
+        from wiki import polarity_conflict
+        # different value, not opposite polarity -> not a contradiction here
+        self.assertIsNone(polarity_conflict(
+            "we use tabs for indentation in this repo",
+            "we use spaces for indentation in this repo"))
+
+    def test_cross_subject_antonym_gated_by_overlap(self):
+        from wiki import polarity_conflict
+        # antonym present but different subjects -> low overlap -> not flagged
+        self.assertIsNone(polarity_conflict(
+            "the wiki page is immutable",
+            "the config file is mutable"))
 
 
 class TestMaturity(unittest.TestCase):
