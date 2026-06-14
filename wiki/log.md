@@ -309,3 +309,7 @@ Built a deterministic epistemic-type primitive `claim_grade.py` (observation/dec
 ## [2026-06-14c] synthesize | progressive-retrieval (acting on synth-candidates)
 
 Acted on the `synth-candidates` lens: it clustered karpathy-wiki + wiki-search + wiki-query-shortcircuit under `retrieval` (one principle at concept/project/pattern levels). Wrote the higher-order synthesis [[concepts/progressive-retrieval]] (overview, not a merge — keeps the level distinction per the Retrieval-Value Test). End-to-end loop closed: the lens now reports the cluster as already_synthesized (the note links >=half the members -> detected as parent). write-gate passed, lint --strict clean.
+
+## [2026-06-14d] research+adopt | agent-memory practice (5-agent pass) + resolution verb
+
+Deep research on how Anthropic/OpenAI/Google + OSS memory frameworks (mem0, Zep/Graphiti, Letta, A-MEM, cognee, LangMem) + PKM (Matuschak/Zettelkasten/Kialo) + code-memory tools handle our 4 angles. Convergent net-new winner shipped: a deterministic RESOLUTION-VERB stage on contradict-scan (Zep invalidate-don't-delete + mem0 supersede/invalidate/dispute, keyed on trust+recency; `de1e65e`). Full findings + ranked backlog (subject-key prefilter, evidence-accrual promotion, access-frequency decay, falsification-on-rules, quality-delta gate, Louvain synthesis) + rejected list (graph DBs, embeddings-everywhere, auto-mutation, hash-dedup, seedling/budding rename) recorded at [[raw/2026-06-14-agent-memory-research]]. Principle: borrow the rule, reject the infra.
