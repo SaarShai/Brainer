@@ -35,6 +35,7 @@ done
 
 # 2. Carrier catalogs in sync (CLAUDE.md / AGENTS.md / GEMINI.md sentinels)
 run "carrier-sync" python3 scripts/check_carrier_sync.py
+run "marketplace-sync" python3 scripts/check_marketplace_sync.py
 
 # 3. Tracked JSON validity (mirrors CI)
 run "json-valid" bash -c "git ls-files -z '*.json' | xargs -0 -n1 python3 -m json.tool > /dev/null"

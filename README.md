@@ -207,7 +207,7 @@ Built on prior work:
 
 ## Status
 
-- 15 skills written and lint-clean.
+- 16 skills written and lint-clean.
 - 4 hosts wired and verified (Claude Code, Codex, Cursor, Gemini CLI).
 - Static-cost measurements published.
 - Live A/B harness ready; needs a healthy Ollama / explicit `ANTHROPIC_API_KEY` / `HF_TOKEN` to run.

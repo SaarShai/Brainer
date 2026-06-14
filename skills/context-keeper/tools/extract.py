@@ -38,6 +38,9 @@ FAIL_WORD_RE = re.compile(r"didn't work|doesn't work|not work|broke|broken|bug|w
 
 
 def iter_events(path):
+    # TWIN: compliance-canary/tools/hook.py:read_transcript_tail does the same
+    # JSONL malformed-line guard — keep both in sync if you touch this one. (This
+    # copy streams line-by-line by design, per SKILL.md "read JSONL incrementally".)
     with open(path, encoding="utf-8", errors="replace") as f:
         for line in f:
             try: obj = json.loads(line)
@@ -302,7 +305,11 @@ def render_markdown(regex_out, llm_out, session_id, transcript_path):
     return "\n".join(lines)
 
 
-_FM_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
+# `﻿?` tolerates a UTF-8 BOM before the opening fence; without it a
+# BOM-prefixed SKILL.md yields {} → the skill drops from the output-style /
+# pulse_reminder snapshot. (wiki-memory's parsers tolerate BOM; this + skill-pulse
+# did not — the fix-one-copy-not-the-sibling class.)
+_FM_RE = re.compile(r"^﻿?---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
 
 def _parse_frontmatter(text):

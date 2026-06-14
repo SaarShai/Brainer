@@ -151,7 +151,11 @@ def gc_old_state(dir_path: Path, now: float) -> int:
     return removed
 
 
-_FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
+# `﻿?` tolerates a UTF-8 BOM before the opening fence. Without it a
+# BOM-prefixed SKILL.md silently yields {} → the skill drops from the pulse
+# (wiki-memory's decay/wiki parsers already tolerate BOM; these did not — the
+# fix-one-copy-not-the-sibling divergence class).
+_FRONTMATTER_RE = re.compile(r"^﻿?---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
 
 def parse_frontmatter(text: str) -> dict:

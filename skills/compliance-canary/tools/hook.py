@@ -207,7 +207,11 @@ def discover_probes(root: Path) -> list[dict]:
 # -------------------------- transcript reading ------------------------------
 
 def read_transcript_tail(path: str, cap: int = TRANSCRIPT_LINE_CAP) -> list[dict]:
-    """Return up to `cap` most-recent parseable JSONL events from the transcript."""
+    """Return up to `cap` most-recent parseable JSONL events from the transcript.
+
+    TWIN: context-keeper/tools/extract.py:iter_events shares the same
+    malformed-line guard — keep both in sync. (This copy byte-tails + caps for a
+    hot per-prompt path; the twin streams the whole file for a cold PreCompact.)"""
     if not path:
         return []
     p = Path(path)

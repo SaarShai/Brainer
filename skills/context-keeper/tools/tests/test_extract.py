@@ -161,6 +161,17 @@ def test_bash_command_captured_from_top_level_content():
     assert "out/report.md" in out.get("files_created", []), out.get("files_created")
 
 
+def test_bom_prefixed_frontmatter_parses():
+    # A UTF-8 BOM before the opening `---` must NOT defeat frontmatter parsing,
+    # else a BOM'd SKILL.md silently drops from the output-style / pulse snapshot.
+    # (wiki-memory's parsers already tolerated BOM; this one diverged until fixed.)
+    from extract import _parse_frontmatter
+    plain = "---\nname: caveman-ultra\noutput_style: true\n---\nbody\n"
+    bom = "﻿" + plain
+    assert _parse_frontmatter(plain).get("output_style") == "true"
+    assert _parse_frontmatter(bom).get("output_style") == "true", "BOM defeated frontmatter parse"
+
+
 def main():
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in fns:

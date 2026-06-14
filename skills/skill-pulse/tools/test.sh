@@ -239,6 +239,24 @@ count=$(echo "$out" | grep -c '^- ' || true)
 if [ "$count" = "8" ]; then ok "exactly 8 skills in pulse despite 10 available"; else no "skill cap" "got $count"; fi
 
 # -----------------------------------------------------------------------------
+echo "[17] BOM-prefixed SKILL.md frontmatter still parses (no silent skill drop)"
+# Regression: _FRONTMATTER_RE was not BOM-tolerant, so a BOM'd SKILL.md yielded
+# {} and the skill dropped from the pulse. wiki-memory's parsers tolerated BOM;
+# this one diverged until fixed (fix-one-copy-not-the-sibling class).
+bom_ok=$(python3 - "$TOOLS_DIR" <<'PY'
+import sys
+sys.path.insert(0, sys.argv[1])
+from hook import parse_frontmatter
+plain = "---\nname: cv\npulse_reminder: be terse\n---\nbody\n"
+bom = "﻿" + plain
+ok = (parse_frontmatter(plain).get("pulse_reminder") == "be terse"
+      and parse_frontmatter(bom).get("pulse_reminder") == "be terse")
+print("ok" if ok else "FAIL")
+PY
+)
+if [ "$bom_ok" = "ok" ]; then ok "BOM frontmatter parses (pulse_reminder recovered)"; else no "BOM frontmatter parses" "got: $bom_ok"; fi
+
+# -----------------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then
   echo "skill-pulse test.sh: $PASS/$((PASS+FAIL)) PASS"
