@@ -5,8 +5,8 @@
 | field | tokens / size |
 |---|---|
 | description (always resident) | **50 tokens** (246 chars) |
-| body (loaded on trigger)      | **142 tokens** (617 chars) |
-| tools/ payload                 | 0.0 KB |
+| body (loaded on trigger)      | **336 tokens** (1447 chars) |
+| tools/ payload                 | 0.1 KB |
 | model pin                      | `any` |
 | effort pin                     | `medium` |
 

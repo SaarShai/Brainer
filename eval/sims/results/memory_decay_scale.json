@@ -4,9 +4,9 @@
       {
         "n": 10,
         "dry_ms": 2,
-        "apply_ms": 2,
-        "us_per_page_dry": 215.3,
-        "us_per_page_apply": 272.3,
+        "apply_ms": 3,
+        "us_per_page_dry": 240.8,
+        "us_per_page_apply": 318.7,
         "n_scanned": 10,
         "n_protected": 2,
         "n_changed": 8,
@@ -15,9 +15,9 @@
       {
         "n": 100,
         "dry_ms": 6,
-        "apply_ms": 22,
-        "us_per_page_dry": 65.7,
-        "us_per_page_apply": 226.3,
+        "apply_ms": 25,
+        "us_per_page_dry": 67.9,
+        "us_per_page_apply": 256.5,
         "n_scanned": 100,
         "n_protected": 20,
         "n_changed": 80,
@@ -25,10 +25,10 @@
       },
       {
         "n": 1000,
-        "dry_ms": 60,
-        "apply_ms": 233,
-        "us_per_page_dry": 60.3,
-        "us_per_page_apply": 234.0,
+        "dry_ms": 66,
+        "apply_ms": 257,
+        "us_per_page_dry": 66.1,
+        "us_per_page_apply": 257.1,
         "n_scanned": 1000,
         "n_protected": 200,
         "n_changed": 800,
@@ -36,17 +36,17 @@
       },
       {
         "n": 10000,
-        "dry_ms": 625,
-        "apply_ms": 2357,
-        "us_per_page_dry": 62.6,
-        "us_per_page_apply": 235.8,
+        "dry_ms": 691,
+        "apply_ms": 2451,
+        "us_per_page_dry": 69.2,
+        "us_per_page_apply": 245.2,
         "n_scanned": 10000,
         "n_protected": 2000,
         "n_changed": 8000,
         "n_errors": 0
       }
     ],
-    "us_per_page_ratio": 3.57,
+    "us_per_page_ratio": 3.64,
     "appears_linear": true
   },
   "correctness": {

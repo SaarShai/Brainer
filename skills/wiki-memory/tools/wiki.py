@@ -581,8 +581,6 @@ class WikiStore:
             "ROADMAP",
             "bench/README",
             "projects/compound-compression-pipeline/RESULTS",
-            "projects/context-keeper/README",
-            "projects/context-keeper/SKILL",
             "stable/AGENT_PROMPT",
             "stable/README",
         }

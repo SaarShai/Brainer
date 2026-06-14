@@ -96,7 +96,7 @@ def gain_write_gate() -> dict:
         if passed:
             admitted += t
     pct = round((total - admitted) / total * 100, 1) if total else 0.0
-    return {"skill": "write-gate", "metric": "candidate-memory noise rejected",
+    return {"skill": "write-gate", "metric": "candidate-memory tokens kept out",
             "value": pct, "unit": "% of candidate tokens kept out of durable memory",
             "baseline": "ungated (admit every candidate)",
             "detail": f"{admitted}/{total} est tokens admitted"}

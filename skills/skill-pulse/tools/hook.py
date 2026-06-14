@@ -77,6 +77,12 @@ def skills_root() -> Path:
 def state_lock(path: Path):
     lock_path = path.with_suffix(path.suffix + ".lock")
     fh = None
+    # Setup (mkdir/open/flock) is best-effort: on failure we log and proceed
+    # lockless rather than blocking the user's prompt. This is a SEPARATE try
+    # from the yield — a body exception must propagate cleanly, not be caught
+    # here (which would double-yield and corrupt the generator protocol,
+    # raising RuntimeError and breaking the always-exit-0 contract). Mirrors
+    # the compliance-canary fix for the same bug.
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         fh = open(lock_path, "a+")
@@ -84,9 +90,15 @@ def state_lock(path: Path):
             fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
         except (OSError, AttributeError) as e:
             log_err(f"lock-skip path={lock_path} err={e!r}")
-        yield
     except Exception as e:
         log_err(f"lock-open-fail path={lock_path} err={e!r}")
+        if fh is not None:
+            try:
+                fh.close()
+            except Exception:
+                pass
+            fh = None
+    try:
         yield
     finally:
         if fh is not None:

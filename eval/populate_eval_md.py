@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -117,7 +118,42 @@ Raw: [`eval/results/{name}.json`](../../eval/results/{name}.json)
 """
 
 
+# Matches the "## Static cost (measured)" section up to (not incl.) the next ## / EOF.
+_STATIC_SECTION_RE = re.compile(r"(?ms)^## Static cost \(measured\).*?(?=^## |\Z)")
+
+
+def static_block(m: dict) -> str:
+    return (
+        "## Static cost (measured)\n\n"
+        "| field | tokens / size |\n|---|---|\n"
+        f"| description (always resident) | **{m['description_tokens']} tokens** ({m['description_chars']} chars) |\n"
+        f"| body (loaded on trigger)      | **{m['body_tokens']} tokens** ({m['body_chars']} chars) |\n"
+        f"| tools/ payload                 | {m['tools_kb']} KB |\n"
+        f"| model pin                      | `{m['model_pin'] or 'any'}` |\n"
+        f"| effort pin                     | `{m['effort_pin'] or 'unset'}` |\n\n"
+        "agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K context window).\n"
+    )
+
+
+def bootstrap_template(m: dict, ab: str) -> str:
+    return (
+        f"# EVAL — `{m['name']}`\n\n" + static_block(m) + f"\n{ab}\n\n"
+        "## Methodology\n\n"
+        "- Sample size: N=3-10 local smoke; N≥50 on Kaggle T4 for any >20% savings claim.\n"
+        f"- Tasks: 3–5 representative prompts in `eval/tasks/{m['name']}.yaml`.\n"
+        "- Backends supported: `ollama`, `anthropic`, `mimo`, `mlx` (`--backend` arg).\n"
+        "- Judge: Xiaomi MiMo or local Ollama.\n\n"
+        "## Failure modes\n\nTo be filled in after analysis of result outputs.\n"
+    )
+
+
 def main() -> int:
+    # NON-DESTRUCTIVE by design: most EVAL.md files are now hand-maintained rich
+    # docs the old write_text() template could not reproduce (it would have wiped
+    # them). This only (a) refreshes the objective "## Static cost (measured)"
+    # table in place where that section exists, and (b) bootstraps a full template
+    # for a skill that has NO EVAL.md yet. A hand-maintained file without a
+    # static-cost section is left completely untouched.
     root = Path(__file__).resolve().parents[1]
     static_json = root / "eval" / "results" / "static_cost.json"
     if not static_json.exists():
@@ -126,49 +162,30 @@ def main() -> int:
     data = {r["name"]: r for r in json.loads(static_json.read_text())}
     skills_dir = root / "skills"
     results_dir = root / "eval" / "results"
-    updated = measured = 0
+    refreshed = created = preserved = 0
     for skill in sorted(skills_dir.iterdir()):
         if not skill.is_dir() or skill.name.startswith("_"):
             continue
         m = data.get(skill.name)
         if not m:
             continue
-        results_path = results_dir / f"{skill.name}.json"
-        judged_path = results_dir / f"{skill.name}.judged.json"
-        ab = build_ab_block(skill.name, results_path, judged_path)
-        if results_path.exists():
-            measured += 1
-        body = f"""# EVAL — `{m['name']}`
-
-## Static cost (measured)
-
-| field | tokens / size |
-|---|---|
-| description (always resident) | **{m['description_tokens']} tokens** ({m['description_chars']} chars) |
-| body (loaded on trigger)      | **{m['body_tokens']} tokens** ({m['body_chars']} chars) |
-| tools/ payload                 | {m['tools_kb']} KB |
-| model pin                      | `{m['model_pin'] or 'any'}` |
-| effort pin                     | `{m['effort_pin'] or 'unset'}` |
-
-agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K context window).
-
-{ab}
-
-## Methodology
-
-- Sample size: N=3-10 local smoke; N≥50 on Kaggle T4 for any >20% savings claim.
-- Tasks: 3–5 representative prompts in `eval/tasks/{m['name']}.yaml`.
-- Backends supported: `ollama`, `anthropic`, `mimo`, `mlx` (`--backend` arg).
-- Judge: Xiaomi MiMo via `https://api.xiaomimimo.com/v1` (preferred for quality) or local Ollama.
-- Rubric: per-task rubric embedded in the YAML.
-
-## Failure modes
-
-To be filled in after analysis of result outputs (see raw JSON for individual trial outputs).
-"""
-        (skill / "EVAL.md").write_text(body)
-        updated += 1
-    print(f"updated {updated} EVAL.md files ({measured} have live A/B numbers)")
+        eval_path = skill / "EVAL.md"
+        if not eval_path.exists():
+            ab = build_ab_block(skill.name, results_dir / f"{skill.name}.json",
+                                results_dir / f"{skill.name}.judged.json")
+            eval_path.write_text(bootstrap_template(m, ab))
+            created += 1
+            continue
+        text = eval_path.read_text()
+        if _STATIC_SECTION_RE.search(text):
+            new = _STATIC_SECTION_RE.sub(static_block(m) + "\n", text, count=1)
+            if new != text:
+                eval_path.write_text(new)
+                refreshed += 1
+        else:
+            preserved += 1  # fully hand-maintained — never impose the template
+    print(f"static-cost refreshed in {refreshed}, bootstrapped {created}, "
+          f"left {preserved} hand-maintained EVAL.md untouched")
     return 0
 
 

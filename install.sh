@@ -28,7 +28,7 @@ while (( "$#" )); do
     --dry-run) DRY_RUN=1; shift ;;
     --no-graphify) INSTALL_GRAPHIFY=0; shift ;;
     -h|--help)
-      grep -E '^# ' "$0" | sed 's/^# //'
+      awk 'NR==1{next} !/^#/{exit} {sub(/^# ?/,"");print}' "$0"
       exit 0 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac

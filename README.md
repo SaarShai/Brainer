@@ -39,7 +39,7 @@ graphify extract .
 
 ## The catalog (16 skills)
 
-**14 default-installed, 2 opt-in** (`skill-pulse`, `compliance-canary` carry `auto-install: false` — `./install.sh` symlinks and lists them but does not run their `tools/install.sh`, so no hook is auto-wired). Enable one with `bash skills/<name>/tools/install.sh`.
+**All 16 installed by `./install.sh`.** `skill-pulse` and `compliance-canary` now auto-wire their `UserPromptSubmit` hooks (`auto-install: true`, **default-on since v1.7**); `think` is slash-only (`/think`, no hook). To disable a default-on hook, remove its entry from `.claude/settings.json` by hand.
 
 | Skill | Trigger | Desc tokens | Notes |
 |---|---|---:|---|
@@ -54,8 +54,8 @@ graphify extract .
 | [semantic-diff](skills/semantic-diff/SKILL.md) | file re-read | 99 | AST-node diff. 95.5% measured savings on argparse.py re-reads. |
 | [index-first](skills/index-first/SKILL.md) | "where is X used / what calls Y" | ~110 | Prefer pre-built indexes / composite verbs over grep+read chains. Eval pending. (colbymchenry/codegraph lineage.) |
 | [output-filter](skills/output-filter/SKILL.md) | terminal output hook | 99 | Strip ANSI/progress/dup noise; preserves errors. |
-| [skill-pulse](skills/skill-pulse/SKILL.md) | UserPromptSubmit hook | 61 | **Opt-in** (`auto-install: false`). Every N turns re-injects active skills' `pulse_reminder` rules. Paper-calibrated (arXiv 2510.07777); unmeasured in-repo. |
-| [compliance-canary](skills/compliance-canary/SKILL.md) | UserPromptSubmit hook | 52 | **Opt-in** (`auto-install: false`). Scans recent replies against per-skill `drift_probes.json`; injects targeted correctives. Symptomatic complement to `skill-pulse`; unmeasured in-repo. |
+| [skill-pulse](skills/skill-pulse/SKILL.md) | UserPromptSubmit hook | 61 | **Default-on since v1.7** (`auto-install: true`). Every N turns re-injects active skills' `pulse_reminder` rules. Paper-calibrated (arXiv 2510.07777). |
+| [compliance-canary](skills/compliance-canary/SKILL.md) | UserPromptSubmit hook | 52 | **Default-on since v1.7** (`auto-install: true`). Scans recent replies against per-skill `drift_probes.json`; injects targeted correctives. Symptomatic complement to `skill-pulse`. |
 | [write-gate](skills/write-gate/SKILL.md) | before any persistent write | ~120 | Content-quality gate on durable memory. Signal-score (ogham lineage) + why-clause enforcement (codenamev lineage). Prevents reasonless decisions and recap-style writes. |
 | [wiki-refresh](skills/wiki-refresh/SKILL.md) | "refresh wiki / audit vs code" | 87 | Code-grounded reconcile of wiki pages (Keep/Update/Consolidate/Replace/Delete) via `audit-refs`; emits typed `contradicts:` edges. Ground-truth reconcile. |
 | [cache-lint](skills/cache-lint/SKILL.md) | before merging hooks/skills, CI | ~110 | Static audit against Anthropic's 6 prompt-cache rules (ussumant lineage). FAIL on dynamic content above breakpoint, prefix mutation by Stop-hooks, etc. |
@@ -100,7 +100,7 @@ See [eval/results/static_cost.json](eval/results/static_cost.json) for the full 
 | Codex / Cursor / Gemini CLI / Copilot | per-project (no plugin format exists for these) | clone into `<project>/.brainer`, then `.brainer/install.sh --host <name>` + symlink — see [Per-project install](#per-project-install-non-claude-code-hosts) |
 | any host (inside the brainer clone itself, e.g. contributing) | for that clone only | `./install.sh` (all hosts) or `./install.sh --host <name>` |
 
-The plugin (`brainer` v1.6.1) bundles all 15 skills plus optional `UserPromptSubmit` and `PreCompact` hooks (off by default; toggle in plugin config).
+The plugin (`brainer` v1.7.0) bundles all 16 skills plus their `UserPromptSubmit` and `PreCompact` hooks.
 
 ### Host install matrix
 
@@ -163,7 +163,7 @@ The catalog evolves — skills get added, and some get **cut** after measurement
 
   A re-run is **self-healing**: it (re)symlinks the current skills, **prunes broken symlinks** for any cut skill, removes **orphan Cursor `.mdc` rules**, **prunes dead hooks** from `.claude/settings.json` whose script no longer exists, and regenerates the resident catalog (`CLAUDE.md` / `AGENTS.md` / `GEMINI.md`). New skills install on the same pass.
 
-The one thing it deliberately *won't* do is disable a still-present **opt-in** skill you enabled (`skill-pulse` / `compliance-canary`) — their scripts still exist, so the prune leaves them; drop those hook entries from `.claude/settings.json` by hand to turn them off.
+The one thing it deliberately *won't* do is disable a **default-on** hook (`skill-pulse` / `compliance-canary`, `auto-install: true` since v1.7) — their scripts still exist, so the prune leaves them wired; to turn one off, drop its hook entry from `.claude/settings.json` by hand.
 
 ## What changed (vs the old framework)
 

@@ -18,7 +18,7 @@
   },
   {
     "skill": "write-gate",
-    "metric": "candidate-memory noise rejected",
+    "metric": "candidate-memory tokens kept out",
     "value": 38.0,
     "unit": "% of candidate tokens kept out of durable memory",
     "baseline": "ungated (admit every candidate)",
@@ -39,6 +39,6 @@
     "value": 97.3,
     "unit": "% fewer tokens vs full re-read",
     "baseline": "naive full file re-read",
-    "detail": "4672->127 est tokens; break-even after R*=2 re-reads"
+    "detail": "4681->127 est tokens; break-even after R*=2 re-reads"
   }
 ]

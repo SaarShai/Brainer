@@ -5,27 +5,24 @@
 | field | tokens / size |
 |---|---|
 | description (always resident) | **90 tokens** (378 chars) |
-| body (loaded on trigger)      | **682 tokens** (2673 chars) |
-| tools/ payload                 | 61.8 KB |
+| body (loaded on trigger)      | **3004 tokens** (11819 chars) |
+| tools/ payload                 | 359.1 KB |
 | model pin                      | `any` |
 | effort pin                     | `low` |
 
 agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K context window).
 
-## Live measurement (end-to-end routing, N=? × 0 prompts)
+## Measured (retrieval + gated write)
 
-Harness: `eval/runner_triage.py` — runs each corpus prompt twice: once routed to `expensive model` (no triage), once routed by `classify.py` to `cheap model` or `expensive model` based on tier.
+wiki-memory is a retrieval + gated-memory skill, not a router — the block previously here was a
+mis-pasted prompt-triage routing template (it described classification/tier-routing this skill
+never does). Its real results live in the experiment suite:
 
-| metric | without triage | with triage | Δ |
-|---|---:|---:|---:|
-| total tokens | ? | ? | **+6.9%** |
-| routing | all → `expensive` | cheap = 0 / expensive = 0 | — |
-| classification accuracy | n/a | **0%** vs ground-truth tier | — |
-| classifier latency | n/a | **0 ms** mean | — |
+- **Retrieval** — `eval/exp2_retrieval`, `eval/exp6_retrieval_scale`: progressive search → timeline → fetch; evidence-rate on project-history questions.
+- **Poison defense / gated write** — `eval/exp5_adversarial` + `tools/provenance.py` trust tiers: write-gate scores signal, not truth (8/8 adversarial lessons passed at mean 4.88), so trust-gated `resolve` recovers the truth+poison case (dependent accuracy 0.5 → 1.0).
+- **Consolidate / decay** — `tools/test_consolidate.py`, `tools/test_decay.py`: reuse-driven promotion + time-based aging (deterministic unit suites in `scripts/run_all_tests.sh`).
 
-Interpretation: the regex fast-path correctly routes ~80% of typical prompts to a cheaper model, saving ~20% total tokens on a mixed-tier corpus. The static body cost (922 tokens) is fully offset within 6–8 routed prompts.
-
-Raw: [`eval/results/wiki-memory.json`](../../eval/results/wiki-memory.json)
+See [`eval/FINDINGS.md`](../../eval/FINDINGS.md) for consolidated numbers. There is no single token-A/B `eval/results/wiki-memory.json` — the value is retrieval quality + memory hygiene, measured by the suites above.
 
 
 ## Methodology

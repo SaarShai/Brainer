@@ -68,7 +68,6 @@ run_step "runner_triage.py (N=$N)" \
 
 run_step "runner_semdiff.py" python3 eval/runner_semdiff.py
 run_step "runner_filter.py"  python3 eval/runner_filter.py
-run_step "runner_handoff.py" python3 eval/runner_handoff.py
 
 # 4) Static cost (always cheap, always re-run)
 run_step "static_cost.py" bash -c \

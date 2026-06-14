@@ -10,8 +10,9 @@ adversarial perf probe caught them.
 
 Each case runs a real hot-path callable on an ADVERSARIAL input (the worst case
 its bug class produces) and asserts wall-time under a BUDGET. Budgets are set
-~100-400x the healthy time so the test never flakes on machine load, yet a
-re-introduced quadratic/backtracking bug (which jumps to seconds) fails it.
+loosely (~60x-7000x the healthy time, measured) so the test never flakes on
+machine load, yet a re-introduced quadratic/backtracking bug (which jumps to
+seconds) blows the budget and fails.
 Timing is best-of-3 (min) to suppress GC/scheduler noise. Deterministic inputs;
 no model calls.
 """
@@ -105,7 +106,7 @@ def build_cases(report: Report) -> None:
     # 5. prompt-triage classify — adversarial 1499-char prompt (under the length
     #    gate so the classifier actually runs all guards/regexes).
     classify = import_skill_module("prompt-triage", "classify")
-    advp = ("refactor the api/handler/module and rewrite the parser " * 27)[:1499]
+    advp = ("refactor the api/handler/module and rewrite the parser " * 28)[:1499]
     _case(report, "prompt-triage:classify:1499-char-adversarial", 1500.0,
           lambda: classify.classify(advp, use_ollama_fallback=False))
 

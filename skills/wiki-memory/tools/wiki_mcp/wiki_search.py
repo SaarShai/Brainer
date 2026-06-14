@@ -1,6 +1,6 @@
 """Progressive-disclosure wiki retrieval API.
 
-Small importable wrapper around `token_economy.wiki.WikiStore`.
+Small importable wrapper around the sibling `wiki.WikiStore`.
 """
 from __future__ import annotations
 

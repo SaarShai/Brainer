@@ -25,9 +25,10 @@ DEFAULT_HALFLIFE_DAYS = 405  # half-life consistent with 5% per 30 idle days
 PROTECTED_TYPES = {"error", "lesson", "sop", "procedure"}
 PROTECTED_DIRS = {"L0_rules.md", "L3_sops", "raw"}
 # Path components never treated as wiki content (VCS, build, vendored, host config,
-# git worktrees). Mirrors token_economy/wiki.py SKIP_PARTS so decay scans exactly
-# what `te wiki` indexes — not worktree clones or vendored copies.
-SKIP_PARTS = {".git", ".token-economy", "__pycache__", ".pytest_cache",
+# git worktrees, the wiki's own state/cache dir). Mirrors wiki.py's skip set so
+# decay scans exactly what wiki.py indexes — not the .brainer ledger, worktree
+# clones, or vendored copies.
+SKIP_PARTS = {".git", ".brainer", "__pycache__", ".pytest_cache",
               "vendor", ".claude", "node_modules"}
 EVIDENCE_PROTECT_THRESHOLD = 3
 def lambda_from_halflife(halflife_days: float) -> float:

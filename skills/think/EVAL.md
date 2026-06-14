@@ -11,16 +11,13 @@ section before trusting the A/B delta.**
 
 | field | tokens / size |
 |---|---|
-| description (frontmatter; resident part is the catalog one-liner) | **81 tokens** (376 chars) |
-| body (loaded on `/think`)      | **1,238 tokens** (5,397 chars) |
+| description (always resident) | **81 tokens** (376 chars) |
+| body (loaded on trigger)      | **1238 tokens** (5397 chars) |
 | tools/ payload                 | 0.0 KB |
 | model pin                      | `any` |
 | effort pin                     | `medium` |
 
-Source: [`eval/results/static_cost.json`](../../eval/results/static_cost.json).
-As a slash-only skill the always-resident part is just the catalog one-liner
-(the first sentence, ~40 tok); the full 81-tok description and 1,238-tok body
-load only on `/think`. Cheap either way.
+agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K context window).
 
 ## Trigger accuracy (measured) — the solid result
 
