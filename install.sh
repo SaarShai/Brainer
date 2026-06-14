@@ -436,12 +436,18 @@ install_claude_code() {
   echo "[claude-code]"
   run "mkdir -p '$REPO_ROOT/.claude/skills'"
   prune_stale_skill_links "$REPO_ROOT/.claude/skills"
-  prune_dead_hooks "$REPO_ROOT/.claude/settings.json" "$REPO_ROOT"
   for skill in "$SRC"/*/; do
     name=$(basename "$skill")
     [ "$name" = "_shared" ] && continue
     link "$skill" "$REPO_ROOT/.claude/skills/$name"
   done
+  # Prune dead hooks AFTER (re)creating the skill symlinks: prune decides a
+  # managed hook is dead via os.path.exists(.claude/skills/<name>/...), which
+  # only resolves through those symlinks. Running it first (or with a
+  # settings.json rsync'd from another machine before its symlinks exist) made
+  # every live Brainer hook look missing and wiped it. With symlinks in place,
+  # prune removes only hooks whose skill is genuinely gone.
+  prune_dead_hooks "$REPO_ROOT/.claude/settings.json" "$REPO_ROOT"
   inject_catalog_into_doc "$REPO_ROOT/CLAUDE.md"
   ensure_global_output_style_hooks
   # Regenerate the hooks map (pre-built index for hook-wiring questions;

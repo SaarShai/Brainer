@@ -2,7 +2,11 @@ import re
 
 def detect_renames(prev_snapshot, curr_snapshot, prev_bodies, curr_bodies):
     def _extract_identifiers(source_bytes):
-        source = source_bytes.decode('utf-8')
+        # 'replace', not strict: a single non-UTF-8 byte (valid in a string
+        # literal/comment) raised UnicodeDecodeError, which render_diff's broad
+        # except swallowed — silently disabling rename detection for the whole
+        # file. Match the "replace" policy used everywhere else in core.py.
+        source = source_bytes.decode('utf-8', 'replace')
         return set(re.findall(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', source))
     
     removed_names = set(prev_snapshot.keys()) - set(curr_snapshot.keys())

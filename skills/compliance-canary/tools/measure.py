@@ -53,7 +53,23 @@ def default_probes_root() -> Path:
 
 def analyze_one(path: Path, probes: list[dict], window: int) -> dict:
     events = read_transcript_tail(str(path), cap=10_000)
-    messages = recent_assistant_messages(events, window)
+    # Mirror the live hook (hook.py:649-659): fetch enough messages for the
+    # LARGEST declared word_count window — not one global `window`. Without this,
+    # a probe declaring window:5 was scored against only the default 3 messages
+    # (the detector then clamps to len(messages)), a silent false-negative for
+    # the exact calibration this offline analyzer exists to verify. The CLI
+    # --window value acts as a floor.
+    WORD_COUNT_WINDOW_CAP = 50
+    max_window = max(
+        [window]
+        + [
+            min(int(p.get("window", MSG_WINDOW_DEFAULT)), WORD_COUNT_WINDOW_CAP)
+            for p in probes
+            if p.get("kind") == "word_count_per_message"
+            and str(p.get("window", MSG_WINDOW_DEFAULT)).lstrip("-").isdigit()
+        ]
+    )
+    messages = recent_assistant_messages(events, max_window)
     tool_uses = recent_tool_uses(events, n=20)
     # Match the live hook's full detector signature: without tool_errors and
     # traj_stats, the trajectory_drift / repeated_tool_error detectors always

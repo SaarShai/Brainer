@@ -55,6 +55,7 @@ UNIT_TESTS=(
   skills/wiki-memory/tools/test_provenance.py
   skills/wiki-memory/tools/test_refresh.py
   skills/wiki-memory/tools/test_resolve.py
+  skills/wiki-memory/tools/test_config.py
 )
 # semantic-diff needs tree-sitter; SKIP (not FAIL) where the dep is absent
 # (e.g. bare CI runners) — semdiff's own suite covers it on dev machines.
@@ -66,6 +67,7 @@ if python3 -c "import tree_sitter" 2>/dev/null; then
     skills/semantic-diff/tools/tests/test_syntax_error.py
     skills/semantic-diff/tools/tests/test_whitespace.py
     skills/semantic-diff/tools/tests/test_realistic.py
+    skills/semantic-diff/tools/tests/test_classlevel.py
   )
 else
   echo "SKIP semantic-diff suite (tree_sitter not importable)"

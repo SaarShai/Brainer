@@ -504,6 +504,30 @@ except Exception as e:
 " 2>/dev/null)
 if [ "$res" = "VALUEERROR:boom-body" ]; then ok "body ValueError propagates cleanly"; else no "body ValueError propagates cleanly" "got: $res"; fi
 
+echo "[38] measure.py offline analyzer honors a probe's declared window (not just --window)"
+# Regression: analyze_one used one global --window (default 3), so a probe
+# declaring window:5 was scored against only 3 messages — a silent false
+# negative for the exact calibration this tool exists to verify. It must now
+# mirror the live hook and fetch the largest declared window.
+M38_TX="$TRANSCRIPT_DIR/t38.jsonl"
+{ assistant_text 'word word word word word word word word word word' u1
+  assistant_text 'word word word word word word word word word word' u2
+  assistant_text 'one' u3
+  assistant_text 'two' u4
+  assistant_text 'three' u5; } > "$M38_TX"
+# avg over window=5 = (10+10+1+1+1)/5 = 4.6 > threshold 4 ; over default 3 = 1
+m38=$(python3 - "$TOOLS_DIR" "$M38_TX" <<'PY' 2>/dev/null
+import sys
+sys.path.insert(0, sys.argv[1])
+import measure
+from pathlib import Path
+probe = {"_probe_id": "wc5", "kind": "word_count_per_message", "threshold": 4, "window": 5}
+r = measure.analyze_one(Path(sys.argv[2]), [probe], 3)  # CLI default window=3
+print("%d %d" % (r["n_assistant_messages"], r["n_fires"]))
+PY
+)
+if [ "$m38" = "5 1" ]; then ok "window:5 probe fetched 5 msgs + fired under --window 3"; else no "measure.py per-probe window" "got: $m38 (want '5 1')"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then
