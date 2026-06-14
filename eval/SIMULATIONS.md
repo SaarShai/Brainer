@@ -11,7 +11,7 @@ Extends the unit-test suite under each skill's `tools/test_*.py` with:
 5. **Independent code review** (parallel sub-agent)
 6. **External Claude Code projects** (parallel sub-agent)
 
-Harnesses live in [`eval/sims/`](sims/). Raw outputs in [`eval/sims/results/`](sims/results/).
+Harnesses live in [`eval/sims/`](sims/). Raw outputs (`eval/sims/results/*.json`, cited as "Source" below) are **regenerated locally** by `python3 eval/sims/run_all.py` — not committed, since they carry per-run timing that would churn every suite run (see `.gitignore`).
 
 ## Headline numbers
 

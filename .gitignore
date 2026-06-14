@@ -61,3 +61,9 @@ eval/longrun/results/*.log
 eval/results/verify_rejudge_*.json
 !eval/results/verify_rejudge_*.judged.json
 scratch/
+
+# eval/sims/* outputs are offline-regenerable (python3 eval/sims/run_all.py) and
+# carry per-run timing (ms/headroom/throughput) → committing them churns every
+# suite run. Same policy as the runlog/longrun dumps above: regenerate, don't track.
+# (The A/B task results under eval/results/ stay committed — they need a model run.)
+eval/sims/results/
