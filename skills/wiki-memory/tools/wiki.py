@@ -2025,6 +2025,49 @@ class WikiStore:
                 "claims": claims,
                 "note": "deterministic existence-grounding; semantic prose-vs-code check is a judge step (wiki-refresh)"}
 
+    def claim_audit(self, scope: str | None = None, judgment_ratio: float = 0.6,
+                    min_claims: int = 4) -> dict[str, Any]:
+        """REPORT-ONLY claim-quality lens (the 'data vs opinion vs decision' angle).
+
+        Grades each page's claims by epistemic klass (data / directive / judgment)
+        via claim_grade and flags pages that are judgment-heavy with little data
+        backing — an opinion/hypothesis page masquerading as durable memory.
+
+        Honest limit (measured, 2026-06 blind validation): per-claim typing of
+        messy prose is NOISY — even independent human annotators agree only ~40%
+        unanimously on SOP fragments. So this is a HEURISTIC LENS for an agent to
+        interpret, never a gate. The grader abstains (`unknown`) on unmarked text;
+        aggregate ratios are more robust than any single label.
+        """
+        import claim_grade as _cg  # lazy; same tools/ dir
+        pages = self._knowledge_pages(include_raw=False)
+        if scope:
+            sid = scope.removesuffix(".md")
+            pages = [p for p in pages if p.id == sid or Path(p.id).name == Path(sid).name]
+        rows: list[dict[str, Any]] = []
+        flagged: list[dict[str, Any]] = []
+        for p in pages:
+            if not p.frontmatter:
+                continue
+            h = _cg.grade_text(p.body)["klass_histogram"]
+            graded = h["data"] + h["directive"] + h["judgment"]
+            if graded < min_claims:
+                continue
+            jr = round(h["judgment"] / graded, 2)
+            dr = round(h["data"] / graded, 2)
+            row = {"id": p.id, "type": p.type, "graded_claims": graded,
+                   "data": h["data"], "directive": h["directive"],
+                   "judgment": h["judgment"], "abstained": h["unclassified"],
+                   "judgment_ratio": jr, "data_ratio": dr}
+            rows.append(row)
+            # opinion/hypothesis-heavy page with little empirical backing, and not
+            # a type where that's expected (decisions/queries can be judgment-led).
+            if jr >= judgment_ratio and dr < 0.15 and p.type not in {"decision", "query"}:
+                flagged.append({**row, "flag": "judgment-heavy-weak-evidence"})
+        rows.sort(key=lambda r: -r["judgment_ratio"])
+        return {"scanned": len(rows), "flagged": flagged, "rows": rows,
+                "note": "report-only heuristic lens; per-claim typing is noisy, interpret aggregates not single labels"}
+
     # GRAFT 3 — discoverability. A curated store only compounds if a fresh /
     # plugin-less agent knows it exists, how to query it, and when. Check whether
     # a host instruction file surfaces the wiki; emit a snippet if not. (Installer-
@@ -2357,6 +2400,10 @@ def _cli_main(argv: list[str] | None = None) -> int:
     sp.add_argument("item_id")
     sp.add_argument("--code-root", default=None)
 
+    sp = sub.add_parser("claim-audit", help="Report-only claim-quality lens: per-page data/directive/judgment mix; flags judgment-heavy pages with weak evidence. Heuristic, not a gate.")
+    sp.add_argument("--scope", default=None, help="Limit to one page id/path.")
+    sp.add_argument("--judgment-ratio", type=float, default=0.6)
+
     args = p.parse_args(argv)
     root = Path(args.root).expanduser().resolve() if args.root else _cli_default_root()
     store = WikiStore(root)
@@ -2447,6 +2494,8 @@ def _cli_dispatch(args, store, root) -> int:
         _cli_print(store.novelty(threshold=args.threshold))
     elif args.cmd == "claim-ground":
         _cli_print(store.claim_ground(args.item_id, code_root=args.code_root))
+    elif args.cmd == "claim-audit":
+        _cli_print(store.claim_audit(scope=args.scope, judgment_ratio=args.judgment_ratio))
     else:  # unreachable — argparse enforces choices
         p.error(f"unknown subcommand: {args.cmd}")
     return 0

@@ -350,5 +350,62 @@ class TestNoveltyAndClaimGround(unittest.TestCase):
         self.assertIn("src/gone.py", missing["missing_refs"])
 
 
+class TestClaimAudit(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / "wiki"
+        self.root.mkdir(parents=True)
+        _write(self.root, "index.md", "# Index\n")
+        _write(self.root, "log.md", "# Log\n")
+        # judgment-heavy (opinion) concept page -> should flag (>=4 claims, each >=5 words)
+        _write(self.root, "concepts/opinion.md",
+               _v2("Opinion heavy", type_="concept",
+                   body="\n# Opinion heavy\n\nThe new API design is much cleaner overall. "
+                        "The updated layout feels far nicer to use. "
+                        "It is more elegant than the previous version. "
+                        "The old structure was considerably uglier than this.\n"))
+        # data-heavy page -> should NOT flag
+        _write(self.root, "concepts/data.md",
+               _v2("Data heavy", type_="concept",
+                   body="\n# Data heavy\n\nLatency measured 113ms on the regex path. "
+                        "12 tests passed with no failures recorded. The cold build took 4.2s. "
+                        "Indexed 175 pages on 2026-06-14 here.\n"))
+        # decision page that is judgment-led -> exempt from flag
+        _write(self.root, "queries/decision.md",
+               _v2("Decision page", type_="decision",
+                   body="\n# Decision page\n\nThe new approach feels much cleaner overall. "
+                        "It seems clearly nicer to work with. "
+                        "The design is more elegant than before. "
+                        "This reads considerably better than the old one.\n"))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_flags_judgment_heavy_weak_evidence(self):
+        rep = WikiStore(self.root).claim_audit()
+        flagged = {f["id"] for f in rep["flagged"]}
+        self.assertIn("concepts/opinion", flagged)
+
+    def test_data_heavy_not_flagged(self):
+        rep = WikiStore(self.root).claim_audit()
+        flagged = {f["id"] for f in rep["flagged"]}
+        self.assertNotIn("concepts/data", flagged)
+        row = next((r for r in rep["rows"] if r["id"] == "concepts/data"), None)
+        self.assertIsNotNone(row)
+        self.assertGreater(row["data"], row["judgment"])
+
+    def test_decision_type_exempt(self):
+        # a judgment-led page typed `decision` is not flagged (decisions are
+        # expected to be directive/judgment-led, not evidence-led)
+        rep = WikiStore(self.root).claim_audit()
+        self.assertNotIn("queries/decision", {f["id"] for f in rep["flagged"]})
+
+    def test_report_only_no_writes(self):
+        before = sorted(p.name for p in self.root.rglob("*.md"))
+        WikiStore(self.root).claim_audit()
+        after = sorted(p.name for p in self.root.rglob("*.md"))
+        self.assertEqual(before, after)  # report-only: mutates nothing
+
+
 if __name__ == "__main__":
     unittest.main()
