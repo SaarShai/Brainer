@@ -591,6 +591,30 @@ class TestMaturity(unittest.TestCase):
         self.assertEqual(before, sorted(p.name for p in self.root.rglob("*.md")))
 
 
+class TestExclusionsAndKeyedNumbers(unittest.TestCase):
+    def test_keyed_numbers_no_cross_space_unit(self):
+        from wiki import keyed_numbers
+        # "generate 3 variants" must record '3', NOT '3vari' (unit grabbed across space)
+        self.assertEqual(keyed_numbers("generate 3 variants per run").get("generate"), {"3"})
+        # adjacent units still attach
+        self.assertEqual(keyed_numbers("latency 113ms here").get("latency"), {"113ms"})
+
+    def test_vendor_dir_excluded_from_knowledge(self):
+        tmp = tempfile.TemporaryDirectory()
+        root = Path(tmp.name) / "wiki"
+        root.mkdir(parents=True)
+        _write(root, "index.md", "# i\n")
+        _write(root, "log.md", "# l\n")
+        _write(root, "concepts/real.md", _v2("Real", body="\n# Real\n\nMeasured 5ms here.\n"))
+        _write(root, "vendor/x/foo.md", _v2("Vendor", body="\n# Vendor\n\nthird party stuff here.\n"))
+        _write(root, "tests/t.md", _v2("Test", body="\n# Test\n\ntest fixture content here.\n"))
+        ids = {p.id for p in WikiStore(root)._knowledge_pages()}
+        self.assertIn("concepts/real", ids)
+        self.assertNotIn("vendor/x/foo", ids)
+        self.assertNotIn("tests/t", ids)
+        tmp.cleanup()
+
+
 class TestCLISmoke(unittest.TestCase):
     """End-to-end CLI smoke: each verb runs via subprocess (exercises argparse +
     dispatch, which method-level unit tests skip) and returns parseable JSON."""

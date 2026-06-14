@@ -401,7 +401,10 @@ def rewrite_wikilinks_to_okf(body: str, resolve) -> str:
 
 
 _NUM_RE = re.compile(r"(?<![\w.])(\d+(?:\.\d+)?)")
-_KEYED_NUM_RE = re.compile(r"([A-Za-z][A-Za-z0-9_\- ]{1,40}?)[\s:=]+(\d+(?:\.\d+)?)\s*([%A-Za-z]{0,4})")
+# Unit is ADJACENT-ONLY (no whitespace before it): "113ms"/"405d"/"50%" attach a
+# unit; "generate 3 variants" does NOT grab "vari" across the space (that junk
+# 'unit' produced spurious '3vari' contradiction keys on PROMPTER).
+_KEYED_NUM_RE = re.compile(r"([A-Za-z][A-Za-z0-9_\- ]{1,40}?)[\s:=]+(\d+(?:\.\d+)?)(%|[a-z]{1,2})?\b")
 _NEGATION = {"no", "not", "never", "cannot", "can't", "won't", "isn't", "aren't", "doesn't", "don't", "without", "false"}
 
 
@@ -1843,7 +1846,14 @@ class WikiStore:
 
     # --- knowledge pages selector (shared by OKF export + quality scans) ----
     _META_FILES = {"index.md", "log.md", "schema.md", "L0_rules.md", "L1_index.md", "README.md"}
-    _SUPPORT_DIRS = {"templates", "skills", "prompts", "hooks", "configs", "extensions", "adapters"}
+    # Non-knowledge dirs excluded from the epistemic lenses. Skill-support dirs
+    # PLUS vendored/third-party/build trees — found on PROMPTER (1800+ vendor/
+    # files flooded contradict-scan with 417 junk candidates + 31s). A memory
+    # wiki's knowledge lives in its tiers, never in vendor/build/test trees.
+    _SUPPORT_DIRS = {"templates", "skills", "prompts", "hooks", "configs", "extensions",
+                     "adapters", "vendor", "node_modules", "dist", "build", "target",
+                     "fixtures", "golden", "goldens", "eval", "evals", "examples",
+                     "demo", "demos", "bench", "tests", "test", "site-packages"}
 
     def _knowledge_pages(self, include_raw: bool = True) -> list[Page]:
         out = []
