@@ -35,7 +35,7 @@ graphify query "<page subject>"   # OR Grep — confirm where the code lives NOW
 
 **`protected: true` pages** (type ∈ error/lesson/sop/procedure, or `L3_sops/`) report drift but are not auto-actioned — a lesson stays protective even when its example code is gone. Surface, never auto-delete.
 
-**Epistemic lenses (periodic, report-only — heuristic aids, never gates).** Three further `wiki.py` verbs (defined in [`wiki-memory`](../wiki-memory/SKILL.md)) feed refresh decisions: `maturity` → `demotion_candidates` route into the contradiction pass below, `promotion_candidates` into Update/Consolidate; `synth-candidates` → cluster groups into Consolidate; `claim-audit` → thin-evidence pages into Replace/Delete review. Per-claim typing is noisy (measured) — read aggregates, treat outputs as candidates to confirm, not verdicts.
+**Epistemic lenses (periodic, report-only — heuristic aids, never gates).** Three further `wiki.py` verbs (defined in [`wiki-memory`](../wiki-memory/SKILL.md)) feed refresh decisions: `maturity` → `demotion_candidates` route into the contradiction pass below, `promotion_candidates` into Update/Consolidate; `synth-candidates` → cluster groups into Consolidate; `claim-audit` → thin-evidence pages into Replace/Delete review; `gaps` → recurring missing concepts (write the canonical page or fix the stale link). Per-claim typing is noisy (measured) — read aggregates, treat outputs as candidates to confirm, not verdicts.
 
 ## Scope
 

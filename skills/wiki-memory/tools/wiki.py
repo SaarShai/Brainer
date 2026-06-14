@@ -4,7 +4,7 @@ import json
 import re
 import sqlite3
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from math import ceil
 from pathlib import Path
 from typing import Any
@@ -219,7 +219,13 @@ def is_v2_page(fm: dict[str, str]) -> bool:
 
 def confidence_value(value: str) -> float | None:
     try:
-        return float(value)
+        f = float(value)
+        # Reject non-finite (nan/inf) -> None (review C3): routes through every
+        # `conf is None` guard (lint invalid_confidence, calibration) and stops
+        # `Infinity`/`NaN` leaking into the JSON output. Out-of-range finite values
+        # pass through so lint's invalid_confidence still flags them.
+        import math
+        return f if math.isfinite(f) else None
     except (TypeError, ValueError):
         legacy = {"low": 0.25, "med": 0.6, "medium": 0.6, "high": 0.9}
         return legacy.get(str(value).strip().lower())
@@ -406,20 +412,28 @@ _NUM_RE = re.compile(r"(?<![\w.])(\d+(?:\.\d+)?)")
 # 'unit' produced spurious '3vari' contradiction keys on PROMPTER).
 _KEYED_NUM_RE = re.compile(r"([A-Za-z][A-Za-z0-9_\- ]{1,40}?)[\s:=]+(\d+(?:\.\d+)?)(%|[a-z]{1,2})?\b")
 _NEGATION = {"no", "not", "never", "cannot", "can't", "won't", "isn't", "aren't", "doesn't", "don't", "without", "false"}
+# Copula/filler tokens that must NOT become the key for "<subject> is/was N"
+# phrasing (review C1/C13: split()[-1] grabbed 'is'/'was' and dropped the metric).
+_KEY_SKIP = _CONTENT_STOP | {"is", "be", "been", "to", "of", "in", "on", "at", "by",
+                            "the", "an", "its", "it", "as", "or", "and"}
 
 
 def keyed_numbers(text: str) -> dict[str, set[str]]:
-    """Map a lowercased key-phrase token -> set of numeric values stated for it.
+    """Map a lowercased subject token -> set of numeric values stated for it.
 
     Coarse, deterministic. Used only to SURFACE contradiction candidates for a
-    human/judge to confirm — not a truth oracle.
+    human/judge to confirm — not a truth oracle. The key is the RIGHTMOST content
+    token of the captured phrase (skipping copulas/fillers, so 'p99 latency is N'
+    -> 'latency'). The unit is dropped from the stored value so '30s' and '30' do
+    NOT spuriously diverge (review C4); '30' vs '90' still does.
     """
     out: dict[str, set[str]] = {}
-    for key, num, unit in _KEYED_NUM_RE.findall(strip_fenced_code(text)):
-        k = key.strip().lower().split()[-1] if key.strip() else ""
-        if len(k) < 3 or k in _CONTENT_STOP:
+    for key, num, _unit in _KEYED_NUM_RE.findall(strip_fenced_code(text)):
+        toks = key.strip().lower().split()
+        k = next((t for t in reversed(toks) if len(t) >= 3 and t not in _KEY_SKIP), "")
+        if not k:
             continue
-        out.setdefault(k, set()).add(num + (unit or ""))
+        out.setdefault(k, set()).add(num)
     return out
 
 
@@ -463,6 +477,21 @@ _FALSIFIER_RE = re.compile(
     r"no longer (?:holds|true|applies|valid))\b", re.I)
 
 
+def _parse_dt(value) -> datetime | None:
+    """Parse a frontmatter date/datetime string to a comparable datetime, or None.
+    Tolerates date-only, ISO datetime, and zero-padding differences."""
+    s = str(value or "").strip().strip("\"'")
+    if not s:
+        return None
+    try:
+        return datetime.fromisoformat(s)
+    except ValueError:
+        try:
+            return datetime.combine(date.fromisoformat(s[:10]), datetime.min.time())
+        except ValueError:
+            return None
+
+
 def has_falsifier(page: Page) -> bool:
     """Does the page state a falsification condition (in body or `falsifies:` /
     `falsified-by:` frontmatter)? A rule without one is really an assertion."""
@@ -486,13 +515,17 @@ def suggest_resolution(a: Page, b: Page, has_polarity: bool) -> dict[str, str]:
     """
     ra = TRUST_TIERS.get(str(a.frontmatter.get("trust", "asserted")).strip().strip("\"'"), 1.0)
     rb = TRUST_TIERS.get(str(b.frontmatter.get("trust", "asserted")).strip().strip("\"'"), 1.0)
-    da = str(a.frontmatter.get("updated", "")).strip().strip("\"'")
-    db = str(b.frontmatter.get("updated", "")).strip().strip("\"'")
+    # PARSE dates (review C2) — raw-string compare made '2026-9-1' > '2026-10-1'
+    # lexicographically, keeping the OLDER page. Use datetime so date-only and
+    # timestamped `updated:` values compare on a common type.
+    pa, pb = _parse_dt(a.frontmatter.get("updated", "")), _parse_dt(b.frontmatter.get("updated", ""))
     verb = "invalidate" if has_polarity else "supersede"
     if ra != rb:
         keep, drop, basis = (a, b, "trust") if ra > rb else (b, a, "trust")
-    elif da != db:
-        keep, drop, basis = (a, b, "recency") if da > db else (b, a, "recency")
+    elif pa is not None and pb is not None and pa != pb:
+        keep, drop, basis = (a, b, "recency") if pa > pb else (b, a, "recency")
+    elif pa is None or pb is None:
+        return {"verb": "dispute", "basis": "unparseable recency", "keep": "", "resolve": ""}
     else:
         return {"verb": "dispute", "basis": "equal trust and recency", "keep": "", "resolve": ""}
     return {"verb": verb, "basis": basis, "keep": keep.id, "resolve": drop.id}
@@ -2286,6 +2319,130 @@ class WikiStore:
                 "already_synthesized": [c for c in out if c["likely_existing_parent"]],
                 "note": "report-only; clusters of same-subject pages an agent could synthesize into a higher-order note"}
 
+    def gaps(self, min_refs: int = 2) -> dict[str, Any]:
+        """REPORT-ONLY knowledge-COMPLETENESS lens (a new angle: what's MISSING).
+
+        The quality lenses (claim-audit / contradict-scan / maturity / novelty)
+        all judge what IS written. This finds what ISN'T: recurring `[[wikilink]]`
+        targets that resolve to no page. A concept referenced >= min_refs times
+        with no canonical page is a real gap (not a one-off typo); a `[[?stub]]`
+        forward-ref referenced repeatedly is a promised-but-unwritten gap. Unlike
+        lint's per-edge broken_link, this AGGREGATES by target and ranks by
+        frequency, so the highest-leverage missing concepts surface first.
+        """
+        from collections import Counter
+        # reference SOURCES = curated pages only — raw/ is immutable, so its
+        # dangling links are frozen artifacts, not actionable completeness gaps.
+        pages = self._knowledge_pages(include_raw=False)
+        allpages = self.pages()                          # resolve TARGETS against everything
+        ids = {p.id for p in allpages}                   # incl. meta (schema/index/log) + support
+        stems = {Path(p.id).name for p in allpages}
+        broken: Counter = Counter()
+        stub: Counter = Counter()
+        srcs: dict[str, set[str]] = {}
+        for p in pages:
+            for l in p.links:
+                t = l.removesuffix(".md")
+                is_stub = t.startswith("?")
+                key = t.lstrip("?")
+                if not key.strip():
+                    continue  # degenerate target [[?]] / [[ ]] / [[|label]] (review C9)
+                if not is_stub:
+                    # path-style target (has '/') must match EXACTLY — a stale
+                    # `[[projects/x/README]]` must not be considered resolved just
+                    # because some other README.md exists. Bare concept names keep
+                    # the stem fallback ([[foo]] -> L2_facts/foo).
+                    resolved = key in ids if "/" in key else (key in ids or Path(key).name in stems)
+                    if resolved:
+                        continue
+                (stub if is_stub else broken)[key] += 1
+                srcs.setdefault(key, set()).add(p.id)
+        out = []
+        for kind, counter in (("broken", broken), ("stub", stub)):
+            for concept, n in counter.items():
+                if n >= min_refs:
+                    out.append({"concept": concept, "refs": n, "kind": kind,
+                                "referenced_by": sorted(srcs.get(concept, set()))[:6]})
+        out.sort(key=lambda g: (-g["refs"], g["concept"]))
+        return {"count": len(out), "gaps": out,
+                "note": "recurring wikilink targets with no page — knowledge-completeness gaps (report-only); kind=broken (dangling) | stub (declared [[?forward-ref]])"}
+
+    def health(self) -> dict[str, Any]:
+        """One-pass EPISTEMIC HEALTH summary across all six angles (+ novelty) — the
+        usable capstone (running the verbs separately is cumbersome). Report-only: rolls
+        up the actionable counts per angle + a total; run the individual verbs for
+        the detail behind any non-zero count."""
+        ca = self.claim_audit()
+        cs = self.contradict_scan()
+        sc = self.synth_candidates()
+        mat = self.maturity()
+        gp = self.gaps()
+        cal = self.calibration()
+        nv = self.novelty()
+        by_angle = {
+            "claim_quality": {"judgment_heavy_pages": len(ca["flagged"])},
+            "contradictions": {"candidates": cs["candidate_count"]},
+            "synthesis": {"clusters_to_synthesize": len(sc["candidates"])},
+            "maturity": {"promotion": len(mat["promotion_candidates"]),
+                         "demotion": len(mat["demotion_candidates"])},
+            "completeness": {"gaps": gp["count"]},
+            "calibration": {"overconfident": len(cal["overconfident"]),
+                            "underconfident": len(cal["underconfident"])},
+            "novelty": {"low_novelty_pages": len(nv["low_novelty"])},
+        }
+        total = sum(v for angle in by_angle.values() for v in angle.values())
+        return {"total_findings": total, "by_angle": by_angle,
+                "note": "one-pass epistemic health (report-only); 0 = healthy. Run the individual verb behind any non-zero count for detail."}
+
+    def calibration(self, high: float = 0.8, low: float = 0.4, stale_days: int = 180) -> dict[str, Any]:
+        """REPORT-ONLY calibration lens: does a page's stated `confidence` MATCH its
+        evidence? Confidence (a scalar) and trust/sources/links (the evidence) are
+        stored independently and can drift apart. Evidence score (0-4) = has
+        sources + has inbound corroboration + trust>=corroborated + verified-fresh.
+        Flags overconfidence (high confidence, weak evidence) and underconfidence
+        (low confidence, strong evidence). Honest scalar-vs-evidence consistency
+        check, distinct from trust (evidence strength) and maturity (the ladder).
+        """
+        pages = [p for p in self._knowledge_pages(include_raw=False) if p.frontmatter]
+        ids = {p.id for p in pages}
+        stem = {}
+        for p in pages:
+            stem.setdefault(Path(p.id).name, p.id)
+        inbound = {p.id: 0 for p in pages}
+        for p in pages:
+            for l in p.links:
+                t = l.removesuffix(".md").lstrip("?")
+                tgt = t if t in ids else stem.get(Path(t).name)
+                if tgt and tgt != p.id:
+                    inbound[tgt] += 1
+        today = date.today()
+        over, under = [], []
+        for p in pages:
+            conf = confidence_value(p.frontmatter.get("confidence", ""))
+            if conf is None:
+                continue
+            trust = str(p.frontmatter.get("trust", "asserted")).strip().strip("\"'") or "asserted"
+            n_src = len(parse_tags(p.frontmatter.get("sources", "")))
+            verified = str(p.frontmatter.get("verified", "")).strip().strip("\"'")
+            fresh = False
+            if verified:
+                try:
+                    age = (today - date.fromisoformat(verified)).days
+                    fresh = 0 <= age <= stale_days  # a FUTURE date is not "fresh" (review C10)
+                except ValueError:
+                    fresh = False
+            ev = (n_src > 0) + (inbound[p.id] > 0) + (trust in {"corroborated", "verified", "user_confirmed"}) + fresh
+            row = {"id": p.id, "confidence": conf, "evidence_score": ev,
+                   "trust": trust, "sources": n_src, "inbound": inbound[p.id], "fresh": fresh}
+            if conf >= high and ev <= 1:
+                over.append({**row, "reason": "high confidence but weak evidence — overconfident"})
+            elif conf <= low and ev >= 3:
+                under.append({**row, "reason": "low confidence but strong evidence — underconfident"})
+        over.sort(key=lambda r: (-r["confidence"], r["evidence_score"]))
+        return {"overconfident": over, "underconfident": under,
+                "scanned": len(pages),
+                "note": "calibration lens (report-only): does stated confidence match evidence = sources+inbound+trust+freshness?"}
+
     def maturity(self, promote_inbound: int = 3) -> dict[str, Any]:
         """REPORT-ONLY observation->hypothesis->rule maturity lens (the ladder angle).
 
@@ -2345,12 +2502,20 @@ class WikiStore:
                 continue
             trust = str(p.frontmatter.get("trust", "asserted")).strip().strip("\"'") or "asserted"
             ptype = p.frontmatter.get("type", "")
-            contradicted = bool(re.findall(r"\[\[([^\]]+)\]\]", p.frontmatter.get("contradicts", "")))
+            # contradicted = points at ANOTHER existing page (not itself — review C8).
+            contradicted = False
+            for tgt in re.findall(r"\[\[([^\]]+)\]\]", p.frontmatter.get("contradicts", "")):
+                tid = normalize_wikilink(tgt)
+                resolved = tid if tid in ids else stem.get(Path(tid).name)
+                if resolved and resolved != p.id:
+                    contradicted = True
+                    break
             inb = len(inbound_src[p.id])
             if (stage == "rule" or ptype in {"rule", "sop", "lesson", "error"}
                     or trust in {"verified", "user_confirmed"}) and contradicted:
                 demote.append({"id": p.id, "stage": stage, "type": ptype, "trust": trust,
                                "reason": "contradicted rule/verified — review for demotion (conflict-driven)"})
+                continue  # a contradicted page is a demotion, not also a promotion (review C14)
             if stage in {"hypothesis", "observation"} and trust == "asserted" and inb >= promote_inbound:
                 # evidence-accrual (A-MEM): citations FROM observation-stage pages
                 # are corroborating evidence; raw popularity is not.
@@ -2589,7 +2754,9 @@ def _cli_default_root() -> Path:
 
 
 def _cli_print(result: Any) -> None:
-    print(json.dumps(result, indent=2, default=str))
+    # allow_nan=False: a residual non-finite float fails loud rather than emitting
+    # invalid `Infinity`/`NaN` JSON tokens a strict consumer (node) rejects (C3).
+    print(json.dumps(result, indent=2, default=str, allow_nan=False))
 
 
 def _cli_main(argv: list[str] | None = None) -> int:
@@ -2701,6 +2868,7 @@ def _cli_main(argv: list[str] | None = None) -> int:
     sp = sub.add_parser("claim-audit", help="Report-only claim-quality lens: per-page data/directive/judgment mix; flags judgment-heavy pages with weak evidence. Heuristic, not a gate.")
     sp.add_argument("--scope", default=None, help="Limit to one page id/path.")
     sp.add_argument("--judgment-ratio", type=float, default=0.6)
+    sp.add_argument("--min-claims", type=int, default=4)
 
     sp = sub.add_parser("synth-candidates", help="Report-only synthesis surfacer: clusters of same-subject pages ripe for a higher-order synthesis note.")
     sp.add_argument("--min-cluster", type=int, default=3)
@@ -2708,6 +2876,16 @@ def _cli_main(argv: list[str] | None = None) -> int:
 
     sp = sub.add_parser("maturity", help="Report-only observation>hypothesis>rule lens: promotion (cited-while-asserted) + conflict-driven demotion (contradicted rule/verified) candidates.")
     sp.add_argument("--promote-inbound", type=int, default=3)
+
+    sp = sub.add_parser("gaps", help="Report-only knowledge-completeness lens: recurring wikilink targets with no page (missing concepts), ranked by reference frequency.")
+    sp.add_argument("--min-refs", type=int, default=2)
+
+    sp = sub.add_parser("calibration", help="Report-only calibration lens: pages whose stated confidence does not match their evidence (over/under-confident).")
+    sp.add_argument("--high", type=float, default=0.8)
+    sp.add_argument("--low", type=float, default=0.4)
+    sp.add_argument("--stale-days", type=int, default=180)
+
+    sub.add_parser("health", help="One-pass epistemic health summary across all six lenses (claim-quality/contradictions/synthesis/maturity/completeness/calibration + novelty). 0 = healthy.")
 
     args = p.parse_args(argv)
     root = Path(args.root).expanduser().resolve() if args.root else _cli_default_root()
@@ -2800,11 +2978,17 @@ def _cli_dispatch(args, store, root) -> int:
     elif args.cmd == "claim-ground":
         _cli_print(store.claim_ground(args.item_id, code_root=args.code_root))
     elif args.cmd == "claim-audit":
-        _cli_print(store.claim_audit(scope=args.scope, judgment_ratio=args.judgment_ratio))
+        _cli_print(store.claim_audit(scope=args.scope, judgment_ratio=args.judgment_ratio, min_claims=args.min_claims))
     elif args.cmd == "synth-candidates":
         _cli_print(store.synth_candidates(min_cluster=args.min_cluster, min_shared_tags=args.min_shared_tags))
     elif args.cmd == "maturity":
         _cli_print(store.maturity(promote_inbound=args.promote_inbound))
+    elif args.cmd == "gaps":
+        _cli_print(store.gaps(min_refs=args.min_refs))
+    elif args.cmd == "calibration":
+        _cli_print(store.calibration(high=args.high, low=args.low, stale_days=args.stale_days))
+    elif args.cmd == "health":
+        _cli_print(store.health())
     else:  # unreachable — argparse enforces choices
         p.error(f"unknown subcommand: {args.cmd}")
     return 0

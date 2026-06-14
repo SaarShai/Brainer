@@ -235,7 +235,10 @@ def grade_text(text: str) -> dict:
     as data)."""
     if not isinstance(text, str):
         text = "" if text is None else str(text)
-    body = _strip_frontmatter(text)
+    # cap body length so a pathological page doesn't make the page-level lenses
+    # (claim-audit/maturity/contradict-scan/health) crawl — markers appear early,
+    # and grade_claim already caps each span (review C7).
+    body = _strip_frontmatter(text)[:200000]
     clean = _strip_noise(body)
     spans = re.split(r"(?<=[.!?])\s+|\n[-*]\s+|\n{2,}", clean)
     claims = []
