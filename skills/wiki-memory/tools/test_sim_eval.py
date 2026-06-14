@@ -126,5 +126,58 @@ class TestSynthesisSim(unittest.TestCase):
             self.assertNotIn(f"concepts/iso{i}", clustered)
 
 
+class TestStageInferenceSim(unittest.TestCase):
+    """Plant pages with a clear dominant epistemic klass and measure maturity's
+    page-level stage inference (observation/hypothesis/rule) against the truth —
+    the aggregate accuracy nothing else covers (claim_grade gold is per-claim)."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / "wiki"
+        self.root.mkdir(parents=True)
+        _page(self.root, "index.md", "I", "[]", "x")
+        _page(self.root, "log.md", "L", "[]", "x")
+        self.truth = {}
+        data = ("Latency measured 113ms on the hot path. The build took 4.2s today. "
+                "12 tests passed with no failures here. Indexed 175 pages on 2026-01-02.")
+        rule = ("Always retrieve before reasoning here. Never promote via reuse alone. "
+                "Do not rewrite raw pages ever. Prefer updates over creates in this repo.")
+        judg = ("This might be the root cause here. It probably stems from cold load. "
+                "It seems likely under concurrency. The design feels cleaner this way.")
+        for i in range(3):
+            _page(self.root, f"concepts/d{i}.md", f"D{i}", f"[d{i}]", data)
+            self.truth[f"concepts/d{i}"] = "observation"
+            _page(self.root, f"concepts/r{i}.md", f"R{i}", f"[r{i}]", rule)
+            self.truth[f"concepts/r{i}"] = "rule"
+            _page(self.root, f"concepts/h{i}.md", f"H{i}", f"[h{i}]", judg)
+            self.truth[f"concepts/h{i}"] = "hypothesis"
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_stage_inference_accuracy(self):
+        # re-derive each page's inferred stage the way maturity() does, via the
+        # public claim_audit klass mix, and compare to planted truth.
+        import claim_grade as _cg
+        st = WikiStore(self.root)
+        correct = 0
+        for p in st._knowledge_pages(include_raw=False):
+            if p.id not in self.truth:
+                continue
+            h = _cg.grade_text(p.body)["klass_histogram"]
+            data, direc, judg = h["data"], h["directive"], h["judgment"]
+            if direc > 0 and direc >= data and direc >= judg:
+                stage = "rule"
+            elif judg > data:
+                stage = "hypothesis"
+            elif data > 0:
+                stage = "observation"
+            else:
+                stage = "mixed"
+            correct += (stage == self.truth[p.id])
+        acc = correct / len(self.truth)
+        self.assertGreaterEqual(acc, 0.88, f"stage inference accuracy {acc:.2f} ({correct}/{len(self.truth)})")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
