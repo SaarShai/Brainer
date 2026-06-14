@@ -2332,6 +2332,54 @@ class WikiStore:
         return {"count": len(out), "gaps": out,
                 "note": "recurring wikilink targets with no page — knowledge-completeness gaps (report-only); kind=broken (dangling) | stub (declared [[?forward-ref]])"}
 
+    def calibration(self, high: float = 0.8, low: float = 0.4, stale_days: int = 180) -> dict[str, Any]:
+        """REPORT-ONLY calibration lens: does a page's stated `confidence` MATCH its
+        evidence? Confidence (a scalar) and trust/sources/links (the evidence) are
+        stored independently and can drift apart. Evidence score (0-4) = has
+        sources + has inbound corroboration + trust>=corroborated + verified-fresh.
+        Flags overconfidence (high confidence, weak evidence) and underconfidence
+        (low confidence, strong evidence). Honest scalar-vs-evidence consistency
+        check, distinct from trust (evidence strength) and maturity (the ladder).
+        """
+        pages = [p for p in self._knowledge_pages(include_raw=False) if p.frontmatter]
+        ids = {p.id for p in pages}
+        stem = {}
+        for p in pages:
+            stem.setdefault(Path(p.id).name, p.id)
+        inbound = {p.id: 0 for p in pages}
+        for p in pages:
+            for l in p.links:
+                t = l.removesuffix(".md").lstrip("?")
+                tgt = t if t in ids else stem.get(Path(t).name)
+                if tgt and tgt != p.id:
+                    inbound[tgt] += 1
+        today = date.today()
+        over, under = [], []
+        for p in pages:
+            conf = confidence_value(p.frontmatter.get("confidence", ""))
+            if conf is None:
+                continue
+            trust = str(p.frontmatter.get("trust", "asserted")).strip().strip("\"'") or "asserted"
+            n_src = len(parse_tags(p.frontmatter.get("sources", "")))
+            verified = str(p.frontmatter.get("verified", "")).strip().strip("\"'")
+            fresh = False
+            if verified:
+                try:
+                    fresh = (today - date.fromisoformat(verified)).days <= stale_days
+                except ValueError:
+                    fresh = False
+            ev = (n_src > 0) + (inbound[p.id] > 0) + (trust in {"corroborated", "verified", "user_confirmed"}) + fresh
+            row = {"id": p.id, "confidence": conf, "evidence_score": ev,
+                   "trust": trust, "sources": n_src, "inbound": inbound[p.id], "fresh": fresh}
+            if conf >= high and ev <= 1:
+                over.append({**row, "reason": "high confidence but weak evidence — overconfident"})
+            elif conf <= low and ev >= 3:
+                under.append({**row, "reason": "low confidence but strong evidence — underconfident"})
+        over.sort(key=lambda r: (-r["confidence"], r["evidence_score"]))
+        return {"overconfident": over, "underconfident": under,
+                "scanned": len(pages),
+                "note": "calibration lens (report-only): does stated confidence match evidence = sources+inbound+trust+freshness?"}
+
     def maturity(self, promote_inbound: int = 3) -> dict[str, Any]:
         """REPORT-ONLY observation->hypothesis->rule maturity lens (the ladder angle).
 
@@ -2758,6 +2806,10 @@ def _cli_main(argv: list[str] | None = None) -> int:
     sp = sub.add_parser("gaps", help="Report-only knowledge-completeness lens: recurring wikilink targets with no page (missing concepts), ranked by reference frequency.")
     sp.add_argument("--min-refs", type=int, default=2)
 
+    sp = sub.add_parser("calibration", help="Report-only calibration lens: pages whose stated confidence does not match their evidence (over/under-confident).")
+    sp.add_argument("--high", type=float, default=0.8)
+    sp.add_argument("--low", type=float, default=0.4)
+
     args = p.parse_args(argv)
     root = Path(args.root).expanduser().resolve() if args.root else _cli_default_root()
     store = WikiStore(root)
@@ -2856,6 +2908,8 @@ def _cli_dispatch(args, store, root) -> int:
         _cli_print(store.maturity(promote_inbound=args.promote_inbound))
     elif args.cmd == "gaps":
         _cli_print(store.gaps(min_refs=args.min_refs))
+    elif args.cmd == "calibration":
+        _cli_print(store.calibration(high=args.high, low=args.low))
     else:  # unreachable — argparse enforces choices
         p.error(f"unknown subcommand: {args.cmd}")
     return 0

@@ -660,6 +660,49 @@ class TestExclusionsAndKeyedNumbers(unittest.TestCase):
         tmp.cleanup()
 
 
+class TestCalibration(unittest.TestCase):
+    def setUp(self):
+        from datetime import date
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / "wiki"
+        self.root.mkdir(parents=True)
+        today = date.today().isoformat()
+        _write(self.root, "index.md", "# i\n")
+        _write(self.root, "log.md", "# l\n")
+        # overconfident: high confidence, no sources/inbound/trust/fresh -> ev 0
+        _write(self.root, "concepts/over.md",
+               _v2("Over", extra={"confidence": "0.9", "sources": "[]", "verified": "", "trust": "asserted"},
+                   body="\n# Over\n\nbold claim with nothing behind it.\n"))
+        # calibrated: high confidence WITH evidence -> not flagged
+        _write(self.root, "concepts/cal.md",
+               _v2("Cal", extra={"confidence": "0.9", "sources": "[a.md]", "verified": today},
+                   body="\n# Cal\n\nbacked claim.\n"))
+        # underconfident: low confidence but strong evidence (sources+trust+fresh+inbound)
+        _write(self.root, "concepts/under.md",
+               _v2("Under", extra={"confidence": "0.3", "sources": "[a.md, b.md]",
+                                   "trust": "verified", "verified": today},
+                   body="\n# Under\n\nsolid but underrated.\n"))
+        _write(self.root, "concepts/linker.md",
+               _v2("Linker", body="\n# Linker\n\nsee [[concepts/under]] here.\n"))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_flags_overconfident(self):
+        rep = WikiStore(self.root).calibration()
+        self.assertIn("concepts/over", {r["id"] for r in rep["overconfident"]})
+        self.assertNotIn("concepts/cal", {r["id"] for r in rep["overconfident"]})
+
+    def test_flags_underconfident(self):
+        rep = WikiStore(self.root).calibration()
+        self.assertIn("concepts/under", {r["id"] for r in rep["underconfident"]})
+
+    def test_report_only_no_writes(self):
+        before = sorted(p.name for p in self.root.rglob("*.md"))
+        WikiStore(self.root).calibration()
+        self.assertEqual(before, sorted(p.name for p in self.root.rglob("*.md")))
+
+
 class TestGaps(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
