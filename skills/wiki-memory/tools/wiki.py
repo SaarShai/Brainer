@@ -2286,6 +2286,52 @@ class WikiStore:
                 "already_synthesized": [c for c in out if c["likely_existing_parent"]],
                 "note": "report-only; clusters of same-subject pages an agent could synthesize into a higher-order note"}
 
+    def gaps(self, min_refs: int = 2) -> dict[str, Any]:
+        """REPORT-ONLY knowledge-COMPLETENESS lens (a new angle: what's MISSING).
+
+        The quality lenses (claim-audit / contradict-scan / maturity / novelty)
+        all judge what IS written. This finds what ISN'T: recurring `[[wikilink]]`
+        targets that resolve to no page. A concept referenced >= min_refs times
+        with no canonical page is a real gap (not a one-off typo); a `[[?stub]]`
+        forward-ref referenced repeatedly is a promised-but-unwritten gap. Unlike
+        lint's per-edge broken_link, this AGGREGATES by target and ranks by
+        frequency, so the highest-leverage missing concepts surface first.
+        """
+        from collections import Counter
+        # reference SOURCES = curated pages only — raw/ is immutable, so its
+        # dangling links are frozen artifacts, not actionable completeness gaps.
+        pages = self._knowledge_pages(include_raw=False)
+        allpages = self.pages()                          # resolve TARGETS against everything
+        ids = {p.id for p in allpages}                   # incl. meta (schema/index/log) + support
+        stems = {Path(p.id).name for p in allpages}
+        broken: Counter = Counter()
+        stub: Counter = Counter()
+        srcs: dict[str, set[str]] = {}
+        for p in pages:
+            for l in p.links:
+                t = l.removesuffix(".md")
+                is_stub = t.startswith("?")
+                key = t.lstrip("?")
+                if not is_stub:
+                    # path-style target (has '/') must match EXACTLY — a stale
+                    # `[[projects/x/README]]` must not be considered resolved just
+                    # because some other README.md exists. Bare concept names keep
+                    # the stem fallback ([[foo]] -> L2_facts/foo).
+                    resolved = key in ids if "/" in key else (key in ids or Path(key).name in stems)
+                    if resolved:
+                        continue
+                (stub if is_stub else broken)[key] += 1
+                srcs.setdefault(key, set()).add(p.id)
+        out = []
+        for kind, counter in (("broken", broken), ("stub", stub)):
+            for concept, n in counter.items():
+                if n >= min_refs:
+                    out.append({"concept": concept, "refs": n, "kind": kind,
+                                "referenced_by": sorted(srcs.get(concept, set()))[:6]})
+        out.sort(key=lambda g: (-g["refs"], g["concept"]))
+        return {"count": len(out), "gaps": out,
+                "note": "recurring wikilink targets with no page — knowledge-completeness gaps (report-only); kind=broken (dangling) | stub (declared [[?forward-ref]])"}
+
     def maturity(self, promote_inbound: int = 3) -> dict[str, Any]:
         """REPORT-ONLY observation->hypothesis->rule maturity lens (the ladder angle).
 
@@ -2709,6 +2755,9 @@ def _cli_main(argv: list[str] | None = None) -> int:
     sp = sub.add_parser("maturity", help="Report-only observation>hypothesis>rule lens: promotion (cited-while-asserted) + conflict-driven demotion (contradicted rule/verified) candidates.")
     sp.add_argument("--promote-inbound", type=int, default=3)
 
+    sp = sub.add_parser("gaps", help="Report-only knowledge-completeness lens: recurring wikilink targets with no page (missing concepts), ranked by reference frequency.")
+    sp.add_argument("--min-refs", type=int, default=2)
+
     args = p.parse_args(argv)
     root = Path(args.root).expanduser().resolve() if args.root else _cli_default_root()
     store = WikiStore(root)
@@ -2805,6 +2854,8 @@ def _cli_dispatch(args, store, root) -> int:
         _cli_print(store.synth_candidates(min_cluster=args.min_cluster, min_shared_tags=args.min_shared_tags))
     elif args.cmd == "maturity":
         _cli_print(store.maturity(promote_inbound=args.promote_inbound))
+    elif args.cmd == "gaps":
+        _cli_print(store.gaps(min_refs=args.min_refs))
     else:  # unreachable — argparse enforces choices
         p.error(f"unknown subcommand: {args.cmd}")
     return 0

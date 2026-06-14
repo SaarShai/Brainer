@@ -660,6 +660,40 @@ class TestExclusionsAndKeyedNumbers(unittest.TestCase):
         tmp.cleanup()
 
 
+class TestGaps(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / "wiki"
+        self.root.mkdir(parents=True)
+        _write(self.root, "index.md", "# i\n")
+        _write(self.root, "log.md", "# l\n")
+        _write(self.root, "concepts/real.md", _v2("Real", body="\n# Real\n\nresolves here.\n"))
+        _write(self.root, "concepts/a.md",
+               _v2("A", body="\n# A\n\nsee [[missing-concept]] and [[?planned-note]] and [[concepts/real]] and [[one-off-typo]]\n"))
+        _write(self.root, "concepts/b.md",
+               _v2("B", body="\n# B\n\nalso [[missing-concept]] and [[?planned-note]]\n"))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_surfaces_recurring_missing_concept(self):
+        rep = WikiStore(self.root).gaps(min_refs=2)
+        by = {(g["concept"], g["kind"]): g["refs"] for g in rep["gaps"]}
+        self.assertEqual(by.get(("missing-concept", "broken")), 2)
+        self.assertEqual(by.get(("planned-note", "stub")), 2)
+
+    def test_one_off_and_resolved_excluded(self):
+        rep = WikiStore(self.root).gaps(min_refs=2)
+        concepts = {g["concept"] for g in rep["gaps"]}
+        self.assertNotIn("one-off-typo", concepts)   # refs 1 < min_refs
+        self.assertNotIn("concepts/real", concepts)  # resolves to a page
+
+    def test_report_only_no_writes(self):
+        before = sorted(p.name for p in self.root.rglob("*.md"))
+        WikiStore(self.root).gaps()
+        self.assertEqual(before, sorted(p.name for p in self.root.rglob("*.md")))
+
+
 class TestCLISmoke(unittest.TestCase):
     """End-to-end CLI smoke: each verb runs via subprocess (exercises argparse +
     dispatch, which method-level unit tests skip) and returns parseable JSON."""
