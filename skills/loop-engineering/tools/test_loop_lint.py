@@ -161,6 +161,84 @@ def test_generic_human_both_sides_no_false_r3():
     assert not _has(spec, 3, "FAIL"), _rules(spec)
 
 
+# --- PROMPTER live-test regressions (round 2) -----------------------------
+
+def test_agent_judge_gate_r1_fail():
+    # B1: an AUTONOMOUS agent "approving" by feel is the LLM-judge hole — must
+    # FAIL R1. The human-gate path must require a human, not just an approve verb.
+    for g in ["the reviewer agent approves the draft", "the billing agent escalates when it feels right",
+              "the model signs off when it looks correct"]:
+        spec = CLEAN.replace("gate: pytest tests/ -q", f"gate: {g}")
+        assert _has(spec, 1, "FAIL"), (g, _rules(spec))
+
+
+def test_human_decision_verbs_pass_r1():
+    # B5: human decision verbs beyond "approve" (select/pick/decide) are a valid
+    # human gate — must NOT FAIL R1.
+    for g in ["Saar selects the 3 best angles", "the owner picks one option",
+              "the user decides which draft ships"]:
+        spec = CLEAN.replace("gate: pytest tests/ -q", f"gate: {g}")
+        spec = spec.replace("verifier: sonnet read-only reviewer", "verifier: Saar (human)")
+        assert not _has(spec, 1, "FAIL"), (g, _rules(spec))
+
+
+def test_subjective_eq_gate_r1_fail():
+    # B4: a bare '==' between two prose words must NOT pass R1.
+    spec = CLEAN.replace("gate: pytest tests/ -q", "gate: the tone == the CEO's voice and it reads well")
+    assert _has(spec, 1, "FAIL"), _rules(spec)
+
+
+def test_codelike_eq_gate_passes_r1():
+    # control: a real assertion against a code-like operand still passes.
+    for g in ["ok_to_continue == true", "exit_code == 0", "preflight.status == pass"]:
+        spec = CLEAN.replace("gate: pytest tests/ -q", f"gate: {g}")
+        assert not _has(spec, 1, "FAIL"), (g, _rules(spec))
+
+
+def test_dotpy_midprose_gate_r1_fail():
+    # B4: a '.py' name-dropped mid-sentence (no runner, no ./) must NOT pass R1.
+    spec = CLEAN.replace("gate: pytest tests/ -q",
+                         "gate: the report covers everything in project.py terms and feels complete")
+    assert _has(spec, 1, "FAIL"), _rules(spec)
+
+
+def test_same_actor_asymmetric_tail_r3_fail():
+    # B2: same actor with an asymmetric descriptive tail still self-grades.
+    spec = (CLEAN.replace("generator: opus coder agent", "generator: Alfred drafts the weekly board briefing")
+            .replace("verifier: sonnet read-only reviewer",
+                     "verifier: Alfred reviews the weekly board briefing for accuracy"))
+    assert _has(spec, 3, "FAIL"), _rules(spec)
+
+
+def test_shared_common_noun_no_false_r3():
+    # B2 guard: distinct models sharing a common noun ("brief") are NOT self-grading.
+    spec = (CLEAN.replace("generator: opus coder agent", "generator: opus brief writer")
+            .replace("verifier: sonnet read-only reviewer", "verifier: sonnet brief reader"))
+    assert not _has(spec, 3, "FAIL"), _rules(spec)
+
+
+def test_same_model_both_sides_r3_fail():
+    # reusing the SAME model for generator and verifier with nothing else
+    # distinguishing them is self-grading (use a separate/cheaper verifier).
+    spec = (CLEAN.replace("generator: opus coder agent", "generator: opus drafts the plan")
+            .replace("verifier: sonnet read-only reviewer", "verifier: opus reviews the plan"))
+    assert _has(spec, 3, "FAIL"), _rules(spec)
+
+
+def test_prose_budget_with_stray_digit_r2_fail():
+    # B3: a prose budget that merely contains a digit ("0 unread") is unbounded.
+    for b in ["run until inbox has 0 unread", "stop when done after a while", "until it feels complete"]:
+        spec = CLEAN.replace("budget: max_iterations=20", f"budget: {b}")
+        assert _has(spec, 2, "FAIL"), (b, _rules(spec))
+
+
+def test_real_budget_units_pass_r2():
+    # control: real caps bound to a unit pass R2.
+    for b in ["max_iterations=20", "max_tokens: 100000", "20 turns", "30m wallclock", "5 rounds"]:
+        spec = CLEAN.replace("budget: max_iterations=20", f"budget: {b}")
+        assert not _has(spec, 2, "FAIL"), (b, _rules(spec))
+
+
 # --- R4 OPEN-NO-ACK -------------------------------------------------------
 
 def test_open_loop_without_ack_warns():

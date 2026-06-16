@@ -205,54 +205,78 @@ def parse_specs(text: str, source: str) -> list[Spec]:
 
 # --- Rule heuristics ------------------------------------------------------
 
-# R1 allowlist: a gate PASSES only if it names a machine-checkable signal. This
-# is an ALLOWLIST, not a prose denylist — "the reviewer agrees" has no token and
-# FAILs (the denylist false-negative the adversarial review flagged). Mirrors
-# verify-before-completion's "fast, deterministic, agent-runnable pass/fail".
+# R1 allowlist: a gate PASSES only if it names a CHECKABLE signal — a command, a
+# test id, a command-anchored code file, an assertion against a CODE-LIKE operand,
+# an exit code, or an explicit marker. ALLOWLIST, not a prose denylist: "the
+# reviewer agrees" and "tone == the CEO's voice" name no real check and FAIL.
+# A bare '==' between two prose words, or a '.py' name-dropped mid-sentence, must
+# NOT launder a subjective gate (the false-negatives the PROMPTER live-test found).
+_CODELIKE = (r"(?:\d+(?:\.\d+)?|true|false|none|null|nil|pass|fail|0x[0-9a-f]+|\$\w+|"
+             r"\"[^\"]*\"|'[^']*'|[A-Za-z_][\w-]*_[\w.-]+|[A-Za-z_]\w*\.[A-Za-z_]\w*)")
 _MACHINE_GATE = [
     # command runners / build tools (word-boundary so prose nouns don't match)
     re.compile(r"\b(pytest|unittest|jest|vitest|mocha|tox|nox|ruff|eslint|mypy|tsc|"
                r"npm|pnpm|yarn|cargo|gradle|mvn|dotnet|deno|bats|rspec|phpunit)\b", re.I),
     re.compile(r"\b(go|cargo)\s+test\b", re.I),
     re.compile(r"\b(make|bash|sh|zsh|python3?|node|ruby|perl)\s+\S", re.I),
-    # an executable path or a code/data file the gate reads
-    re.compile(r"(^|\s)\.?/?[\w./-]+\.(py|sh|js|ts|tsx|mjs|cjs|json|ya?ml|toml|rs|go|rb)\b", re.I),
-    re.compile(r"(^|\s)\./\S+"),                       # ./run-checks
-    # assertion / exit-code / operator / substitution / pytest-nodeid shapes
-    re.compile(r"==|!=|>=|<=|\$\?|\$\(|::"),
+    # a COMMAND-ANCHORED code/data file: after ./, an absolute path, or a separator
+    # — NOT a bare 'config.py' dropped mid-prose (that used to launder a vacuous gate).
+    re.compile(r"(?:^|[\s;|&])\.?/[\w./-]+\.(py|sh|js|ts|tsx|mjs|cjs|json|ya?ml|toml|rs|go|rb)\b", re.I),
+    re.compile(r"(?:^|\s)\./\S+"),                       # ./run-checks
+    # an assertion against a CODE-LIKE operand (NOT a bare '==' between prose words)
+    re.compile(rf"(?:{_CODELIKE}\s*(?:==|!=|>=|<=)|(?:==|!=|>=|<=)\s*{_CODELIKE})", re.I),
+    # unambiguous shell / pytest-nodeid shapes
+    re.compile(r"\$\?|\$\(|::"),
     re.compile(r"\bassert\b|\bexit\s*code\b|\bexit\s+\d|\breturns?\s+\d|\bstatus\s+\d", re.I),
     re.compile(r"\b(diff|grep)\s+\S", re.I),
     # explicit machine markers
     re.compile(r"\b(regex|schema|cmd|command)\s*[:=]", re.I),
 ]
 
-# A human decision is ALSO a concrete pass/fail gate — the article endorses "a
-# handoff to a human with the run data attached" and both source harnesses use
-# human escalation (autonomy-loop's FOR-REVIEW.md, HarnessCode's PAUSE_FOR_HUMAN).
-# So an explicit human-approval gate is NOT gateless; it just isn't autonomous.
-# Discriminator vs vacuous prose: an explicit approval/sign-off/escalation verb,
-# not "looks correct" / "the reviewer agrees".
-_HUMAN_GATE = re.compile(
-    r"\b(approv\w+|sign[\s-]?off|signs?\s+off|signed\s+off|escalat\w+|"
-    r"human\s+(review|sign|approv\w+|decision|gate)|for[\s-]?review|owner\s+approv\w+)\b", re.I)
+# A human DECISION is also a concrete gate — the article endorses "a handoff to a
+# human with the run data attached" and both source harnesses escalate to a human
+# (autonomy-loop's FOR-REVIEW.md, HarnessCode's PAUSE_FOR_HUMAN). BUT an AUTONOMOUS
+# agent "approving" its own output by feel is NOT a gate — that is the LLM-judge
+# hole R1 exists to refuse — so the approver must be a human/owner/named person,
+# never an agent/model. Decision verbs go beyond approve (select/pick/decide/…).
+_AGENT_TOKEN = re.compile(r"\b(agents?|subagents?|models?|llms?|ai|bots?|automation|pipeline|"
+                          r"\bci\b|claude|gpt|opus|sonnet|haiku|gemini|llama|mistral)\b", re.I)
+_HUMAN_TOKEN = re.compile(r"\b(humans?|owner|operator|person|people|user|users|"
+                          r"me|you|your|team|manager|lead|maintainer|admin|stakeholder|"
+                          r"exec\w*|ceo|cto|founder|saar)\b", re.I)
+_DECISION_VERB = re.compile(r"\b(approv\w+|sign[\s-]?off|signs?\s+off|signed\s+off|escalat\w+|"
+                            r"decid\w+|decision|select\w+|pick\w+|choos\w+|chose|confirm\w+|"
+                            r"accept\w+|reject\w+|green[\s-]?light|approval)\b", re.I)
 
 _UNBOUNDED = re.compile(r"\b(unbounded|infinite|none|no\s*limit|unlimited|never|forever)\b", re.I)
 _QUORUM = re.compile(r"\b(quorum|aggregat\w*|merge|reviewer|vote|consensus|majority|reduce)\b", re.I)
 
-# Words stripped to expose the ACTOR IDENTITY behind a role phrase, so that
-# "Alfred drafts the briefing" and "Alfred reviews the briefing" are recognized
-# as the SAME actor (self-grading) even though the literal strings differ.
-_ROLE_VERBS = frozenset("""drafts draft writes write produces produce generates generate authors author
-creates create makes make codes code builds build implements implement proposes propose composes compose
-designs design plans plan reviews review checks check verifies verify validates validate audits audit
-tests test grades grade judges judge evaluates evaluate inspects inspect approves approve runs run
-reads read assesses assess critiques critique refutes refute""".split())
-_STOP_WORDS = frozenset("""the a an then and of its his her their our own work output draft result results
-on for it to in with that this each per one two three then who""".split())
-# Identities so generic they don't establish independence ("a human"/"an agent"
-# on both sides is not a *specific* shared actor, so it must not false-fire).
+# A real budget cap is a NUMBER bound to a cap unit (iterations / tokens / a
+# duration) — not a stray digit in a prose sentence ("run until inbox has 0 unread").
+_BUDGET_CAP = re.compile(
+    r"\b(?:max[_\s-]?)?(?:iterations?|iters?|tokens?|turns?|rounds?|attempts?|steps?|calls?|"
+    r"loops?|passes|retries|tries)\b\s*[:=]?\s*\d+"                       # unit then number
+    r"|\d+\s*(?:k\s*)?(?:iterations?|iters?|tokens?|turns?|rounds?|attempts?|steps?|calls?|"
+    r"loops?|passes|retries|tries)\b"                                     # number then unit
+    r"|\d+\s*(?:s|sec|secs|seconds?|m|min|mins|minutes?|h|hr|hrs|hours?)\b",  # a duration
+    re.I)
+
+# Self-grading: generator and verifier are the SAME actor when they share a
+# SPECIFIC identity key — a model slug (opus/sonnet/claude) or a proper name
+# (Alfred/Saar/PROMPTER) — even when the role phrases differ ("Alfred drafts" vs
+# "Alfred reviews ... for accuracy"). A shared common NOUN ("brief") does NOT
+# count, so "opus brief writer" vs "sonnet brief reader" stays distinct.
+_MODEL_SLUGS = frozenset("""opus sonnet haiku claude gpt fable gemini llama mistral mixtral
+qwen deepseek grok o1 o3 o4 mimo ollama""".split())
+# Generic / role / common-domain words that, even when Capitalized in a role
+# phrase, are NOT a person's name — so they must not trigger a self-grading match.
 _GENERIC_ACTORS = frozenset("""human agent agents model models llm ai bot worker person people someone
 role roles subagent subagents pass passes""".split())
+_COMMON_ROLE_NOUNS = frozenset("""brief briefing plan planning report reporting draft drafting review
+reviewing check checking spec specs doc docs documentation writer reader checker reviewer planner
+coder builder tester auditor judge critic generator verifier worker pass loop gate output result
+results pipeline stage phase step final main sub task tasks code test tests sprint feature prompt
+prompts data file files the a an it""".split())
 
 
 def _norm(s: str) -> str:
@@ -263,19 +287,24 @@ def _norm(s: str) -> str:
     return s
 
 
-def _actor_identity(s: str) -> frozenset[str]:
-    """The set of identity tokens in an actor phrase, with role-verbs/stopwords
-    removed. {Alfred drafts the briefing} -> {alfred, briefing}."""
-    toks = re.findall(r"[a-z0-9][a-z0-9_-]*", s.casefold())
-    return frozenset(t for t in toks if t not in _ROLE_VERBS and t not in _STOP_WORDS)
+def _identity_keys(s: str) -> frozenset[str]:
+    """Specific identity tokens in an actor phrase: model slugs (always) + proper
+    names (a Capitalized token that is not a generic/role/common-domain word)."""
+    keys = set()
+    for tok in re.findall(r"[A-Za-z][A-Za-z0-9_-]*", s):
+        low = tok.lower()
+        if low in _MODEL_SLUGS:
+            keys.add(low)
+        elif tok[0].isupper() and len(low) > 1 and low not in _GENERIC_ACTORS \
+                and low not in _COMMON_ROLE_NOUNS:
+            keys.add(low)
+    return frozenset(keys)
 
 
 def _same_actor(generator: str, verifier: str) -> bool:
-    """True if generator and verifier resolve to the SAME specific actor — same
-    identity tokens, with at least one non-generic token (a real name/model, not
-    a bare 'human'/'agent' on both sides)."""
-    g, v = _actor_identity(generator), _actor_identity(verifier)
-    return bool(g) and g == v and any(t not in _GENERIC_ACTORS for t in g)
+    """True if generator and verifier share a specific identity key (model slug or
+    proper name) — the producer grading its own homework, however phrased."""
+    return bool(_identity_keys(generator) & _identity_keys(verifier))
 
 
 def _has_machine_gate(gate: str) -> bool:
@@ -283,13 +312,16 @@ def _has_machine_gate(gate: str) -> bool:
 
 
 def _has_human_gate(gate: str) -> bool:
-    return bool(_HUMAN_GATE.search(gate))
+    # An AUTONOMOUS agent "approving" is not a human gate (the LLM-judge hole).
+    if _AGENT_TOKEN.search(gate):
+        return False
+    return bool(_DECISION_VERB.search(gate) and _HUMAN_TOKEN.search(gate))
 
 
 def _budget_is_capped(budget: str) -> bool:
     if not budget or _UNBOUNDED.search(budget):
         return False
-    return bool(re.search(r"\d", budget))  # a real cap carries a number
+    return bool(_BUDGET_CAP.search(budget))
 
 
 def _topology_tokens(topology: str) -> set[str]:

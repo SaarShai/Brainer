@@ -28,11 +28,14 @@ No PyYAML dependency — values are read as plain strings after the first `:`.
 A gate PASSES R1 only if it names at least one of:
 
 - a command / test runner — `pytest`, `make test`, `cargo test`, `npm test`, `./check.sh`, `node run.mjs`, …
-- a file the gate reads/asserts on — any `*.py *.sh *.js *.ts *.json *.yaml …` path;
-- an assertion / exit / operator token — `assert`, `exit code 0`, `==`, `!=`, `$?`, `::`, `diff`, `grep`;
-- an explicit marker — `regex:` / `schema:` / `cmd:` / `command:`.
+- a **command-anchored** code file — a path after `./`, an absolute path, or a runner (`pytest tests/x.py`). A bare `config.py` dropped mid-prose does **not** count;
+- an assertion against a **code-like operand** — `exit_code == 0`, `status == pass`, `assert`, `exit code 0`, `$?`, `::`, `diff`, `grep`. A bare `==` between two prose words (`tone == the CEO's voice`) does **not** count;
+- an explicit marker — `regex:` / `schema:` / `cmd:` / `command:`;
+- a **human decision** — an explicit approve / sign-off / escalate / select / pick / decide / confirm by a **human** actor (`Saar approves`, `owner sign-off`, `the user picks`). The article endorses "a handoff to a human with the run data attached." An **autonomous agent** "approving" by feel (`the reviewer agent approves`) is **not** a gate — it is the LLM-judge hole R1 refuses; name the concrete check the agent runs.
 
-This is an **allowlist**, not a prose denylist: `gate: the reviewer agrees` has no machine token and **FAILs** (the strict stance the article's "fast, deterministic, agent-runnable pass/fail signal" demands). An agent-judge gate must name the concrete check the agent runs.
+This is an **allowlist**, not a prose denylist: `gate: the reviewer agrees` / `gate: looks correct` name no real check and **FAIL** (the strict stance the article's "fast, deterministic, agent-runnable pass/fail signal" demands).
+
+`budget` must bind a number to a cap unit — `max_iterations=20`, `max_tokens: 100000`, `20 turns`, `30m`. A stray digit in prose (`run until inbox has 0 unread`) is **unbounded** and FAILs R2.
 
 ## Example (passes clean)
 
