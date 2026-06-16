@@ -5,7 +5,7 @@
 | field | tokens / size |
 |---|---|
 | description (always resident) | **~116 tokens** (462 chars; budget ≤1536) |
-| body (loaded on trigger) | **~2,884 tokens** (11.5 KB) |
+| body (loaded on trigger) | **~3,984 tokens** (15.9 KB) — incl. Part D cross-vendor cross-check |
 | tools/ payload | `audit_lessons.py` 7.2 KB · `lesson_patterns.json` 0.4 KB · `drift_probes.json` 0.7 KB |
 | model pin | `any` (none) |
 | effort pin | `medium` |
@@ -55,6 +55,16 @@ theater):
   is path-portable (`REPO_ROOT = parents[3]`) → clean exit 2 on the absent log, exit 1 on a fixture;
   PROMPTER's own compliance-canary discovers the probe; PROMPTER left git-byte-identical.
 - `scripts/lint_skill_md.py skills/task-retrospective/SKILL.md` passes; `scripts/run_all_tests.sh` 49/49.
+- **Part D cross-vendor verifier (channels smoke-tested — mixed):** `codex`, `claude`, `gemini` CLIs are
+  all on PATH. One-shot smoke test (`<cli> "Reply with exactly: READY"`): **`codex exec` → READY (exit 0)**,
+  **`gemini -p --approval-mode plan` → READY (exit 0)**, **`claude -p` → 401 Invalid authentication** in
+  this sandbox (headless Claude needs `ANTHROPIC_API_KEY` / `apiKeyHelper`; the interactive OAuth/keychain
+  is not inherited by the `-p` subprocess). So from the **Claude host** (this session) the cross-vendor
+  dispatch to GPT/Gemini is live; the reciprocal **→Claude** channel (used from Codex/Gemini hosts) needs
+  host auth wired or it 401s — the Part D fallback ladder (same-vendor subagent → in-context adversarial)
+  covers a dead channel. **Cost-gated** — fires only on high-stakes / contested / repeated results, never
+  on a clean trivial retro. **Not yet measured:** disagreement-reconciliation quality and cross-vendor
+  catch-rate vs same-vendor (candidate A/B).
 - **Headless block:** emitted as a fenced `json` `{"retrospective": {...}}` object (pinned grammar) so a
   parent orchestrator can tokenize it — the earlier free-text `RETROSPECTIVE: banked=[…]` line was
   unparseable on `:`/`,`/`]` and was replaced.

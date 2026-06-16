@@ -1,9 +1,9 @@
 ---
 name: task-retrospective
-description: Use at the end of any non-trivial task (after the work is verified, before the final report), when the user gives a corrective message mid-task, or when the user types /retro. Runs a fixed agent self-audit, shows the user the evidence, asks at most 3 closed feedback questions, then routes each banked lesson through write-gate to the NARROWEST home — escalating a REPEATED failure to a mechanical gate (a compliance-canary drift probe) instead of more prose.
+description: Use at the end of any non-trivial task (after the work is verified, before the final report), when the user gives a corrective message mid-task, or when the user types /retro. Runs a fixed agent self-audit (incl. 5-whys root-cause), shows the user the evidence, asks at most 3 closed feedback questions, then routes each banked lesson through write-gate to the NARROWEST home — escalating a REPEATED failure to a mechanical gate (a compliance-canary drift probe) instead of more prose. For high-stakes or contested results it dispatches a separate, preferably cross-vendor, verifier agent (Claude ↔ GPT-via-Codex ↔ Gemini) for independent review + root-cause.
 effort: medium
 tools: [Bash, Read, Write]
-pulse_reminder: at task end run task-retrospective — self-audit, show evidence + ask the user, harvest lessons; a REPEATED failure earns a mechanical gate (drift probe), not another paragraph.
+pulse_reminder: at task end run task-retrospective — self-audit (5-whys to root cause), show evidence + ask the user, harvest lessons; a REPEATED failure earns a mechanical gate (drift probe), not another paragraph; a high-stakes/contested result earns a separate cross-vendor verifier agent, not self-grading.
 ---
 
 # task-retrospective — close the learning loop
@@ -37,6 +37,7 @@ Then audit:
 2. Did a FRESH verification (a command + its exact output, not a code-read) back every done-claim? (cf. [`verify-before-completion`](../verify-before-completion/SKILL.md))
 3. Where did I waste >2 tool calls — and what one-line rule would have prevented it?
 4. What did the user correct, in their exact words?
+5. **Root cause, not symptom** — for any failure/correction, run **5-whys** down to a cause you can *gate* (borrow [`think`](../think/SKILL.md)'s 5-whys / pre-mortem). "Fixed the typo" is a symptom; "no test covered the parse path" is closer; "I edit before reading" is a root you can turn into a probe. Stop at the deepest cause a mechanical gate (Part C HARD RULE) could catch.
 
 ## Part B — user feedback (≤3 closed questions; SKIP for trivial tasks)
 
@@ -124,13 +125,64 @@ next time?* Escalate:
    - a recurring **user-correction** → a `user_correction` or `forbidden_regex` probe in the owning skill's `drift_probes.json`;
    - a recurring **tool error** → a `repeated_tool_error` probe (worked precedent: the `edit-without-read` probe declared in `skills/verify-before-completion/drift_probes.json` and *fired* by compliance-canary, itself transcript-mined from "File has not been read yet" — see `wiki/log.md [2026-06-12]`);
    - a recurring **unverified done-claim** → a `claim_without_evidence` probe, or a `verify-before-completion` criterion.
+   - a recurring **loop-design violation** (ran-past-budget / no-gate / generator==verifier — the runtime echo of [`loop-engineering`](../loop-engineering/SKILL.md)'s `loop_lint` R1–R3, which is a *design-time* static check) → this is the handoff loop-engineering advertises. loop-engineering already ships a `loop-done-without-gate` probe in its own `drift_probes.json`, so per rule 4 below **tighten/confirm that existing probe**, don't duplicate it; only the pure budget-overrun slice that never surfaces as a done-claim needs a *new* probe — and it goes in `skills/loop-engineering/drift_probes.json` (loop-engineering owns the failure). The recurrence COUNT stays here in [`lesson_patterns.json`](lesson_patterns.json) (`loop-ran-past-budget`); the PROBE lives with the failure-owner.
    Probes are *declared* in a skill's own `drift_probes.json` and *fired* by compliance-canary, which auto-discovers every skill's probe file on the next run after `./install.sh` — no canary code change. Put the probe in the skill that owns the failure.
-4. **The gate already exists but the failure recurred anyway** → do NOT add a duplicate probe. A recurrence past an existing gate is a **threshold or wiring defect**: tighten the probe (e.g. `min_count` 2→1), or confirm the canary is actually wired on this host (`.claude/settings.json`) — a probe that never fires is a paper gate.
 3. If the recurring lesson is **real but judgment-heavy** (not regex-detectable), it stays a page AND
    gets escalated to a [`skill-pulse`](../skill-pulse/SKILL.md) `pulse_reminder`, not another page.
+4. **The gate already exists but the failure recurred anyway** → do NOT add a duplicate probe. A recurrence past an existing gate is a **threshold or wiring defect**: tighten the probe (e.g. `min_count` 2→1), or confirm the canary is actually wired on this host (`.claude/settings.json`) — a probe that never fires is a paper gate.
 
 Precondition before generating any probe: re-check that the evidence still matches at the cited
 `file:line` — don't mechanize a lesson that the code already moved past.
+
+## Part D — adversarial cross-check (a SEPARATE, preferably cross-vendor, verifier agent)
+A self-audit shares the generator's blind spots; a different foundation model usually doesn't. Per
+[`loop-engineering`](../loop-engineering/SKILL.md) the verifier must be a *separate* agent (never
+self-grade) — and the strongest separation is a **different foundation company**.
+
+**When (cost-gated — NOT every retro):** the result is high-stakes / hard to reverse, the user
+flagged it `minor issues` / `wrong`, or a repeated failure needs an independent root-cause. Trivial or
+cleanly-accepted tasks skip Part D.
+
+**Who — pick by descending separation (different company > different model > just a fresh context).**
+Identify your own vendor (you know which host/model you are) and dispatch the OTHER, **read-only**:
+
+| You (orchestrator) | Preferred verifier | Invocation (read-only, sync) |
+|---|---|---|
+| Claude / Opus | **GPT** via Codex | `codex exec "<judge prompt>"` — or Gemini: `gemini -p --approval-mode plan "<…>"` |
+| GPT / Codex | **Claude / Opus** | `claude -p --model opus "<judge prompt>"` — or Gemini |
+| Gemini (Antigravity) | **Claude or GPT** | `claude -p --model opus "<…>"` / `codex exec "<…>"` |
+
+Fallback ladder if no cross-vendor CLI / auth on this host: a same-vendor separate subagent (Task/Agent,
+fresh context) → an in-context adversarial pass driven by the Part A rationalization catalog. Never let
+the generator grade itself unchallenged on a result that matters. Channel caveats (measured on this box):
+`codex exec` and `gemini -p` return cleanly; **`claude -p` needs `ANTHROPIC_API_KEY` / `apiKeyHelper`** in
+headless mode (it 401s on inherited OAuth) — so the →Claude channel only works where that auth is wired,
+else fall back. (Codex gotcha — memory `codex-rescue-sync-dispatch`: demand a SYNCHRONOUS `codex exec`
+with the verdict in the final message, else it fire-and-forgets.)
+
+**Hand the verifier the result + evidence + the candidate lesson(s), and ask (it judges, never edits):**
+1. Does the result actually HOLD? Re-run the key check; cite command + output; refute if you can.
+2. Independent ROOT-CAUSE of any failure — your own 5-whys, do NOT anchor on mine.
+3. Is each banked lesson correct, and is the proposed gate the right mechanism?
+
+**Reconcile, don't rubber-stamp:** agreement → proceed. Disagreement → do NOT auto-accept either side;
+for a high-stakes/repeated result gather up to an **odd N (default 3)** cross-vendor opinions and take
+the majority — if still split at N, force the conflict to the user. A cross-vendor refutation of a
+lesson **blocks its write** until resolved. This works in Headless mode too — it is agent-to-agent and
+needs no human.
+
+**Part D is itself a generator→verifier loop, so it carries [`loop-engineering`](../loop-engineering/SKILL.md)'s
+4-field spec** — the cross-check cannot spin (the budget caps the dissent path above), and `loop_lint.py`
+passes it clean:
+```loop
+name: task-retrospective-part-D-cross-check
+topology: closed · inner · single
+generator: this orchestrator (produced the result + candidate lessons)
+verifier: a SEPARATE, preferably cross-vendor, read-only agent (codex exec / claude -p / gemini -p)
+gate: verifier re-runs the key check and returns a JSON verdict — holds:bool with exit_code == 0
+stop: verifier verdict agrees with mine, OR an odd-N majority (default N=3) is reached
+budget: max_iterations=3 (≤3 cross-vendor verifier calls), then escalate the conflict to the user
+```
 
 ## Measure (the loop's missing phase)
 ```
@@ -150,6 +202,8 @@ at the retrospective or periodically.
 - Answer a repeated failure with another paragraph — that's the failure repeating.
 - Claim "logged it" without the fetch read-back — that's the failure end-of-task compaction causes.
 - Emit an empty self-audit as a free PASS — no-op forbidden (raise the bar instead).
+- Self-grade a high-stakes or contested result — use a separate (ideally cross-vendor) verifier (Part D); the generator sharing the grader's blind spots is the whole failure mode.
+- Stop at the symptom — 5-whys to a cause you can *gate* (Part A.5), or the same failure returns.
 
 ## Files
 - [`SKILL.md`](SKILL.md) — this ritual.
@@ -168,4 +222,8 @@ no-op-forbidden self-audit, recurrence-mining as a separate pass with grep-locat
 the cite-evidence-to-divert verdict set; **EveryInc compound-knowledge-plugin** — headless/Pipeline
 mode, ≤3-learnings cap with a scripted null exit, the pattern-tag-for-retrieval. The
 repeated-failure⇒mechanical-gate doctrine and the `wiki/log.md` recurrence scan are the screenery
-original; Brainer's `compliance-canary` drift probe is the native gate home.
+original; Brainer's `compliance-canary` drift probe is the native gate home. **Part D** (separate
+verifier agent) takes the generator≠verifier rule from [`loop-engineering`](../loop-engineering/SKILL.md)
+and compound-engineering's parallel-reviewer / judge-panel pattern, and adds cross-vendor diversity
+(Claude ↔ GPT-via-Codex ↔ Gemini) so the verifier doesn't inherit the generator's foundation-model
+blind spots.
