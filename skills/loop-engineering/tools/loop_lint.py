@@ -15,7 +15,7 @@ generator != verifier} is not a loop — it is an open-ended spin. This linter
 refuses such specs BEFORE the loop runs, turning the doctrine into a mechanical
 gate (per Brainer's "no prose rule where a mechanical gate can stand").
 
-It validates a loop spec against three FAIL rules and three WARN rules:
+It validates a loop spec against three FAIL rules and four WARN rules:
 
   R1 NO-GATE          (FAIL) — gate absent, or prose with no machine-checkable
                                pass/fail signal (allowlist: a command / test id /
@@ -29,6 +29,8 @@ It validates a loop spec against three FAIL rules and three WARN rules:
                                (declare that "no feedback" is intentional).
   R5 FLEET-NO-QUORUM  (WARN) — fleet topology with no aggregation/quorum gate.
   R6 NO-TOPOLOGY      (WARN) — topology not declared (you did not choose a shape).
+  R7 IRREVERSIBLE-NO-HUMAN (WARN) — autonomous loop that merges/deploys/migrates/
+                               charges with no human approval gate (the security tax).
 
 Exit code IS the verdict: 0 clean · 1 any WARN · 2 any FAIL · 3 usage/unparseable.
 
@@ -429,6 +431,46 @@ def _is_true(v: str) -> bool:
     return _strip_quotes(v).strip().lower() in {"true", "yes", "1", "on"}
 
 
+# An IRREVERSIBLE action — something an autonomous loop should not do without a
+# human in the loop (the article's "human review before anything irreversible" +
+# the security tax). A verb allowlist (it is a tripwire, not a proof — a novel
+# synonym will slip; the high-blast-radius ones are covered after 1 adversarial
+# round). Verbs/phrases, not bare nouns.
+_IRREVERSIBLE = re.compile(
+    r"\b(deploys?|deploying|deployment|promotes?\s+to\s+prod\w*|releases?\s+to\s+prod\w*|"
+    r"publishe?s?|npm\s+publish|tags?\s+(?:a\s+|the\s+)?(?:release|version)|cuts?\s+(?:a\s+|the\s+)?release|"
+    r"merges?\s+to\s+(?:main|master|prod\w*)|force[\s-]?merges?|pushe?s?\s+to\s+(?:main|master|prod\w*)|"
+    r"force[\s-]?pushe?s?|deletes?\s+(?:the\s+)?(?:remote\s+)?branch|"
+    r"migrat\w+|(?:drops?|truncates?)\s+(?:the\s+)?(?:table|database|db)\b|rm\s+-rf|"
+    r"overwrites?\s+(?:the\s+)?prod\w*|prod\w*\s+data\b|"
+    r"charges?\s+(?:the\s+)?(?:card|customer)|refunds?|payouts?|"
+    r"wires?\s+(?:the\s+)?(?:money|funds|payment)|transfers?\s+(?:the\s+)?(?:money|funds)|"
+    r"initiat\w+\s+(?:a\s+)?(?:wire|transfer|payout)|sends?\s+(?:the\s+)?(?:money|funds|payment)|"
+    r"revokes?\s+(?:the\s+)?(?:api\s+)?(?:key|token|credential|cert\w*|access)|"
+    r"rotates?\s+(?:secret|credential|key)s?|"
+    r"sends?\s+(?:the\s+)?(?:email|mail)[\s-]?blast|email[\s-]?blast|"
+    r"ships?\s+to\s+prod\w*)\b", re.I)
+# Reversibility context — if a matched verb is qualified by one of these WITHIN ~16
+# chars, it is a dry-run/preview/test/config-edit OF the action, not the action.
+# Only UNAMBIGUOUS qualifiers: bare "tests"/"lint"/"validate" are excluded because
+# "lints and deploys to prod" genuinely deploys (that would be a false negative).
+_REVERSIBLE_CTX = re.compile(
+    r"\b(dry[\s-]?run|preview|staging|sandbox|ephemeral|simulat\w*|unit\s+tests?)\b"
+    r"|--dry-run|\.ya?ml\b|\.json\b|\.toml\b", re.I)
+
+
+def _irreversible_action(text: str) -> "re.Match | None":
+    """The first genuine irreversible action in `text`, or None. Skips a verb that
+    sits in a path (/deploy/) or is qualified by a reversibility marker."""
+    for m in _IRREVERSIBLE.finditer(text):
+        if m.start() > 0 and text[m.start() - 1] == "/":
+            continue
+        if _REVERSIBLE_CTX.search(text[max(0, m.start() - 16): m.end() + 16]):
+            continue
+        return m
+    return None
+
+
 # --- Checks ---------------------------------------------------------------
 
 def check_spec(report: Report, spec: Spec, rule_filter: int | None) -> None:
@@ -518,6 +560,21 @@ def check_spec(report: Report, spec: Spec, rule_filter: int | None) -> None:
                            "Choose the shape: open|closed · inner|outer · single|fleet. "
                            "Not choosing is the over-orchestration default."))
 
+    # R7 IRREVERSIBLE-NO-HUMAN — an autonomous loop that merges/deploys/migrates/
+    # charges with no human in the loop (the security tax: an unattended loop is an
+    # unattended attack surface). A human gate or a human verifier silences it.
+    if want(7):
+        # scan each action field SEPARATELY (not the name, and not joined — joining
+        # lets a gate's "pytest tests/" bleed into the stop's window and wrongly
+        # suppress). A label like "deploy-config-linter" takes no action.
+        m = next((mm for mm in (_irreversible_action(f) for f in (stop, gate, generator)) if mm), None)
+        if m and not _has_human_gate(gate) and not _HUMAN_TOKEN.search(verifier):
+            report.add(Finding(7, "WARN", f"spec '{label}' takes an irreversible action with no human gate",
+                               src, spec.line_of("gate") or spec.start_line,
+                               f"the loop names an irreversible action ({m.group(0)!r}) but no human approves "
+                               "before it runs. Require a human sign-off (a human verifier, or an approve/"
+                               "sign-off gate) before merge / deploy / migrate / charge; scope its permissions."))
+
 
 def lint(text: str, source: str, rule_filter: int | None = None) -> Report:
     report = Report(root=source)
@@ -543,7 +600,7 @@ def main(argv: list[str]) -> int:
                                  description="Static linter for an agentic loop spec.")
     ap.add_argument("path", help="loop-spec file (.md with a ```loop block / .yaml / .json), or '-' for stdin")
     ap.add_argument("--json", action="store_true", help="emit the typed report as JSON")
-    ap.add_argument("--rule", type=int, choices=[1, 2, 3, 4, 5, 6], help="restrict to one rule")
+    ap.add_argument("--rule", type=int, choices=[1, 2, 3, 4, 5, 6, 7], help="restrict to one rule")
     args = ap.parse_args(argv)
 
     if args.path == "-":

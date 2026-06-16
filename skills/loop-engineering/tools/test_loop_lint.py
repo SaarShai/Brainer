@@ -348,6 +348,56 @@ def test_subjective_runner_and_adverb_r1_fail():
         assert _has(spec, 1, "FAIL"), (g, _rules(spec))
 
 
+# --- R7 IRREVERSIBLE-NO-HUMAN ---------------------------------------------
+
+def test_irreversible_autonomous_warns_r7():
+    # an autonomous loop that takes an irreversible action with no human warns.
+    # Broad verb set hardened by 1 adversarial round (wire/revoke/truncate/
+    # force-merge/delete-branch/email-blast/overwrite-prod/tag-release).
+    for stop in ["deploys to prod when tests pass", "merges to main automatically",
+                 "runs the db migration", "charges the customer card",
+                 "wires the money and initiates a transfer to the vendor",
+                 "revokes the api key automatically", "truncates the table once archived",
+                 "force merges the pull request", "deletes the branch from the remote",
+                 "sends the email blast to the subscriber list",
+                 "overwrites prod data with the new snapshot",
+                 "tags a release and pushes the git tag", "lints and deploys to prod"]:
+        spec = CLEAN.replace("stop: all target tests green", f"stop: {stop}")
+        assert _has(spec, 7, "WARN"), (stop, _rules(spec))
+
+
+def test_reversible_context_no_r7():
+    # a test / dry-run / preview / config-edit OF an irreversible verb is reversible.
+    for stop in ["writes and runs migration unit tests", "performs a --dry-run of the migration",
+                 "deploys to a preview staging env"]:
+        spec = CLEAN.replace("stop: all target tests green", f"stop: {stop}")
+        assert not _has(spec, 7, "WARN"), (stop, _rules(spec))
+    # action word inside a config file / path is not an action
+    spec = (CLEAN.replace("generator: opus coder agent", "generator: opus agent edits and lints deploy.yaml")
+            .replace("stop: all target tests green", "stop: the yaml lints clean"))
+    assert not _has(spec, 7, "WARN"), _rules(spec)
+
+
+def test_irreversible_with_human_gate_no_r7():
+    # a human approval gate (or a human verifier) silences R7.
+    spec = (CLEAN.replace("stop: all target tests green", "stop: deploys to prod after sign-off")
+            .replace("gate: pytest tests/ -q", "gate: Saar approves the release in the dashboard")
+            .replace("verifier: sonnet read-only reviewer", "verifier: Saar (human)"))
+    assert not _has(spec, 7, "WARN"), _rules(spec)
+
+
+def test_reversible_loop_no_r7():
+    # a normal closed loop with no irreversible action does not warn.
+    assert not _has(CLEAN, 7, "WARN"), _rules(CLEAN)
+
+
+def test_deploy_word_in_path_no_false_r7():
+    # "test_deploy.py" / "deploy-config" name-drop 'deploy' but take no action.
+    spec = (CLEAN.replace("gate: pytest tests/ -q", "gate: pytest tests/test_deploy.py")
+            .replace("name: refactor-loop", "name: deploy-config-linter"))
+    assert not _has(spec, 7, "WARN"), _rules(spec)
+
+
 # --- R4 OPEN-NO-ACK -------------------------------------------------------
 
 def test_open_loop_without_ack_warns():

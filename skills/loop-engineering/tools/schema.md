@@ -23,6 +23,8 @@ No PyYAML dependency — values are read as plain strings after the first `:`.
 | `accepted_open_loop` | open only | `true` declares "no feedback gate is intentional"; silences **R4** |
 | `quorum` / `aggregate` | fleet only | the convergence gate for parallel results; absent (and no quorum/reviewer/merge token in the gate) → **R5 WARN** |
 
+**R7 IRREVERSIBLE-NO-HUMAN (WARN):** if `stop` / `gate` / `generator` names an irreversible action (deploy / merge to main / migrate / `rm -rf` / force-push / charge / refund / rotate secret / npm publish) and there is **no human in the loop** (no approve/sign-off/escalate gate, no human-token verifier) → WARN. Silence it by giving a human approval gate or a human verifier — the security tax: an unattended loop is an unattended attack surface.
+
 ## What makes a `gate` machine-checkable (R1 allowlist)
 
 A gate PASSES R1 only if it names at least one of:
