@@ -1,0 +1,9 @@
+[
+  {
+    "id": "edit-without-read",
+    "description": "Edit/Write attempted before the file was Read (bash cat does not register as a read)",
+    "regex": "File has not been read yet|edit-without-read",
+    "promoted": "2026-06-12",
+    "fix": "repeated_tool_error probe 'edit-without-read' declared in skills/verify-before-completion/drift_probes.json, fired by compliance-canary (transcript-mined: 15/18 tool errors). See wiki/log.md [2026-06-12]."
+  }
+]

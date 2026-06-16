@@ -40,6 +40,7 @@ notice when context matches one (e.g. `wiki-memory` for "have we done X").
 - `prompt-triage` — Use on every UserPromptSubmit (pre-model hook) to classify the prompt and emit a directive telling the main model which subagent/model should handle it
 - `semantic-diff` — AST-node-level diff for file re-reads
 - `skill-pulse` — UserPromptSubmit hook that periodically re-injects active skill rules to fight instruction drift
+- `task-retrospective` — Use at the end of any non-trivial task (after the work is verified, before the final report), when the user gives a corrective message mid-task, or when the user types /retro
 - `verify-before-completion` — Use before claiming work is done, fixed, passing, committed, or ready
 - `wiki-memory` — Repo-local markdown wiki with progressive retrieval (search → timeline → fetch) and gated writes (verified facts only)
 - `wiki-refresh` — Reconcile wiki-memory pages against the current codebase — Keep / Update / Consolidate / Replace / Delete drifted ones

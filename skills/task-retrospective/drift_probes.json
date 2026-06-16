@@ -1,0 +1,12 @@
+[
+  {
+    "id": "harvest-claimed-not-written",
+    "kind": "claim_without_evidence",
+    "claim_pattern": "(?i)\\b(retro(spective)?\\s+(done|complete|run)|harvested the lesson|banked the lesson|logged (it|the lesson)|recorded the lesson|wrote (it )?to the wiki)\\b",
+    "verify_tools": ["Bash"],
+    "verify_keywords": ["wiki.py", "write_gate.py", "log.md", "fetch", "new --template", "gate --kind", "audit_lessons.py"],
+    "lookback_tool_uses": 5,
+    "message": "claimed the retrospective lesson was harvested/logged without a wiki.py/write_gate/log.md write (or a fetch read-back) in the last 5 tool uses — run the gated write and quote it, or fetch the page to prove it persisted",
+    "severity": "warn"
+  }
+]

@@ -2,7 +2,7 @@
   "$schema": "https://claude.com/schemas/plugin-marketplace.json",
   "name": "brainer",
   "version": "1.7.0",
-  "description": "Token/context-efficient skills for AI coding agents. 16 skills across output style, planning, lean execution, verification, wiki memory (write-gate / wiki-refresh / provenance trust), prompt triage, PreCompact extraction, semantic AST diff, output filtering, retrieval indexing, and drift mitigation. Measured per-skill savings range from ~-20% (routing) to ~-97% (re-reads / compaction) depending on skill type; see eval/FINDINGS.md.",
+  "description": "Token/context-efficient skills for AI coding agents. 17 skills across output style, planning, lean execution, verification, wiki memory (write-gate / wiki-refresh / provenance trust), prompt triage, PreCompact extraction, semantic AST diff, output filtering, retrieval indexing, task-end retrospectives, and drift mitigation. Measured per-skill savings range from ~-20% (routing) to ~-97% (re-reads / compaction) depending on skill type; see eval/FINDINGS.md.",
   "homepage": "https://github.com/SaarShai/Brainer",
   "license": "MIT",
   "author": "Saar Shai",
@@ -10,7 +10,7 @@
     {
       "name": "brainer",
       "version": "1.7.0",
-      "description": "All 16 skills bundled; skill-pulse and compliance-canary auto-wire their UserPromptSubmit hooks (auto-install: true, default-on since v1.7).",
+      "description": "All 17 skills bundled; skill-pulse and compliance-canary auto-wire their UserPromptSubmit hooks (auto-install: true, default-on since v1.7).",
       "source": {
         "type": "git-subdirectory",
         "directory": "skills/"
@@ -32,7 +32,8 @@
         "compliance-canary",
         "write-gate",
         "wiki-refresh",
-        "cache-lint"
+        "cache-lint",
+        "task-retrospective"
       ],
       "hooks": [
         {
