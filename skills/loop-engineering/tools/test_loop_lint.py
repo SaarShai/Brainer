@@ -239,6 +239,38 @@ def test_real_budget_units_pass_r2():
         assert not _has(spec, 2, "FAIL"), (b, _rules(spec))
 
 
+# --- sibling name-drops + degenerate budget (round 3) ---------------------
+
+def test_sibling_namedrop_gates_r1_fail():
+    # The vacuous-prose class is bigger than == / .py: a 'status N' / 'returns N'
+    # rating, or a 'diff' used as an English noun, must NOT pass R1 either.
+    for g in ["the reviewer rates a status 8 quality and it reads correct",
+              "the partner returns 1 thumbs-up in the dashboard",
+              "the diff between the draft and the brief is acceptable"]:
+        spec = CLEAN.replace("gate: pytest tests/ -q", f"gate: {g}")
+        assert _has(spec, 1, "FAIL"), (g, _rules(spec))
+
+
+def test_legit_exitcode_and_diff_gates_pass_r1():
+    # control: real exit-code / diff / grep gates (no subjective prose, real
+    # operands) must still pass — the tightening must not over-fire.
+    for g in ["exit status 0", "script returns 0", "diff golden.txt out.txt",
+              "grep -c TODO src.py"]:
+        spec = CLEAN.replace("gate: pytest tests/ -q", f"gate: {g}")
+        assert not _has(spec, 1, "FAIL"), (g, _rules(spec))
+
+
+def test_zero_budget_warns_r2():
+    # A cap of 0 is parseable but degenerate (the loop body never runs): WARN, not
+    # FAIL, and not a clean pass.
+    for b in ["max_iterations=0", "0 iterations", "max_tokens: 0"]:
+        spec = CLEAN.replace("budget: max_iterations=20", f"budget: {b}")
+        assert _has(spec, 2, "WARN"), (b, _rules(spec))
+        assert not _has(spec, 2, "FAIL"), (b, _rules(spec))
+    spec = CLEAN.replace("budget: max_iterations=20", "budget: max_iterations=0")
+    assert _exit_for(spec) == 1, _rules(spec)  # WARN, no FAIL
+
+
 # --- R4 OPEN-NO-ACK -------------------------------------------------------
 
 def test_open_loop_without_ack_warns():

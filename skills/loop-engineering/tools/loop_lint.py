@@ -14,6 +14,7 @@ It validates a loop spec against three FAIL rules and three WARN rules:
                                path / assertion / exit-code / regex / schema ref).
   R2 NO-STOP-OR-BUDGET(FAIL) — stop condition missing, or budget cap missing /
                                unbounded (no numeric iteration|token|wallclock cap).
+                               A cap of 0 (loop never runs) is a degenerate WARN.
   R3 SELF-GRADING     (FAIL) — generator == verifier (an agent grading its own
                                homework), or a closed loop with an empty verifier.
   R4 OPEN-NO-ACK      (WARN) — open topology without `accepted_open_loop: true`
@@ -227,11 +228,29 @@ _MACHINE_GATE = [
     re.compile(rf"(?:{_CODELIKE}\s*(?:==|!=|>=|<=)|(?:==|!=|>=|<=)\s*{_CODELIKE})", re.I),
     # unambiguous shell / pytest-nodeid shapes
     re.compile(r"\$\?|\$\(|::"),
-    re.compile(r"\bassert\b|\bexit\s*code\b|\bexit\s+\d|\breturns?\s+\d|\bstatus\s+\d", re.I),
-    re.compile(r"\b(diff|grep)\s+\S", re.I),
+    re.compile(r"\bassert\b|\bexit\s*code\b|\bexit\s+\d", re.I),
+    # diff/grep is a real check only with a real operand — a flag (-c) or a token
+    # carrying a '/' or '.' (a path/file). "diff between the draft and the brief"
+    # name-drops the word 'diff' and must NOT pass.
+    re.compile(r"\b(diff|grep)\b[^\n]*?(?:\s-\w|[\w-]*[./][\w./-]+)", re.I),
     # explicit machine markers
     re.compile(r"\b(regex|schema|cmd|command)\s*[:=]", re.I),
 ]
+
+# WEAK tokens: real in a code context, decorative inside a subjective sentence.
+# "script returns 0" / "exit status 0" are genuine exit-code gates; "returns 1
+# thumbs-up" / "status 8 quality" are a rating dressed up with a digit. They gate
+# ONLY when the surrounding prose is not subjective.
+_WEAK_MACHINE_GATE = [
+    re.compile(r"\b(returns?|status)\s+\d", re.I),
+]
+# Subjective-prose markers — when present, a WEAK token is just decoration, so the
+# gate is the human's taste, not a machine signal.
+_SUBJECTIVE = re.compile(
+    r"\b(reads?|looks?|feels?|sounds?|seems?)\s+"
+    r"(well|right|good|correct|clean|complete|done|finished|nice|fine|polished|compelling)\b"
+    r"|\b(good\s+enough|high\s+enough|out\s+of\s+\d+|thumbs?[\s-]?up|happy|satisfi\w+|"
+    r"polished|compelling|on[\s-]brand|the\s+vibe|quality|acceptable)\b", re.I)
 
 # A human DECISION is also a concrete gate — the article endorses "a handoff to a
 # human with the run data attached" and both source harnesses escalate to a human
@@ -308,7 +327,11 @@ def _same_actor(generator: str, verifier: str) -> bool:
 
 
 def _has_machine_gate(gate: str) -> bool:
-    return any(rx.search(gate) for rx in _MACHINE_GATE)
+    if any(rx.search(gate) for rx in _MACHINE_GATE):
+        return True
+    if _SUBJECTIVE.search(gate):
+        return False  # a weak token cannot launder a subjective gate
+    return any(rx.search(gate) for rx in _WEAK_MACHINE_GATE)
 
 
 def _has_human_gate(gate: str) -> bool:
@@ -318,10 +341,20 @@ def _has_human_gate(gate: str) -> bool:
     return bool(_DECISION_VERB.search(gate) and _HUMAN_TOKEN.search(gate))
 
 
-def _budget_is_capped(budget: str) -> bool:
+def _budget_cap_value(budget: str) -> int | None:
+    """The integer cap if the budget names a real numeric cap bound to a unit,
+    else None (unbounded / a stray digit in prose)."""
     if not budget or _UNBOUNDED.search(budget):
-        return False
-    return bool(_BUDGET_CAP.search(budget))
+        return None
+    m = _BUDGET_CAP.search(budget)
+    if not m:
+        return None
+    digits = re.search(r"\d+", m.group(0))
+    return int(digits.group()) if digits else None
+
+
+def _budget_is_capped(budget: str) -> bool:
+    return _budget_cap_value(budget) is not None
 
 
 def _topology_tokens(topology: str) -> set[str]:
@@ -372,11 +405,17 @@ def check_spec(report: Report, spec: Spec, rule_filter: int | None) -> None:
             report.add(Finding(2, "FAIL", f"spec '{label}' has no `stop` condition",
                                src, spec.line_of("stop") or spec.start_line,
                                "Declare the completion condition the loop runs until."))
-        if not _budget_is_capped(budget):
+        cap = _budget_cap_value(budget)
+        if cap is None:
             report.add(Finding(2, "FAIL", f"spec '{label}' has no numeric `budget` cap",
                                src, spec.line_of("budget") or spec.start_line,
                                f"budget={budget!r}: an unbounded loop is a spin. Give a numeric cap "
                                "(max_iterations / max_tokens / max_wallclock)."))
+        elif cap == 0:
+            report.add(Finding(2, "WARN", f"spec '{label}' budget cap is 0 — the loop never runs",
+                               src, spec.line_of("budget") or spec.start_line,
+                               f"budget={budget!r}: a cap of 0 means the loop body executes zero times. "
+                               "Set a positive iteration / token / wall-clock cap."))
 
     # R3 SELF-GRADING
     if want(3):
