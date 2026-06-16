@@ -1,0 +1,12 @@
+[
+  {
+    "id": "loop-done-without-gate",
+    "kind": "claim_without_evidence",
+    "claim_pattern": "(?i)\\b(loop|iteration|fan-?out|fleet|agents?|workflow)\\b.{0,40}\\b(done|complete|finished|converged|all\\s+(pass(ed|ing)?|green))\\b|\\b(all\\s+agents?\\s+(pass|done|green)|loop\\s+(converged|terminated|exited)|ran\\s+to\\s+completion)\\b",
+    "verify_tools": ["Bash", "Workflow"],
+    "verify_keywords": ["loop_lint", "pytest", "verifier", "gate", "exit 0", "exit code", "test", "assert", "build", "verify_before"],
+    "lookback_tool_uses": 6,
+    "message": "claimed a loop/fleet/iteration completed or all agents passed, but no gate was run (loop_lint.py / a test / a verifier command) in the last 6 tool uses — exit on RECOMPUTED gate state, never on a model done-claim. Run the gate and quote its pass/fail, or say it is unverified.",
+    "severity": "warn"
+  }
+]
