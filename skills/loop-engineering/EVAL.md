@@ -6,8 +6,8 @@
 |---|---|
 | description (frontmatter) | **96 tokens** (390 chars; budget ≤ 1,536) |
 | resident catalog line (first sentence only) | **~32 tokens** — what `install.sh` injects into CLAUDE.md/AGENTS.md/GEMINI.md |
-| body (loaded on trigger) | **2,011 tokens** (8,180 chars) |
-| tools/ payload | **28.5 KB** (`loop_lint.py` · `test_loop_lint.py` · `schema.md`) |
+| body (loaded on trigger) | **2,666 tokens** (10,854 chars) |
+| tools/ payload | **~33 KB** (`loop_lint.py` · `test_loop_lint.py` · `schema.md`) |
 | model pin | `any` (none) |
 | effort pin | `medium` |
 

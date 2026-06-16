@@ -13,6 +13,13 @@ A loop is a **generator wired to a verifier**. The generator was never the bottl
 
 ## Do you even need a loop?
 
+**The 4-condition test — miss one and a one-shot prompt beats a loop** (the loop's setup never amortizes):
+1. **Repeats** — the task recurs (≈weekly+); a one-time job wants a good prompt, not a loop.
+2. **Verification is automated** — a test / typecheck / lint / build can fail the work with no human in the room. No auto-gate ⇒ you are back reading every diff (the job the loop was meant to remove).
+3. **Budget absorbs the waste** — loops re-read, retry, and explore; that burns tokens whether or not a run ships.
+4. **Senior-engineer tools** — logs, a repro env, the ability to run what it writes; without them it iterates blind.
+
+Then:
 - Clear, low-risk, one-sentence diff → **type `ONE SHOT`, skip this skill.** A loop you don't need is the over-orchestration [`lean-execution`](../lean-execution/SKILL.md) exists to prune.
 - "One closed loop, single worker" → the loop body **is** a [`plan-first-execute`](../plan-first-execute/SKILL.md) plan with a `done means:` block. Use that; don't re-plan here.
 - loop-engineering earns its cost only when the topology is **non-trivial**: distinct generator/verifier roles, a fleet/fan-out, open-loop-by-design, or nested inner+outer.
@@ -52,7 +59,14 @@ Then answer the questions the four fields don't cover:
 
 ## Instrument before you scale
 
-**You cannot improve a loop you do not measure** — instrument the gate (iteration count, pass rate, failure reasons, per-step cost/success) BEFORE you scale, or you are just generating wrong answers faster. Add cheap deterministic **liveness** counters distinct from the correctness gate (repeated-decision, empty/unparseable output, no-progress) with explicit escalation. A recurring "ran past budget" or "no gate" violation across sessions is promoted by [`task-retrospective`](../task-retrospective/SKILL.md) into a [`compliance-canary`](../compliance-canary/SKILL.md) drift probe — `drift_probes.json` is the runtime home for the static checks this skill's linter makes.
+**You cannot improve a loop you do not measure** — instrument the gate (iteration count, pass rate, failure reasons, per-step cost/success) BEFORE you scale, or you are just generating wrong answers faster. The metric that matters is **cost per accepted change**, not tokens spent — under ~50% accepted means the loop is making review work, not saving it. Add cheap deterministic **liveness** counters distinct from the correctness gate (repeated-decision, empty/unparseable output, no-progress) with explicit escalation. A recurring "ran past budget" or "no gate" violation across sessions is promoted by [`task-retrospective`](../task-retrospective/SKILL.md) into a [`compliance-canary`](../compliance-canary/SKILL.md) drift probe — `drift_probes.json` is the runtime home for the static checks this skill's linter makes. Build the **minimum viable loop** in order — get one manual run reliable → make it a skill → wrap it in a loop → schedule it; skipping ahead ships a loop nobody understands.
+
+## Design against the quiet failures
+
+- **Ralph Wiggum loop** — the agent emits its "done" token early and the loop exits half-finished. The fix is the R1/R3 gate: an **objective** check (a test/build/lint exit code) that can FAIL the work — never a second agent with an opinion.
+- **Goal drift** — long sessions lose "don't do X" constraints to lossy summarization. Reread a standing spec (`VISION.md` / `AGENTS.md` / the `done means:` block) each run.
+- **Comprehension debt** — the faster the loop ships code you didn't write, the wider the gap between the repo and what anyone understands. **Read the diffs**; spot-check that the gate still catches the failure you care about (**gates rot**); keep the loop off architecture / auth / payments.
+- **Unattended = an attack surface** — an autonomous loop merges code, installs skills, and writes logs while nobody watches. Require a **human-approval gate before any irreversible action** (merge / deploy / migrate / dependency bump), scope and re-audit its permissions, and audit any skill it auto-installs.
 
 ## Validate the spec
 
@@ -79,6 +93,6 @@ A reusable generator/verifier/budget recipe is just another durable fact — rou
 
 ## Lineage
 
-Doctrine descends from the generator-verifier "design the verifier, not the prompt" framing (ReAct: Yao et al.; Reflexion: Shinn et al.; the five-components-plus-memory framing follows Addy Osmani). Pattern sources (inspiration, **not** imports — frameworks stay pattern sources per `GOAL.md`):
+Doctrine descends from the generator-verifier "design the verifier, not the prompt" framing (ReAct: Yao et al.; Reflexion: Shinn et al.). The five-components-plus-memory, maker/checker, comprehension-debt, and cognitive-surrender framings follow **Addy Osmani**'s loop-engineering essay; the **4-condition economics test** + minimum-viable-loop ordering + cost-per-accepted-change metric follow AlphaSignal / **Lev Deviatkin**'s prompter→loop-designer roadmap; the **Ralph Wiggum loop** failure mode is **Geoffrey Huntley**'s; the durable-project-loop / state-file-as-spine continuity framing is from the repo-as-loop writeups (Jason Liu, steipete). Pattern sources (inspiration, **not** imports — frameworks stay pattern sources per `GOAL.md`):
 - **HarnessCode** ([yzddp/harnesscode](https://github.com/yzddp/harnesscode)) — verifier-as-gate with a typed report + failure-type routing; the **anti-false-completion guard** (exit only on independently-recomputed gate state, never a model done-claim); thin deterministic driver + liveness counters.
 - **autonomy-loop** ([inferencegod/autonomy-loop](https://github.com/inferencegod/autonomy-loop)) — independent re-verification by a separate actor (Builder/Reviewer in separate worktrees); the **coverage-ratchet** monotonic-floor gate; frozen-invariant + human escalation; cheap-panel + expensive-judge-on-dissent with a bounded-rounds deadlock cap.
