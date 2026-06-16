@@ -72,7 +72,7 @@ A reusable generator/verifier/budget recipe is just another durable fact — rou
 
 - [`SKILL.md`](SKILL.md) — this doctrine.
 - [`tools/loop_lint.py`](tools/loop_lint.py) — the mechanical gate: static loop-spec linter (R1–R6, exit code = verdict).
-- [`tools/test_loop_lint.py`](tools/test_loop_lint.py) — 44 tests; registered in `scripts/run_all_tests.sh`.
+- [`tools/test_loop_lint.py`](tools/test_loop_lint.py) — 49 tests (4 adversarial rounds); registered in `scripts/run_all_tests.sh`.
 - [`tools/schema.md`](tools/schema.md) — loop-spec field reference.
 - [`drift_probes.json`](drift_probes.json) — `claim_without_evidence` probe (loop-done claim with no gate run); auto-discovered by compliance-canary.
 - [`EVAL.md`](EVAL.md) — static cost + promotion path (opt-in until measured).

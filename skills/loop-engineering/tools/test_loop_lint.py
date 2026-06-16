@@ -300,6 +300,54 @@ def test_shared_qualifier_distinct_actors_no_r3():
     assert not _has(spec2, 3, "FAIL"), _rules(spec2)
 
 
+# --- round-4 adversarial regressions --------------------------------------
+
+def _gen_ver(g, v):
+    return (CLEAN.replace("generator: opus coder agent", f"generator: {g}")
+            .replace("verifier: sonnet read-only reviewer", f"verifier: {v}"))
+
+
+def test_same_name_nonadjacent_verb_r3_fail():
+    # B1: the same person self-grades even when an appositive comma, a conjunction,
+    # a parenthetical, or a possession/authority verb sits between name and action.
+    cases = [
+        ("Alfred, our lead, drafts the section", "Alfred, our lead, reviews the section"),
+        ("Alfred owns the draft", "Alfred owns the review"),
+        ("Alfred and a peer write the draft", "Alfred and a peer check the draft"),
+        ("Alfred maintains the document", "Alfred signs the document"),
+        ("Alfred (opus) drafts the migration", "Alfred (sonnet) reviews the migration"),
+    ]
+    for g, v in cases:
+        assert _has(_gen_ver(g, v), 3, "FAIL"), (g, v, _rules(_gen_ver(g, v)))
+
+
+def test_distinct_named_actors_no_r3():
+    # control: two different people are not self-grading.
+    assert not _has(_gen_ver("Alfred drafts the section", "Beatrice reviews the section"), 3, "FAIL")
+
+
+def test_distributive_subbudget_r2_fail():
+    # B2: a cap on a SUB-unit over an unbounded outer set is unbounded total work.
+    for b in ["50 iterations per page", "500 tokens at a time", "5 retries per file"]:
+        spec = CLEAN.replace("budget: max_iterations=20", f"budget: {b}")
+        assert _has(spec, 2, "FAIL"), (b, _rules(spec))
+
+
+def test_distributive_with_total_ok_r2():
+    # control: a distributive phrasing WITH a total cap is bounded.
+    spec = CLEAN.replace("budget: max_iterations=20", "budget: 200 iterations total across all files")
+    assert not _has(spec, 2, "FAIL"), _rules(spec)
+
+
+def test_subjective_runner_and_adverb_r1_fail():
+    # B3/B4: a runner word used as a prose noun, and a taste adverb laundered by a
+    # weak token, are not machine gates.
+    for g in ["the cypress vines look healthy", "the prose reads elegantly and returns 0 vibes",
+              "the k6 results feel good and the vibe is right"]:
+        spec = CLEAN.replace("gate: pytest tests/ -q", f"gate: {g}")
+        assert _has(spec, 1, "FAIL"), (g, _rules(spec))
+
+
 # --- R4 OPEN-NO-ACK -------------------------------------------------------
 
 def test_open_loop_without_ack_warns():

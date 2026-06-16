@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 """loop-lint — static linter for an agentic loop spec.
 
+LIMITS (a tripwire, not a sandbox — the framing both source harnesses use): the
+gate/self-grading/subjectivity checks are heuristics over natural-language actor
+and gate strings. They catch the common and adversarial-common phrasings (4
+adversarial rounds hardened them), but cannot prove a loop correct — an exotic
+NL phrasing of a self-grade or a subjective gate may still slip. The author owns
+intent; this refuses the obvious failure modes cheaply and deterministically.
+
+
 The article thesis: a loop is a GENERATOR wired to a VERIFIER, and the verifier
 is the bottleneck. So a loop you cannot describe as {gate, stop, budget,
 generator != verifier} is not a loop — it is an open-ended spin. This linter
@@ -214,12 +222,9 @@ def parse_specs(text: str, source: str) -> list[Spec]:
 # NOT launder a subjective gate (the false-negatives the PROMPTER live-test found).
 _CODELIKE = (r"(?:\d+(?:\.\d+)?|true|false|none|null|nil|pass|fail|0x[0-9a-f]+|\$\w+|"
              r"\"[^\"]*\"|'[^']*'|[A-Za-z_][\w-]*_[\w.-]+|[A-Za-z_]\w*\.[A-Za-z_]\w*)")
-_MACHINE_GATE = [
-    # command runners / build tools (word-boundary so prose nouns don't match)
-    re.compile(r"\b(pytest|unittest|jest|vitest|mocha|tox|nox|ruff|eslint|mypy|tsc|"
-               r"npm|pnpm|yarn|cargo|gradle|gradlew|mvn|dotnet|deno|bats|rspec|phpunit|"
-               r"newman|playwright|cypress|k6|behave|rake|ginkgo|hurl|jasmine|ava|junit)\b", re.I),
-    re.compile(r"\b(go|cargo)\s+test\b", re.I),
+# STRONG signals: an unambiguous machine check (path, ./, assertion, exit code,
+# shell shape, explicit marker). These pass R1 even alongside prose.
+_STRONG_GATE = [
     re.compile(r"\b(make|bash|sh|zsh|python3?|node|ruby|perl)\s+\S", re.I),
     # a COMMAND-ANCHORED code/data file: after ./, an absolute path, or a separator
     # — NOT a bare 'config.py' dropped mid-prose (that used to launder a vacuous gate).
@@ -227,31 +232,35 @@ _MACHINE_GATE = [
     re.compile(r"(?:^|\s)\./\S+"),                       # ./run-checks
     # an assertion against a CODE-LIKE operand (NOT a bare '==' between prose words)
     re.compile(rf"(?:{_CODELIKE}\s*(?:==|!=|>=|<=)|(?:==|!=|>=|<=)\s*{_CODELIKE})", re.I),
-    # unambiguous shell / pytest-nodeid shapes
     re.compile(r"\$\?|\$\(|::"),
     re.compile(r"\bassert\b|\bexit\s*code\b|\bexit\s+\d", re.I),
     # diff/grep is a real check only with a real operand — a flag (-c) or a token
     # carrying a '/' or '.' (a path/file). "diff between the draft and the brief"
     # name-drops the word 'diff' and must NOT pass.
     re.compile(r"\b(diff|grep)\b[^\n]*?(?:\s-\w|[\w-]*[./][\w./-]+)", re.I),
-    # explicit machine markers
     re.compile(r"\b(regex|schema|cmd|command)\s*[:=]", re.I),
 ]
-
-# WEAK tokens: real in a code context, decorative inside a subjective sentence.
-# "script returns 0" / "exit status 0" are genuine exit-code gates; "returns 1
-# thumbs-up" / "status 8 quality" are a rating dressed up with a digit. They gate
-# ONLY when the surrounding prose is not subjective.
+# RUNNER words + WEAK tokens: a real signal in a command, but decorative inside a
+# subjective sentence ("the cypress vines look healthy", "returns 1 thumbs-up").
+# They gate ONLY when the surrounding prose is not subjective (see _has_machine_gate).
+_RUNNER_WORD = [
+    re.compile(r"\b(pytest|unittest|jest|vitest|mocha|tox|nox|ruff|eslint|mypy|tsc|"
+               r"npm|pnpm|yarn|cargo|gradle|gradlew|mvn|dotnet|deno|bats|rspec|phpunit|"
+               r"newman|playwright|cypress|k6|behave|rake|ginkgo|hurl|jasmine|ava|junit)\b", re.I),
+    re.compile(r"\b(go|cargo)\s+test\b", re.I),
+]
 _WEAK_MACHINE_GATE = [
     re.compile(r"\b(returns?|status)\s+\d", re.I),
 ]
-# Subjective-prose markers — when present, a WEAK token is just decoration, so the
-# gate is the human's taste, not a machine signal.
+# Subjective-prose markers — when present, a runner/weak token is just decoration,
+# so the gate is the human's taste, not a machine signal.
 _SUBJECTIVE = re.compile(
     r"\b(reads?|looks?|feels?|sounds?|seems?)\s+"
-    r"(well|right|good|correct|clean|complete|done|finished|nice|fine|polished|compelling)\b"
-    r"|\b(good\s+enough|high\s+enough|out\s+of\s+\d+|thumbs?[\s-]?up|happy|satisfi\w+|"
-    r"polished|compelling|on[\s-]brand|the\s+vibe|quality|acceptable)\b", re.I)
+    r"(well|right|good|great|correct|clean|complete|done|finished|nice|fine|healthy|polished|"
+    r"compelling|elegant\w*|beautiful\w*|smooth\w*|crisp\w*|slick|solid|strong)\b"
+    r"|\b(good\s+enough|high\s+enough|out\s+of\s+\d+|thumbs?[\s-]?up|happy|satisfi\w+|polished|"
+    r"compelling|on[\s-]brand|the\s+vibe|vibes?|quality|acceptable|smell\s+test|slaps|"
+    r"chef'?s?[\s-]?kiss|elegantly|beautifully|nicely|cleanly)\b", re.I)
 
 # A human DECISION is also a concrete gate — the article endorses "a handoff to a
 # human with the run data attached" and both source harnesses escalate to a human
@@ -275,11 +284,21 @@ _QUORUM = re.compile(r"\b(quorum|aggregat\w*|merge|reviewer|vote|consensus|major
 # duration) — not a stray digit in a prose sentence ("run until inbox has 0 unread").
 _BUDGET_CAP = re.compile(
     r"\b(?:max[_\s-]?)?(?:iterations?|iters?|tokens?|turns?|rounds?|attempts?|steps?|calls?|"
-    r"loops?|passes|retries|tries)\b\s*[:=]?\s*\d+"                       # unit then number
-    r"|\d+\s*(?:k\s*)?(?:iterations?|iters?|tokens?|turns?|rounds?|attempts?|steps?|calls?|"
-    r"loops?|passes|retries|tries)\b"                                     # number then unit
-    r"|\d+\s*(?:s|sec|secs|seconds?|m|min|mins|minutes?|h|hr|hrs|hours?)\b",  # a duration
+    r"loops?|passes|retries|tries)\b\s*[:=]?\s*\d+(?:\.\d+)?"                 # unit then number
+    r"|\d+(?:\.\d+)?\s*(?:k\s*)?(?:iterations?|iters?|tokens?|turns?|rounds?|attempts?|steps?|"
+    r"calls?|loops?|passes|retries|tries)\b"                                 # number then unit
+    r"|\d+(?:\.\d+)?\s*(?:s|sec|secs|seconds?|m|min|mins|minutes?|h|hr|hrs|hours?)\b",  # a duration
     re.I)
+
+# A DISTRIBUTIVE cap ("50 iterations per page", "500 tokens at a time", "5 retries
+# per file") bounds a SUB-unit, not loop length — total work is unbounded when the
+# outer set is unbounded. It is a real cap only if a separate TOTAL/overall cap is
+# also named.
+_DISTRIBUTIVE = re.compile(
+    r"\bper\s+(?:page|file|item|record|row|request|req|doc|document|task|chunk|entry|"
+    r"user|message|email|ticket|line|call|batch|record|page)s?\b"
+    r"|\bper-\w+|\bat a time\b|\b(?:each|apiece)\b", re.I)
+_TOTAL = re.compile(r"\b(total|overall|across|aggregate|combined|cumulative|in all)\b", re.I)
 
 # Self-grading: generator and verifier are the SAME actor. Three signals, in
 # precision order: (a) identical actor strings (_norm); (b) the same MODEL SLUG
@@ -300,14 +319,17 @@ reviewing check checking spec specs doc docs documentation writer reader checker
 coder builder tester auditor judge critic generator verifier worker pass loop gate output result
 results pipeline stage phase step final main sub task tasks code test tests sprint feature prompt
 prompts data file files the a an it""".split())
-# Role-verbs: a proper name is an ACTOR only when it is the subject of one of
-# these ("Alfred drafts"). Distinguishes a name from a Capitalized qualifier.
+# Role-verbs: a proper name is an ACTOR when it is the subject of one of these
+# ("Alfred drafts"). Distinguishes a name from a Capitalized qualifier ("Payments
+# service"). Includes possession/authority verbs (owns/maintains/signs/leads) —
+# "Alfred owns the draft" / "Alfred signs the review" is still self-grading.
 _NAME_VERBS = frozenset("""drafts draft writes write produces produce generates generate authors author
 creates create makes make codes code builds build implements implement proposes propose composes compose
 designs design plans plan reviews review checks check verifies verify validates validate audits audit
 tests test grades grade judges judge evaluates evaluate inspects inspect approves approve assesses assess
 critiques critique refutes refute reads read reconciles reconcile recomputes recompute applies apply
-runs run ships ship""".split())
+runs run ships ship owns own maintains maintain signs sign leads lead handles handle manages manage
+oversees oversee curates curate delivers deliver edits edit fixes fix merges merge""".split())
 
 
 def _norm(s: str) -> str:
@@ -324,42 +346,53 @@ def _slugs(s: str) -> frozenset[str]:
                      if t.lower() in _MODEL_SLUGS)
 
 
+# What may follow an ACTING proper name: a clause boundary (comma, paren,
+# conjunction, possessive, semicolon, end). NOT '/' — "Keep/Update/Replace" is a
+# domain enum, not "Name / next". A name followed by a plain noun ("Payments
+# service") is a qualifier, not an actor.
+_NAME_BOUNDARY = re.compile(r"\s*(?:[,(;:]|and\b|or\b|'s\b|$)", re.I)
+
+
 def _subject_names(s: str) -> frozenset[str]:
-    """Proper names that ACT — a Capitalized, non-common token immediately followed
-    by a role-verb ("Alfred drafts"). A capitalized qualifier before a noun
-    ("Payments service", "Senior Marketing") is NOT an actor name."""
-    toks = re.findall(r"[A-Za-z][A-Za-z0-9'-]*", s)
+    """Proper names that ACT — a Capitalized, non-common token that is the subject
+    of a role-verb ("Alfred drafts", "Alfred owns") OR stands at a clause boundary
+    ("Alfred, our lead, …" / "Alfred and a peer …" / "Alfred (opus) …"). A
+    capitalized qualifier before a noun ("Payments service", "Senior Marketing")
+    is NOT an actor name, so distinct teams/roles sharing vocabulary stay distinct."""
     names = set()
-    for i, tok in enumerate(toks):
-        low = tok.lower()
-        if not (tok[0].isupper() and len(low) > 1):
+    for m in re.finditer(r"\b([A-Z][A-Za-z0-9'-]+)\b", s):
+        low = m.group(1).lower()
+        if len(low) < 2 or low in _MODEL_SLUGS or low in _GENERIC_ACTORS or low in _COMMON_ROLE_NOUNS:
             continue
-        if low in _MODEL_SLUGS or low in _GENERIC_ACTORS or low in _COMMON_ROLE_NOUNS:
+        if m.start() > 0 and s[m.start() - 1] == "/":
+            continue                              # part of a slash enum (Keep/Update/Replace), not a name
+        rest = s[m.end():]
+        if _NAME_BOUNDARY.match(rest):            # name then a clause boundary
+            names.add(low)
             continue
-        nxt = toks[i + 1].lower() if i + 1 < len(toks) else ""
-        if nxt in _NAME_VERBS:
+        nxt = re.match(r"\s+([A-Za-z][\w'-]*)", rest)   # name then a role-verb
+        if nxt and nxt.group(1).lower() in _NAME_VERBS:
             names.add(low)
     return frozenset(names)
 
 
 def _same_actor(generator: str, verifier: str) -> bool:
-    """True if generator and verifier are the same actor — same model slug, or the
-    same acting proper name. DIFFERENT model slugs (opus vs sonnet) prove two
-    distinct actors and override any shared-word collision."""
-    gs, vs = _slugs(generator), _slugs(verifier)
-    if gs and vs and gs.isdisjoint(vs):
-        return False                              # different models => different actors
-    if gs & vs:
-        return True                               # same model named on both sides
-    return bool(_subject_names(generator) & _subject_names(verifier))
+    """True if generator and verifier are the same actor. A shared acting proper
+    name ("Alfred (opus)" / "Alfred (sonnet)") is checked FIRST — a human in both
+    roles is self-grading regardless of model. Then a shared model slug. Different
+    slugs alone, with no shared name, are two distinct actors."""
+    if _subject_names(generator) & _subject_names(verifier):
+        return True                               # same human/agent name acts on both sides
+    return bool(_slugs(generator) & _slugs(verifier))   # same model named on both sides
 
 
 def _has_machine_gate(gate: str) -> bool:
-    if any(rx.search(gate) for rx in _MACHINE_GATE):
-        return True
+    if any(rx.search(gate) for rx in _STRONG_GATE):
+        return True                       # unambiguous command/assertion wins over prose
     if _SUBJECTIVE.search(gate):
-        return False  # a weak token cannot launder a subjective gate
-    return any(rx.search(gate) for rx in _WEAK_MACHINE_GATE)
+        return False                      # subjective prose: a runner/weak token is decoration
+    return any(rx.search(gate) for rx in _RUNNER_WORD) \
+        or any(rx.search(gate) for rx in _WEAK_MACHINE_GATE)
 
 
 def _has_human_gate(gate: str) -> bool:
@@ -369,16 +402,19 @@ def _has_human_gate(gate: str) -> bool:
     return bool(_DECISION_VERB.search(gate) and _HUMAN_TOKEN.search(gate))
 
 
-def _budget_cap_value(budget: str) -> int | None:
-    """The integer cap if the budget names a real numeric cap bound to a unit,
-    else None (unbounded / a stray digit in prose)."""
+def _budget_cap_value(budget: str) -> float | None:
+    """The numeric cap if the budget names a real cap bound to a unit, else None
+    (unbounded / a stray digit in prose / a distributive sub-cap over an unbounded
+    set with no separate total)."""
     if not budget or _UNBOUNDED.search(budget):
         return None
+    if _DISTRIBUTIVE.search(budget) and not _TOTAL.search(budget):
+        return None                       # caps a sub-unit, not loop length
     m = _BUDGET_CAP.search(budget)
     if not m:
         return None
-    digits = re.search(r"\d+", m.group(0))
-    return int(digits.group()) if digits else None
+    digits = re.search(r"\d+(?:\.\d+)?", m.group(0))
+    return float(digits.group()) if digits else None
 
 
 def _budget_is_capped(budget: str) -> bool:
