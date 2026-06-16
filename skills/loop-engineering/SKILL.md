@@ -62,7 +62,7 @@ Write the loop spec as a fenced ` ```loop ` block (or a `.yaml`/`.json` file) an
 python3 skills/loop-engineering/tools/loop_lint.py <file>   # exit 2 = fatal gap, 1 = warn, 0 = clean
 ```
 
-Exit **2** = no gate (R1) / no stop+budget (R2) / self-grading (R3). Exit **1** = open-loop-without-ack (R4) / fleet-without-quorum (R5) / no-topology declared (R6) / degenerate zero-cap budget (R2 warn). This is the gate-over-prose payoff: the three failure modes are refused statically, not re-argued. Field reference: [`tools/schema.md`](tools/schema.md).
+Exit **2** = no gate (R1) / no stop+budget (R2) / self-grading (R3). Exit **1** = open-loop-without-ack (R4) / fleet-without-quorum (R5) / no-topology declared (R6) / degenerate zero-cap budget (R2 warn). On a non-zero exit, **fix the flagged field and re-lint until exit 0** — the spec is itself a closed inner loop with `loop_lint.py` as its gate. This is the gate-over-prose payoff: the failure modes are refused statically, not re-argued. Field reference: [`tools/schema.md`](tools/schema.md).
 
 ## Persisting a reusable topology
 
@@ -72,7 +72,7 @@ A reusable generator/verifier/budget recipe is just another durable fact — rou
 
 - [`SKILL.md`](SKILL.md) — this doctrine.
 - [`tools/loop_lint.py`](tools/loop_lint.py) — the mechanical gate: static loop-spec linter (R1–R6, exit code = verdict).
-- [`tools/test_loop_lint.py`](tools/test_loop_lint.py) — 42 tests; registered in `scripts/run_all_tests.sh`.
+- [`tools/test_loop_lint.py`](tools/test_loop_lint.py) — 44 tests; registered in `scripts/run_all_tests.sh`.
 - [`tools/schema.md`](tools/schema.md) — loop-spec field reference.
 - [`drift_probes.json`](drift_probes.json) — `claim_without_evidence` probe (loop-done claim with no gate run); auto-discovered by compliance-canary.
 - [`EVAL.md`](EVAL.md) — static cost + promotion path (opt-in until measured).

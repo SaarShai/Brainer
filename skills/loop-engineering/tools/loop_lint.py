@@ -217,7 +217,8 @@ _CODELIKE = (r"(?:\d+(?:\.\d+)?|true|false|none|null|nil|pass|fail|0x[0-9a-f]+|\
 _MACHINE_GATE = [
     # command runners / build tools (word-boundary so prose nouns don't match)
     re.compile(r"\b(pytest|unittest|jest|vitest|mocha|tox|nox|ruff|eslint|mypy|tsc|"
-               r"npm|pnpm|yarn|cargo|gradle|mvn|dotnet|deno|bats|rspec|phpunit)\b", re.I),
+               r"npm|pnpm|yarn|cargo|gradle|gradlew|mvn|dotnet|deno|bats|rspec|phpunit|"
+               r"newman|playwright|cypress|k6|behave|rake|ginkgo|hurl|jasmine|ava|junit)\b", re.I),
     re.compile(r"\b(go|cargo)\s+test\b", re.I),
     re.compile(r"\b(make|bash|sh|zsh|python3?|node|ruby|perl)\s+\S", re.I),
     # a COMMAND-ANCHORED code/data file: after ./, an absolute path, or a separator
@@ -280,11 +281,14 @@ _BUDGET_CAP = re.compile(
     r"|\d+\s*(?:s|sec|secs|seconds?|m|min|mins|minutes?|h|hr|hrs|hours?)\b",  # a duration
     re.I)
 
-# Self-grading: generator and verifier are the SAME actor when they share a
-# SPECIFIC identity key — a model slug (opus/sonnet/claude) or a proper name
-# (Alfred/Saar/PROMPTER) — even when the role phrases differ ("Alfred drafts" vs
-# "Alfred reviews ... for accuracy"). A shared common NOUN ("brief") does NOT
-# count, so "opus brief writer" vs "sonnet brief reader" stays distinct.
+# Self-grading: generator and verifier are the SAME actor. Three signals, in
+# precision order: (a) identical actor strings (_norm); (b) the same MODEL SLUG
+# on both sides — and a DIFFERENT slug (opus vs sonnet) is strong evidence of two
+# actors that OVERRIDES any word collision; (c) a shared proper name that ACTS —
+# a Capitalized non-common token immediately followed by a role-verb ("Alfred
+# drafts" / "Alfred reviews"). A capitalized QUALIFIER before a noun ("Payments
+# service", "Senior Marketing") or a shared domain word ("Keep/Update/Replace")
+# is NOT an actor name, so distinct teams/roles that share vocabulary stay distinct.
 _MODEL_SLUGS = frozenset("""opus sonnet haiku claude gpt fable gemini llama mistral mixtral
 qwen deepseek grok o1 o3 o4 mimo ollama""".split())
 # Generic / role / common-domain words that, even when Capitalized in a role
@@ -296,6 +300,14 @@ reviewing check checking spec specs doc docs documentation writer reader checker
 coder builder tester auditor judge critic generator verifier worker pass loop gate output result
 results pipeline stage phase step final main sub task tasks code test tests sprint feature prompt
 prompts data file files the a an it""".split())
+# Role-verbs: a proper name is an ACTOR only when it is the subject of one of
+# these ("Alfred drafts"). Distinguishes a name from a Capitalized qualifier.
+_NAME_VERBS = frozenset("""drafts draft writes write produces produce generates generate authors author
+creates create makes make codes code builds build implements implement proposes propose composes compose
+designs design plans plan reviews review checks check verifies verify validates validate audits audit
+tests test grades grade judges judge evaluates evaluate inspects inspect approves approve assesses assess
+critiques critique refutes refute reads read reconciles reconcile recomputes recompute applies apply
+runs run ships ship""".split())
 
 
 def _norm(s: str) -> str:
@@ -306,24 +318,40 @@ def _norm(s: str) -> str:
     return s
 
 
-def _identity_keys(s: str) -> frozenset[str]:
-    """Specific identity tokens in an actor phrase: model slugs (always) + proper
-    names (a Capitalized token that is not a generic/role/common-domain word)."""
-    keys = set()
-    for tok in re.findall(r"[A-Za-z][A-Za-z0-9_-]*", s):
+def _slugs(s: str) -> frozenset[str]:
+    """Model slugs named anywhere in an actor phrase (opus, sonnet, claude…)."""
+    return frozenset(t.lower() for t in re.findall(r"[A-Za-z][A-Za-z0-9_-]*", s)
+                     if t.lower() in _MODEL_SLUGS)
+
+
+def _subject_names(s: str) -> frozenset[str]:
+    """Proper names that ACT — a Capitalized, non-common token immediately followed
+    by a role-verb ("Alfred drafts"). A capitalized qualifier before a noun
+    ("Payments service", "Senior Marketing") is NOT an actor name."""
+    toks = re.findall(r"[A-Za-z][A-Za-z0-9'-]*", s)
+    names = set()
+    for i, tok in enumerate(toks):
         low = tok.lower()
-        if low in _MODEL_SLUGS:
-            keys.add(low)
-        elif tok[0].isupper() and len(low) > 1 and low not in _GENERIC_ACTORS \
-                and low not in _COMMON_ROLE_NOUNS:
-            keys.add(low)
-    return frozenset(keys)
+        if not (tok[0].isupper() and len(low) > 1):
+            continue
+        if low in _MODEL_SLUGS or low in _GENERIC_ACTORS or low in _COMMON_ROLE_NOUNS:
+            continue
+        nxt = toks[i + 1].lower() if i + 1 < len(toks) else ""
+        if nxt in _NAME_VERBS:
+            names.add(low)
+    return frozenset(names)
 
 
 def _same_actor(generator: str, verifier: str) -> bool:
-    """True if generator and verifier share a specific identity key (model slug or
-    proper name) — the producer grading its own homework, however phrased."""
-    return bool(_identity_keys(generator) & _identity_keys(verifier))
+    """True if generator and verifier are the same actor — same model slug, or the
+    same acting proper name. DIFFERENT model slugs (opus vs sonnet) prove two
+    distinct actors and override any shared-word collision."""
+    gs, vs = _slugs(generator), _slugs(verifier)
+    if gs and vs and gs.isdisjoint(vs):
+        return False                              # different models => different actors
+    if gs & vs:
+        return True                               # same model named on both sides
+    return bool(_subject_names(generator) & _subject_names(verifier))
 
 
 def _has_machine_gate(gate: str) -> bool:

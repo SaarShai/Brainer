@@ -80,7 +80,10 @@ def test_prose_gate_reviewer_agrees_r1_fail():
 
 def test_command_gate_passes():
     for g in ["pytest -q", "./check.sh", "make test", "node run.mjs",
-              "exit code 0", "diff golden.txt out.txt", "cargo test"]:
+              "exit code 0", "diff golden.txt out.txt", "cargo test",
+              # common test runners beyond the core set (combined-stack regression:
+              # a real 'newman run postman/collection.json' must not FAIL R1)
+              "newman run postman/collection.json", "playwright test e2e/", "k6 run load.js"]:
         spec = CLEAN.replace("gate: pytest tests/ -q", f"gate: {g}")
         assert not _has(spec, 1, "FAIL"), (g, _rules(spec))
 
@@ -269,6 +272,32 @@ def test_zero_budget_warns_r2():
         assert not _has(spec, 2, "FAIL"), (b, _rules(spec))
     spec = CLEAN.replace("budget: max_iterations=20", "budget: max_iterations=0")
     assert _exit_for(spec) == 1, _rules(spec)  # WARN, no FAIL
+
+
+# --- composition R3 false-positives (cross-skill / combined-stack) --------
+
+def test_different_models_sharing_domain_words_no_r3():
+    # Combined-stack regression: a loop built on wiki-refresh vocabulary —
+    # opus generator + sonnet verifier both naming Keep/Update/Replace — is NOT
+    # self-grading. A model-slug mismatch overrides the shared capitalized words.
+    spec = (CLEAN
+            .replace("generator: opus coder agent",
+                     "generator: opus refresh agent applies Keep/Update/Consolidate/Replace/Delete")
+            .replace("verifier: sonnet read-only reviewer",
+                     "verifier: sonnet reconcile agent recomputes Keep/Update/Replace"))
+    assert not _has(spec, 3, "FAIL"), _rules(spec)
+
+
+def test_shared_qualifier_distinct_actors_no_r3():
+    # Two distinct actors sharing a Capitalized QUALIFIER (not an acting name) are
+    # not self-grading: "Payments service team" vs "Payments platform auditor",
+    # "Senior Marketing Writer" vs "Senior Editorial Reviewer".
+    spec = (CLEAN.replace("generator: opus coder agent", "generator: the Payments service team implements it")
+            .replace("verifier: sonnet read-only reviewer", "verifier: the Payments platform auditor validates it"))
+    assert not _has(spec, 3, "FAIL"), _rules(spec)
+    spec2 = (CLEAN.replace("generator: opus coder agent", "generator: Senior Marketing Writer drafts the copy")
+             .replace("verifier: sonnet read-only reviewer", "verifier: Senior Editorial Reviewer checks the copy"))
+    assert not _has(spec2, 3, "FAIL"), _rules(spec2)
 
 
 # --- R4 OPEN-NO-ACK -------------------------------------------------------
