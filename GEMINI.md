@@ -31,7 +31,7 @@ notice when context matches one (e.g. `wiki-memory` for "have we done X").
 
 - `cache-lint` — Audit a Claude Code project for prompt-cache hygiene against Anthropic's six cache rules (ordering, dynamic-content injection, tool stability, model switching, breakpoint sizing, fork safety)
 - `caveman-ultra` — Terse output style
-- `compliance-canary` — Use when long sessions show drift symptoms — filler creep, word-count growth, done-claims without evidence, repeated tool errors
+- `compliance-canary` — Use when a long session drifts — the single always-on drift watcher: one UserPromptSubmit hook combining a periodic skill-rule re-anchor (every N turns) with symptomatic per-skill drift probes (filler creep, word-count growth, unverified done-claims, looping tool errors, rule fade)
 - `context-keeper` — PreCompact hook that extracts structured state (files, commands, errors, numbers, decisions, failures) from the transcript before compaction
 - `eval-gate` — Score AI output against a written rubric before it ships — an LLM-as-judge quality gate for content output (drafts, posts, answers) and product output (an agent's reply, an extraction, a generated payload)
 - `index-first` — Prefer pre-built indexes over chains of grep/read/scan
@@ -41,7 +41,6 @@ notice when context matches one (e.g. `wiki-memory` for "have we done X").
 - `plan-first-execute` — Plan before executing non-trivial tasks
 - `prompt-triage` — Use on every UserPromptSubmit (pre-model hook) to classify the prompt and emit a directive telling the main model which subagent/model should handle it
 - `semantic-diff` — AST-node-level diff for file re-reads
-- `skill-pulse` — UserPromptSubmit hook that periodically re-injects active skill rules to fight instruction drift
 - `task-retrospective` — Use at the end of any non-trivial task (after the work is verified, before the final report), when the user gives a corrective message mid-task, or when the user types /retro
 - `verify-before-completion` — Use before claiming work is done, fixed, passing, committed, or ready
 - `wiki-memory` — Repo-local markdown wiki with progressive retrieval (search → timeline → fetch) and gated writes (verified facts only)

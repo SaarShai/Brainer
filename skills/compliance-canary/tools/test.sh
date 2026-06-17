@@ -557,6 +557,94 @@ print(json.dumps({'session_id':'s40','transcript_path':sys.argv[1],'hook_event_n
 out=$(printf '%s' "$pay40" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc40" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk39" $HOOK)
 if emitted "$out" && echo "$out" | grep -q 'word_count_per_message'; then ok "unwarranted (trivial) prompt → creep fires"; else no "trivial prompt → fires" "got: $(echo "$out" | head -c150)"; fi
 
+# ======================================================================
+# Periodic re-anchor (absorbed skill-pulse, merged 2026-06-16). The second
+# mechanism: every Nth turn, re-state active skills' `pulse_reminder:` rules.
+# ======================================================================
+
+make_skill_with_pulse() {
+  # make_skill_with_pulse <skills_subdir> <dir_name> <yaml_name> <pulse_reminder> [extra_frontmatter_line]
+  local sk_root="$SKILLS_ROOT/$1"; local dir="$2"; local nm="$3"; local pr="$4"; local extra="${5:-}"
+  mkdir -p "$sk_root/$dir"
+  {
+    echo "---"
+    echo "name: $nm"
+    echo "description: Test skill $nm. Second sentence here."
+    [ -n "$pr" ] && echo "pulse_reminder: $pr"
+    [ -n "$extra" ] && echo "$extra"
+    echo "---"
+    echo "body"
+  } > "$sk_root/$dir/SKILL.md"
+}
+
+EMPTYTX="$TRANSCRIPT_DIR/empty.jsonl"; : > "$EMPTYTX"
+
+echo "[41] re-anchor: silent below cadence, fires on cadence turn (PULSE_EVERY=2)"
+make_skill_with_pulse skp1 caveman caveman-ultra "terse — drop filler"
+o1=$(call ccp1 skp1 "$EMPTYTX" sp1 COMPLIANCE_CANARY_PULSE_EVERY=2)
+o2=$(call ccp1 skp1 "$EMPTYTX" sp1 COMPLIANCE_CANARY_PULSE_EVERY=2)
+if [ -z "$o1" ] && emitted "$o2" && echo "$o2" | grep -q 're-anchor (turn 2)' && echo "$o2" | grep -q 'caveman-ultra: terse'; then
+  ok "re-anchor fires on cadence turn, silent before"; else no "re-anchor cadence" "t1=[$o1] t2=[$(echo "$o2"|head -c80)]"; fi
+
+echo "[42] re-anchor: repeats on turn 4, silent on turn 3 (off-cadence)"
+o3=$(call ccp1 skp1 "$EMPTYTX" sp1 COMPLIANCE_CANARY_PULSE_EVERY=2)   # turn3
+o4=$(call ccp1 skp1 "$EMPTYTX" sp1 COMPLIANCE_CANARY_PULSE_EVERY=2)   # turn4
+if [ -z "$o3" ] && echo "$o4" | grep -q 're-anchor (turn 4)'; then ok "re-anchor repeats on cadence, silent between"; else no "re-anchor repeat" "t3=[$o3] t4=[$(echo "$o4"|head -c80)]"; fi
+
+echo "[43] re-anchor: skill WITHOUT pulse_reminder is excluded"
+make_skill_with_pulse skp2 withpr has-pr "rule A"
+make_skill_with_pulse skp2 nopr no-pr ""        # no pulse_reminder line
+call ccp2 skp2 "$EMPTYTX" sp2 COMPLIANCE_CANARY_PULSE_EVERY=2 >/dev/null
+o=$(call ccp2 skp2 "$EMPTYTX" sp2 COMPLIANCE_CANARY_PULSE_EVERY=2)
+if echo "$o" | grep -q 'has-pr: rule A' && ! echo "$o" | grep -q 'no-pr'; then ok "no-pulse_reminder skill excluded"; else no "pulse exclusion" "got: $(echo "$o"|head -c120)"; fi
+
+echo "[44] re-anchor YIELDS to a fired probe on a shared cadence turn (no double-nag)"
+# Skill carries BOTH a pulse_reminder AND a filler probe; transcript has filler.
+make_skill_with_pulse skp3 caveman caveman-ultra "terse — drop filler"
+cat > "$SKILLS_ROOT/skp3/caveman/drift_probes.json" <<'EOF'
+[{"id":"filler","kind":"forbidden_regex","pattern":"(?i)\\bcertainly\\b","message":"no certainly"}]
+EOF
+TXF="$TRANSCRIPT_DIR/t44.jsonl"
+write_transcript "$TXF" "$(assistant_text 'Certainly! Proceeding now.' u1)"
+# turn1 CLEAN (no fire, no cooldown set); turn2 = cadence AND fresh filler →
+# probe fires, re-anchor must yield. (If turn1 had filler too, cooldown would
+# suppress the turn2 fire — a separate, already-tested behavior.)
+call ccp3 skp3 "$EMPTYTX" sp3 COMPLIANCE_CANARY_PULSE_EVERY=2 >/dev/null   # turn1 clean
+o=$(call ccp3 skp3 "$TXF" sp3 COMPLIANCE_CANARY_PULSE_EVERY=2)            # turn2 cadence + filler
+if echo "$o" | grep -q 'forbidden_regex' && ! echo "$o" | grep -q 're-anchor'; then ok "probe fires; re-anchor yields"; else no "yield-on-shared-turn" "got: $(echo "$o"|head -c160)"; fi
+
+echo "[45] SKILL_PULSE_DISABLED=1: re-anchor off, but probe STILL fires (fresh session, turn 1)"
+o=$(call ccp3b skp3 "$TXF" sp3b COMPLIANCE_CANARY_PULSE_EVERY=2 SKILL_PULSE_DISABLED=1)
+if echo "$o" | grep -q 'forbidden_regex' && ! echo "$o" | grep -q 're-anchor'; then ok "pulse-disable ≠ probe-disable"; else no "SKILL_PULSE_DISABLED scope" "got: $(echo "$o"|head -c120)"; fi
+
+echo "[46] COMPLIANCE_CANARY_PULSE_EVERY=0 disables re-anchor (clean transcript → silent)"
+call ccp4 skp1 "$EMPTYTX" sp4 COMPLIANCE_CANARY_PULSE_EVERY=0 >/dev/null
+o=$(call ccp4 skp1 "$EMPTYTX" sp4 COMPLIANCE_CANARY_PULSE_EVERY=0)
+if [ -z "$o" ]; then ok "PULSE_EVERY=0 → re-anchor disabled"; else no "PULSE_EVERY=0" "got: $(echo "$o"|head -c120)"; fi
+
+echo "[47] cadence floor: PULSE_EVERY=1 clamps to 2 (silent on turn 1)"
+o1=$(call ccp5 skp1 "$EMPTYTX" sp5 COMPLIANCE_CANARY_PULSE_EVERY=1)   # turn1: if floored to 2, silent
+o2=$(call ccp5 skp1 "$EMPTYTX" sp5 COMPLIANCE_CANARY_PULSE_EVERY=1)   # turn2: fires
+if [ -z "$o1" ] && echo "$o2" | grep -q 're-anchor (turn 2)'; then ok "cadence floors to 2"; else no "cadence floor" "t1=[$o1] t2=[$(echo "$o2"|head -c80)]"; fi
+
+echo "[48] SKILL_PULSE_EVERY back-compat alias drives cadence"
+call ccp6 skp1 "$EMPTYTX" sp6 SKILL_PULSE_EVERY=2 >/dev/null
+o=$(call ccp6 skp1 "$EMPTYTX" sp6 SKILL_PULSE_EVERY=2)
+if echo "$o" | grep -q 're-anchor (turn 2)'; then ok "SKILL_PULSE_EVERY alias honored"; else no "alias cadence" "got: $(echo "$o"|head -c120)"; fi
+
+echo "[49] BOM-prefixed SKILL.md frontmatter still parses (skill not dropped)"
+mkdir -p "$SKILLS_ROOT/skp7/bomskill"
+printf '\xef\xbb\xbf---\nname: bom-skill\ndescription: x. y.\npulse_reminder: bom rule\n---\nbody\n' > "$SKILLS_ROOT/skp7/bomskill/SKILL.md"
+call ccp7 skp7 "$EMPTYTX" sp7 COMPLIANCE_CANARY_PULSE_EVERY=2 >/dev/null
+o=$(call ccp7 skp7 "$EMPTYTX" sp7 COMPLIANCE_CANARY_PULSE_EVERY=2)
+if echo "$o" | grep -q 'bom-skill: bom rule'; then ok "BOM frontmatter parsed"; else no "BOM tolerance" "got: $(echo "$o"|head -c120)"; fi
+
+echo "[50] allowlist forces inclusion w/ description first-sentence fallback"
+make_skill_with_pulse skp8 nopr no-pr ""    # no pulse_reminder; desc = "Test skill no-pr. Second sentence here."
+call ccp8 skp8 "$EMPTYTX" sp8 COMPLIANCE_CANARY_PULSE_EVERY=2 COMPLIANCE_CANARY_PULSE_SKILLS=no-pr >/dev/null
+o=$(call ccp8 skp8 "$EMPTYTX" sp8 COMPLIANCE_CANARY_PULSE_EVERY=2 COMPLIANCE_CANARY_PULSE_SKILLS=no-pr)
+if echo "$o" | grep -q 'no-pr: Test skill no-pr'; then ok "allowlist + description fallback"; else no "allowlist fallback" "got: $(echo "$o"|head -c120)"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then

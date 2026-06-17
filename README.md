@@ -39,7 +39,7 @@ graphify extract .
 
 ## The catalog (16 skills)
 
-**All 16 installed by `./install.sh`.** `skill-pulse` and `compliance-canary` now auto-wire their `UserPromptSubmit` hooks (`auto-install: true`, **default-on since v1.7**); `think` is slash-only (`/think`, no hook). To disable a default-on hook, remove its entry from `.claude/settings.json` by hand.
+**All installed by `./install.sh`.** `compliance-canary` (the single drift watcher — it absorbed `skill-pulse` at v1.10) auto-wires its `UserPromptSubmit` hook (`auto-install: true`, **default-on since v1.7**); `think` is slash-only (`/think`, no hook). To disable a default-on hook, remove its entry from `.claude/settings.json` by hand.
 
 | Skill | Trigger | Desc tokens | Notes |
 |---|---|---:|---|
@@ -54,8 +54,7 @@ graphify extract .
 | [semantic-diff](skills/semantic-diff/SKILL.md) | file re-read | 80 | AST-node diff. 95.5% measured savings on argparse.py re-reads. |
 | [index-first](skills/index-first/SKILL.md) | "where is X used / what calls Y" | 81 | Prefer pre-built indexes / composite verbs over grep+read chains. Eval pending. (colbymchenry/codegraph lineage.) |
 | [output-filter](skills/output-filter/SKILL.md) | terminal output hook | 70 | Strip ANSI/progress/dup noise; preserves errors. |
-| [skill-pulse](skills/skill-pulse/SKILL.md) | UserPromptSubmit hook | 59 | **Default-on since v1.7** (`auto-install: true`). Every N turns re-injects active skills' `pulse_reminder` rules. Paper-calibrated (arXiv 2510.07777). |
-| [compliance-canary](skills/compliance-canary/SKILL.md) | UserPromptSubmit hook | 71 | **Default-on since v1.7** (`auto-install: true`). Scans recent replies against per-skill `drift_probes.json`; injects targeted correctives. Symptomatic complement to `skill-pulse`. |
+| [compliance-canary](skills/compliance-canary/SKILL.md) | UserPromptSubmit hook | 74 | **Default-on since v1.7** (`auto-install: true`). The single drift watcher: a periodic skill-rule re-anchor every N turns (paper-calibrated, arXiv 2510.07777) **plus** symptomatic per-skill `drift_probes.json` scans; the re-anchor yields to a fired probe (no double-nag). Absorbed `skill-pulse` at v1.10. |
 | [write-gate](skills/write-gate/SKILL.md) | before any persistent write | 72 | Content-quality gate on durable memory. Signal-score (ogham lineage) + why-clause enforcement (codenamev lineage). Prevents reasonless decisions and recap-style writes. |
 | [wiki-refresh](skills/wiki-refresh/SKILL.md) | "refresh wiki / audit vs code" | 76 | Code-grounded reconcile of wiki pages (Keep/Update/Consolidate/Replace/Delete) via `audit-refs`; emits typed `contradicts:` edges. Ground-truth reconcile. |
 | [cache-lint](skills/cache-lint/SKILL.md) | before merging hooks/skills, CI | 71 | Static audit against Anthropic's 6 prompt-cache rules (ussumant lineage). FAIL on dynamic content above breakpoint, prefix mutation by Stop-hooks, etc. |
@@ -163,7 +162,7 @@ The catalog evolves — skills get added, and some get **cut** after measurement
 
   A re-run is **self-healing**: it (re)symlinks the current skills, **prunes broken symlinks** for any cut skill, removes **orphan Cursor `.mdc` rules**, **prunes dead hooks** from `.claude/settings.json` whose script no longer exists, and regenerates the resident catalog (`CLAUDE.md` / `AGENTS.md` / `GEMINI.md`). New skills install on the same pass.
 
-The one thing it deliberately *won't* do is disable a **default-on** hook (`skill-pulse` / `compliance-canary`, `auto-install: true` since v1.7) — their scripts still exist, so the prune leaves them wired; to turn one off, drop its hook entry from `.claude/settings.json` by hand.
+The one thing it deliberately *won't* do is disable a **default-on** hook (`compliance-canary`, `auto-install: true` since v1.7) — its script still exists, so the prune leaves it wired; to turn it off, drop its hook entry from `.claude/settings.json` by hand (or `COMPLIANCE_CANARY_DISABLED=1`).
 
 ## What changed (vs the old framework)
 

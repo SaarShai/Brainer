@@ -1,10 +1,21 @@
 #!/usr/bin/env python3
-"""compliance-canary UserPromptSubmit hook.
+"""compliance-canary UserPromptSubmit hook — the single drift watcher.
 
-Detects per-skill drift symptoms in recent assistant messages and injects
-a corrective <system-reminder> on the next user turn. Complement to
-skill-pulse: pulse re-anchors unconditionally; canary intervenes only
-when symptoms appear.
+Two ORTHOGONAL anti-drift mechanisms in ONE hook process (skill-pulse was
+folded in here 2026-06-16 — one reactive hook instead of two, the leaner
+target the eval notes had flagged):
+
+  1. SYMPTOMATIC probes (every turn) — detect per-skill drift symptoms in
+     recent assistant messages / tool results and inject a targeted,
+     evidence-quoting corrective. Silent until a symptom shows.
+  2. PERIODIC re-anchor (every Nth turn) — unconditionally re-state the
+     active skills' rules before they fade from attention. Paper-calibrated
+     cadence (arXiv 2510.07777). Covers rules that have NO symptom probe.
+
+One process, one dir-walk, one transcript read, one state file, one injected
+<system-reminder>. The re-anchor YIELDS to fired probes on a shared turn
+(symptom correction is higher-signal and itself re-anchors) — a single global
+budget, so the two mechanisms never double-nag.
 
 Per-skill probes are declared in `<.claude/skills>/<name>/drift_probes.json`:
 
@@ -42,9 +53,15 @@ from pathlib import Path
 COOLDOWN_TURNS_DEFAULT = 3
 MSG_WINDOW_DEFAULT = 3            # number of recent assistant messages to scan
 TRANSCRIPT_LINE_CAP = 400         # max trailing lines read from transcript
-MAX_PROBES_TRIGGERED = 4          # cap pulse payload
+MAX_PROBES_TRIGGERED = 4          # cap symptomatic payload
 GC_AGE_SECONDS = 7 * 24 * 3600
 GC_SCAN_MAX = 500
+
+# Periodic re-anchor (absorbed skill-pulse). Cadence is paper-calibrated:
+# arXiv 2510.07777 tested reminder injections at turns 4 + 7 of 10-turn convos.
+CADENCE_DEFAULT = 4
+CADENCE_FLOOR = 2                 # a cadence below 2 re-anchors every turn — noise
+MAX_SKILLS_IN_PULSE = 8          # cap re-anchor payload
 
 # Strip fenced + inline code from assistant text before running detectors —
 # otherwise a literal string like `print("Certainly!")` triggers caveman's
@@ -86,7 +103,10 @@ def state_path(session_id: str) -> Path:
 
 
 def skills_root() -> Path:
-    override = os.environ.get("COMPLIANCE_CANARY_SKILLS_ROOT")
+    # SKILL_PULSE_SKILLS_ROOT honored as a back-compat alias (skill-pulse merged
+    # into this hook 2026-06-16).
+    override = (os.environ.get("COMPLIANCE_CANARY_SKILLS_ROOT")
+                or os.environ.get("SKILL_PULSE_SKILLS_ROOT"))
     if override:
         return Path(override)
     return Path(".claude/skills")
@@ -202,6 +222,86 @@ def discover_probes(root: Path) -> list[dict]:
     except OSError as e:
         log_err(f"discover-fail root={root} err={e!r}")
     return out
+
+
+# -------------------------- periodic re-anchor (absorbed skill-pulse) -------
+# The probes above are SYMPTOMATIC. This second mechanism is UNCONDITIONAL: on
+# every Nth turn it re-states the active skills' `pulse_reminder:` rules so they
+# stay in effective attention. Curated, not noisy — a skill participates only if
+# its frontmatter declares `pulse_reminder:` (or it's force-listed via env).
+
+# `﻿?` tolerates a UTF-8 BOM before the opening fence — without it a
+# BOM-prefixed SKILL.md silently yields {} and the skill drops from the
+# re-anchor (the fix-one-copy-not-the-sibling divergence class).
+_FRONTMATTER_RE = re.compile(r"^﻿?---\s*\n(.*?)\n---\s*\n", re.DOTALL)
+
+
+def parse_frontmatter(text: str) -> dict:
+    """Minimal `key: value` frontmatter parser (no PyYAML dep). Handles plain
+    and quoted scalars — all this catalog's SKILL.md files use."""
+    m = _FRONTMATTER_RE.match(text)
+    if not m:
+        return {}
+    out: dict = {}
+    for raw in m.group(1).splitlines():
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            continue
+        if ":" not in raw:
+            continue
+        key, _, val = raw.partition(":")
+        key = key.strip()
+        val = val.strip()
+        if len(val) >= 2 and val[0] == val[-1] and val[0] in ('"', "'"):
+            val = val[1:-1]
+        out[key] = val
+    return out
+
+
+def first_sentence(text: str) -> str:
+    if not text:
+        return ""
+    # Split on sentence-final punctuation + space so decimals / "e.g." survive.
+    parts = re.split(r"(?<=[.!?])\s+", text.strip(), maxsplit=1)
+    return parts[0].rstrip(".") if parts else text.strip()
+
+
+def discover_pulse_skills(root: Path, allowlist: set[str]) -> list[tuple[str, str]]:
+    """[(name, reminder), ...] for skills to re-anchor. Included iff frontmatter
+    has `pulse_reminder:`, OR the skill is named in `allowlist` (then fall back
+    to the first sentence of `description`). Deduped by the `name:` field."""
+    if not root.is_dir():
+        return []
+    seen: set[str] = set()
+    out: list[tuple[str, str]] = []
+    try:
+        for entry in sorted(root.iterdir()):
+            if not entry.is_dir():
+                continue
+            skill_md = entry / "SKILL.md"
+            if not skill_md.is_file():
+                continue
+            try:
+                text = skill_md.read_text(encoding="utf-8", errors="replace")
+            except OSError as e:
+                log_err(f"skill-read-fail path={skill_md} err={e!r}")
+                continue
+            fm = parse_frontmatter(text)
+            name = fm.get("name") or entry.name
+            if name in seen:
+                continue
+            reminder = fm.get("pulse_reminder")
+            if reminder:
+                out.append((name, reminder))
+                seen.add(name)
+                continue
+            if name in allowlist:
+                hint = first_sentence(fm.get("description", ""))
+                if hint:
+                    out.append((name, hint))
+                    seen.add(name)
+    except OSError as e:
+        log_err(f"discover-pulse-fail root={root} err={e!r}")
+    return out[:MAX_SKILLS_IN_PULSE]
 
 
 # -------------------------- transcript reading ------------------------------
@@ -599,14 +699,25 @@ def format_one_probe(probe: dict) -> str:
     return f"- {skill} [{kind}]: triggered"
 
 
-def build_corrective(fired: list[dict], turn: int) -> str:
-    lines = [
-        "<system-reminder>",
-        f"compliance-canary (turn {turn}): drift signals detected in your recent output. "
-        f"Re-read each active rule and correct your next reply before continuing.",
-    ]
-    for probe in fired:
-        lines.append(format_one_probe(probe))
+def build_output(fired: list[dict], pulse_skills: list[tuple[str, str]], turn: int) -> str:
+    """One <system-reminder> carrying whichever mechanism(s) produced output.
+    Symptomatic correctives lead (higher signal); the periodic re-anchor follows
+    only when no probe fired this turn (it yields — see main)."""
+    lines = ["<system-reminder>"]
+    if fired:
+        lines.append(
+            f"compliance-canary (turn {turn}): drift signals detected in your recent "
+            f"output. Re-read each named rule and correct your next reply before continuing."
+        )
+        for probe in fired:
+            lines.append(format_one_probe(probe))
+    if pulse_skills:
+        lines.append(
+            f"compliance-canary re-anchor (turn {turn}): these active skills' rules remain "
+            f"in force — re-read each and check your most recent reply against it."
+        )
+        for name, reminder in pulse_skills:
+            lines.append(f"- {name}: {reminder}")
     lines.append("</system-reminder>")
     return "\n".join(lines)
 
@@ -651,59 +762,79 @@ def main() -> int:
     if is_new_session:
         gc_old_state(path.parent, time.time())
 
+    # --- periodic re-anchor cadence (absorbed skill-pulse) ---------------
+    # COMPLIANCE_CANARY_PULSE_EVERY is primary; SKILL_PULSE_EVERY is a
+    # back-compat alias. 0 (or *_PULSE_DISABLED / legacy SKILL_PULSE_DISABLED)
+    # disables JUST the re-anchor — symptomatic probes still run.
+    try:
+        raw_every = int(os.environ.get(
+            "COMPLIANCE_CANARY_PULSE_EVERY",
+            os.environ.get("SKILL_PULSE_EVERY", CADENCE_DEFAULT)))
+    except ValueError:
+        raw_every = CADENCE_DEFAULT
+    if (os.environ.get("COMPLIANCE_CANARY_PULSE_DISABLED") == "1"
+            or os.environ.get("SKILL_PULSE_DISABLED") == "1"):
+        raw_every = 0
+    pulse_every = 0 if raw_every <= 0 else max(CADENCE_FLOOR, raw_every)
+    is_pulse_turn = bool(pulse_every) and turn >= pulse_every and turn % pulse_every == 0
+
+    # --- symptomatic probes (every turn) --------------------------------
+    fired: list[dict] = []
     probes = discover_probes(skills_root())
-    if not probes:
+    if probes:
+        events = read_transcript_tail(transcript_path)
+        if events:
+            # Fetch enough messages for the LARGEST declared word_count window.
+            # Don't early-return on empty messages: tool_use-only turns (the norm
+            # during error loops) have no assistant TEXT, but that's exactly when
+            # the non-text detectors (trajectory_drift, repeated_tool_error,
+            # user_correction) must still run. Text detectors no-op on [].
+            WORD_COUNT_WINDOW_CAP = 50
+            max_window = max(
+                [MSG_WINDOW_DEFAULT]
+                + [
+                    min(int(p.get("window", MSG_WINDOW_DEFAULT)), WORD_COUNT_WINDOW_CAP)
+                    for p in probes
+                    if p.get("kind") == "word_count_per_message"
+                    and str(p.get("window", MSG_WINDOW_DEFAULT)).lstrip("-").isdigit()
+                ]
+            )
+            messages = recent_assistant_messages(events, max_window) or []
+            tool_uses = recent_tool_uses(events, n=10)
+            tool_errors = recent_tool_errors(events)
+
+            history = state.get("probe_history", [])
+            suppressed = {
+                h["probe_id"] for h in history
+                if isinstance(h, dict)
+                and turn - int(h.get("fired_at_turn", 0)) < cooldown
+            }
+
+            fired = run_probes(probes, messages, tool_uses, suppressed, tool_errors,
+                               user_prompt=str(payload.get("prompt") or ""),
+                               traj_stats=trajectory_stats(events))
+            if fired:
+                with state_lock(path):
+                    state = load_state(path)
+                    history = state.get("probe_history", [])
+                    for probe in fired:
+                        history.append({"probe_id": probe["_probe_id"], "fired_at_turn": turn})
+                    state["probe_history"] = history[-50:]
+                    save_state(path, state)
+
+    # --- periodic re-anchor (yields to fired probes — no double-nag) -----
+    pulse_skills: list[tuple[str, str]] = []
+    if is_pulse_turn and not fired:
+        allow_raw = os.environ.get(
+            "COMPLIANCE_CANARY_PULSE_SKILLS",
+            os.environ.get("SKILL_PULSE_SKILLS", ""))
+        allowlist = {s.strip() for s in allow_raw.split(",") if s.strip()}
+        pulse_skills = discover_pulse_skills(skills_root(), allowlist)
+
+    if not fired and not pulse_skills:
         return 0
 
-    events = read_transcript_tail(transcript_path)
-    if not events:
-        return 0
-
-    # Fetch enough messages for the LARGEST declared word_count window — and
-    # never early-return on empty: tool_use-only turns (the norm during error
-    # loops) have no assistant TEXT, but that's exactly when the non-text
-    # detectors (trajectory_drift, repeated_tool_error, user_correction) must
-    # still run. The text detectors already no-op on []. (probes are discovered
-    # above, so reading their windows here is safe.)
-    WORD_COUNT_WINDOW_CAP = 50
-    max_window = max(
-        [MSG_WINDOW_DEFAULT]
-        + [
-            min(int(p.get("window", MSG_WINDOW_DEFAULT)), WORD_COUNT_WINDOW_CAP)
-            for p in probes
-            if p.get("kind") == "word_count_per_message"
-            and str(p.get("window", MSG_WINDOW_DEFAULT)).lstrip("-").isdigit()
-        ]
-    )
-    messages = recent_assistant_messages(events, max_window) or []
-    tool_uses = recent_tool_uses(events, n=10)
-    tool_errors = recent_tool_errors(events)
-
-    # Build suppression set from probe_history
-    history = state.get("probe_history", [])
-    suppressed = {
-        h["probe_id"] for h in history
-        if isinstance(h, dict)
-        and turn - int(h.get("fired_at_turn", 0)) < cooldown
-    }
-
-    fired = run_probes(probes, messages, tool_uses, suppressed, tool_errors,
-                       user_prompt=str(payload.get("prompt") or ""),
-                       traj_stats=trajectory_stats(events))
-    if not fired:
-        return 0
-
-    # Persist new fire entries
-    with state_lock(path):
-        state = load_state(path)
-        history = state.get("probe_history", [])
-        for probe in fired:
-            history.append({"probe_id": probe["_probe_id"], "fired_at_turn": turn})
-        # bound history size
-        state["probe_history"] = history[-50:]
-        save_state(path, state)
-
-    sys.stdout.write(build_corrective(fired, turn))
+    sys.stdout.write(build_output(fired, pulse_skills, turn))
     sys.stdout.write("\n")
     return 0
 

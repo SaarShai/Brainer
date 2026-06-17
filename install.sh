@@ -116,12 +116,14 @@ skill_is_slash_only() {
 # dependency. Enable one explicitly with: bash skills/<name>/tools/install.sh
 # Rationale: only measured-win or cheap load-bearing skills belong on the
 # default install path (see eval/FINDINGS.md).
-# skill-pulse + compliance-canary are now DEFAULT-ON (auto-install: true, set
-# 2026-06-09): they are the output-style drift defense — skill-pulse re-anchors
-# active skill rules every N turns, compliance-canary catches symptomatic drift
-# — that keeps caveman-ultra (and any pulse_reminder/drift_probes skill) from
-# decaying over a long session. Turn off per-project via env without uninstall:
-# SKILL_PULSE_DISABLED=1 / COMPLIANCE_CANARY_DISABLED=1.
+# compliance-canary is the DEFAULT-ON output-style drift defense (auto-install:
+# true since 2026-06-09; absorbed skill-pulse at v1.10, so it is now the SINGLE
+# drift watcher). One UserPromptSubmit hook runs both halves — a periodic
+# re-anchor of active skill rules every N turns AND symptomatic drift probes —
+# keeping caveman-ultra (and any pulse_reminder/drift_probes skill) from decaying
+# over a long session. Turn off per-project via env without uninstall:
+# COMPLIANCE_CANARY_DISABLED=1 (both) — SKILL_PULSE_DISABLED=1 still disables
+# just the re-anchor (back-compat alias).
 # NOTE: per-skill installers MERGE into .claude/settings.json (append-only).
 # A bare ./install.sh now AUTO-PRUNES hooks whose script is GONE (a skill that
 # was cut — see prune_dead_hooks below), so removed skills fully self-heal. But
