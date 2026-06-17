@@ -8,5 +8,12 @@
     "lookback_tool_uses": 6,
     "message": "claimed a loop/fleet/iteration completed or all agents passed, but no gate was run (loop_lint.py / a test / a verifier command) in the last 6 tool uses — exit on RECOMPUTED gate state, never on a model done-claim. Run the gate and quote its pass/fail, or say it is unverified.",
     "severity": "warn"
+  },
+  {
+    "id": "loop-build-intent",
+    "kind": "prompt_intent",
+    "pattern": "(?i)(?:\\b(?:unattended|self[- ]?correct\\w*|generator[- ]?verifier|fan[- ]?out|fleet\\s+of\\s+(?:agents?|workers?|sub-?agents?))\\b|\\b(?:iterate|retry|retries|loop|keep(?:s|\\s+\\w+)?\\s+(?:trying|going|revising|running))\\b[^.?!]{0,30}\\buntil\\b|\\buntil\\s+(?:it|they|each|all|every)\\b[^.?!]{0,30}\\b(?:pass\\w*|green|correct|good\\s+enough)\\b|\\b(?:nightly|scheduled|automat\\w+|cron|every\\s+night)\\b[^.?!]{0,40}\\b(?:regenerat\\w+|revis\\w+|retr(?:y|ies)|rebuild\\w*|re-?run)\\b)",
+    "message": "this prompt describes a self-correcting / iterate-until-it-passes / fan-out automation — apply loop-engineering BEFORE building: name the generator + a SEPARATE verifier, a concrete machine-checkable gate, a stop condition, and a numeric budget cap, then run loop_lint.py on the spec. No gate, or generator==verifier, means it is not a loop — just an open-ended spin.",
+    "severity": "warn"
   }
 ]

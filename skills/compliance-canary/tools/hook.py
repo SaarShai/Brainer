@@ -654,6 +654,14 @@ def detect_user_correction(probe: dict, _messages, _tool_uses, _tool_errors=None
 
 DETECTORS["user_correction"] = detect_user_correction
 
+# Same mechanism (regex the CURRENT user prompt) but for a PRE-TASK INTENT nudge
+# rather than a correction: a skill fires the moment the prompt describes the
+# situation it governs — e.g. loop-engineering on a "build a self-correcting
+# automation" prompt. Measured rationale: spontaneous Skill-tool invocation is
+# unreliable (blind agents don't auto-load loop-engineering even with a strong
+# description), so a mechanical trigger beats hoping the model remembers.
+DETECTORS["prompt_intent"] = detect_user_correction
+
 
 class _ProbeBudgetExceeded(BaseException):
     """Raised by the SIGALRM handler to abort a runaway probe phase. Derives
