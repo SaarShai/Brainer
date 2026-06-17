@@ -3,7 +3,7 @@
 set -uo pipefail
 
 TOOLS_DIR="$(cd "$(dirname "$0")" && pwd)"
-HOOK="bash $TOOLS_DIR/hook.sh"
+HOOK=(bash "$TOOLS_DIR/hook.sh")
 STATE_ROOT="$(mktemp -d -t cc-test-XXXX)"
 SKILLS_ROOT="$(mktemp -d -t cc-skills-XXXX)"
 TRANSCRIPT_DIR="$(mktemp -d -t cc-tx-XXXX)"
@@ -65,9 +65,9 @@ print(json.dumps({'session_id':sys.argv[1],'transcript_path':sys.argv[2],'hook_e
   local env_args=(COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/$state_sub"
                   COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/$skills_sub")
   if [ "$#" -gt 0 ]; then
-    printf '%s' "$payload" | env "${env_args[@]}" "$@" $HOOK
+    printf '%s' "$payload" | env "${env_args[@]}" "$@" "${HOOK[@]}"
   else
-    printf '%s' "$payload" | env "${env_args[@]}" $HOOK
+    printf '%s' "$payload" | env "${env_args[@]}" "${HOOK[@]}"
   fi
 }
 
@@ -188,9 +188,9 @@ out=$(call cc14 sk1 "$TRANSCRIPT_DIR/does-not-exist.jsonl" s14)
 if [ -z "$out" ]; then ok "missing transcript → silent"; else no "missing transcript → silent"; fi
 
 echo "[15] Empty / malformed stdin → exit 0"
-out=$(printf '' | $HOOK); ec=$?
+out=$(printf '' | "${HOOK[@]}"); ec=$?
 if [ $ec -eq 0 ]; then ok "empty stdin exit 0"; else no "empty stdin exit 0"; fi
-out=$(printf 'garbage' | $HOOK 2>/dev/null); ec=$?
+out=$(printf 'garbage' | "${HOOK[@]}" 2>/dev/null); ec=$?
 if [ $ec -eq 0 ]; then ok "malformed stdin exit 0"; else no "malformed stdin exit 0"; fi
 
 echo "[16] Two sessions: independent probe_history"
@@ -219,7 +219,7 @@ import json,sys
 print(json.dumps({'session_id':'cc-concur','transcript_path':sys.argv[1],'hook_event_name':'UserPromptSubmit','prompt':'x'}))
 " "$TX")
 for _ in 1 2 3 4 5 6 7 8 9 10; do
-  printf '%s' "$PAYLOAD" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc17" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk17" $HOOK > /dev/null &
+  printf '%s' "$PAYLOAD" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc17" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk17" "${HOOK[@]}" > /dev/null &
 done
 wait
 # hook.py names state files by SHA-256(session_id)[:16].json, not the raw id
@@ -364,7 +364,7 @@ payload=$(python3 -c "
 import json,sys
 print(json.dumps({'session_id':'s27','transcript_path':sys.argv[1],'hook_event_name':'UserPromptSubmit','prompt':'no, I said use spaces not tabs'}))
 " "$TX")
-out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc27" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk27" $HOOK)
+out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc27" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk27" "${HOOK[@]}")
 if emitted "$out" && echo "$out" | grep -q 'user_correction'; then ok "correction prompt fires"; else no "correction prompt fires" "got: $(echo "$out" | head -c120)"; fi
 
 echo "[28] user_correction: ordinary prompt stays silent"
@@ -372,7 +372,7 @@ payload=$(python3 -c "
 import json,sys
 print(json.dumps({'session_id':'s28','transcript_path':sys.argv[1],'hook_event_name':'UserPromptSubmit','prompt':'now add a unit test for the parser'}))
 " "$TX")
-out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc28" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk27" $HOOK)
+out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc28" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk27" "${HOOK[@]}")
 if [ -z "$out" ]; then ok "ordinary prompt silent"; else no "ordinary prompt silent" "got: $(echo "$out" | head -c100)"; fi
 
 echo "[29] malformed transcript events: detection still WORKS with garbage lines present"
@@ -456,7 +456,7 @@ payload=$(python3 -c "
 import json,sys
 print(json.dumps({'session_id':'s34','transcript_path':sys.argv[1],'hook_event_name':'UserPromptSubmit','prompt':'no, I said use spaces'}))
 " "$TX")
-out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc34" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk34" $HOOK)
+out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc34" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk34" "${HOOK[@]}")
 if emitted "$out" && echo "$out" | grep -q 'user_correction'; then ok "user_correction fires with no assistant prose"; else no "user_correction fires with no assistant prose" "got: $(echo "$out" | head -c150)"; fi
 
 echo "[35] claim_without_evidence: incidental substring ('cat' inside 'category') does NOT count as verification"
@@ -546,7 +546,7 @@ pay39=$(python3 -c "
 import json,sys
 print(json.dumps({'session_id':'s39','transcript_path':sys.argv[1],'hook_event_name':'UserPromptSubmit','prompt':'explain how this works in depth'}))
 " "$TXW")
-out=$(printf '%s' "$pay39" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc39" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk39" $HOOK)
+out=$(printf '%s' "$pay39" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc39" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk39" "${HOOK[@]}")
 if [ -z "$out" ]; then ok "warranted (detail) prompt → creep suppressed"; else no "warranted prompt → suppressed" "got: $(echo "$out" | head -c150)"; fi
 
 echo "[40] word_count warrant: trivial prompt still fires"
@@ -554,7 +554,7 @@ pay40=$(python3 -c "
 import json,sys
 print(json.dumps({'session_id':'s40','transcript_path':sys.argv[1],'hook_event_name':'UserPromptSubmit','prompt':'fix the typo'}))
 " "$TXW")
-out=$(printf '%s' "$pay40" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc40" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk39" $HOOK)
+out=$(printf '%s' "$pay40" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc40" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk39" "${HOOK[@]}")
 if emitted "$out" && echo "$out" | grep -q 'word_count_per_message'; then ok "unwarranted (trivial) prompt → creep fires"; else no "trivial prompt → fires" "got: $(echo "$out" | head -c150)"; fi
 
 # ======================================================================
@@ -653,7 +653,7 @@ if echo "$o" | grep -q 'no-pr: Test skill no-pr'; then ok "allowlist + descripti
 echo "[51] non-object JSON payload (42 / \"x\" / [..] / null / true) → exit 0, silent"
 bad51=0
 for p in '42' '"x"' '[1,2,3]' 'null' 'true'; do
-  out=$(printf '%s' "$p" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc51" $HOOK 2>/dev/null); ec=$?
+  out=$(printf '%s' "$p" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc51" "${HOOK[@]}" 2>/dev/null); ec=$?
   { [ "$ec" -ne 0 ] || [ -n "$out" ]; } && { bad51=1; break; }
 done
 if [ "$bad51" -eq 0 ]; then ok "non-object payloads handled (exit 0, silent)"; else no "non-object payload" "payload=$p exit=$ec out=[$out]"; fi
@@ -661,7 +661,7 @@ if [ "$bad51" -eq 0 ]; then ok "non-object payloads handled (exit 0, silent)"; e
 echo "[52] non-string session_id (7 / 9.9 / [1,2]) → exit 0 (no .encode crash)"
 bad52=0
 for sid in '7' '9.9' '[1,2]'; do
-  out=$(printf '{"session_id":%s,"transcript_path":"x","prompt":"hi"}' "$sid" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc52" $HOOK 2>/dev/null); ec=$?
+  out=$(printf '{"session_id":%s,"transcript_path":"x","prompt":"hi"}' "$sid" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc52" "${HOOK[@]}" 2>/dev/null); ec=$?
   [ "$ec" -ne 0 ] && { bad52=1; break; }
 done
 if [ "$bad52" -eq 0 ]; then ok "non-string session_id coerced (exit 0)"; else no "non-string session_id" "sid=$sid exit=$ec"; fi
@@ -673,7 +673,7 @@ TXR="$TRANSCRIPT_DIR/t53.jsonl"
 write_transcript "$TXR" "$(assistant_text 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!' u1)"
 pay53='{"session_id":"s53","transcript_path":"'"$TXR"'","prompt":"next"}'
 t0=$(python3 -c 'import time;print(time.time())')
-out=$(printf '%s' "$pay53" | timeout 6 env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc53" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk53" $HOOK 2>/dev/null); ec=$?
+out=$(printf '%s' "$pay53" | timeout 6 env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc53" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk53" "${HOOK[@]}" 2>/dev/null); ec=$?
 t1=$(python3 -c 'import time;print(time.time())')
 elapsed=$(python3 -c "print($t1-$t0)")
 # exit 0, no output, and well under the 6s timeout wall (budget is 1.5s)
