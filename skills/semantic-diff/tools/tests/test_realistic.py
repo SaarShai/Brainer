@@ -4,10 +4,22 @@ warnings.filterwarnings("ignore")
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import tiktoken
+try:
+    import tiktoken
+except ModuleNotFoundError:
+    # tiktoken is measurement-only and NOT a runtime/CI dep (not in
+    # requirements.txt). Skip cleanly so the slim default install stays green.
+    print("SKIP test_realistic: tiktoken not installed (measurement-only)")
+    sys.exit(0)
 from semdiff import read_smart
+import argparse as _argparse_mod
 
-ARGPARSE = "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/argparse.py"
+# Use the running interpreter's own argparse.py rather than a hardcoded 3.9 path
+# that exists on almost no machine.
+ARGPARSE = _argparse_mod.__file__
+if not ARGPARSE or not Path(ARGPARSE).is_file():
+    print(f"SKIP test_realistic: argparse source not found ({ARGPARSE})")
+    sys.exit(0)
 ENC = tiktoken.get_encoding("cl100k_base")
 
 def tok(s): return len(ENC.encode(s))

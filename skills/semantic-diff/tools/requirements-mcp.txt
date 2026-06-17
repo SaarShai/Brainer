@@ -1,0 +1,6 @@
+# semantic-diff OPTIONAL MCP server deps — adds the native read_file_smart tool.
+# Pulls mcp + its transitive chain (pydantic, cryptography ~24M, anyio,
+# jsonschema), which the CLI runtime in requirements.txt does NOT need.
+# Install: pip install -r requirements-mcp.txt   (then register the server)
+-r requirements.txt
+mcp>=0.4

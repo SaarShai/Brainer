@@ -7,7 +7,50 @@ from pathlib import Path
 from typing import Optional
 
 warnings.filterwarnings("ignore", category=FutureWarning)
-from tree_sitter_languages import get_parser
+
+# Parser loading. Default (slim) path: per-language tree-sitter grammar packages
+# (~8M total). Fallback: the fat tree-sitter-languages bundle (~86M) if the slim
+# packages are absent — so pre-slim installs keep working unchanged.
+# core.py only needs parser.parse(src) -> tree; the node API (.type, .children,
+# .child_by_field_name, .start_byte, .end_byte) is identical across versions.
+_PARSER_CACHE: dict = {}
+
+# lang -> (module, capsule-factory attr). typescript's factory is non-standard.
+_SLIM_GRAMMARS = {
+    "python":     ("tree_sitter_python", "language"),
+    "javascript": ("tree_sitter_javascript", "language"),
+    "typescript": ("tree_sitter_typescript", "language_typescript"),
+    "rust":       ("tree_sitter_rust", "language"),
+}
+
+
+def _build_slim_parser(lang: str):
+    import importlib
+    from tree_sitter import Language, Parser
+    mod_name, fn_name = _SLIM_GRAMMARS[lang]
+    mod = importlib.import_module(mod_name)
+    ts_lang = Language(getattr(mod, fn_name)())   # tree-sitter >= 0.22: capsule
+    try:
+        return Parser(ts_lang)                    # tree-sitter >= 0.22
+    except TypeError:
+        p = Parser()                              # tree-sitter 0.21
+        p.set_language(ts_lang)
+        return p
+
+
+def get_parser(lang: str):
+    """Return a cached tree-sitter parser for `lang`. Slim grammars first,
+    fat tree-sitter-languages bundle as a fallback for legacy installs."""
+    p = _PARSER_CACHE.get(lang)
+    if p is not None:
+        return p
+    try:
+        p = _build_slim_parser(lang)
+    except Exception:
+        from tree_sitter_languages import get_parser as _fat_get_parser
+        p = _fat_get_parser(lang)
+    _PARSER_CACHE[lang] = p
+    return p
 
 # Language-specific node types to extract. (type, name_field)
 # name_field is the child field whose text gives the node's identifier.

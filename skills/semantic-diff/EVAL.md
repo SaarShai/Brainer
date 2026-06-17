@@ -6,9 +6,17 @@
 |---|---|
 | description (always resident) | **80 tokens** (348 chars) |
 | body (loaded on trigger)      | **427 tokens** (1714 chars) |
-| tools/ payload                 | 150671.3 KB |
+| tools/ source (shipped, git)   | ~120 KB |
+| runtime install — CLI (default) | **~18 MB** (tree-sitter + 4 grammars; fresh venv, measured 2026-06-17) |
+| runtime install — +MCP (opt-in) | ~44 MB (adds mcp → cryptography ~24M) |
 | model pin                      | `any` |
 | effort pin                     | `low` |
+
+> Earlier revisions listed a "150671 KB tools/ payload" — that was mis-measuring
+> a local, git-ignored `.venv` (the old 86M `tree-sitter-languages` bundle + the
+> `mcp`/`cryptography` chain), not anything shipped. v1.11 split deps into a slim
+> CLI core (per-language grammars) and an optional MCP extra; fresh CLI install
+> is ~18M, an 88% cut.
 
 agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K context window).
 

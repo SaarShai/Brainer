@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Portable launcher for the semantic-diff CLI — host- and venv-agnostic.
+# The agent (any host: Claude Code, Codex, Cursor, Gemini) calls this via Bash:
+#   skills/semantic-diff/tools/semdiff-cli read <file> --session <id>
+#   skills/semantic-diff/tools/semdiff-cli clear --session <id>
+# Prefers the skill-local venv if install.sh created one, else system python3.
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -x "$DIR/.venv/bin/python" ]; then
+  PY="$DIR/.venv/bin/python"
+else
+  PY="$(command -v python3 || command -v python || true)"
+fi
+[ -n "$PY" ] || { echo "[semdiff] no python found" >&2; exit 127; }
+PYTHONPATH="$DIR${PYTHONPATH:+:$PYTHONPATH}" exec "$PY" -m semdiff.cli "$@"

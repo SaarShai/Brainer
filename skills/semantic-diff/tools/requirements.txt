@@ -1,7 +1,12 @@
-# tree-sitter-languages 1.10.x is built against the old tree-sitter C-API (<=0.21).
-# Without this cap pip pulls tree-sitter 0.25.x and get_parser() crashes with
-# "TypeError: __init__() takes exactly 1 argument (2 given)".
-tree-sitter>=0.21,<0.22
-tree-sitter-languages>=1.10
-mcp>=0.4  # only for the MCP server entrypoint
-# tiktoken  # optional, measurement-only: required by tests/test_realistic.py
+# semantic-diff CORE runtime (CLI). Slim per-language grammars (~8M total)
+# replacing the old 86M tree-sitter-languages bundle. Modern tree-sitter API:
+# Language(capsule) + Parser(lang). core.py falls back to tree-sitter-languages
+# if these are absent, so legacy/fat installs keep working.
+tree-sitter>=0.22,<0.26
+tree-sitter-python>=0.21
+tree-sitter-javascript>=0.21
+tree-sitter-typescript>=0.21
+tree-sitter-rust>=0.21
+# MCP server is OPTIONAL — not needed for the CLI runtime. To expose the native
+# read_file_smart tool, also: pip install -r requirements-mcp.txt
+# tiktoken is measurement-only (tests/test_realistic.py); not a runtime dep.

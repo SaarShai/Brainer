@@ -3,7 +3,7 @@ name: eval-gate
 description: Score AI output against a written rubric before it ships — an LLM-as-judge quality gate for content output (drafts, posts, answers) and product output (an agent's reply, an extraction, a generated payload). Use when asked "is this good enough", "score/grade this", "would this pass", to gate output on quality, to regression-check a prompt/model/pipeline change, or to turn a flagged bad output into a permanent test case. Returns 0-5 + reason; exit code gates. Opt-in until N≥50 verified.
 effort: low
 tools: [Bash, Read, Write]
-auto-install: false
+auto-install: true
 pulse_reminder: before shipping AI-generated output (or a prompt/model change), gate it — score against the rubric; nothing below the line ships, and every caught failure becomes a new case.
 ---
 
