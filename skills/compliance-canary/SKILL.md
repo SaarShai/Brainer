@@ -157,6 +157,18 @@ Fires when the agent's LAST turn ended on a forward-looking PROMISE ("I'll now i
 }
 ```
 
+#### `completion_without_closure` *(v1.11)*
+
+The closure gate — mirror of `early_stop`. Fires when the agent's last turn makes a TERMINAL "whole task is finished" claim ("all done", "task is complete", "ready to ship") but does NOT ask the user to confirm closure — i.e. it self-closes. Suppressed when the message invites confirmation ("shall I close this?", "anything else?") or is only a mid-task milestone (the claim regex is tighter than `claim_without_evidence`'s, which fires on any sub-step "done"). Distinct from `claim_without_evidence` (that is about EVIDENCE; this fires even when verification ran, because a verified-done still must be offered to the user). Ships in `verify-before-completion/drift_probes.json`. Overridable: `claim_pattern` (terminal claim), `ask_pattern` (closure invite that suppresses).
+
+```json
+{
+  "kind": "completion_without_closure",
+  "id": "completion-without-closure",
+  "severity": "warn"
+}
+```
+
 ## Mechanism 2 — periodic re-anchor
 
 Every `COMPLIANCE_CANARY_PULSE_EVERY` turns (default **4**, paper-calibrated — arXiv [2510.07777](https://arxiv.org/html/2510.07777) tests injections at turns 4 + 7 of 10-turn convos), the hook unconditionally re-states the active skills' rules so they stay in effective attention. This is the *prevention* half: it catches rules that fade **before** any symptom shows, and rules that have no symptom probe at all.

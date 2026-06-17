@@ -742,6 +742,184 @@ def detect_early_stop(probe: dict, messages: list[dict], _tool_uses, _tool_error
 DETECTORS["early_stop"] = detect_early_stop
 
 
+# ---- completion_without_closure (the closure gate) --------------------------
+# Requirement: when the agent believes the WHOLE task is finished it must
+# EXPLAIN what it did against what was asked and ASK the user whether the task
+# can be closed — never self-close. This is the mirror of early_stop: early_stop
+# catches "promised, didn't do it"; this catches "did it, closed it myself
+# without asking". Distinct from claim_without_evidence (which is about EVIDENCE)
+# — this fires even when verification ran, because a verified-done still must be
+# offered to the user for closure.
+
+# A TERMINAL "whole task is finished" claim — deliberately tighter than verify-
+# before-completion's claim regex (which fires on any sub-step "done"), to avoid
+# nagging on mid-task milestones. Overridable per-probe via `claim_pattern`.
+_COMPLETION_CLAIM_DEFAULT = (
+    r"(?i)(?:\ball done\b|\btask (?:is )?(?:complete|completed|done|finished)\b|"
+    r"\b(?:fully|now) (?:complete|completed|done|finished|implemented)\b|"
+    r"\bthat'?s (?:it|all|everything)\b|\bwrapped up\b|"
+    r"\bready to (?:go|ship|merge|review)\b|\bgood to go\b|"
+    r"\b(?:this|it|everything) is (?:now )?(?:done|complete|completed|finished|ready)\b|"
+    r"\bimplementation (?:is )?complete\b|\ball (?:set|green)\b|"
+    r"\beverything(?:'?s| is) (?:done|working|complete)\b)"
+)
+# The message already invites the user to confirm closure → contract satisfied,
+# suppress. Kept conservative: a FALSE suppression (thinking it asked when it
+# didn't) is the failure to avoid. Overridable per-probe via `ask_pattern`.
+_CLOSURE_ASK_DEFAULT = (
+    r"(?i)(?:close (?:it|this|that|the task|out)|ok(?:ay)? to close|safe to close|"
+    r"can (?:i|we) close|shall i (?:close|wrap up|mark)|should i (?:close|mark)|"
+    r"mark (?:this|it|that) (?:as )?(?:done|closed|complete)|anything else|"
+    r"is (?:this|that) (?:everything|all you needed|complete\?)|may i close|"
+    r"confirm (?:i can )?clos(?:e|ing)|"
+    r"let me know if (?:there'?s|there is) (?:anything|more)|"
+    r"can (?:this|it) be closed)"
+)
+# The agent is CONTINUING to a next step → a milestone note, not a terminal
+# close; suppress. Verb-agnostic (unlike early_stop's promise regex, which lists
+# specific verbs) so "Task complete. Next I will refactor…" is caught.
+_CLOSURE_CONTINUE_DEFAULT = (
+    r"(?i)(?:\bnext,?\s+i\b|\bthen i\b|\bnow i'?ll\b|"
+    r"\bi'?ll (?:now|next|then|also|go|start|continue|move)\b|\blet me\b|"
+    r"\bi'?m going to\b|\bi am going to\b|"
+    r"\bi will (?:now|next|then|also|continue|start|go|refactor|implement|add|write|create)\b|"
+    r"\bmoving on\b|\bnext step\b|\bafter (?:this|that),? i\b)"
+)
+
+
+def detect_completion_without_closure(probe: dict, messages: list[dict], _tool_uses, _tool_errors=None,
+                                      user_prompt: str = "", traj_stats: dict | None = None) -> dict | None:
+    """Fire when the last assistant message makes a TERMINAL completion claim
+    but neither asks the user to confirm closure nor promises further work (a
+    milestone note, not a close). The contract: enumerate what was asked, map
+    each item to what you did, then ASK the user whether it can be closed."""
+    if not messages:
+        return None
+    last = messages[-1]["text"]
+    if not last.strip():
+        return None
+    try:
+        claim = re.compile(probe.get("claim_pattern", _COMPLETION_CLAIM_DEFAULT))
+        ask = re.compile(probe.get("ask_pattern", _CLOSURE_ASK_DEFAULT))
+        promise = re.compile(probe.get("promise_pattern", _CLOSURE_CONTINUE_DEFAULT))
+    except re.error as e:
+        log_err(f"bad-regex probe={probe.get('_probe_id')} err={e!r}")
+        return None
+    m = claim.search(last)
+    if not m:
+        return None
+    if ask.search(last):
+        return None  # already inviting closure confirmation — contract met
+    if promise.search(last):
+        return None  # still promising more work — a milestone, not a terminal close
+    return {"claim": m.group(0).strip(),
+            "snippet": last[max(0, m.start() - 20): m.end() + 40].replace("\n", " ")}
+
+
+DETECTORS["completion_without_closure"] = detect_completion_without_closure
+
+
+# ---- Mechanism 3: request ledger (never silently drop a user request) -------
+# Persistent, across-turn tracker. Each substantive user request is recorded as
+# OPEN and stays open until the USER closes it ("open until completed or the
+# user says so"). The hook NEVER judges semantic completion itself — it tracks
+# text + turns mechanically and surfaces open items to the model (which has the
+# semantics) at wrap-up turns and on cadence. Closure is user-driven: a closure
+# phrase in the user's prompt prunes the ledger; the completion gate above is
+# what prompts the agent to ASK for that closure. The two interlock.
+LEDGER_STORE_CAP = 50      # hard cap on stored items (bound state-file size)
+LEDGER_SHOW_MAX = 8        # max items surfaced in one reminder
+LEDGER_TEXT_CAP = 140      # chars kept per remembered request
+
+# Pure acknowledgements / answers — not new trackable requests. Skipped.
+_LEDGER_TRIVIAL_RE = re.compile(
+    r"(?i)^\s*(?:ok(?:ay)?|k|yes|yep|yeah|sure|got it|sounds good|thanks?(?: you)?|"
+    r"ty|cool|nice|great|perfect|go on|go ahead|continue|proceed|please do|do it|"
+    r"next|y|n|no|nope)\s*[.!]*\s*$"
+)
+# The user closing/dismissing work → prune the ledger (don't append).
+_LEDGER_CLOSE_RE = re.compile(
+    r"(?i)(?:\bclose (?:it|this|that|the task|out|them|all|everything)\b|"
+    r"\byou can close\b|\bok(?:ay)? to close\b|\bsafe to close\b|\bwe can close\b|"
+    r"\bmark (?:it|this|that|them) (?:as )?(?:done|closed|complete)\b|"
+    r"\bthat'?s all\b|\bthat'?s everything\b|\bnothing else\b|\bno(?:thing)? further\b|"
+    r"\bwe'?re done\b|\ball done\b|\bdone with (?:it|that|this|everything)\b|"
+    r"\bdrop (?:it|that|this)\b|\bnever ?mind\b|\bforget (?:it|that)\b|"
+    r"\bcancel (?:it|that|this)\b|\bship it\b|\byes,? close\b|\byou can stop\b)"
+)
+# Distinguishes "close everything" from "close the last thing".
+_LEDGER_CLOSE_ALL_RE = re.compile(
+    r"(?i)\b(?:all|everything|both|all of (?:it|them)|the rest)\b"
+)
+
+
+def _ledger_make_id(turn: int, text: str) -> str:
+    return f"r{turn}-" + hashlib.sha256(text.encode("utf-8", "replace")).hexdigest()[:6]
+
+
+def update_ledger(ledger: list, prompt: str, turn: int) -> tuple[list, list, str]:
+    """Pure mechanical lifecycle. Returns (new_ledger, closed_items, action).
+    NEVER judges semantic completion (the model does, via the surfaced reminder
+    + completion gate). An item leaves the ledger only when the USER says so."""
+    closed: list = []
+    p = (prompt or "").strip()
+    if not p:
+        return ledger, closed, "none"
+    if _LEDGER_CLOSE_RE.search(p):
+        if not ledger:
+            return ledger, closed, "close-noop"
+        if _LEDGER_CLOSE_ALL_RE.search(p):
+            return [], list(ledger), "close-all"
+        return ledger[:-1], [ledger[-1]], "close-one"
+    if _LEDGER_TRIVIAL_RE.match(p):
+        return ledger, closed, "skip-trivial"
+    item = {"id": _ledger_make_id(turn, p), "turn": turn, "text": p[:LEDGER_TEXT_CAP]}
+    return (ledger + [item])[-LEDGER_STORE_CAP:], closed, "add"
+
+
+def has_completion_claim(events: list[dict]) -> bool:
+    """True iff the most-recent assistant message reads as a TERMINAL completion
+    claim (and isn't still promising more work). Drives ledger surfacing at the
+    exact wrap-up turn — 'you're closing but N requests are still open'."""
+    msgs = recent_assistant_messages(events, 1)
+    if not msgs:
+        return False
+    last = msgs[-1]["text"]
+    try:
+        return bool(re.search(_COMPLETION_CLAIM_DEFAULT, last)) and not re.search(_EARLY_STOP_PROMISE, last)
+    except re.error:
+        return False
+
+
+def build_ledger_lines(open_items: list, closed_now: list, completion_claim: bool, turn: int) -> list[str]:
+    lines: list[str] = []
+    if closed_now:
+        tail = f"; {len(open_items)} still open." if open_items else " — ledger now empty."
+        lines.append(
+            f"compliance-canary ledger (turn {turn}): closed {len(closed_now)} request(s) "
+            f"on your say-so{tail}"
+        )
+    if open_items and (completion_claim or not closed_now):
+        if completion_claim:
+            lines.append(
+                f"compliance-canary ledger (turn {turn}): you appear to be wrapping up, but "
+                f"{len(open_items)} user request(s) are still OPEN. Do NOT self-close. For EACH item "
+                f"below, state what you did (with evidence) or why it's deferred, then ASK the user to "
+                f"confirm closure:"
+            )
+        else:
+            lines.append(
+                f"compliance-canary ledger (turn {turn}): {len(open_items)} user request(s) still open "
+                f"— none may be dropped. Make progress on each, or note explicitly why it's deferred:"
+            )
+        for it in open_items[:LEDGER_SHOW_MAX]:
+            lines.append(f"- [turn {it.get('turn','?')}] {it.get('text','')}")
+        extra = len(open_items) - LEDGER_SHOW_MAX
+        if extra > 0:
+            lines.append(f"- (+{extra} more still open)")
+    return lines
+
+
 class _ProbeBudgetExceeded(BaseException):
     """Raised by the SIGALRM handler to abort a runaway probe phase. Derives
     from BaseException (not Exception) on purpose: run_probes' per-detector
@@ -824,10 +1002,13 @@ def format_one_probe(probe: dict) -> str:
     return f"- {skill} [{kind}]: triggered"
 
 
-def build_output(fired: list[dict], pulse_skills: list[tuple[str, str]], turn: int) -> str:
+def build_output(fired: list[dict], pulse_skills: list[tuple[str, str]], turn: int,
+                 ledger_lines: list[str] | None = None) -> str:
     """One <system-reminder> carrying whichever mechanism(s) produced output.
-    Symptomatic correctives lead (higher signal); the periodic re-anchor follows
-    only when no probe fired this turn (it yields — see main)."""
+    Symptomatic correctives lead (higher signal); the request-ledger section
+    follows (it does NOT yield at a wrap-up turn — surfacing open requests as the
+    agent closes is the whole point); the periodic re-anchor comes last and only
+    when no probe fired this turn (it yields — see main)."""
     lines = ["<system-reminder>"]
     if fired:
         lines.append(
@@ -836,6 +1017,8 @@ def build_output(fired: list[dict], pulse_skills: list[tuple[str, str]], turn: i
         )
         for probe in fired:
             lines.append(format_one_probe(probe))
+    if ledger_lines:
+        lines.extend(ledger_lines)
     if pulse_skills:
         lines.append(
             f"compliance-canary re-anchor (turn {turn}): these active skills' rules remain "
@@ -884,6 +1067,13 @@ def main() -> int:
     path = state_path(session_id)
     is_new_session = not path.exists()
 
+    # Mechanism 3 — request ledger lifecycle. Mutates state inside the same lock
+    # as the turn bump; closed_now/ledger are reused for output below.
+    ledger_enabled = os.environ.get("COMPLIANCE_CANARY_LEDGER_DISABLED") != "1"
+    closed_now: list = []
+    ledger: list = []
+    prompt_text = str(payload.get("prompt") or "")
+
     with state_lock(path):
         state = load_state(path)
         turn = int(state.get("turn_count", 0)) + 1
@@ -891,7 +1081,11 @@ def main() -> int:
         state["last_seen_iso"] = time.strftime("%FT%TZ", time.gmtime())
         if is_new_session:
             state["session_started_iso"] = state["last_seen_iso"]
-        # Persist counter early — if any later step errors, we still progress
+        if ledger_enabled:
+            ledger, closed_now, _ = update_ledger(
+                state.get("request_ledger", []), prompt_text, turn)
+            state["request_ledger"] = ledger
+        # Persist counter + ledger early — if any later step errors, we still progress
         save_state(path, state)
 
     if is_new_session:
@@ -925,8 +1119,11 @@ def main() -> int:
                     os.environ.get("COMPLIANCE_CANARY_PROBE_SKILLS", "").split(",") if s.strip()}
     if _probe_allow:
         probes = [p for p in probes if p.get("_skill") in _probe_allow]
-    if probes:
+    # One transcript read feeds both the probes and the ledger's wrap-up check.
+    events: list[dict] = []
+    if probes or (ledger_enabled and ledger):
         events = read_transcript_tail(transcript_path)
+    if probes:
         if events:
             # Fetch enough messages for the LARGEST declared word_count window.
             # Don't early-return on empty messages: tool_use-only turns (the norm
@@ -985,10 +1182,22 @@ def main() -> int:
         allowlist = {s.strip() for s in allow_raw.split(",") if s.strip()}
         pulse_skills = discover_pulse_skills(skills_root(), allowlist)
 
-    if not fired and not pulse_skills:
+    # --- request-ledger surfacing ---------------------------------------
+    # Surface open requests when: the user just closed something (confirm it),
+    # OR the agent is wrapping up while items remain open (the high-value guard —
+    # does NOT yield to fired probes), OR on cadence when nothing else fired
+    # (low-frequency "still open" re-anchor — yields, like the pulse).
+    ledger_lines: list[str] = []
+    if ledger_enabled and (closed_now or ledger):
+        completion_claim = has_completion_claim(events) if ledger else False
+        show = bool(closed_now) or (bool(ledger) and (completion_claim or (is_pulse_turn and not fired)))
+        if show:
+            ledger_lines = build_ledger_lines(ledger, closed_now, completion_claim, turn)
+
+    if not fired and not pulse_skills and not ledger_lines:
         return 0
 
-    sys.stdout.write(build_output(fired, pulse_skills, turn))
+    sys.stdout.write(build_output(fired, pulse_skills, turn, ledger_lines))
     sys.stdout.write("\n")
     return 0
 

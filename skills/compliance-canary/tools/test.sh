@@ -722,6 +722,32 @@ write_transcript "$TX" "$(assistant_text 'Let me know which parser to implement 
 out=$(call cc58 sk55 "$TX" s58)
 if [ -z "$out" ]; then ok "closing question → silent"; else no "early_stop question silence" "got: $(echo "$out" | head -c160)"; fi
 
+# ======================================================================
+# completion_without_closure (the closure gate): a TERMINAL done-claim with
+# no closure-ask fires; a done-claim that asks to close, or a mid-task line,
+# stays silent. Mirror of early_stop.
+# ======================================================================
+
+echo "[59] completion_without_closure: terminal done-claim without a closure ask → fires"
+CWPROBES='[{"id":"cwc","kind":"completion_without_closure","message":"confirm closure please"}]'
+make_skill_with_probes sk59 vbc "$CWPROBES"
+TX="$TRANSCRIPT_DIR/t59.jsonl"
+write_transcript "$TX" "$(assistant_text 'All done. The task is complete and everything works.' u59)"
+out=$(call cc59 sk59 "$TX" s59)
+if emitted "$out" && echo "$out" | grep -q 'completion_without_closure'; then ok "self-close fires"; else no "cwc fires" "got: $(echo "$out"|head -c160)"; fi
+
+echo "[60] completion_without_closure: done-claim that ASKS to close → silent"
+TX="$TRANSCRIPT_DIR/t60.jsonl"
+write_transcript "$TX" "$(assistant_text 'All done. The task is complete. Shall I close this out?' u60)"
+out=$(call cc60 sk59 "$TX" s60)
+if [ -z "$out" ]; then ok "ask-to-close → silent"; else no "cwc ask silence" "got: $(echo "$out"|head -c160)"; fi
+
+echo "[61] completion_without_closure: mid-task (no terminal claim) → silent"
+TX="$TRANSCRIPT_DIR/t61.jsonl"
+write_transcript "$TX" "$(assistant_text 'Updated the parser; running the next step.' u61)"
+out=$(call cc61 sk59 "$TX" s61)
+if [ -z "$out" ]; then ok "mid-task → silent"; else no "cwc midtask silence" "got: $(echo "$out"|head -c160)"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then

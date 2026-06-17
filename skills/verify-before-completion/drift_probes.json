@@ -32,5 +32,11 @@
     "kind": "early_stop",
     "message": "your last turn ended on a PLAN or a PROMISE ('I'll…/let me…/next I'll…') with no completion and no tool call — anti-early-stop: if your final paragraph is a plan or a promise, do that work NOW instead of yielding. Pause only for a genuine blocker — a destructive/irreversible action, a real scope change, or input only the user can give.",
     "severity": "warn"
+  },
+  {
+    "id": "completion-without-closure",
+    "kind": "completion_without_closure",
+    "message": "you claimed the task is finished but did not ASK the user to confirm closure — do not self-close. Enumerate every distinct thing the user requested, map each to what you did (with verification evidence) or note why it is deferred, then explicitly ask the user whether the task can be closed.",
+    "severity": "warn"
   }
 ]
