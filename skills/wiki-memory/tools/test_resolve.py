@@ -20,8 +20,11 @@ def _store(existing_trust: str = "verified") -> WikiStore:
     d = pathlib.Path(tempfile.mkdtemp())
     s = WikiStore(d / "wiki")
     s.init()
+    # force=True: deliberate scaffold-then-fill — the body is written in the
+    # next two lines, so the at-creation gate (write-gate signal + overlap) is
+    # intentionally overridden here. Real callers pass body/reason instead.
     res = s.new_page("page", "helios deploy command", domain="experiments",
-                     slug="helios-deploy", trust=existing_trust)
+                     slug="helios-deploy", trust=existing_trust, force=True)
     p = s.root / res["created"]
     txt = p.read_text(encoding="utf-8").replace("tags: []", "tags: [helios, deploy, command]")
     p.write_text(txt.rstrip() + "\n\n## Lesson\n\nThe Project Helios deploy command is "

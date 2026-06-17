@@ -307,7 +307,10 @@ def t_m4_new_page_does_not_full_reindex() -> dict:
             calls[0] += 1
             return orig(*a, **k)
         store.index = counting_index  # type: ignore
-        store.new_page("page", "Brand New Page", domain="framework")
+        # force=True: this case exercises the M4 incremental-reindex path, not
+        # the content gate — bypass the write-gate/overlap refusal that now
+        # guards new_page (a bare-title scaffold is intentionally low-signal).
+        store.new_page("page", "Brand New Page", domain="framework", force=True)
         # New page must be findable via search (incremental insert worked)
         hits = store.search("brand new page", k=5)
         found = any(h["title"] == "Brand New Page" for h in hits)

@@ -657,6 +657,61 @@ class WikiReadOnEmptyError(RuntimeError):
     """Read op against a repo with no wiki root — graceful empty, never scaffold."""
 
 
+class WikiWriteRejected(RuntimeError):
+    """A `new`/write was refused by the memory-file contract (low signal or
+    near-duplicate). Carries a structured `.report` so the caller/CLI can
+    surface the reason and the overlapping page rather than silently writing.
+
+    This is the MECHANICAL enforcement of the gate that used to be honor-system:
+    `new_page` runs write-gate signal scoring AND an overlap() near-dup check
+    BEFORE committing the write, and raises this on a refusal (overridable with
+    `force=True` for deliberate scaffold-then-fill flows)."""
+
+    def __init__(self, message: str, report: dict[str, Any]):
+        super().__init__(message)
+        self.report = report
+
+
+def _load_write_gate():
+    """Import the write-gate scorer (read-only sibling skill) by file path.
+
+    write-gate lives at skills/write-gate/tools/write_gate.py — a hyphenated
+    dir that is not importable as a normal package. Load it via importlib from
+    the known repo layout (skills/<skill>/tools/), tolerating absence: if the
+    skill isn't installed alongside, return None and the caller degrades to an
+    overlap-only check rather than crashing the whole `new` command."""
+    import importlib.util
+
+    here = Path(__file__).resolve()
+    # .../skills/wiki-memory/tools/wiki.py -> .../skills/write-gate/tools/write_gate.py
+    candidate = here.parents[2] / "write-gate" / "tools" / "write_gate.py"
+    if not candidate.exists():
+        return None
+    import sys
+
+    mod_name = "brainer_write_gate"
+    if mod_name in sys.modules:
+        return sys.modules[mod_name]
+    try:
+        spec = importlib.util.spec_from_file_location(mod_name, candidate)
+        if spec is None or spec.loader is None:
+            return None
+        mod = importlib.util.module_from_spec(spec)
+        # Register BEFORE exec_module: on Python 3.9, dataclass field-type
+        # resolution under `from __future__ import annotations` looks the module
+        # up in sys.modules; an unregistered module raises AttributeError on the
+        # @dataclass in write_gate.py. Roll back the registration on failure.
+        sys.modules[mod_name] = mod
+        try:
+            spec.loader.exec_module(mod)
+        except Exception:
+            sys.modules.pop(mod_name, None)
+            raise
+        return mod
+    except Exception:
+        return None
+
+
 class WikiStore:
     def __init__(self, root: str | Path):
         self.root = Path(root).expanduser().resolve()
@@ -2570,8 +2625,79 @@ class WikiStore:
             "suggested_snippet": None if passed else self.DISCOVERABILITY_SNIPPET,
         }
 
+    def gate_candidate(self, title: str, body: str = "", reason: str = "",
+                       tags: list[str] | None = None, kind: str = "fact",
+                       k: int = 5) -> dict[str, Any]:
+        """Score a candidate page against the memory-file contract BEFORE a write.
+
+        Two mechanical checks, both report-only here (new_page enforces):
+          1. write-gate signal scoring on (title + reason + body): a low-signal /
+             reasonless candidate fails (`signal_pass` False) with the gate's own
+             reason surfaced. write-gate is the same scorer used by every other
+             persistent-memory write, so the bar is consistent.
+          2. overlap() INTER-document near-dup: a `high`-band match means an
+             existing page already covers this subject — steer to update-not-create
+             and surface the overlapping page.
+
+        Returns a dict with `accept` (bool) plus the evidence the caller needs to
+        decide/refuse. `accept` is True only when signal passes AND overlap is not
+        `high`.
+        """
+        gate_text = "\n\n".join(part for part in (title, reason, body) if part and part.strip())
+        wg = _load_write_gate()
+        if wg is not None:
+            threshold, require_why, weights = wg.load_config()
+            score = wg.score_text(gate_text, kind, weights)
+            signal_pass, signal_reason = wg.decide(score, kind, threshold, require_why)
+            signal = {
+                "available": True,
+                "pass": signal_pass,
+                "score": round(score.total, 3),
+                "threshold": threshold,
+                "has_why": score.has_why,
+                "reason": signal_reason,
+                "features": [r for r in score.reasons],
+            }
+        else:
+            # write-gate not installed alongside: do NOT silently accept — degrade
+            # to overlap-only and say so, so the gap is visible rather than hidden.
+            signal_pass = True
+            signal = {"available": False, "pass": True,
+                      "reason": "write-gate scorer not found; overlap-only check applied"}
+
+        ov = self.overlap(title, body=body, tags=tags, k=k)
+        overlap_high = ov.get("overlap") == "high"
+
+        accept = bool(signal_pass) and not overlap_high
+        return {
+            "accept": accept,
+            "signal": signal,
+            "overlap": ov,
+            "overlap_blocks": overlap_high,
+        }
+
     def new_page(self, template: str, title: str, domain: str = "framework", slug: str | None = None,
-                 trust: str = DEFAULT_TRUST) -> dict[str, Any]:
+                 trust: str = DEFAULT_TRUST, body: str = "", reason: str = "",
+                 tags: list[str] | None = None, force: bool = False) -> dict[str, Any]:
+        # Mechanically enforce the memory-file contract BEFORE committing the
+        # write (Codex flag: `new` skipped write-gate + overlap, leaving it
+        # honor-system). Run both gates on the candidate; refuse a low-signal /
+        # reasonless write, and steer a near-duplicate to update-not-create.
+        # `force=True` is the explicit escape hatch for deliberate
+        # scaffold-then-fill flows (template stub now, content later).
+        gate = self.gate_candidate(title, body=body, reason=reason, tags=tags)
+        if not force and not gate["accept"]:
+            if gate["overlap_blocks"]:
+                bm = gate["overlap"].get("best_match") or {}
+                msg = (f"REFUSED: near-duplicate of existing page "
+                       f"`{bm.get('id', '?')}` ({bm.get('path', '?')}) — "
+                       f"update that page instead of creating `{title}`. "
+                       f"Pass force=True to override.")
+            else:
+                msg = (f"REFUSED: {gate['signal'].get('reason', 'low-signal candidate')}. "
+                       f"Give the fact a reason (because…/so that…/to avoid…) and "
+                       f"concrete content, or pass force=True to override.")
+            raise WikiWriteRejected(msg, gate)
         self.init()
         template_map = {
             "page": ("templates/page.template.md", "concepts"),
@@ -2621,7 +2747,10 @@ class WikiStore:
             self.index()
         else:
             self._index_add_one(target)
-        return {"created": target.relative_to(self.root).as_posix(), "template": template, "title": title}
+        return {"created": target.relative_to(self.root).as_posix(), "template": template, "title": title,
+                "gate": {"accept": gate["accept"], "forced": bool(force),
+                         "signal_pass": gate["signal"].get("pass"),
+                         "overlap": gate["overlap"].get("overlap")}}
 
     def _index_add_one(self, path: Path) -> None:
         """Append a single page to the existing sqlite index (M4)."""
@@ -2791,6 +2920,12 @@ def _cli_main(argv: list[str] | None = None) -> int:
     sp.add_argument("--slug", default=None)
     sp.add_argument("--trust", default=DEFAULT_TRUST, choices=list(TRUST_TIERS),
                     help="Provenance trust tier for the new page (default asserted).")
+    sp.add_argument("--body", default="", help="Candidate page body (scored by write-gate before commit).")
+    sp.add_argument("--body-file", default=None, help="Read candidate body from a file (overrides --body).")
+    sp.add_argument("--reason", default="", help="Why this fact is worth keeping (because…/so that…/to avoid…). Feeds the write-gate why-clause check.")
+    sp.add_argument("--tags", default="", help="Comma-separated tags (used by the overlap near-dup check).")
+    sp.add_argument("--force", action="store_true",
+                    help="Override a write-gate / overlap refusal (deliberate scaffold-then-fill).")
 
     sp = sub.add_parser("ingest", help="Add a source (file path or URL) to raw/.")
     sp.add_argument("source")
@@ -2908,8 +3043,19 @@ def _cli_dispatch(args, store, root) -> int:
     elif args.cmd == "fetch":
         _cli_print(store.fetch(args.item_id))
     elif args.cmd == "new":
-        _cli_print(store.new_page(args.template, args.title,
-                                  domain=args.domain, slug=args.slug, trust=args.trust))
+        body = args.body
+        if getattr(args, "body_file", None):
+            body = Path(args.body_file).expanduser().read_text(encoding="utf-8", errors="replace")
+        tags = [t.strip() for t in (args.tags or "").split(",") if t.strip()]
+        try:
+            _cli_print(store.new_page(args.template, args.title,
+                                      domain=args.domain, slug=args.slug, trust=args.trust,
+                                      body=body, reason=args.reason, tags=tags, force=args.force))
+        except WikiWriteRejected as e:
+            # Surface the reason + evidence; exit non-zero so the refusal is a
+            # real gate, not a swallowed warning.
+            _cli_print({"refused": str(e), "gate": e.report})
+            return 1
     elif args.cmd == "ingest":
         _cli_print(store.ingest(args.source, title=args.title))
     elif args.cmd == "index":

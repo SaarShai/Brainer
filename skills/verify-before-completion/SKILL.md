@@ -32,6 +32,28 @@ When dispatching verification to a subagent: mid-tier model (sonnet-class) with 
 
 If verification is impossible, say what was not verified and why.
 
+### Make the verdict mechanical: `tools/verify_artifact.py`
+
+Steps 1–5 above are prose; this tool enforces them so the verdict can't be hand-waved.
+Write the rubric **at task start** (one checkable criterion per line, each naming the
+evidence token that proves it); at done-time pipe in the actual tool-result lines:
+
+```
+python3 tools/verify_artifact.py --rubric rubric.md --evidence evidence.txt
+# rubric line forms:
+#   [evidence: 7 passed]  all unit tests pass
+#   [vision]              chart renders without overlap   # needs a screenshot/render ref
+#   [judge]               summary reads coherently        # defers to eval-gate, not reimplemented
+```
+
+It builds the per-criterion verdict table by matching each criterion against the evidence:
+a criterion with **no backing evidence line is DONE? = NO** (the two-pass / hallucination
+rule — a claim with no evidence is refuted, never assumed). `[vision]` criteria (or any
+criterion under `--vision`) additionally require a screenshot/render reference or they fail —
+text-only checking of a visual artifact does not count. **Any NOT-DONE row exits non-zero**, so
+it gates the done-claim. It does NOT re-score 0–5 quality — that holistic judge already lives in
+[`eval-gate`](../eval-gate/SKILL.md); `[judge]` criteria defer to it (imported read-only).
+
 ## Don't stop at the plan, and don't move the line
 
 - **Anti-early-stop:** if your final paragraph is a *plan* or a *promise* ("next I'll…", "let me…"), do that work **now** — a described step is not a done step. Yield only for a genuine blocker: a destructive/irreversible action, a real scope change, or input only the user can give. (Mechanical backstop: the `early_stop` drift probe.)

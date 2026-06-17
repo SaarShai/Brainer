@@ -47,6 +47,7 @@ run "py-compile" bash -c "git ls-files -z '*.py' | xargs -0 python3 -m py_compil
 UNIT_TESTS=(
   skills/cache-lint/tools/test_cache_lint.py
   skills/loop-engineering/tools/test_loop_lint.py
+  skills/loop-engineering/tools/test_loop_run_monitor.py
   skills/context-keeper/tools/tests/test_extract.py
   skills/output-filter/tools/test_output_filter.py
   skills/prompt-triage/tools/test_classify.py
@@ -58,6 +59,7 @@ UNIT_TESTS=(
   skills/wiki-memory/tools/test_provenance.py
   skills/wiki-memory/tools/test_refresh.py
   skills/wiki-memory/tools/test_resolve.py
+  skills/wiki-memory/tools/test_write_path_gate.py
   skills/wiki-memory/tools/test_okf.py
   skills/wiki-memory/tools/test_claim_grade.py
   skills/wiki-memory/tools/test_sim_eval.py
@@ -100,6 +102,7 @@ run "skill-audit" python3 eval/skill_audit.py --check
 # 6. Hook self-test suites
 run "hook:compliance-canary" bash skills/compliance-canary/tools/test.sh
 run "tool:eval-gate" bash skills/eval-gate/tools/test.sh
+run "tool:verify-artifact" bash skills/verify-before-completion/tools/test.sh
 
 # 7. Triage replay audit — re-classifies every historically-routed prompt with
 # the current classifier; fails on local-model / low-conf / length-gate
