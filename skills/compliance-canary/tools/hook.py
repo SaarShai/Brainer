@@ -44,6 +44,7 @@ import hashlib
 import json
 import os
 import re
+import signal
 import sys
 import time
 from contextlib import contextmanager
@@ -62,6 +63,15 @@ GC_SCAN_MAX = 500
 CADENCE_DEFAULT = 4
 CADENCE_FLOOR = 2                 # a cadence below 2 re-anchors every turn — noise
 MAX_SKILLS_IN_PULSE = 8          # cap re-anchor payload
+MAX_REMINDER_CHARS = 280         # cap one re-anchor line (a runaway pulse_reminder)
+
+# Hard wall-clock budget for the probe phase. drift_probes.json regexes are
+# author-supplied; a catastrophic-backtracking pattern (e.g. `(a+)+$`) would
+# otherwise wedge the user's prompt — and this is the single mandatory drift
+# hook, so a wedge is the worst failure. A length cap does NOT help exponential
+# backtracking; only a timeout does. On budget exceed we emit nothing and exit 0
+# (the always-exit-0 contract holds; the regex just doesn't run this turn).
+PROBE_TIMEOUT_SECONDS = 1.5
 
 # Strip fenced + inline code from assistant text before running detectors —
 # otherwise a literal string like `print("Certainly!")` triggers caveman's
@@ -645,6 +655,34 @@ def detect_user_correction(probe: dict, _messages, _tool_uses, _tool_errors=None
 DETECTORS["user_correction"] = detect_user_correction
 
 
+class _ProbeBudgetExceeded(BaseException):
+    """Raised by the SIGALRM handler to abort a runaway probe phase. Derives
+    from BaseException (not Exception) on purpose: run_probes' per-detector
+    `except Exception` must NOT swallow it — it has to unwind the whole phase."""
+
+
+@contextmanager
+def probe_time_limit(seconds: float):
+    """Hard wall-clock cap on the enclosed block via SIGALRM. Unix-only;
+    `UserPromptSubmit` is Claude-Code-only (macOS/Linux), and on any platform
+    without SIGALRM (or seconds<=0) this is a no-op — degrade to unbounded
+    rather than crash."""
+    if seconds <= 0 or not hasattr(signal, "SIGALRM"):
+        yield
+        return
+
+    def _handler(signum, frame):
+        raise _ProbeBudgetExceeded()
+
+    old = signal.signal(signal.SIGALRM, _handler)
+    try:
+        signal.setitimer(signal.ITIMER_REAL, seconds)
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, old)
+
+
 def run_probes(
     probes: list[dict],
     messages: list[dict],
@@ -717,7 +755,9 @@ def build_output(fired: list[dict], pulse_skills: list[tuple[str, str]], turn: i
             f"in force — re-read each and check your most recent reply against it."
         )
         for name, reminder in pulse_skills:
-            lines.append(f"- {name}: {reminder}")
+            # Cap a runaway pulse_reminder so one skill can't flood the block.
+            r = reminder if len(reminder) <= MAX_REMINDER_CHARS else reminder[:MAX_REMINDER_CHARS - 1] + "…"
+            lines.append(f"- {name}: {r}")
     lines.append("</system-reminder>")
     return "\n".join(lines)
 
@@ -743,7 +783,15 @@ def main() -> int:
         log_err(f"json-decode-fail: {e}")
         return 0
 
-    session_id = payload.get("session_id") or "unknown"
+    # Valid JSON that isn't an object (a bare number/string/array/null) would
+    # crash every downstream .get() — guard the always-exit-0 contract.
+    if not isinstance(payload, dict):
+        log_err(f"payload-not-object: {type(payload).__name__}")
+        return 0
+
+    # Coerce session_id to str: a non-string (number/array) would crash
+    # .encode() in state_path. `or "unknown"` keeps falsy ids out.
+    session_id = str(payload.get("session_id") or "unknown")
     transcript_path = payload.get("transcript_path", "")
 
     path = state_path(session_id)
@@ -810,9 +858,17 @@ def main() -> int:
                 and turn - int(h.get("fired_at_turn", 0)) < cooldown
             }
 
-            fired = run_probes(probes, messages, tool_uses, suppressed, tool_errors,
-                               user_prompt=str(payload.get("prompt") or ""),
-                               traj_stats=trajectory_stats(events))
+            try:
+                with probe_time_limit(PROBE_TIMEOUT_SECONDS):
+                    fired = run_probes(probes, messages, tool_uses, suppressed, tool_errors,
+                                       user_prompt=str(payload.get("prompt") or ""),
+                                       traj_stats=trajectory_stats(events))
+            except _ProbeBudgetExceeded:
+                # A drift_probes regex blew the time budget (likely ReDoS). Skip
+                # probes this turn rather than wedge the prompt. Re-anchor below
+                # still runs (it uses only fixed regexes).
+                log_err(f"probe-budget-exceeded: skipped probes (>{PROBE_TIMEOUT_SECONDS}s)")
+                fired = []
             if fired:
                 with state_lock(path):
                     state = load_state(path)

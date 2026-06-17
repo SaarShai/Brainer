@@ -1,6 +1,6 @@
 # compliance-canary — eval status
 
-**Status:** v1.9.0 — **skill-pulse folded in** (2026-06-16): one `UserPromptSubmit` hook now runs both mechanisms — symptomatic per-skill probes *and* the periodic skill-rule re-anchor. Hook correctness verified by [tools/test.sh](tools/test.sh) (52 cases — probes + re-anchor cadence/yield/floor/alias/BOM/allowlist); offline probe baselining via [tools/measure.py](tools/measure.py); canary p99 latency 41 ms on a 400-line synthetic transcript.
+**Status:** v1.10.0 — **skill-pulse folded in** (2026-06-16): one `UserPromptSubmit` hook now runs both mechanisms — symptomatic per-skill probes *and* the periodic skill-rule re-anchor. Hook correctness verified by [tools/test.sh](tools/test.sh) (56 cases — probes + re-anchor cadence/yield/floor/alias/BOM/allowlist + adversarial hardening: malformed payload, non-str session_id, ReDoS time-budget, reminder cap); offline probe baselining via [tools/measure.py](tools/measure.py); canary p99 latency 41 ms on a 400-line synthetic transcript.
 
 ## Why merged (one reactive hook instead of two)
 

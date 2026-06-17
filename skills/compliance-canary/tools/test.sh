@@ -645,6 +645,50 @@ call ccp8 skp8 "$EMPTYTX" sp8 COMPLIANCE_CANARY_PULSE_EVERY=2 COMPLIANCE_CANARY_
 o=$(call ccp8 skp8 "$EMPTYTX" sp8 COMPLIANCE_CANARY_PULSE_EVERY=2 COMPLIANCE_CANARY_PULSE_SKILLS=no-pr)
 if echo "$o" | grep -q 'no-pr: Test skill no-pr'; then ok "allowlist + description fallback"; else no "allowlist fallback" "got: $(echo "$o"|head -c120)"; fi
 
+# ======================================================================
+# Robustness hardening (adversarial fuzz, 2026-06-16). Always-exit-0 must
+# hold against malformed payloads and a catastrophic author regex.
+# ======================================================================
+
+echo "[51] non-object JSON payload (42 / \"x\" / [..] / null / true) → exit 0, silent"
+bad51=0
+for p in '42' '"x"' '[1,2,3]' 'null' 'true'; do
+  out=$(printf '%s' "$p" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc51" $HOOK 2>/dev/null); ec=$?
+  { [ "$ec" -ne 0 ] || [ -n "$out" ]; } && { bad51=1; break; }
+done
+if [ "$bad51" -eq 0 ]; then ok "non-object payloads handled (exit 0, silent)"; else no "non-object payload" "payload=$p exit=$ec out=[$out]"; fi
+
+echo "[52] non-string session_id (7 / 9.9 / [1,2]) → exit 0 (no .encode crash)"
+bad52=0
+for sid in '7' '9.9' '[1,2]'; do
+  out=$(printf '{"session_id":%s,"transcript_path":"x","prompt":"hi"}' "$sid" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc52" $HOOK 2>/dev/null); ec=$?
+  [ "$ec" -ne 0 ] && { bad52=1; break; }
+done
+if [ "$bad52" -eq 0 ]; then ok "non-string session_id coerced (exit 0)"; else no "non-string session_id" "sid=$sid exit=$ec"; fi
+
+echo "[53] ReDoS probe regex → time-bounded, exit 0, silent (no prompt wedge)"
+REDOS='[{"id":"redos","kind":"forbidden_regex","pattern":"(a+)+$","message":"x"}]'
+make_skill_with_probes sk53 red "$REDOS"
+TXR="$TRANSCRIPT_DIR/t53.jsonl"
+write_transcript "$TXR" "$(assistant_text 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!' u1)"
+pay53='{"session_id":"s53","transcript_path":"'"$TXR"'","prompt":"next"}'
+t0=$(python3 -c 'import time;print(time.time())')
+out=$(printf '%s' "$pay53" | timeout 6 env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc53" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk53" $HOOK 2>/dev/null); ec=$?
+t1=$(python3 -c 'import time;print(time.time())')
+elapsed=$(python3 -c "print($t1-$t0)")
+# exit 0, no output, and well under the 6s timeout wall (budget is 1.5s)
+if [ "$ec" -eq 0 ] && [ -z "$out" ] && python3 -c "import sys;sys.exit(0 if $elapsed < 4 else 1)"; then
+  ok "ReDoS regex time-bounded (${elapsed%.*}s, exit 0, silent)"; else no "ReDoS guard" "exit=$ec elapsed=$elapsed out=[$out]"; fi
+
+echo "[54] runaway pulse_reminder is length-capped in the re-anchor"
+LONG=$(python3 -c "print('x'*600)")
+make_skill_with_pulse sk54 big big-skill "$LONG"
+call cc54 sk54 "$EMPTYTX" s54 COMPLIANCE_CANARY_PULSE_EVERY=2 >/dev/null
+o=$(call cc54 sk54 "$EMPTYTX" s54 COMPLIANCE_CANARY_PULSE_EVERY=2)
+line=$(echo "$o" | grep 'big-skill:')
+linelen=${#line}
+if echo "$line" | grep -q '…' && [ "$linelen" -lt 320 ]; then ok "pulse_reminder capped (line=$linelen chars, ellipsized)"; else no "pulse_reminder cap" "len=$linelen line=$(echo "$line"|head -c80)"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then

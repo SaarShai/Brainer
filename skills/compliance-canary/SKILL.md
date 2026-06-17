@@ -218,7 +218,8 @@ Prints per-probe trigger counts and the offending snippets. No state writes, no 
 - Anti-spam: each probe is suppressed for `COMPLIANCE_CANARY_COOLDOWN` turns after it fires.
 - Cap symptomatic output at `MAX_PROBES_TRIGGERED=4` and the re-anchor at `MAX_SKILLS_IN_PULSE=8`. On a shared turn the re-anchor yields, so output never exceeds one block.
 - The re-anchor reads no transcript and the probes need no frontmatter — one dir-walk feeds both.
-- State updates flock-guarded. Always exit 0.
+- The probe phase runs under a `PROBE_TIMEOUT_SECONDS=1.5` SIGALRM budget: a catastrophic-backtracking regex in some skill's `drift_probes.json` degrades to "no probes this turn" rather than wedging the prompt. (Author regexes are trusted-ish but this is the single mandatory hook — never let it hang.)
+- Hardened against malformed hook input: a non-object JSON payload or a non-string `session_id` is handled, not crashed. State updates flock-guarded. **Always exit 0** — a non-zero `UserPromptSubmit` exit would block the user's prompt.
 
 ## Files
 
@@ -227,7 +228,7 @@ tools/
 ├── hook.sh        # UserPromptSubmit shell shim
 ├── hook.py        # probes + periodic re-anchor + state (one process)
 ├── install.sh     # wires UserPromptSubmit into project-local .claude/
-├── test.sh        # regression suite (52 cases: probes + re-anchor)
+├── test.sh        # regression suite (56 cases: probes + re-anchor + hardening)
 └── measure.py     # standalone offline probe analyzer
 ```
 
