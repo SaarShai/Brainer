@@ -784,11 +784,148 @@ write_transcript "$TX" "$(assistant_text 'All done.' u64)"
 out=$(call_p cc64 sk64 "$TX" s64 'ok')
 if [ -z "$out" ]; then ok "trivial ack → not tracked"; else no "trivial not tracked" "got: $(echo "$out"|head -c160)"; fi
 
-echo "[65] ledger: COMPLIANCE_CANARY_LEDGER_DISABLED=1 → no ledger output"
+echo "[65] ledger is UNCONDITIONAL: a 'stop tracking' style prompt does NOT switch it off — the request is still captured"
 TX="$TRANSCRIPT_DIR/t65.jsonl"
 write_transcript "$TX" "$(assistant_text 'All done.' u65)"
-out=$(call_p cc65 sk65 "$TX" s65 'add a new feature' COMPLIANCE_CANARY_LEDGER_DISABLED=1)
-if [ -z "$out" ]; then ok "ledger disabled → silent"; else no "ledger disable honored" "got: $(echo "$out"|head -c160)"; fi
+# These phrasings used to (mis)trigger opt-out; there is no opt-out path now, so
+# each is captured as a normal request and surfaced — never silently dropped.
+call_p cc65 sk65 "$TX" s65 'add a new feature' >/dev/null
+out=$(call_p cc65 sk65 "$TX" s65 "don't log the request body and add input validation")
+if echo "$out" | grep -q 'still OPEN'; then ok "no opt-out path — request still tracked"; else no "ledger stayed unconditional" "got: $(echo "$out"|head -c200)"; fi
+
+# ======================================================================
+# requirements-ledger cross-check: ledger_not_materialized detector +
+# opt-out / opt-in / deferral handling in the canary's Mechanism 3.
+# ======================================================================
+
+LNM='[{"id":"lnm","kind":"ledger_not_materialized","min_open":2,"grace_turns":3,"substantive_turns":2,"message":"materialize your visible requirements ledger"}]'
+
+echo "[66] ledger_not_materialized: ≥2 open items, no ledger maintenance → fires"
+make_skill_with_probes sk66 requirements-ledger "$LNM"
+TX="$TRANSCRIPT_DIR/t66.jsonl"
+write_transcript "$TX" "$(assistant_text 'working on it' u66)"
+call_p cc66 sk66 "$TX" s66 'add a retry cap' >/dev/null
+call_p cc66 sk66 "$TX" s66 'also add a config flag' >/dev/null
+out=$(call_p cc66 sk66 "$TX" s66 'and document it')
+if echo "$out" | grep -q 'ledger_not_materialized'; then ok "no-materialization fires"; else no "ledger_not_materialized fires" "got: $(echo "$out"|head -c200)"; fi
+
+echo "[67] ledger_not_materialized: a recent Edit to a *ledger*.md suppresses it"
+make_skill_with_probes sk67 requirements-ledger "$LNM"
+TXP="$TRANSCRIPT_DIR/t67p.jsonl"; write_transcript "$TXP" "$(assistant_text 'ok' u)"
+call_p cc67 sk67 "$TXP" s67 'add X' >/dev/null
+call_p cc67 sk67 "$TXP" s67 'add Y' >/dev/null
+TXE="$TRANSCRIPT_DIR/t67e.jsonl"
+write_transcript "$TXE" "$(assistant_text 'updating the ledger' u)" "$(assistant_tool_use Edit '{"file_path":".brainer/ledger/abc.md"}')"
+out=$(call_p cc67 sk67 "$TXE" s67 'and Z')
+if [ -z "$out" ]; then ok "ledger Edit → suppressed"; else no "ledger Edit suppresses" "got: $(echo "$out"|head -c200)"; fi
+
+echo "[68] ledger_not_materialized: a recent TaskCreate suppresses it"
+make_skill_with_probes sk68 requirements-ledger "$LNM"
+TXP="$TRANSCRIPT_DIR/t68p.jsonl"; write_transcript "$TXP" "$(assistant_text 'ok' u)"
+call_p cc68 sk68 "$TXP" s68 'add X' >/dev/null
+call_p cc68 sk68 "$TXP" s68 'add Y' >/dev/null
+TXT="$TRANSCRIPT_DIR/t68t.jsonl"
+write_transcript "$TXT" "$(assistant_text 'mirroring to tasks' u)" "$(assistant_tool_use TaskCreate '{"subject":"x"}')"
+out=$(call_p cc68 sk68 "$TXT" s68 'and Z')
+if [ -z "$out" ]; then ok "TaskCreate → suppressed"; else no "TaskCreate suppresses" "got: $(echo "$out"|head -c200)"; fi
+
+echo "[69] ledger_not_materialized: cold start (1 item, turn 1) → silent"
+make_skill_with_probes sk69 requirements-ledger "$LNM"
+TX="$TRANSCRIPT_DIR/t69.jsonl"; write_transcript "$TX" "$(assistant_text 'ok' u69)"
+out=$(call_p cc69 sk69 "$TX" s69 'add one thing')
+if [ -z "$out" ]; then ok "cold-start → silent"; else no "cold-start silent" "got: $(echo "$out"|head -c200)"; fi
+
+echo "[72] ledger deferral: a deferred item is NOT counted as still-open at wrap-up"
+TXW="$TRANSCRIPT_DIR/t72.jsonl"; write_transcript "$TXW" "$(assistant_text 'All done.' u72)"
+call_p cc72 sk72 "$TXW" s72 'do the migration thing' >/dev/null
+call_p cc72 sk72 "$TXW" s72 'defer that for now' >/dev/null
+out=$(call_p cc72 sk72 "$TXW" s72 'ok')
+if ! echo "$out" | grep -qi 'still OPEN'; then ok "deferred item excluded from open nag"; else no "deferral excludes from open" "got: $(echo "$out"|head -c200)"; fi
+
+# ======================================================================
+# Guards — capture is UNCONDITIONAL (no opt-out path exists), defer is
+# explicit-only, and a co-occurring ask is never dropped.
+# ======================================================================
+# These assert on update_ledger directly (python) — the lifecycle classifier.
+LEDGER_PY='import sys,json; sys.path.insert(0,"'"$TOOLS_DIR"'"); import hook
+def act(prompt, ledger=None):
+    L,c,a = hook.update_ledger(ledger or [], prompt, 2)
+    return a, L'
+
+echo "[74] UNCONDITIONAL: there is no opt-out — every request, even 'no ledger', is captured (never 'optout')"
+bad=$(python3 -c "$LEDGER_PY
+# Phrasings that an opt-out regex would have caught. With no opt-out path they
+# must all be CAPTURED as requests (action 'add'), never silently switch off.
+probes=['no ledger','disable tracking','turn off the ledger','stop tracking requests',\"don't log the request body, and add input validation\",\"don't track the list of files\"]
+wrong=[p for p in probes if act(p)[0] not in ('add','close-noop')]
+print(';'.join(wrong))")
+if [ -z "$bad" ]; then ok "no opt-out: every prompt captured, nothing switches the ledger off"; else no "ledger switched off / dropped" "on: $bad"; fi
+
+echo "[76] B2: incidental 'for now'/'out of scope' must NOT defer-park and must capture the ask"
+miss=$(python3 -c "$LEDGER_PY
+bad=[]
+for p in ['for now this looks fine, can you also add a healthcheck endpoint','out of scope but FYI, anyway add the healthcheck','I will defer to you — add whatever caching you think is best']:
+    a,L=act(p, ledger=[{'id':'p','turn':1,'text':'refactor auth'}])
+    parked=any(it.get('deferred') for it in L); captured=any(('healthcheck' in it['text']) or ('caching' in it['text']) for it in L)
+    if parked or not captured: bad.append(p[:30])
+print(';'.join(bad))")
+if [ -z "$miss" ]; then ok "incidental defer phrases add (not park), ask captured"; else no "B2 defer over-match" "broke on: $miss"; fi
+
+echo "[77] B2: explicit 'park that' DOES defer the prior item"
+ok77=$(python3 -c "$LEDGER_PY
+a,L=act('park that', ledger=[{'id':'p','turn':1,'text':'prior'}])
+print('yes' if a=='defer' and any(it.get('deferred') for it in L) else 'no')")
+if [ "$ok77" = yes ]; then ok "explicit park defers"; else no "B2 explicit defer broke"; fi
+
+echo "[78] compound meta+ask: 'close it and add X' closes AND captures the new ask (never drops it)"
+ok78=$(python3 -c "$LEDGER_PY
+a,L=act('close it and add a healthcheck endpoint', ledger=[{'id':'p','turn':1,'text':'prior'}])
+print('yes' if any('healthcheck' in it['text'] for it in L) else 'no')")
+if [ "$ok78" = yes ]; then ok "close-compound captures the co-occurring ask"; else no "compound close drops ask"; fi
+
+echo "[79] M1: editing an unrelated requirements/TASKS .md must NOT suppress the detector"
+make_skill_with_probes sk79 requirements-ledger "$LNM"
+TXP="$TRANSCRIPT_DIR/t79p.jsonl"; write_transcript "$TXP" "$(assistant_text 'ok' u)"
+call_p cc79 sk79 "$TXP" s79 'add X' >/dev/null
+call_p cc79 sk79 "$TXP" s79 'add Y' >/dev/null
+TXD="$TRANSCRIPT_DIR/t79d.jsonl"
+write_transcript "$TXD" "$(assistant_text 'reading docs' u)" "$(assistant_tool_use Edit '{"file_path":"docs/requirements.md"}')"
+out=$(call_p cc79 sk79 "$TXD" s79 'and Z')
+if echo "$out" | grep -q 'ledger_not_materialized'; then ok "unrelated requirements.md does NOT suppress"; else no "M1 broad-path suppresses" "got: $(echo "$out"|head -c200)"; fi
+
+echo "[80] M2: corrupted persisted state must not crash the hook (exit 0) — incl. turn_count itself"
+SCORR="$STATE_ROOT/cc80"; mkdir -p "$SCORR"
+SIDH=$(python3 -c "import hashlib;print(hashlib.sha256(b's80').hexdigest()[:16])")
+printf '%s' '{"turn_count":"NOTANINT","substantive_add_count":null,"request_ledger":[{"id":"x","turn":"bad","text":"t"}]}' > "$SCORR/$SIDH.json"
+TX="$TRANSCRIPT_DIR/t80.jsonl"; write_transcript "$TX" "$(assistant_text 'ok' u80)"
+out=$(call_p cc80 sk69 "$TX" s80 'add one more thing'); ec=$?
+if [ "$ec" = 0 ]; then ok "corrupted state (incl. turn_count) → exit 0, no crash"; else no "M2 int-cast crash" "exit=$ec"; fi
+
+echo "[81] N1: completion gate does NOT fire on sign-off chit-chat"
+make_skill_with_probes sk81 vbc "$CWPROBES"
+TX="$TRANSCRIPT_DIR/t81.jsonl"
+write_transcript "$TX" "$(assistant_text "That's all from me for tonight, signing off." u81)"
+out=$(call cc81 sk81 "$TX" s81)
+if ! echo "$out" | grep -q 'completion_without_closure'; then ok "sign-off → no false completion gate"; else no "N1 sign-off false-fire" "got: $(echo "$out"|head -c160)"; fi
+
+echo "[73] completion gate message names QUESTIONs (guards the copy-edit)"
+if grep -q 'QUESTION' "$TOOLS_DIR/../../verify-before-completion/drift_probes.json"; then ok "completion gate enumerates questions"; else no "completion gate names questions"; fi
+
+echo "[82] drift-coupled: when a drift probe fires AND items are open, the open items ride along"
+FILLER='[{"id":"filler","kind":"forbidden_regex","pattern":"(?i)\\bcertainly\\b","message":"no certainly"}]'
+make_skill_with_probes sk82 cv "$FILLER"
+TXP="$TRANSCRIPT_DIR/t82p.jsonl"; write_transcript "$TXP" "$(assistant_text 'ok' u)"
+call_p cc82 sk82 "$TXP" s82 'add a retry cap to the loop' >/dev/null   # open item, turn 1
+TXF="$TRANSCRIPT_DIR/t82f.jsonl"; write_transcript "$TXF" "$(assistant_text 'Certainly! On it.' u82)"   # drift (filler) on turn 2
+out=$(call_p cc82 sk82 "$TXF" s82 'go on')
+if echo "$out" | grep -q 'forbidden_regex' && echo "$out" | grep -qi 'still open'; then ok "drift fires AND open items surfaced together"; else no "drift-coupled surfacing" "got: $(echo "$out"|head -c220)"; fi
+
+echo "[83] global kill silences nags but still RECORDS the request (ledger never disabled)"
+TX="$TRANSCRIPT_DIR/t83.jsonl"; write_transcript "$TX" "$(assistant_text 'ok' u83)"
+out=$(call_p cc83 sk69 "$TX" s83 'add an important feature' COMPLIANCE_CANARY_DISABLED=1)
+SIDH83=$(python3 -c "import hashlib;print(hashlib.sha256(b's83').hexdigest()[:16])")
+recorded=$(python3 -c "import json;d=json.load(open('$STATE_ROOT/cc83/$SIDH83.json'));print('yes' if any('important feature' in it.get('text','') for it in d.get('request_ledger',[])) else 'no')" 2>/dev/null)
+if [ -z "$out" ] && [ "$recorded" = yes ]; then ok "kill → silent output, request still on the record"; else no "kill must not disable capture" "out=$(echo "$out"|head -c80) recorded=$recorded"; fi
 
 # ----------------------------------------------------------------------
 echo

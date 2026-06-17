@@ -1,0 +1,12 @@
+[
+  {
+    "id": "ledger-not-materialized",
+    "kind": "ledger_not_materialized",
+    "min_open": 2,
+    "grace_turns": 3,
+    "substantive_turns": 2,
+    "maintenance_path_pattern": "(?i)(?:(?:^|/)\\.brainer/ledger/[^/\\n]+\\.md$|(?:^|/)(?:requirements[ _-]?)?ledger[^/\\n]*\\.md$)",
+    "message": "you have open user requests this session but no sign of maintaining the visible ledger (no Edit/Write/NotebookEdit to .brainer/ledger/<sid>.md and no TaskCreate/TaskUpdate) in the recent window — materialize or refresh .brainer/ledger/<sid>.md (the file is authoritative; native tasks mirror it) so an item the user raised is not silently dropped. Decompose each user message into ATOMIC rows; never delete a row, only re-status.",
+    "severity": "warn"
+  }
+]

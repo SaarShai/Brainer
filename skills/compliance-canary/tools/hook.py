@@ -87,6 +87,15 @@ def strip_code(text: str) -> str:
     return text
 
 
+def _as_int(value, default: int = 0) -> int:
+    """Coerce a persisted/state value to int without ever raising — a corrupted
+    or null field must NOT crash the hook (the always-exit-0 contract)."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def log_err(msg: str) -> None:
     ts = time.strftime("%FT%TZ", time.gmtime())
     sys.stderr.write(f"{ts} compliance-canary: {msg}\n")
@@ -757,11 +766,17 @@ DETECTORS["early_stop"] = detect_early_stop
 _COMPLETION_CLAIM_DEFAULT = (
     r"(?i)(?:\ball done\b|\btask (?:is )?(?:complete|completed|done|finished)\b|"
     r"\b(?:fully|now) (?:complete|completed|done|finished|implemented)\b|"
-    r"\bthat'?s (?:it|all|everything)\b|\bwrapped up\b|"
+    r"\bthat'?s (?:it|all|everything)\b(?!\s+(?:from\b|for (?:now|today|tonight)\b))|\bwrapped up\b|"
     r"\bready to (?:go|ship|merge|review)\b|\bgood to go\b|"
     r"\b(?:this|it|everything) is (?:now )?(?:done|complete|completed|finished|ready)\b|"
     r"\bimplementation (?:is )?complete\b|\ball (?:set|green)\b|"
-    r"\beverything(?:'?s| is) (?:done|working|complete)\b)"
+    r"\beverything(?:'?s| is) (?:done|working|complete)\b|"
+    # A bare standalone "Done"/"Finished"/"Complete" at the START of the final
+    # message — the single most common phrasing ("Done!", "Done.", "Done —
+    # added the flag"). Negative-lookahead excludes mid-task "done with/the X"
+    # so a sub-step report doesn't trip the terminal gate.
+    r"^\s*(?:done|finished|complete|completed)\b"
+    r"(?!\s+(?:with|the|implementing|fixing|adding|writing|updating|making|building|setting|wiring|on)\b))"
 )
 # The message already invites the user to confirm closure → contract satisfied,
 # suppress. Kept conservative: a FALSE suppression (thinking it asked when it
@@ -851,6 +866,41 @@ _LEDGER_CLOSE_RE = re.compile(
 _LEDGER_CLOSE_ALL_RE = re.compile(
     r"(?i)\b(?:all|everything|both|all of (?:it|them)|the rest)\b"
 )
+# NOTE: there is intentionally NO opt-out / opt-in path. The no-drop guarantee is
+# UNCONDITIONAL — by user directive ("never switch off, never opt out"), nothing
+# in the normal conversation flow can disable the ledger. (The only kill is the
+# whole-hook operator valve COMPLIANCE_CANARY_DISABLED, which disables the entire
+# drift watcher, not the ledger specifically.) A prior design had a regex-detected
+# opt-out; it was removed because a misread would silently disable the very
+# guarantee this feature exists to provide — the one failure mode that must not
+# happen.
+
+# The user parking an EXISTING item — visibly deferred, NOT dropped.
+# CRITICAL (review B2): require an explicit deferral VERB on an item ("park that",
+# "defer the X", "leave it for later", "that can wait") — NOT bare adverbials
+# ("for now" / "not now" / "out of scope" / "later"), which appear incidentally in
+# prompts that ALSO carry a real ask ("for now this looks fine, also add X"). And
+# exclude "defer to (you|me|...)" (delegation, not parking).
+_LEDGER_DEFER_RE = re.compile(
+    r"(?i)(?:"
+    r"\b(?:defer|park|shelve|postpone|backlog)(?!\s+to\b)\s+(?:that|this|it|the\b[^\n]{0,40})"
+    r"|\bleave (?:that|this|it)\s+(?:for (?:later|now)|aside|until)\b"
+    r"|\b(?:that|this|it) can wait\b"
+    r"|\bput (?:that|this|it) (?:on the backlog|aside|on hold)\b"
+    r")"
+)
+# A meta-command (close / park) carries a co-occurring NEW request only when an
+# explicit conjunction introduces an imperative ("...and add X", "..., then pin
+# numpy"). Detecting THAT (rather than mere prompt length) is what lets a pure
+# verbose close ("perfect, that's everything — close it") terminate cleanly while
+# "close it and add a test" still captures the test (review B2/M3: never drop a
+# co-occurring ask, never junk-capture a pure meta-command).
+_LEDGER_COMPOUND_RE = re.compile(
+    r"(?i)(?:\b(?:and|also|plus|then)\b|[,;]\s)\s*(?:can you |could you |would you |please )?"
+    r"(?:add|create|write|fix|update|make|implement|build|remove|delete|rename|refactor|"
+    r"test|document|check|pin|install|set ?up|wire|handle|support|enable|ensure|include|"
+    r"generate|run|review|investigate|answer|explain)\b"
+)
 
 
 def _ledger_make_id(turn: int, text: str) -> str:
@@ -860,21 +910,50 @@ def _ledger_make_id(turn: int, text: str) -> str:
 def update_ledger(ledger: list, prompt: str, turn: int) -> tuple[list, list, str]:
     """Pure mechanical lifecycle. Returns (new_ledger, closed_items, action).
     NEVER judges semantic completion (the model does, via the surfaced reminder
-    + completion gate). An item leaves the ledger only when the USER says so."""
+    + completion gate). An item leaves the OPEN set only when the USER says so;
+    a parked item is re-statused (deferred), never deleted. A meta-command that
+    ALSO contains a co-occurring imperative ("close it and add X") performs the
+    meta-action AND captures the prompt, rather than dropping the new ask. There
+    is NO opt-out — capture is unconditional (see note above the regexes).
+
+    Actions: add · close-one · close-all · close-noop · skip-trivial · none · defer."""
     closed: list = []
     p = (prompt or "").strip()
     if not p:
         return ledger, closed, "none"
+    has_new_ask = bool(_LEDGER_COMPOUND_RE.search(p))
+
+    meta = None
     if _LEDGER_CLOSE_RE.search(p):
         if not ledger:
-            return ledger, closed, "close-noop"
-        if _LEDGER_CLOSE_ALL_RE.search(p):
-            return [], list(ledger), "close-all"
-        return ledger[:-1], [ledger[-1]], "close-one"
-    if _LEDGER_TRIVIAL_RE.match(p):
+            meta = "close-noop"
+        elif _LEDGER_CLOSE_ALL_RE.search(p):
+            closed = list(ledger)
+            ledger = []
+            meta = "close-all"
+        else:
+            closed = [ledger[-1]]
+            ledger = ledger[:-1]
+            meta = "close-one"
+    elif _LEDGER_DEFER_RE.search(p):
+        for i in range(len(ledger) - 1, -1, -1):
+            if not ledger[i].get("deferred"):
+                ledger = [dict(it) for it in ledger]
+                ledger[i]["deferred"] = True
+                meta = "defer"
+                break
+
+    # Pure meta-command (no co-occurring imperative) → perform it, don't capture.
+    if meta and not has_new_ask:
+        return ledger, closed, meta
+    if not meta and _LEDGER_TRIVIAL_RE.match(p):
         return ledger, closed, "skip-trivial"
+
+    # Capture the whole prompt (a real ask, or a meta+ask compound — over-capture
+    # is the safe direction; never drop). The meta effect above already applied.
     item = {"id": _ledger_make_id(turn, p), "turn": turn, "text": p[:LEDGER_TEXT_CAP]}
-    return (ledger + [item])[-LEDGER_STORE_CAP:], closed, "add"
+    ledger = (ledger + [item])[-LEDGER_STORE_CAP:]
+    return ledger, closed, (meta or "add")
 
 
 def has_completion_claim(events: list[dict]) -> bool:
@@ -892,6 +971,9 @@ def has_completion_claim(events: list[dict]) -> bool:
 
 
 def build_ledger_lines(open_items: list, closed_now: list, completion_claim: bool, turn: int) -> list[str]:
+    # Deferred items are visibly parked, not open — exclude from the "still open"
+    # count so an agreed deferral never trips the wrap-up nag.
+    open_items = [it for it in open_items if not it.get("deferred")]
     lines: list[str] = []
     if closed_now:
         tail = f"; {len(open_items)} still open." if open_items else " — ledger now empty."
@@ -917,7 +999,63 @@ def build_ledger_lines(open_items: list, closed_now: list, completion_claim: boo
         extra = len(open_items) - LEDGER_SHOW_MAX
         if extra > 0:
             lines.append(f"- (+{extra} more still open)")
+        # This is the hidden cross-check (coarse, 1 row/prompt). Point the agent
+        # at the authoritative atomic ledger it should be curating + reconciling.
+        lines.append(
+            "- (these are the canary's COARSE captures — reconcile against your atomic "
+            "requirements ledger; each request/question/sub-item must be accounted for)"
+        )
     return lines
+
+
+# Detector for the requirements-ledger skill: fire when the user has raised
+# trackable requests but the agent shows no sign of MATERIALIZING the visible
+# ledger (no Edit/Write to a *ledger*.md and no TaskCreate/TaskUpdate). The
+# cross-check direction is deliberate: the hidden capture is COARSE (≤1 row /
+# prompt), the visible ledger is ATOMIC (more rows) — so we NEVER compare counts
+# for equality (atomic > coarse is correct, not drift). We only alarm on absence
+# of maintenance activity. Reuses the existing request_ledger capture via
+# traj_stats; adds no new transcript scan.
+# Scope to the ACTUAL conversation ledger, not any *.md whose path happens to
+# contain "requirements/ledger/task/todo" (review M1: docs/requirements.md or a
+# project TASKS.md would otherwise turn the guard dark). Match a file under
+# .brainer/ledger/ OR a ledger-specific basename.
+_LEDGER_MAINT_PATH_DEFAULT = (
+    r"(?i)(?:(?:^|/)\.brainer/ledger/[^/\n]+\.md$|(?:^|/)(?:requirements[ _-]?)?ledger[^/\n]*\.md$)"
+)
+_LEDGER_MAINT_TOOLS = ("TaskCreate", "TaskUpdate")
+_LEDGER_MAINT_EDIT_TOOLS = ("Edit", "Write", "NotebookEdit")
+
+
+def detect_ledger_not_materialized(probe: dict, _messages, tool_uses: list[dict], _tool_errors=None,
+                                   user_prompt: str = "", traj_stats: dict | None = None) -> dict | None:
+    if not traj_stats:
+        return None
+    open_ct = _as_int(traj_stats.get("open_ledger_count"), 0)
+    if open_ct < int(probe.get("min_open", 2)):
+        return None
+    if int(traj_stats.get("substantive_add_count", 0)) < int(probe.get("substantive_turns", 2)):
+        return None
+    # Cold-start grace: don't demand a ledger before the session has any history.
+    if int(traj_stats.get("turn", 0)) < int(probe.get("grace_turns", 3)):
+        return None
+    try:
+        path_re = re.compile(probe.get("maintenance_path_pattern", _LEDGER_MAINT_PATH_DEFAULT))
+    except re.error as e:
+        log_err(f"bad-regex probe={probe.get('_probe_id')} err={e!r}")
+        path_re = re.compile(_LEDGER_MAINT_PATH_DEFAULT)
+    for tu in (tool_uses or []):
+        name = tu.get("name", "")
+        if name in _LEDGER_MAINT_TOOLS:
+            return None  # native-task mirror is being maintained
+        if name in _LEDGER_MAINT_EDIT_TOOLS:
+            fp = str((tu.get("input") or {}).get("file_path", ""))
+            if path_re.search(fp):
+                return None  # the visible markdown ledger is being maintained
+    return {"open_count": open_ct}
+
+
+DETECTORS["ledger_not_materialized"] = detect_ledger_not_materialized
 
 
 class _ProbeBudgetExceeded(BaseException):
@@ -1035,9 +1173,11 @@ def build_output(fired: list[dict], pulse_skills: list[tuple[str, str]], turn: i
 # -------------------------- main --------------------------------------------
 
 def main() -> int:
-    if os.environ.get("COMPLIANCE_CANARY_DISABLED") == "1":
-        return 0
-
+    # NOTE: COMPLIANCE_CANARY_DISABLED is checked LATER (after the ledger capture
+    # block), not here — the kill silences drift detection + its reminders, but it
+    # must NEVER stop the ledger from RECORDING a request (user directive: the kill
+    # must not disable the ledger). Capture runs unconditionally; only the nagging
+    # is silenced.
     cooldown = COOLDOWN_TURNS_DEFAULT
     try:
         cooldown = max(0, int(os.environ.get("COMPLIANCE_CANARY_COOLDOWN", COOLDOWN_TURNS_DEFAULT)))
@@ -1067,29 +1207,42 @@ def main() -> int:
     path = state_path(session_id)
     is_new_session = not path.exists()
 
-    # Mechanism 3 — request ledger lifecycle. Mutates state inside the same lock
-    # as the turn bump; closed_now/ledger are reused for output below.
-    ledger_enabled = os.environ.get("COMPLIANCE_CANARY_LEDGER_DISABLED") != "1"
+    # Mechanism 3 — request ledger lifecycle. UNCONDITIONAL (no opt-out / no
+    # per-ledger disable — user directive "never switch off, never opt out"; the
+    # only kill is the whole-hook COMPLIANCE_CANARY_DISABLED valve at the top of
+    # main). Mutates state inside the same lock as the turn bump; closed_now/ledger
+    # are reused for output below.
     closed_now: list = []
     ledger: list = []
+    ledger_action = "none"
+    substantive_add_count = 0
     prompt_text = str(payload.get("prompt") or "")
 
     with state_lock(path):
         state = load_state(path)
-        turn = int(state.get("turn_count", 0)) + 1
+        turn = _as_int(state.get("turn_count"), 0) + 1  # guard: corrupt state must not crash (always-exit-0)
         state["turn_count"] = turn
         state["last_seen_iso"] = time.strftime("%FT%TZ", time.gmtime())
         if is_new_session:
             state["session_started_iso"] = state["last_seen_iso"]
-        if ledger_enabled:
-            ledger, closed_now, _ = update_ledger(
-                state.get("request_ledger", []), prompt_text, turn)
-            state["request_ledger"] = ledger
+        ledger, closed_now, ledger_action = update_ledger(
+            state.get("request_ledger", []), prompt_text, turn)
+        state["request_ledger"] = ledger
+        if ledger_action == "add":
+            state["substantive_add_count"] = _as_int(state.get("substantive_add_count"), 0) + 1
+        substantive_add_count = _as_int(state.get("substantive_add_count"), 0)
         # Persist counter + ledger early — if any later step errors, we still progress
         save_state(path, state)
 
     if is_new_session:
         gc_old_state(path.parent, time.time())
+
+    # Whole-hook break-glass valve. Checked HERE (not at entry) so the ledger
+    # capture above has already run — the kill silences drift detection + all
+    # reminders, but the request is still on the record. Re-enabling resumes with
+    # nothing lost.
+    if os.environ.get("COMPLIANCE_CANARY_DISABLED") == "1":
+        return 0
 
     # --- periodic re-anchor cadence (absorbed skill-pulse) ---------------
     # COMPLIANCE_CANARY_PULSE_EVERY is primary; SKILL_PULSE_EVERY is a
@@ -1121,7 +1274,7 @@ def main() -> int:
         probes = [p for p in probes if p.get("_skill") in _probe_allow]
     # One transcript read feeds both the probes and the ledger's wrap-up check.
     events: list[dict] = []
-    if probes or (ledger_enabled and ledger):
+    if probes or ledger:
         events = read_transcript_tail(transcript_path)
     if probes:
         if events:
@@ -1153,6 +1306,14 @@ def main() -> int:
 
             traj = trajectory_stats(events)
             traj["final_assistant_has_tool_use"] = final_assistant_has_tool_use(events)
+            # Feed the requirements-ledger cross-check (ledger_not_materialized).
+            # open_ledger_count counts only items from PRIOR turns (this turn's
+            # fresh adds aren't a "drop" yet) and excludes parked/deferred items.
+            traj["turn"] = turn
+            traj["open_ledger_count"] = sum(
+                1 for it in ledger
+                if not it.get("deferred") and _as_int(it.get("turn"), turn) < turn)
+            traj["substantive_add_count"] = substantive_add_count
             try:
                 with probe_time_limit(PROBE_TIMEOUT_SECONDS):
                     fired = run_probes(probes, messages, tool_uses, suppressed, tool_errors,
@@ -1182,15 +1343,19 @@ def main() -> int:
         allowlist = {s.strip() for s in allow_raw.split(",") if s.strip()}
         pulse_skills = discover_pulse_skills(skills_root(), allowlist)
 
-    # --- request-ledger surfacing ---------------------------------------
-    # Surface open requests when: the user just closed something (confirm it),
-    # OR the agent is wrapping up while items remain open (the high-value guard —
-    # does NOT yield to fired probes), OR on cadence when nothing else fired
-    # (low-frequency "still open" re-anchor — yields, like the pulse).
+    # --- request-ledger surfacing (coupled to drift) --------------------
+    # The ledger reminder rides along with the canary's drift response: open
+    # requests are re-surfaced exactly when attention is being re-directed —
+    #   • a drift probe fired (DRIFT → "you're drifting; don't drop these"),
+    #   • the agent is wrapping up on a completion claim (don't self-close),
+    #   • the periodic re-anchor turn (preventive), or
+    #   • the user just closed something (confirm it).
+    # No drift, no wrap-up, no cadence → stay quiet. This is the "remind about
+    # ledger items IF there is drift" coupling.
     ledger_lines: list[str] = []
-    if ledger_enabled and (closed_now or ledger):
+    if closed_now or ledger:
         completion_claim = has_completion_claim(events) if ledger else False
-        show = bool(closed_now) or (bool(ledger) and (completion_claim or (is_pulse_turn and not fired)))
+        show = bool(closed_now) or (bool(ledger) and (completion_claim or bool(fired) or is_pulse_turn))
         if show:
             ledger_lines = build_ledger_lines(ledger, closed_now, completion_claim, turn)
 

@@ -51,6 +51,7 @@ UNIT_TESTS=(
   skills/output-filter/tools/test_output_filter.py
   skills/prompt-triage/tools/test_classify.py
   skills/write-gate/tools/test_write_gate.py
+  skills/requirements-ledger/tools/test_dropmodes.py
   skills/wiki-memory/tools/test_consolidate.py
   skills/wiki-memory/tools/test_decay.py
   skills/wiki-memory/tools/test_lint_hygiene.py

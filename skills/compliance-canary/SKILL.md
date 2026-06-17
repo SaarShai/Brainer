@@ -228,7 +228,9 @@ the ledger.
 Closure mapping is a heuristic (most-recent-open, or all on "everything") — the
 hook cannot map "yes that one's done" to a specific item, so it errs toward
 keeping items open (a stale-but-visible item is recoverable; a silently-dropped
-one is not). Disable with `COMPLIANCE_CANARY_LEDGER_DISABLED=1`. Stored items are
+one is not). **There is no opt-out and no per-ledger disable** — capture is
+unconditional (user directive: "never switch off, never opt out"); the only kill
+is the whole-hook `COMPLIANCE_CANARY_DISABLED=1`. Stored items are
 capped at `LEDGER_STORE_CAP=50`, surfaced at `LEDGER_SHOW_MAX=8` (with "+N more
 open").
 
@@ -275,7 +277,6 @@ Env vars (all optional). `SKILL_PULSE_*` names are honored as back-compat aliase
 | Var | Default | Effect |
 |---|---|---|
 | `COMPLIANCE_CANARY_DISABLED=1` | — | emergency off-switch — kills **all** mechanisms |
-| `COMPLIANCE_CANARY_LEDGER_DISABLED=1` | — | disable just the request ledger (Mechanism 3); probes + re-anchor still run |
 | `COMPLIANCE_CANARY_COOLDOWN` | 3 | turns to suppress the same probe after it fires |
 | `COMPLIANCE_CANARY_PULSE_EVERY` | 4 | re-anchor cadence (floored to 2); `0` disables **just** the re-anchor. Alias: `SKILL_PULSE_EVERY` |
 | `COMPLIANCE_CANARY_PULSE_DISABLED=1` | — | disable just the re-anchor (probes still run). Alias: `SKILL_PULSE_DISABLED` |
@@ -309,7 +310,7 @@ tools/
 ├── hook.sh        # UserPromptSubmit shell shim
 ├── hook.py        # probes + periodic re-anchor + request ledger + state (one process)
 ├── install.sh     # wires UserPromptSubmit into project-local .claude/
-├── test.sh        # regression suite (67 cases: probes + re-anchor + ledger + hardening)
+├── test.sh        # regression suite (80 cases: probes + re-anchor + ledger + hardening)
 └── measure.py     # standalone offline probe analyzer
 ```
 

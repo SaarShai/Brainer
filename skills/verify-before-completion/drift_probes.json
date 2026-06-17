@@ -36,7 +36,7 @@
   {
     "id": "completion-without-closure",
     "kind": "completion_without_closure",
-    "message": "you claimed the task is finished but did not ASK the user to confirm closure — do not self-close. Enumerate every distinct thing the user requested, map each to what you did (with verification evidence) or note why it is deferred, then explicitly ask the user whether the task can be closed.",
+    "message": "you claimed the task is finished but did not ASK the user to confirm closure — do not self-close. Enumerate every distinct thing the user requested — INCLUDING every QUESTION they asked (state the answer, or why it is unanswered — not just adjacent work you did) — map each item to what you did (with verification evidence) or note why it is deferred, then explicitly ask the user whether the task can be closed.",
     "severity": "warn"
   }
 ]
