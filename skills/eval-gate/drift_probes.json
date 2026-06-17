@@ -2,7 +2,7 @@
   {
     "id": "eval-gate-intent",
     "kind": "prompt_intent",
-    "pattern": "(?i)(?:\\bis (?:this|it|that)\\b[^.?!\\n]{0,30}\\bgood enough\\b|\\bwould (?:this|it|that)\\b[^.?!\\n]{0,20}\\bpass\\b|\\b(?:score|grade|rate|evaluate|judge) (?:this|my|the|it)\\b|\\bis (?:this|my|the) (?:draft|post|answer|reply|copy|response|output|content|write-?up)\\b[^.?!\\n]{0,30}\\b(?:good|ready|ok|okay|solid|strong)\\b|\\bgood enough to (?:ship|post|publish|send)\\b)",
+    "pattern": "(?i)(?:\\bis (?:this|it|that)\\b[^.?!\\n]{0,30}\\bgood enough\\b|\\bwould (?:this|it|that)\\b[^.?!\\n]{0,20}\\bpass\\b|\\b(?:score|grade|rate|evaluate|judge|assess) (?:this|my|the|it)\\b|\\b(?:evaluate|judge|assess) (?:whether|if|how good)\\b|\\bis (?:this|my|the) (?:draft|post|answer|reply|copy|response|output|content|write-?up)\\b[^.?!\\n]{0,30}\\b(?:good|ready|ok|okay|solid|strong)\\b|\\b(?:draft|post|answer|reply|copy|response|output|content|write-?up) (?:is|looks)\\b[^.?!\\n]{0,15}\\b(?:good|ready|ok|okay|solid|strong)\\b|\\b(?:on a )?scale of \\d+ to \\d+\\b|\\bout of (?:5|10|ten|five)\\b|\\bhow (?:polished|convincing|compelling|professional|persuasive)\\b|\\bgood enough to (?:ship|post|publish|send|go out)\\b)",
     "message": "this prompt asks for a quality judgement on AI output — run eval-gate: score it against a WRITTEN rubric (0-5, exit-code gate) rather than eyeballing. Below the line, no ship; every caught failure becomes a permanent case. Write the rubric as a file first if none exists.",
     "severity": "warn"
   },
