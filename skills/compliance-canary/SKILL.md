@@ -1,6 +1,6 @@
 ---
 name: compliance-canary
-description: Use when a long session drifts — the single always-on drift watcher: one UserPromptSubmit hook combining a periodic skill-rule re-anchor (every N turns) with symptomatic per-skill drift probes (filler creep, word-count growth, unverified done-claims, looping tool errors, rule fade). Absorbs the former skill-pulse; the re-anchor yields to a fired probe so the two never double-nag. Tune/disable via COMPLIANCE_CANARY_* env vars (SKILL_PULSE_* honored as aliases).
+description: Use when a long session drifts — the single always-on drift watcher: one UserPromptSubmit hook combining a periodic skill-rule re-anchor (every N turns), symptomatic per-skill drift probes (filler creep, word-count growth, unverified done-claims, self-closing without asking, looping tool errors, rule fade), and a request ledger that keeps every user request OPEN until completed or the user closes it (so nothing the user asked for is silently dropped). Absorbs the former skill-pulse; the re-anchor yields to a fired probe so the two never double-nag. Tune/disable via COMPLIANCE_CANARY_* env vars (SKILL_PULSE_* honored as aliases).
 model: haiku
 effort: low
 tools: [Bash, Read, Write]
@@ -11,18 +11,21 @@ pulse_reminder: drift detectors are watching — your recent reply is scanned ea
 # compliance-canary — the drift watcher
 
 The single, non-optional drift defense for long sessions. One `UserPromptSubmit`
-hook runs **two orthogonal mechanisms** in one process (skill-pulse was folded
+hook runs **three orthogonal mechanisms** in one process (skill-pulse was folded
 in here 2026-06-16 — the leaner "one reactive hook instead of two" the eval
-notes had flagged):
+notes had flagged; the request ledger was added 2026-06-17):
 
 | # | Mechanism | When it speaks | Covers |
 |---|---|---|---|
-| 1 | **Symptomatic probes** | only when a drift symptom appears | filler, verbosity creep, unverified done-claims, looping tool errors, error-rate spikes |
+| 1 | **Symptomatic probes** | only when a drift symptom appears | filler, verbosity creep, unverified done-claims, self-closing without asking, looping tool errors, error-rate spikes |
 | 2 | **Periodic re-anchor** | every Nth turn, unconditionally | rules that *fade* before any symptom shows — incl. rules with no probe |
+| 3 | **Request ledger** | at wrap-up turns (+ on cadence) | a user request silently dropped before it was completed or the user closed it |
 
-Both emit into **one** `<system-reminder>` with a shared budget. On a turn where
-a probe fires, the re-anchor **yields** (symptom correction is higher-signal and
-itself re-anchors attention) — so the two never stack into consecutive nags.
+All three emit into **one** `<system-reminder>` with a shared budget. On a turn
+where a probe fires, the periodic re-anchor **yields** (symptom correction is
+higher-signal and itself re-anchors attention) — so the two never stack into
+consecutive nags. The ledger does NOT yield at a wrap-up turn: surfacing still-open
+requests precisely as the agent moves to close is the whole point.
 
 Emergency off-switch: `COMPLIANCE_CANARY_DISABLED=1` (kills both). This is a
 safety valve, not an install option — the skill is default-on (`auto-install:
@@ -189,6 +192,46 @@ Skills without `pulse_reminder` are silent in the re-anchor (force-include via `
 
 Why one re-anchor payload and not a re-read of the bodies: the one-line reminders cost ~97% fewer tokens per 1000 turns (~76k) than re-injecting the 8 pulse skills' full `SKILL.md` bodies at the same cadence (~2.59M).
 
+## Mechanism 3 — request ledger
+
+Probes and the re-anchor are *stateless against intent* — they cannot tell that
+a thing the user asked for three turns ago was quietly dropped. The ledger is the
+stateful guard for that: **no user request is dropped until it is completed or the
+user says so.**
+
+Lifecycle (per-session state under `COMPLIANCE_CANARY_STATE_DIR`, key
+`request_ledger`):
+
+- **Add.** Each substantive user prompt is recorded as an OPEN item `{id, turn,
+  text}`. Pure acknowledgements/answers ("ok", "yes", "thanks", "go on") are
+  skipped; a closure phrase is handled below, not appended.
+- **Surface.** Open items are re-injected when the agent's last message reads as a
+  TERMINAL completion claim (a wrap-up turn — "you appear to be wrapping up, but N
+  requests are still OPEN — do NOT self-close…"), and, more quietly, on the
+  re-anchor cadence when nothing else fired.
+- **Close.** An item leaves the ledger **only when the user says so** — a closure
+  phrase in the user's prompt ("close it", "that's all", "drop that", "ship it",
+  "we're done"). `close all / everything` clears the ledger; otherwise the
+  most-recent open item is closed. The closure is confirmed back ("closed N
+  request(s) on your say-so").
+
+**The hook never judges semantic completion itself.** It tracks text + turns
+mechanically and pushes the semantic reconciliation to the model (which has the
+context) via the surfaced reminder. This is deliberate — a syntactic detector
+cannot reliably decide "is request X actually done", and guessing would silently
+close real work. The contract is exactly the user's words: open until *completed
+and the user confirms* (the `completion_without_closure` gate forces the agent to
+*ask*; the user's "yes, close it" is what prunes the ledger). The two interlock —
+the gate produces the ask, the ask produces the user's closure, the closure prunes
+the ledger.
+
+Closure mapping is a heuristic (most-recent-open, or all on "everything") — the
+hook cannot map "yes that one's done" to a specific item, so it errs toward
+keeping items open (a stale-but-visible item is recoverable; a silently-dropped
+one is not). Disable with `COMPLIANCE_CANARY_LEDGER_DISABLED=1`. Stored items are
+capped at `LEDGER_STORE_CAP=50`, surfaced at `LEDGER_SHOW_MAX=8` (with "+N more
+open").
+
 ## Install
 
 Claude Code (project-local):
@@ -197,7 +240,7 @@ Claude Code (project-local):
 bash skills/compliance-canary/tools/install.sh --project
 ```
 
-Wires `tools/hook.sh` into `.claude/settings.json` under `UserPromptSubmit` — a single hook running both mechanisms. (`prompt-triage` may also wire `UserPromptSubmit`; the hooks fire in sequence, each independent.)
+Wires `tools/hook.sh` into `.claude/settings.json` under `UserPromptSubmit` — a single hook running all three mechanisms. (`prompt-triage` may also wire `UserPromptSubmit`; the hooks fire in sequence, each independent.)
 
 ## How a skill opts in
 
@@ -231,7 +274,8 @@ Env vars (all optional). `SKILL_PULSE_*` names are honored as back-compat aliase
 
 | Var | Default | Effect |
 |---|---|---|
-| `COMPLIANCE_CANARY_DISABLED=1` | — | emergency off-switch — kills **both** mechanisms |
+| `COMPLIANCE_CANARY_DISABLED=1` | — | emergency off-switch — kills **all** mechanisms |
+| `COMPLIANCE_CANARY_LEDGER_DISABLED=1` | — | disable just the request ledger (Mechanism 3); probes + re-anchor still run |
 | `COMPLIANCE_CANARY_COOLDOWN` | 3 | turns to suppress the same probe after it fires |
 | `COMPLIANCE_CANARY_PULSE_EVERY` | 4 | re-anchor cadence (floored to 2); `0` disables **just** the re-anchor. Alias: `SKILL_PULSE_EVERY` |
 | `COMPLIANCE_CANARY_PULSE_DISABLED=1` | — | disable just the re-anchor (probes still run). Alias: `SKILL_PULSE_DISABLED` |
@@ -263,9 +307,9 @@ Prints per-probe trigger counts and the offending snippets. No state writes, no 
 ```
 tools/
 ├── hook.sh        # UserPromptSubmit shell shim
-├── hook.py        # probes + periodic re-anchor + state (one process)
+├── hook.py        # probes + periodic re-anchor + request ledger + state (one process)
 ├── install.sh     # wires UserPromptSubmit into project-local .claude/
-├── test.sh        # regression suite (56 cases: probes + re-anchor + hardening)
+├── test.sh        # regression suite (67 cases: probes + re-anchor + ledger + hardening)
 └── measure.py     # standalone offline probe analyzer
 ```
 
@@ -278,3 +322,4 @@ tools/
 - Probe detectors are syntactic — they catch keyword/structural signals but miss semantic drift (a paraphrased "done" without claim-word match). A judge-style probe using a tiny LLM is the natural next add (the `llm_judge` kind, currently deferred).
 - `edit_count_per_turn` (lean-execution drift) and `tool_choice_drift` (model picks Write when rule says Edit) are not yet detector kinds. Easy adds when needed.
 - The re-anchor is cadence-based (turn count), not staleness-aware: it re-states rules on schedule even if attention hasn't actually decayed. It yields to probes, but on a quiet long session it still fires every N turns. A true staleness signal would need a cheap per-rule "faded?" probe — none exists yet.
+- The request ledger is one-item-per-prompt and closes by heuristic (most-recent-open, or all on "everything") — it can't map "yes, that one's done" to a specific item, and a single prompt bundling several asks ("do X, Y, and Z") is tracked as one line (the `completion_without_closure` gate is what forces per-item enumeration at wrap-up). It errs toward keeping items open. A semantic ledger (split sub-asks, map closures to items) again wants the deferred `llm_judge`.
