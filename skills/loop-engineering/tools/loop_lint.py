@@ -593,6 +593,103 @@ def lint(text: str, source: str, rule_filter: int | None = None) -> Report:
     return report
 
 
+# --- Diagram (Mermaid) ----------------------------------------------------
+# Render a spec as a generator→gate→verifier loop, GROUNDED BY CONSTRUCTION:
+# every node/edge is derived from the parsed Spec (never invented), and the
+# lint findings are overlaid so a missing gate / self-grading / unbounded loop
+# is *visible*, not buried in a text report. Output is Mermaid text — the
+# renderer (GitHub, Obsidian, VS Code, mermaid.js) owns the look; we emit only
+# the structure. Zero dependencies; pure string building.
+
+# Mermaid breaks on these inside a node label; strip rather than escape (a
+# label is a glance, not a transcript). Quotes/brackets/pipes/backticks are the
+# syntactically dangerous set.
+_MM_BAD = re.compile(r"[\"\[\]{}()|<>`]")
+
+
+def _mm_label(text: str, maxlen: int = 44) -> str:
+    s = re.sub(r"\s+", " ", (text or "").strip())
+    s = _MM_BAD.sub("", s)
+    if len(s) > maxlen:
+        s = s[: maxlen - 1] + "…"
+    return s or "(none)"
+
+
+def to_mermaid(spec: Spec, findings: list[Finding]) -> str:
+    """A Mermaid flowchart of one loop spec with its lint findings overlaid.
+    `findings` must be THIS spec's findings (run check_spec into a fresh
+    Report per spec) so the node styling matches."""
+    g = _mm_label(spec.get("generator"))
+    gate = _mm_label(spec.get("gate"))
+    v = _mm_label(spec.get("verifier"))
+    stop = _mm_label(spec.get("stop"))
+    budget = _mm_label(spec.get("budget"))
+    topo = _mm_label(spec.get("topology"), 40)
+    name = _mm_label(spec.name or spec.source or "loop", 60)
+
+    out: list[str] = []
+    out.append(f"%% loop-lint diagram — {name}")
+    out.append("flowchart LR")
+    out.append(f'  TOPO["topology: {topo}"]')
+    out.append(f'  G["gen: {g}"]')
+    out.append(f'  K{{"gate: {gate}"}}')
+    out.append(f'  V["verify: {v}"]')
+    out.append(f'  S(["stop: {stop}"])')
+    out.append(f'  B[/"budget: {budget}"/]')
+    out.append("  TOPO -.-> G")
+    out.append("  G --> K")
+    out.append("  K -->|pass| V")
+    out.append("  K -->|fail| G")
+    out.append("  V -->|accept| S")
+    out.append("  V -->|reject| G")
+    out.append("  B -.caps.-> G")
+
+    if findings:
+        out.append("  subgraph lint[lint findings]")
+        for i, f in enumerate(findings):
+            cls = "fail" if f.severity == "FAIL" else "warn"
+            out.append(f'    F{i}["R{f.rule} {f.severity}: {_mm_label(f.title, 52)}"]:::{cls}')
+        out.append("  end")
+    else:
+        out.append('  OK0["OK — gate · stop · budget · separate verifier"]:::ok')
+
+    # Inline emphasis: colour each structural node by the WORST severity of any
+    # finding that indicts it, so the node colour matches the lint severity (an
+    # R2 cap==0 WARN must paint amber, not FAIL-red). Per-NODE, not per-rule, so
+    # a node hit by two rules of different severity can't get two conflicting
+    # `class` lines (FAIL dominates WARN).
+    rule_nodes = {1: ("K",), 2: ("S", "B"), 3: ("G", "V"), 5: ("V",), 6: ("TOPO",)}
+    node_sev: dict[str, str] = {}
+    for f in findings:
+        for n in rule_nodes.get(f.rule, ()):
+            if node_sev.get(n) != "FAIL":
+                node_sev[n] = f.severity
+    fails = sorted(n for n, s in node_sev.items() if s == "FAIL")
+    warns = sorted(n for n, s in node_sev.items() if s == "WARN")
+    if fails:
+        out.append(f"  class {','.join(fails)} fail")
+    if warns:
+        out.append(f"  class {','.join(warns)} warn")
+    out.append("  classDef fail stroke:#c0392b,stroke-width:2px,color:#c0392b;")
+    out.append("  classDef warn stroke:#b9770e,stroke-width:2px,color:#b9770e;")
+    out.append("  classDef ok stroke:#1e8449,stroke-width:1px,color:#1e8449;")
+    return "\n".join(out)
+
+
+def diagrams(text: str, source: str, rule_filter: int | None = None) -> list[str]:
+    """One Mermaid diagram per spec in `text`, each with its own findings
+    overlaid. Raises ValueError/JSONDecodeError on an unparseable spec (same as
+    lint)."""
+    specs = parse_specs(text, source)
+    out: list[str] = []
+    for spec in specs:
+        per = Report(root=source)
+        check_spec(per, spec, rule_filter)
+        per.finalize()
+        out.append(to_mermaid(spec, per.findings))
+    return out
+
+
 # --- Driver ---------------------------------------------------------------
 
 def main(argv: list[str]) -> int:
@@ -600,6 +697,9 @@ def main(argv: list[str]) -> int:
                                  description="Static linter for an agentic loop spec.")
     ap.add_argument("path", help="loop-spec file (.md with a ```loop block / .yaml / .json), or '-' for stdin")
     ap.add_argument("--json", action="store_true", help="emit the typed report as JSON")
+    ap.add_argument("--diagram", action="store_true",
+                    help="emit a Mermaid diagram of each spec with lint findings overlaid "
+                         "(grounded in the parsed spec; wrap in a ```mermaid fence to render)")
     ap.add_argument("--rule", type=int, choices=[1, 2, 3, 4, 5, 6, 7], help="restrict to one rule")
     args = ap.parse_args(argv)
 
@@ -623,7 +723,14 @@ def main(argv: list[str]) -> int:
         print(f"error: unparseable loop spec in {source}: {e}", file=sys.stderr)
         return 3
 
-    if args.json:
+    if args.diagram:
+        # Render the parsed spec(s); keep the lint verdict as the exit code so
+        # `loop_lint --diagram spec.md` is still a CI-composable gate.
+        blocks = diagrams(text, source, rule_filter=args.rule)
+        if not blocks:
+            print(f"%% loop-lint: no loop spec found in {source}")
+        print("\n\n".join(blocks))
+    elif args.json:
         print(json.dumps({
             "root": report.root,
             "n_specs": report.n_specs,

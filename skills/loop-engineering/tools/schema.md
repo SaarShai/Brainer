@@ -39,6 +39,10 @@ This is an **allowlist**, not a prose denylist: `gate: the reviewer agrees` / `g
 
 `budget` must bind a number to a cap unit — `max_iterations=20`, `max_tokens: 100000`, `20 turns`, `30m`. A stray digit in prose (`run until inbox has 0 unread`) is **unbounded** and FAILs R2.
 
+## Visualize a spec (`--diagram`)
+
+`loop_lint.py --diagram <file>` emits a Mermaid generator→gate→verifier loop for each spec, **derived from the parsed fields** (never invented), with the lint findings overlaid: the indicted node is coloured (R1 → the gate, R3 → generator + verifier, R2 → stop + budget, R6 → topology) and every finding is listed in a `lint findings` subgraph. A clean spec shows a single green `OK` node. Exit code stays the lint verdict (2/1/0), so `--diagram` is still a CI gate. Wrap the output in a ` ```mermaid ` fence to render it in GitHub / Obsidian / VS Code.
+
 ## Example (passes clean)
 
 ```loop

@@ -511,6 +511,112 @@ def test_missing_path_exit_3():
     assert rc == 3, rc
 
 
+# --- Diagram (Mermaid) ----------------------------------------------------
+
+BROKEN_DIAG = """\
+name: vibe-loop
+topology: open · inner · single
+generator: claude
+verifier: claude
+gate: looks correct
+stop: when it feels done
+"""
+
+
+def _diagram(text, source="spec.yaml"):
+    return "\n\n".join(loop_lint.diagrams(text, source))
+
+
+def _diagram_main(text, suffix=".yaml"):
+    with tempfile.NamedTemporaryFile("w", suffix=suffix, delete=False) as fh:
+        fh.write(text)
+        path = fh.name
+    try:
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            rc = loop_lint.main(["--diagram", path])
+        return rc, buf.getvalue()
+    finally:
+        os.unlink(path)
+
+
+def test_diagram_clean_has_ok_node_no_fail():
+    d = _diagram(CLEAN)
+    assert "flowchart LR" in d
+    assert ":::ok" in d and "OK —" in d
+    assert ":::fail" not in d, d
+    for nid in ('G["gen:', 'K{"gate:', 'V["verify:', 'S(["stop:', 'B[/"budget:', 'TOPO["topology:'):
+        assert nid in d, nid
+
+
+def _class_nodes(d, sev):
+    """Union of node ids in every `class <ids> <sev>` line of a diagram."""
+    nodes = set()
+    for l in d.splitlines():
+        s = l.strip()
+        if s.startswith("class ") and s.endswith(f" {sev}"):
+            nodes |= set(s.split()[1].split(","))
+    return nodes
+
+
+def test_diagram_broken_overlays_findings():
+    d = _diagram(BROKEN_DIAG)
+    assert "subgraph lint" in d
+    assert ":::fail" in d
+    # the indicted nodes are coloured FAIL-red, not only the findings list:
+    # R1 → gate (K), R3 → generator+verifier (G,V), R2 (no budget) → stop+budget (S,B)
+    assert {"K", "G", "V"} <= _class_nodes(d, "fail"), _class_nodes(d, "fail")
+    assert "R1 FAIL" in d and "R3 FAIL" in d
+
+
+def test_diagram_node_colour_matches_severity_r2_zero_cap():
+    # R2 cap==0 is a WARN, not a FAIL: the stop+budget nodes must be warn-
+    # coloured, never FAIL-red (the diagram must not contradict the verdict).
+    spec = ("name: z\ntopology: closed · inner · single\ngenerator: a\n"
+            "verifier: b\ngate: pytest -q\nstop: all green\nbudget: max_iterations=0\n")
+    assert _has(spec, 2, "WARN") and not _has(spec, 2, "FAIL"), _rules(spec)
+    d = _diagram(spec)
+    assert {"S", "B"} <= _class_nodes(d, "warn"), _class_nodes(d, "warn")
+    assert not ({"S", "B"} & _class_nodes(d, "fail")), _class_nodes(d, "fail")
+    assert "R2 WARN" in d and "R2 FAIL" not in d
+
+
+def test_diagram_exit_code_is_lint_verdict():
+    assert _diagram_main(CLEAN)[0] == 0
+    assert _diagram_main(BROKEN_DIAG)[0] == 2
+
+
+def test_diagram_multi_spec_one_block_each():
+    two = json.dumps([
+        {"name": "a", "generator": "g", "verifier": "v", "gate": "pytest -q",
+         "stop": "green", "budget": "max_iterations=3", "topology": "closed"},
+        {"name": "b", "generator": "c", "verifier": "c", "gate": "looks ok",
+         "stop": "feels done", "topology": "open"},
+    ])
+    blocks = loop_lint.diagrams(two, "multi.json")
+    assert len(blocks) == 2, len(blocks)
+    assert "flowchart LR" in blocks[0] and "flowchart LR" in blocks[1]
+
+
+def test_diagram_label_sanitization_strips_mermaid_breakers():
+    spec = ('name: x\ngenerator: a|b[c]"d{e}(f)\ngate: pytest -q\n'
+            'stop: green\nbudget: max_iterations=3\nverifier: rev\ntopology: closed\n')
+    d = _diagram(spec)
+    gen_line = next(l for l in d.splitlines() if l.strip().startswith('G["gen:'))
+    # node is  G["gen: <content>"]  — test the CONTENT, not the delimiters
+    content = gen_line.split("gen: ", 1)[1]
+    assert content.endswith('"]'), gen_line
+    content = content[:-2]
+    for bad in ('|', '[', ']', '"', '{', '}', '(', ')'):
+        assert bad not in content, (bad, repr(content))
+
+
+def test_diagram_no_spec_is_graceful():
+    rc, out = _diagram_main("")
+    assert "no loop spec found" in out
+    assert rc == 1, rc
+
+
 # --- runner ---------------------------------------------------------------
 
 def main() -> int:
