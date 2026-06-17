@@ -1,21 +1,21 @@
 {
   "$schema": "https://claude.com/schemas/plugin-marketplace.json",
   "name": "brainer",
-  "version": "1.8.0",
-  "description": "Token/context-efficient skills for AI coding agents. 18 skills across output style, planning, lean execution, verification, wiki memory (write-gate / wiki-refresh / provenance trust), prompt triage, PreCompact extraction, semantic AST diff, output filtering, retrieval indexing, task-end retrospectives, loop/verifier-gate design, and drift mitigation. Measured per-skill savings range from ~-20% (routing) to ~-97% (re-reads / compaction) depending on skill type; see eval/FINDINGS.md.",
+  "version": "1.9.0",
+  "description": "Token/context-efficient skills for AI coding agents. 19 skills across output style, planning, lean execution, verification, wiki memory (write-gate / wiki-refresh / provenance trust), prompt triage, PreCompact extraction, semantic AST diff, output filtering, retrieval indexing, task-end retrospectives, loop/verifier-gate design, LLM-as-judge output gating, and drift mitigation. Measured per-skill savings range from ~-20% (routing) to ~-97% (re-reads / compaction) depending on skill type; see eval/FINDINGS.md.",
   "homepage": "https://github.com/SaarShai/Brainer",
   "license": "MIT",
   "author": "Saar Shai",
   "plugins": [
     {
       "name": "brainer",
-      "version": "1.8.0",
-      "description": "All 18 skills bundled; skill-pulse and compliance-canary auto-wire their UserPromptSubmit hooks (auto-install: true, default-on since v1.7); loop-engineering ships opt-in (auto-install: false, wires no hook).",
+      "version": "1.9.0",
+      "description": "All 19 skills bundled; skill-pulse and compliance-canary auto-wire their UserPromptSubmit hooks (auto-install: true, default-on since v1.7); loop-engineering and eval-gate ship opt-in (auto-install: false, wire no hook).",
       "source": {
         "type": "git-subdirectory",
         "directory": "skills/"
       },
-      "context_cost_estimate_tokens": 1110,
+      "context_cost_estimate_tokens": 1140,
       "skills": [
         "caveman-ultra",
         "plan-first-execute",
@@ -34,7 +34,8 @@
         "wiki-refresh",
         "cache-lint",
         "task-retrospective",
-        "loop-engineering"
+        "loop-engineering",
+        "eval-gate"
       ],
       "hooks": [
         {

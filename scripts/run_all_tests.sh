@@ -99,6 +99,7 @@ run "skill-audit" python3 eval/skill_audit.py --check
 # 6. Hook self-test suites
 run "hook:compliance-canary" bash skills/compliance-canary/tools/test.sh
 run "hook:skill-pulse" bash skills/skill-pulse/tools/test.sh
+run "tool:eval-gate" bash skills/eval-gate/tools/test.sh
 
 # 7. Triage replay audit — re-classifies every historically-routed prompt with
 # the current classifier; fails on local-model / low-conf / length-gate

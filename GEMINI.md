@@ -33,6 +33,7 @@ notice when context matches one (e.g. `wiki-memory` for "have we done X").
 - `caveman-ultra` — Terse output style
 - `compliance-canary` — Use when long sessions show drift symptoms — filler creep, word-count growth, done-claims without evidence, repeated tool errors
 - `context-keeper` — PreCompact hook that extracts structured state (files, commands, errors, numbers, decisions, failures) from the transcript before compaction
+- `eval-gate` — Score AI output against a written rubric before it ships — an LLM-as-judge quality gate for content output (drafts, posts, answers) and product output (an agent's reply, an extraction, a generated payload)
 - `index-first` — Prefer pre-built indexes over chains of grep/read/scan
 - `lean-execution` — Prune plans, process, context, and delegation to the smallest safe path
 - `loop-engineering` — Use BEFORE building any multi-step agentic loop, generator→verifier pipeline, fan-out/fleet, or iterate-until-correct/retry loop
