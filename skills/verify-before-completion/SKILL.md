@@ -1,8 +1,8 @@
 ---
 name: verify-before-completion
-description: Use before claiming work is done, fixed, passing, committed, or ready. Evidence before claims. Run the verification fresh; report exact command + output + remaining risk.
+description: Use before claiming work is done, fixed, passing, committed, or ready. Evidence before claims. Run the verification fresh; report exact command + output + remaining risk. For high-stakes or hard-to-reverse results, escalate to a separate cross-vendor verifier before shipping.
 effort: low
-pulse_reminder: before claiming done/fixed/passing, run a fresh verification command and quote its exact output. Evidence beats claims.
+pulse_reminder: before claiming done/fixed/passing, run a fresh verification command and quote its exact output. Evidence beats claims. High-stakes/irreversible result → cross-vendor verify before shipping.
 ---
 
 # Verify Before Completion
@@ -30,6 +30,16 @@ Do not claim:
 When dispatching verification to a subagent: mid-tier model (sonnet-class) with read-only tools is the default — verifying is cheaper than making; escalate only when the artifact demands frontier reasoning.
 
 If verification is impossible, say what was not verified and why.
+
+## High-stakes: escalate to a cross-vendor verifier (inline, before shipping)
+
+Step 5 proves the work runs. For a **high-stakes or hard-to-reverse** result, "runs" is not "correct" — your own check shares your blind spots. Before shipping such a result, escalate to a **separate, preferably cross-vendor, read-only** verifier — the same mechanism as [`task-retrospective` Part D](../task-retrospective/SKILL.md#part-d--adversarial-cross-check-a-separate-preferably-cross-vendor-verifier-agent), fired **now** instead of at task-end.
+
+**Fire (cost-gated — NOT every claim):** the output is hard to reverse (publish/send/merge/migrate/delete), money- or security-relevant, or a contested/load-bearing conclusion the user will act on. Trivial, internal, or easily-reverted results skip this and just use steps 1–5.
+
+**How:** dispatch the OTHER vendor read-only and synchronous — `codex exec` (Claude→GPT), `claude -p --model opus` (GPT→Claude), or `gemini -p --approval-mode plan`. Hand it the result + evidence; ask it to re-run the key check and **refute if it can** (holds:bool, exit 0). See Part D for the full vendor table, channel caveats, the odd-N (default 3) majority rule, and the `loop`-spec. Agreement → ship. Refutation → do not ship; resolve or escalate to the user.
+
+This is verification, not generation — a different foundation model catching errors, the one ensemble mechanism the evidence backs. It does NOT replace the task-end retro; it's the pre-ship gate for results that can't wait for it.
 
 ## Harvest the learning (before you call it done)
 
