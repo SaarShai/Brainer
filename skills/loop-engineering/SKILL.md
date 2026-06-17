@@ -1,6 +1,6 @@
 ---
 name: loop-engineering
-description: Use BEFORE building any multi-step agentic loop, generator→verifier pipeline, fan-out/fleet, or iterate-until-correct/retry loop. Picks the loop shape (open/closed · inner/outer · single/fleet), pairs a generator with a SEPARATE verifier, and forces a concrete gate + stop + budget cap up front. Ships loop_lint.py to refuse no-gate / self-grading / unbounded specs. Override with ONE SHOT.
+description: Use BEFORE building any multi-step agentic loop, generator→verifier pipeline, fan-out/fleet, or iterate-until-correct/retry loop — INCLUDING an automated / unattended / scheduled / nightly process that regenerates, revises, or rebuilds artifacts and keeps retrying each until it passes a check, any self-correcting or "keep going until it's good enough" automation, and any build-and-verify or generate-and-grade pipeline. If the task is "set up something that runs repeatedly and fixes its own output", this skill applies. Picks the loop shape (open/closed · inner/outer · single/fleet), pairs a generator with a SEPARATE verifier, and forces a concrete gate + stop + budget cap up front. Ships loop_lint.py to refuse no-gate / self-grading / unbounded specs. Override with ONE SHOT.
 effort: medium
 tools: [Bash, Read, Write]
 auto-install: true
@@ -92,7 +92,7 @@ A reusable generator/verifier/budget recipe is just another durable fact — rou
 
 - [`SKILL.md`](SKILL.md) — this doctrine.
 - [`tools/loop_lint.py`](tools/loop_lint.py) — the mechanical gate: static loop-spec linter (R1–R7, exit code = verdict).
-- [`tools/test_loop_lint.py`](tools/test_loop_lint.py) — 60 tests (4 adversarial rounds + R7 verify + `--diagram`); registered in `scripts/run_all_tests.sh`.
+- [`tools/test_loop_lint.py`](tools/test_loop_lint.py) — 61 tests (4 adversarial rounds + R7 verify + `--diagram`); registered in `scripts/run_all_tests.sh`.
 - [`tools/schema.md`](tools/schema.md) — loop-spec field reference.
 - [`drift_probes.json`](drift_probes.json) — `claim_without_evidence` probe (loop-done claim with no gate run); auto-discovered by compliance-canary.
 - [`EVAL.md`](EVAL.md) — static cost + promotion path (opt-in until measured).

@@ -343,9 +343,17 @@ def _norm(s: str) -> str:
 
 
 def _slugs(s: str) -> frozenset[str]:
-    """Model slugs named anywhere in an actor phrase (opus, sonnet, claude…)."""
-    return frozenset(t.lower() for t in re.findall(r"[A-Za-z][A-Za-z0-9_-]*", s)
-                     if t.lower() in _MODEL_SLUGS)
+    """Model identifiers named in an actor phrase, returned as WHOLE tokens that
+    contain a known model slug. We split on -/_ only to TEST membership, so a
+    hyphenated id ('claude-opus', 'gpt-4o') is recognized and a laundered
+    self-grade can't slip R3 on spelling alone — but the whole token is what's
+    returned, so distinct tiers stay distinct: 'claude-opus' vs 'claude-sonnet'
+    do NOT collide on the shared 'claude' family word (they are two actors)."""
+    out = set()
+    for tok in re.findall(r"[A-Za-z][A-Za-z0-9_-]*", s):
+        if any(p.lower() in _MODEL_SLUGS for p in re.split(r"[-_]", tok)):
+            out.add(tok.lower())
+    return frozenset(out)
 
 
 # What may follow an ACTING proper name: a clause boundary (comma, paren,

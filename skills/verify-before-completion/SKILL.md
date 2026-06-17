@@ -33,7 +33,7 @@ If verification is impossible, say what was not verified and why.
 
 ## High-stakes: escalate to a cross-vendor verifier (inline, before shipping)
 
-Step 5 proves the work runs. For a **high-stakes or hard-to-reverse** result, "runs" is not "correct" — your own check shares your blind spots. Before shipping such a result, escalate to a **separate, preferably cross-vendor, read-only** verifier — the same mechanism as [`task-retrospective` Part D](../task-retrospective/SKILL.md#part-d--adversarial-cross-check-a-separate-preferably-cross-vendor-verifier-agent), fired **now** instead of at task-end.
+Steps 1–5 prove the work runs. For a **high-stakes or hard-to-reverse** result, "runs" is not "correct" — your own check shares your blind spots. Before shipping such a result, escalate to a **separate, preferably cross-vendor, read-only** verifier — the same mechanism as [`task-retrospective` Part D](../task-retrospective/SKILL.md#part-d--adversarial-cross-check-a-separate-preferably-cross-vendor-verifier-agent), fired **now** instead of at task-end.
 
 **Fire (cost-gated — NOT every claim):** the output is hard to reverse (publish/send/merge/migrate/delete), money- or security-relevant, or a contested/load-bearing conclusion the user will act on. Trivial, internal, or easily-reverted results skip this and just use steps 1–5.
 

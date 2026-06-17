@@ -11,7 +11,8 @@
     "kind": "word_count_per_message",
     "threshold": 120,
     "window": 3,
-    "warrant_pattern": "(?i)\\b(explain|elaborate|detail|in[ -]?depth|deep[ -]?dive|walk me through|comprehensive|thorough(ly)?|step[ -]by[ -]step|summar(y|ize|ise)|overview|report|break ?down|compare|pros and cons|brainstorm|think (of|about|through)|tell me (what|how|why|about|everything)|list( me)? (\\d|at least|the|all|every)|\\d+ (ways|ideas|options|reasons|examples|things)|why (does|do|is|are|did))\\b",
+    "warrant_pattern": "(?i)(?:\\b(?:explain|elaborate|expand\\s+on|go\\s+(?:deep|long|big)|in[ -]?depth|deep[ -]?dive|walk\\s+me\\s+through|comprehensive|thorough(?:ly)?|exhaustive|step[ -]by[ -]step|brainstorm|pros\\s+and\\s+cons|summari[sz]e|enumerate|rundown|compare|break\\s+down|think\\s+(?:through|about|of))\\b|\\btell\\s+me\\s+(?:what|how|why|about|everything)\\b|\\blist(?:\\s+me)?\\s+(?:\\d|at\\s+least|the|all|every)\\b|\\b\\d+\\s+(?:ways|ideas|options|reasons|examples|things)\\b|\\bwhy\\s+(?:does|do|is|are|did)\\b|\\bdetail\\s+(?:the|all|each|every|me|out)\\b|\\b(?:give|gimme|write|make|produce|provide|need|want|draft|create|prepare|generate|compose|show\\s+me|send\\s+me|put\\s+together)\\b[^.?!]{0,24}\\b(?:summary|report|overview|breakdown|comparison|analysis|walkthrough|writeup|details?|list)\\b)",
+    "warrant_note": "honors a length REQUEST (verb/intent: explain, summarize, give me a report) — not a bare noun that merely appears ('is the summary committed?'), which would otherwise smuggle bloat past the probe.",
     "message": "average words/message climbing past caveman-ultra budget — tighten next reply",
     "severity": "warn"
   }

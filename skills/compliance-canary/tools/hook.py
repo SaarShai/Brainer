@@ -829,6 +829,15 @@ def main() -> int:
     # --- symptomatic probes (every turn) --------------------------------
     fired: list[dict] = []
     probes = discover_probes(skills_root())
+    # C4 — scope probes to a deployment's ACTIVE skills. Default (unset) = every
+    # discovered skill's probes run, exactly as before (no regression). Set
+    # COMPLIANCE_CANARY_PROBE_SKILLS=a,b,c to fire ONLY those skills' probes — so a
+    # session that never invoked caveman-ultra's terse style isn't nagged by its
+    # filler/word-count probes. Mirrors COMPLIANCE_CANARY_PULSE_SKILLS (re-anchor).
+    _probe_allow = {s.strip() for s in
+                    os.environ.get("COMPLIANCE_CANARY_PROBE_SKILLS", "").split(",") if s.strip()}
+    if _probe_allow:
+        probes = [p for p in probes if p.get("_skill") in _probe_allow]
     if probes:
         events = read_transcript_tail(transcript_path)
         if events:

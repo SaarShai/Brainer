@@ -36,7 +36,12 @@ import urllib.request
 from pathlib import Path
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434/api/generate")
-DEFAULT_MODEL = os.environ.get("EVAL_GATE_MODEL", "qwen2.5:7b")
+# DEFAULT_MODEL must name an Ollama tag that is actually installed on the host
+# (check `ollama list` / `curl $OLLAMA_URL/../tags`). A bare "qwen2.5:7b" is NOT
+# the same tag as "qwen2.5:7b-instruct" — using an absent tag makes /api/generate
+# return HTTP 404 and the gate exits 2 "judge unreachable" even when Ollama is up.
+# Override per-host with EVAL_GATE_MODEL.
+DEFAULT_MODEL = os.environ.get("EVAL_GATE_MODEL", "qwen2.5:7b-instruct")
 DEFAULT_BACKEND = os.environ.get("EVAL_GATE_BACKEND", "ollama")
 DEFAULT_THRESHOLD = 0.7
 JUDGE_SYSTEM = "You are an evaluation judge. Be strict, fair, terse."
@@ -69,7 +74,7 @@ WHY_TOKENS = (
 
 # -------------------------- judge --------------------------------------------
 
-_SCORE_SLASH = re.compile(r"([0-5])\s*/\s*5\b")
+_SCORE_FRACTION = re.compile(r"(\d+)\s*/\s*5\b")
 _SCORE_BOLD = re.compile(r"\*+\s*([0-5])\s*\*+")
 _SCORE_WORD = re.compile(r"(?i)\bscore\b[^0-9]{0,12}([0-5])\b")
 _SCORE_STANDALONE = re.compile(r"\b([0-5])\b")
@@ -89,7 +94,15 @@ def _parse_score(out: str):
     first = lines[0].strip()
     led_with_digit = bool(first) and first[0].isdigit() and 0 <= int(first[0]) <= 5
     score = int(first[0]) if led_with_digit else None
-    for rx in (_SCORE_SLASH, _SCORE_BOLD, _SCORE_WORD, _SCORE_STANDALONE):
+    # An explicit "N/5" fraction is authoritative: take the numerator and REJECT
+    # out-of-range (a '7/5' reply is an invalid score, not a 5 lifted from the
+    # denominator). Must run before the standalone fallback, which would match '5'.
+    if score is None:
+        frac = _SCORE_FRACTION.search(out)
+        if frac:
+            num = int(frac.group(1))
+            return (num, " ".join(out.split()).strip()) if 0 <= num <= 5 else (None, "")
+    for rx in (_SCORE_BOLD, _SCORE_WORD, _SCORE_STANDALONE):
         if score is not None:
             break
         m = rx.search(out)
@@ -147,7 +160,10 @@ def judge_mimo(model, task, candidate, rubric, timeout=120):
 
 def run_judge(task, candidate, rubric, backend, model, stub_score=None):
     if stub_score is not None:
-        return {"score": int(stub_score), "reason": "stub", "latency_ms": 0}
+        sv = int(stub_score)
+        if not 0 <= sv <= 5:
+            raise ValueError(f"--stub-score must be in 0-5, got {sv}")
+        return {"score": sv, "reason": "stub", "latency_ms": 0}
     if backend == "mimo":
         return judge_mimo(model, task, candidate, rubric)
     return judge_ollama(model, task, candidate, rubric)

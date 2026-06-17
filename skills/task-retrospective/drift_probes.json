@@ -8,5 +8,12 @@
     "lookback_tool_uses": 5,
     "message": "claimed the retrospective lesson was harvested/logged without a wiki.py/write_gate/log.md write (or a fetch read-back) in the last 5 tool uses — run the gated write and quote it, or fetch the page to prove it persisted",
     "severity": "warn"
+  },
+  {
+    "id": "correction-run-retro",
+    "kind": "user_correction",
+    "pattern": "(?i)(?:^\\s*(?:no[,.! ]|nope\\b|not that\\b|wrong[,. ])|that'?s (?:wrong|incorrect|not right)|you (?:were|are) wrong\\b|you (?:never|didn'?t) (?:actually )?(?:ran|run|test|check|verif)|you (?:just )?(?:skipped|assumed|guessed|claimed)|\\b(?:again|second time|third time|you keep|every time|i (?:said|told you|asked you))\\b|stop (?:doing|saying)\\b)",
+    "message": "the user just corrected you mid-task — run the task-retrospective reflex NOW: a quick self-audit + 5-whys to the ROOT cause (not just the surface fix). If this is a REPEATED miss ('again'/'second time'/'you keep'), escalate it to a mechanical gate (a compliance-canary drift probe), not another apology.",
+    "severity": "warn"
   }
 ]
