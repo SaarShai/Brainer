@@ -1,0 +1,9 @@
+[
+  {
+    "id": "durable-write-intent",
+    "kind": "prompt_intent",
+    "pattern": "(?i)(?:\\bremember (?:this|that)\\b|\\bsave (?:this|that|it)\\b[^.?!\\n]{0,20}\\b(?:for later|to memory|to the wiki)?|\\bnote (?:this|that)\\b[^.?!\\n]{0,15}\\bdown\\b|\\badd (?:this|it|that)?\\b[^.?!\\n]{0,20}\\bto (?:the )?(?:wiki|memory|CLAUDE|AGENTS|GEMINI)\\b|\\blog (?:this|it|that)\\b|\\brecord (?:this|that|it)\\b|\\bpersist (?:this|that|it)\\b|\\bthis should go in the wiki\\b|\\bkeep (?:this|that)\\b[^.?!\\n]{0,15}\\b(?:for (?:next time|later))\\b)",
+    "message": "the user wants something persisted — run write-gate first: score its signal (decisions / errors / architecture / code / numbers) and require a why-clause if it's a decision (`write_gate.py gate`). Don't save what the repo/graph/chat already records; one fact per file with a one-line summary on top; update an existing note over a duplicate; delete notes that turn out wrong.",
+    "severity": "warn"
+  }
+]

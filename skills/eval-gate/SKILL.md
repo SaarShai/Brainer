@@ -37,7 +37,9 @@ that can't silently come back. The floor rises on its own.
    copy-pasteable step") yields a score you can trust; a vague one ("is this
    good") doesn't. The judge inherits your taste only if you write it down.
 3. **Threshold** — the line below which nothing ships. Default `0.7`. The gate
-   only works if you never wave a 0.6 through because you liked it.
+   only works if you never wave a 0.6 through because you liked it — and never
+   lower the threshold mid-run to turn a FAIL into a PASS. A threshold change
+   needs explicit sign-off; the ratchet only ever *raises* the floor.
 
 ## CLI
 
@@ -64,9 +66,15 @@ fails *safe* — it never reports a pass it couldn't compute).
 
 ## Protocol
 
-1. Write the rubric once (`tools/rubric.example.md` is a starting point). Encode
-   your actual taste — the criteria a reader would bookmark you for.
+1. Write the rubric once, **as a file at task start** (`tools/rubric.example.md`
+   is a starting point) — checkable criteria committed up front, not reverse-
+   engineered after the work to fit what you produced. Encode your actual taste —
+   the criteria a reader would bookmark you for.
 2. `score` at the point of shipping. Exit 1 → rework or kill; do not ship.
+   **Two-pass when a maker hands you a result:** score it once from the maker's
+   claims, then again from the artifact alone — any criterion that drops on the
+   second pass is a refuted claim → below the line (the cold-context catch a
+   self-grade structurally misses).
 3. On any prompt / model / pipeline change, run `suite` against the baseline.
    A regression blocks until you've looked at which case dropped and why.
 4. Every time you (or a reviewer) catch a bad output, `add-case` it. The reason
@@ -85,9 +93,11 @@ instead of bloating. For heavier signal-scoring of the reason, pipe it through
 - [`verify-before-completion`](../verify-before-completion/SKILL.md) checks *did
   it run* (binary, deterministic). eval-gate checks *is the output good*
   (graded, rubric). Use both: no signal, no "done"; below the line, no ship.
-- [`compliance-canary`](../compliance-canary/SKILL.md) runs the same judge as a
-  **runtime** drift probe (`llm_judge` kind). eval-gate is the on-demand /
-  pre-ship form of the same measurement.
+- [`compliance-canary`](../compliance-canary/SKILL.md) is the **runtime** drift
+  watcher; eval-gate is the on-demand / pre-ship form of the same measurement.
+  eval-gate ships its own `drift_probes.json` (fires when content ships unscored,
+  when the user asks "is this good enough / would this pass", or when a gate is
+  being weakened to pass).
 - [`write-gate`](../write-gate/SKILL.md) gates *facts into memory*; eval-gate
   gates *output to an audience*. Same shape, different door.
 

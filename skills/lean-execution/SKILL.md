@@ -40,3 +40,11 @@ Maximize work not done. Keep only steps that reduce risk, gather needed facts, i
 ## Risk
 
 Do not use "lean" to skip necessary context, tests, user approval for risky choices, or docs that prevent recurrence.
+
+## Autonomy — keep going unless you truly need me
+
+Pause for the user ONLY when the work genuinely requires it: a **destructive or irreversible** action (delete / overwrite / publish / send / merge / migrate / charge), a **real scope change**, or **input only the user can provide**. Otherwise proceed through routine, reversible, in-scope steps and report back when done — don't stop to ask permission for work you can safely do and undo. Over-pausing wastes a turn; so does bundling a genuine risk into "just proceeding". (The `early_stop` probe backstops the opposite failure — narrating the next step instead of doing it.)
+
+## Keep instructions short
+
+A brief outcome instruction beats enumerating every case — over-prescription degrades frontier models, which already infer the cases you'd have listed. When a skill or prompt underperforms, suspect it's too LONG before too short: instructions written for weaker models usually need **trimming, not extending**. Cut to the smallest wording that still pins the outcome.

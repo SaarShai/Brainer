@@ -132,6 +132,31 @@ Session-level tool-error RATE over the transcript tail (tool_use count vs `is_er
 
 Use for: stop-and-reassess when the agent is thrashing (retry loops, wrong-cwd cascades, schema-mismatch storms). `min_tool_calls` guards cold starts.
 
+#### `prompt_intent` *(v1.11)*
+
+Same mechanism as `user_correction` (matches the CURRENT user prompt) but for a PRE-TASK nudge rather than a correction: a skill fires the moment the prompt describes the situation it governs — e.g. `loop-engineering` on a "build a self-correcting automation" or "spawn parallel agents" prompt, or `eval-gate` on "is this good enough / would this pass". Measured rationale: spontaneous Skill-tool invocation is unreliable (blind agents don't auto-load a skill even with a strong description), so a mechanical trigger beats hoping the model remembers. Ships in `loop-engineering/drift_probes.json` (loop-build + fleet-orchestration intent) and `eval-gate/drift_probes.json`.
+
+```json
+{
+  "kind": "prompt_intent",
+  "id": "loop-build-intent",
+  "pattern": "(?i)\\b(iterate|retry)\\b[^.?!]{0,30}\\buntil\\b",
+  "severity": "warn"
+}
+```
+
+#### `early_stop` *(v1.11)*
+
+Fires when the agent's LAST turn ended on a forward-looking PROMISE ("I'll now implement…", "let me start…") with no completion claim, no question, and no tool call that turn — it narrated the next step instead of doing it. Suppressed when the closing turn called a tool (work happened), reported completion (a legit "next steps" note), or asked the user a question (a legitimate pause). The anti-early-stop reflex; ships in `verify-before-completion/drift_probes.json`. Overridable: `pattern` (the promise), `done_pattern` (suppress on completion), `question_pattern` (suppress on a question).
+
+```json
+{
+  "kind": "early_stop",
+  "id": "early-stop-on-promise",
+  "severity": "warn"
+}
+```
+
 ## Mechanism 2 — periodic re-anchor
 
 Every `COMPLIANCE_CANARY_PULSE_EVERY` turns (default **4**, paper-calibrated — arXiv [2510.07777](https://arxiv.org/html/2510.07777) tests injections at turns 4 + 7 of 10-turn convos), the hook unconditionally re-states the active skills' rules so they stay in effective attention. This is the *prevention* half: it catches rules that fade **before** any symptom shows, and rules that have no symptom probe at all.

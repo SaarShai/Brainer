@@ -689,6 +689,39 @@ line=$(echo "$o" | grep 'big-skill:')
 linelen=${#line}
 if echo "$line" | grep -q '…' && [ "$linelen" -lt 320 ]; then ok "pulse_reminder capped (line=$linelen chars, ellipsized)"; else no "pulse_reminder cap" "len=$linelen line=$(echo "$line"|head -c80)"; fi
 
+# ======================================================================
+# early_stop detector (v1.11): fires when the closing turn is a forward
+# PROMISE with no completion, no question, and no tool call. Anti-early-stop.
+# ======================================================================
+
+echo "[55] early_stop: final turn is a forward PROMISE (no tool, no done, no question) → fires"
+ESPROBES='[{"id":"es","kind":"early_stop","message":"do the work now"}]'
+make_skill_with_probes sk55 vbc "$ESPROBES"
+TX="$TRANSCRIPT_DIR/t55.jsonl"
+write_transcript "$TX" "$(assistant_text 'Here is the plan. Next I will implement the parser and wire it up.' u55)"
+out=$(call cc55 sk55 "$TX" s55)
+if emitted "$out" && echo "$out" | grep -q 'early_stop'; then ok "forward-promise ending fires"; else no "early_stop fires" "got: $(echo "$out" | head -c160)"; fi
+
+echo "[56] early_stop: closing turn CALLED a tool → silent (work happened)"
+TX="$TRANSCRIPT_DIR/t56.jsonl"
+write_transcript "$TX" \
+  "$(assistant_text 'Let me run the tests now.' u56)" \
+  "$(assistant_tool_use Bash '{"command":"pytest"}')"
+out=$(call cc56 sk55 "$TX" s56)
+if [ -z "$out" ]; then ok "tool-called closing → silent"; else no "early_stop tool silence" "got: $(echo "$out" | head -c160)"; fi
+
+echo "[57] early_stop: message reports completion ('Done … pass') → silent despite a 'next' promise"
+TX="$TRANSCRIPT_DIR/t57.jsonl"
+write_transcript "$TX" "$(assistant_text 'Done — all tests pass. Next I will refactor the helper.' u57)"
+out=$(call cc57 sk55 "$TX" s57)
+if [ -z "$out" ]; then ok "completion report → silent"; else no "early_stop done silence" "got: $(echo "$out" | head -c160)"; fi
+
+echo "[58] early_stop: closing QUESTION → silent despite a promise match (legit pause)"
+TX="$TRANSCRIPT_DIR/t58.jsonl"
+write_transcript "$TX" "$(assistant_text 'Let me know which parser to implement — should I start now?' u58)"
+out=$(call cc58 sk55 "$TX" s58)
+if [ -z "$out" ]; then ok "closing question → silent"; else no "early_stop question silence" "got: $(echo "$out" | head -c160)"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then

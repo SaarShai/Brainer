@@ -16,5 +16,21 @@
     "min_count": 2,
     "message": "2+ Edit/Write attempts failed with 'File has not been read yet' — Read the target file with the Read tool before editing; bash cat/sed output does not register as a read",
     "severity": "warn"
+  },
+  {
+    "id": "visual-claim-without-vision",
+    "kind": "claim_without_evidence",
+    "claim_pattern": "(?i)\\b(chart|diagram|graph|figure|render(?:ed|s|ing)?|screenshot|layout|mockup|plot|svg|png|jpe?g|pdf|visuali[sz]ation|the ui|web ?page|slide)\\b[^.?!\\n]{0,45}\\b(?:looks?|renders?|displays?|correct|good|right|fine|works?|ready|done|complete|fixed)\\b",
+    "verify_tools": ["Bash", "Read", "mcp__visualize__show_widget", "mcp__Claude_Preview__preview_screenshot", "mcp__plugin_chrome-devtools-mcp_chrome-devtools__take_screenshot", "mcp__computer-use__screenshot"],
+    "verify_keywords": ["screenshot", "take_screenshot", "preview", "snapshot", "render", ".png", ".jpg", ".jpeg", ".svg", "image"],
+    "lookback_tool_uses": 6,
+    "message": "claimed a VISUAL / rendered output (chart, diagram, UI, PDF, image) looks correct without LOOKING at it — text-only checks miss occlusion, flattening, overlap, and scale. Open or screenshot the rendered artifact with a vision-capable tool (preview / screenshot, or Read the saved image) and verify it visually, or say it is unverified.",
+    "severity": "warn"
+  },
+  {
+    "id": "early-stop-on-promise",
+    "kind": "early_stop",
+    "message": "your last turn ended on a PLAN or a PROMISE ('I'll…/let me…/next I'll…') with no completion and no tool call — anti-early-stop: if your final paragraph is a plan or a promise, do that work NOW instead of yielding. Pause only for a genuine blocker — a destructive/irreversible action, a real scope change, or input only the user can give.",
+    "severity": "warn"
   }
 ]

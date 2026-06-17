@@ -1,0 +1,26 @@
+[
+  {
+    "id": "eval-gate-intent",
+    "kind": "prompt_intent",
+    "pattern": "(?i)(?:\\bis (?:this|it|that)\\b[^.?!\\n]{0,30}\\bgood enough\\b|\\bwould (?:this|it|that)\\b[^.?!\\n]{0,20}\\bpass\\b|\\b(?:score|grade|rate|evaluate|judge) (?:this|my|the|it)\\b|\\bis (?:this|my|the) (?:draft|post|answer|reply|copy|response|output|content|write-?up)\\b[^.?!\\n]{0,30}\\b(?:good|ready|ok|okay|solid|strong)\\b|\\bgood enough to (?:ship|post|publish|send)\\b)",
+    "message": "this prompt asks for a quality judgement on AI output — run eval-gate: score it against a WRITTEN rubric (0-5, exit-code gate) rather than eyeballing. Below the line, no ship; every caught failure becomes a permanent case. Write the rubric as a file first if none exists.",
+    "severity": "warn"
+  },
+  {
+    "id": "ship-content-without-score",
+    "kind": "claim_without_evidence",
+    "claim_pattern": "(?i)\\b(?:draft|post|answer|reply|copy|content|email|message|article|blog ?post|response|write-?up)\\b[^.?!\\n]{0,45}\\b(?:is (?:ready|final|good to go|done|solid)|ready to (?:ship|post|publish|send)|good to go|looks good|ship it|send it|publish it)\\b",
+    "verify_tools": ["Bash"],
+    "verify_keywords": ["eval_gate", "eval_gate.py", "score", "rubric", "judge", "suite"],
+    "lookback_tool_uses": 6,
+    "message": "about to ship AI-generated CONTENT to an audience without gating its quality — run eval-gate (score against the rubric) before it leaves the building, or say it is shipping ungated. Slop is an output-side problem; the score is the layer that measures it.",
+    "severity": "warn"
+  },
+  {
+    "id": "threshold-lowered-to-pass",
+    "kind": "forbidden_regex",
+    "pattern": "(?i)\\b(?:lower|drop|reduce|loosen|relax|weaken|soften|down-?grade)(?:ing|ed)? (?:the )?(?:threshold|tolerance|gate|bar|criteria|cut-?off|pass[- ]?mark|standard|assertion|expectation)s?\\b|\\b(?:threshold|tolerance|cut-?off)\\b[^.?!\\n]{0,25}\\bso (?:it|they|that|the (?:test|check|gate))\\b[^.?!\\n]{0,15}\\bpass",
+    "message": "you appear to be WEAKENING a gate to make it pass — don't. A tolerance / threshold / expectation change needs explicit human sign-off, never mid-run to convert FAIL→PASS. Raise the bar, never lower it to wave work through.",
+    "severity": "warn"
+  }
+]

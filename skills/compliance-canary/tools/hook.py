@@ -404,6 +404,22 @@ def recent_tool_uses(events: list[dict], n: int = 10) -> list[dict]:
     return out
 
 
+def final_assistant_has_tool_use(events: list[dict]) -> bool:
+    """True iff the MOST-RECENT assistant event contained a tool_use block.
+    Used by the early_stop detector: a closing turn that called a tool DID work
+    (no early stop); a closing turn that was pure prose may be a narrate-then-
+    yield. Looks only at the last assistant event (the agent's final message)."""
+    for e in reversed(events):
+        if e.get("type") != "assistant":
+            continue
+        msg = e.get("message") or {}
+        content = msg.get("content")
+        if not isinstance(content, list):
+            return False
+        return any(isinstance(b, dict) and b.get("type") == "tool_use" for b in content)
+    return False
+
+
 def _tool_result_text(content) -> str:
     """tool_result content is a string OR a list of blocks ({type:text,...});
     stringifying the list literal makes regexes brittle (codex review
@@ -663,6 +679,69 @@ DETECTORS["user_correction"] = detect_user_correction
 DETECTORS["prompt_intent"] = detect_user_correction
 
 
+# Default patterns for early_stop (each overridable per-probe).
+_EARLY_STOP_PROMISE = (
+    r"(?i)\b(?:i'?ll|i will|i'?m going to|i am going to|let me|let'?s|next,?\s+i)\b"
+    r"[^.?!\n]{0,70}\b(?:now|next|then|go ahead|proceed|start|begin|continue|"
+    r"implement|run|create|write|add|fix|build|draft|set up|wire|tackle|"
+    r"check|look|examine|review|investigate|verify|test|explore|search|read|"
+    r"do (?:this|that|it))\b"
+)
+# A message that ALSO reports completed work → the promise is a legit "next
+# steps" note, not an early stop. Suppress.
+_EARLY_STOP_DONE = (
+    r"(?i)\b(?:done|fixed|completed?|passes|passing|verified|shipped|committed|"
+    r"implemented|merged|deployed|exit 0|all (?:pass|green|set|done)|"
+    r"tests? (?:pass|green)|results?:)\b"
+)
+# The agent is ASKING the user (a question / permission request), not promising-
+# then-yielding. That is a legitimate pause (over-pausing is an autonomy concern,
+# handled in lean-execution, not an early stop). Suppress.
+_EARLY_STOP_QUESTION = (
+    r"(?i)(?:\?|\blet me know\b|\bwant me to\b|\bshould i\b|\bshall i\b|"
+    r"\bdo you (?:want|prefer)\b|\bwould you like\b|\bwhich (?:option|approach|one)\b)"
+)
+
+
+def detect_early_stop(probe: dict, messages: list[dict], _tool_uses, _tool_errors=None,
+                      user_prompt: str = "", traj_stats: dict | None = None) -> dict | None:
+    """Fire when the agent's LAST turn ended on a forward-looking PROMISE
+    ("I'll now implement…", "let me start…") with no completion claim, no
+    question, and no tool call that turn — i.e. it narrated the next step
+    instead of doing it. The anti-early-stop reflex: if your final paragraph is
+    a plan or a promise, do that work NOW. Suppressed when the closing turn
+    actually called a tool (work happened), reported completion (legit 'next
+    steps'), or asked the user a question (a legitimate pause)."""
+    if not messages:
+        return None
+    # The closing turn did real work → not an early stop.
+    if traj_stats and traj_stats.get("final_assistant_has_tool_use"):
+        return None
+    last = messages[-1]["text"]
+    if not last.strip():
+        return None
+    try:
+        promise = re.compile(probe.get("pattern", _EARLY_STOP_PROMISE))
+        done = re.compile(probe.get("done_pattern", _EARLY_STOP_DONE))
+        question = re.compile(probe.get("question_pattern", _EARLY_STOP_QUESTION))
+    except re.error as e:
+        log_err(f"bad-regex probe={probe.get('_probe_id')} err={e!r}")
+        return None
+    # Only the CLOSING window — a promise after a completed-work report up top is
+    # a legit "next steps" note, not an early stop.
+    tail = last[-400:]
+    m = promise.search(tail)
+    if not m:
+        return None
+    if done.search(last) or question.search(tail):
+        return None
+    return {"matched": m.group(0).strip().replace("\n", " ")[:80],
+            "snippet": tail[max(0, m.start() - 20): m.end() + 40].replace("\n", " ")}
+
+
+DETECTORS["early_stop"] = detect_early_stop
+
+
 class _ProbeBudgetExceeded(BaseException):
     """Raised by the SIGALRM handler to abort a runaway probe phase. Derives
     from BaseException (not Exception) on purpose: run_probes' per-detector
@@ -875,11 +954,13 @@ def main() -> int:
                 and turn - int(h.get("fired_at_turn", 0)) < cooldown
             }
 
+            traj = trajectory_stats(events)
+            traj["final_assistant_has_tool_use"] = final_assistant_has_tool_use(events)
             try:
                 with probe_time_limit(PROBE_TIMEOUT_SECONDS):
                     fired = run_probes(probes, messages, tool_uses, suppressed, tool_errors,
                                        user_prompt=str(payload.get("prompt") or ""),
-                                       traj_stats=trajectory_stats(events))
+                                       traj_stats=traj)
             except _ProbeBudgetExceeded:
                 # A drift_probes regex blew the time budget (likely ReDoS). Skip
                 # probes this turn rather than wedge the prompt. Re-anchor below

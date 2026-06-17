@@ -42,6 +42,19 @@ Both layers are verification. Native tooling: `/goal` encodes the stop condition
 - **The producer never grades its own homework.** An agent grading its own output grades generously; the verify step must be run fresh by an actor that did NOT generate the candidate. `loop_lint.py` rejects `generator == verifier` (R3). The actual pass/fail check is a [`verify-before-completion`](../verify-before-completion/SKILL.md) invocation — this skill only names *which* gate runs and *that* it is independent.
 - **Exit on recomputed gate state, never on a model's done-claim.** A "PROJECT COMPLETE" token is not the gate; re-read the artifacts and recompute pass/fail. Per-role model choice defers to [`prompt-triage`](../prompt-triage/SKILL.md) (verifying is cheaper than making → a sonnet-class read-only verifier under an opus generator).
 
+## Orchestrating a fleet (fan-out · brief · synthesize)
+
+When the task is big enough to split, the orchestrator IS the loop: **write the GOAL, split it into independent pieces, dispatch them concurrently, synthesize results as they return**, and re-issue or retire goals as findings land — don't run agents serially when the pieces don't depend on each other.
+
+- **Brief each agent BEFORE dispatch** — a self-contained packet: the goal, in-scope files/paths, a `done means:` block, and the **explicit OUT-of-scope** line that stops scope creep. The description is all a subagent reads — keep it trigger-first, cap its turns, restrict its tools to its role.
+- **Executor report contract** — every agent returns: what it changed, **attempts tried and abandoned** (approach → outcome → why), every assumption it made where the brief was silent, and ends with **"READY FOR JUDGING"**, never "done". A subagent's done-claim is an input, not a verdict.
+- **Typed handoff between stages** — pass a staged chain in a shared task folder (`spec.md → changes.md → review.md`), each independently auditable, so the verifier reads exactly the right artifact and the test path derives from the **SPEC, not the implementation**.
+- **Isolate writers** — when >1 agent writes, give each its own git worktree (`isolation: worktree`) and merge through a quorum/aggregation gate; never let two agents write the same tree.
+- **Quarantine untrusted input** — an agent that reads untrusted content (web pages, user-supplied files, external tool output) gets read-only / no high-privilege tools; the actor that *acts* never sees the raw untrusted bytes. Untrusted-content + a write tool in one agent is the injection hole.
+- **Hooks do NOT fire inside subagents.** `compliance-canary` / `prompt-triage` are main-loop-only — a spawned agent gets no drift probes, no re-anchor, no routing. So: (1) **inline the relevant skill directives verbatim into each subagent's prompt** (the verify-before-completion reflex, this loop gate, terseness, the report contract); (2) keep subagents short-lived and single-purpose; (3) **re-verify their output in the main loop**, where the probes do fire. This is the one mechanical lever that reaches a fleet.
+
+Pick the workflow pattern deliberately: **fan-out-and-synthesize** · **adversarial-verification** (N skeptics each try to refute a finding) · **loop-until-dry** (re-spawn finders until K rounds add nothing new) · **classify-and-act** (route by model tier — [`prompt-triage`](../prompt-triage/SKILL.md)) · **generate-and-filter** (N candidates → rubric → top-K, [`eval-gate`](../eval-gate/SKILL.md)) · **tournament** (pairwise beats absolute scoring for taste/ranking). Effort routing: frontier model orchestrates, opus-class for hard-bounded subtasks, sonnet-class for high-volume reads, haiku-class for graders/classifiers.
+
 ## The loop spec: four required fields
 
 Declare these BEFORE the loop runs — they are `loop_lint.py`'s input contract:
@@ -59,13 +72,14 @@ Then answer the questions the four fields don't cover:
 
 ## Instrument before you scale
 
-**You cannot improve a loop you do not measure** — instrument the gate (iteration count, pass rate, failure reasons, per-step cost/success) BEFORE you scale, or you are just generating wrong answers faster. The metric that matters is **cost per accepted change**, not tokens spent — under ~50% accepted means the loop is making review work, not saving it. Add cheap deterministic **liveness** counters distinct from the correctness gate (repeated-decision, empty/unparseable output, no-progress) with explicit escalation. A recurring "ran past budget" or "no gate" violation across sessions is promoted by [`task-retrospective`](../task-retrospective/SKILL.md) into a [`compliance-canary`](../compliance-canary/SKILL.md) drift probe — `drift_probes.json` is the runtime home for the static checks this skill's linter makes. Build the **minimum viable loop** in order — get one manual run reliable → make it a skill → wrap it in a loop → schedule it; skipping ahead ships a loop nobody understands.
+**You cannot improve a loop you do not measure** — instrument the gate (iteration count, pass rate, failure reasons, per-step cost/success) BEFORE you scale, or you are just generating wrong answers faster. The metric that matters is **cost per accepted change**, not tokens spent — under ~50% accepted means the loop is making review work, not saving it. Add cheap deterministic **stuck detectors** distinct from the correctness gate, with concrete thresholds: **same command 3×, same error 2× (the `repeated_tool_error` probe), or 2 iterations with no metric movement = stuck.** On stuck, do NOT retry harder — **force entropy**: require a *structurally different* hypothesis before the next execution. Caps stay small (≈2–3 for a fix loop); on hitting the cap, **escalate with a decision brief** — the options tried and the evidence behind each, never a bare "it doesn't work". Per-cycle, ask the overfit question: *am I building the general solution, or memorizing this eval?* A recurring "ran past budget" or "no gate" violation across sessions is promoted by [`task-retrospective`](../task-retrospective/SKILL.md) into a [`compliance-canary`](../compliance-canary/SKILL.md) drift probe — `drift_probes.json` is the runtime home for the static checks this skill's linter makes. Build the **minimum viable loop** in order — get one manual run reliable → make it a skill → wrap it in a loop → schedule it; skipping ahead ships a loop nobody understands.
 
 ## Design against the quiet failures
 
 - **Ralph Wiggum loop** — the agent emits its "done" token early and the loop exits half-finished. The fix is the R1/R3 gate: an **objective** check (a test/build/lint exit code) that can FAIL the work — never a second agent with an opinion.
 - **Goal drift** — long sessions lose "don't do X" constraints to lossy summarization. Reread a standing spec (`VISION.md` / `AGENTS.md` / the `done means:` block) each run.
 - **Comprehension debt** — the faster the loop ships code you didn't write, the wider the gap between the repo and what anyone understands. **Read the diffs**; spot-check that the gate still catches the failure you care about (**gates rot**); keep the loop off architecture / auth / payments.
+- **Gate integrity — never weaken the gate to pass.** A failing check is failing; a tolerance / threshold / expectation change needs explicit human approval and never happens mid-run to convert FAIL→PASS. The coverage ratchet only ever *raises* the floor. A loop that lowers its own bar to ship is lying to itself.
 - **Unattended = an attack surface** — an autonomous loop merges code, installs skills, and writes logs while nobody watches. Require a **human-approval gate before any irreversible action** (merge / deploy / migrate / dependency bump), scope and re-audit its permissions, and audit any skill it auto-installs. `loop_lint.py` flags this statically (R7: an autonomous loop that deploys/merges/migrates/charges with no human gate).
 
 ## Validate the spec
@@ -94,7 +108,7 @@ A reusable generator/verifier/budget recipe is just another durable fact — rou
 - [`tools/loop_lint.py`](tools/loop_lint.py) — the mechanical gate: static loop-spec linter (R1–R7, exit code = verdict).
 - [`tools/test_loop_lint.py`](tools/test_loop_lint.py) — 61 tests (4 adversarial rounds + R7 verify + `--diagram`); registered in `scripts/run_all_tests.sh`.
 - [`tools/schema.md`](tools/schema.md) — loop-spec field reference.
-- [`drift_probes.json`](drift_probes.json) — `claim_without_evidence` probe (loop-done claim with no gate run); auto-discovered by compliance-canary.
+- [`drift_probes.json`](drift_probes.json) — three probes (loop-done claim with no gate run; loop-build intent; fleet-orchestration intent); auto-discovered by compliance-canary.
 - [`EVAL.md`](EVAL.md) — static cost + promotion path (opt-in until measured).
 
 ## Lineage

@@ -15,5 +15,12 @@
     "pattern": "(?i)(?:\\b(?:unattended|self[- ]?correct\\w*|generator[- ]?verifier|fan[- ]?out|fleet\\s+of\\s+(?:agents?|workers?|sub-?agents?))\\b|\\b(?:iterate|retry|retries|loop|keep(?:s|\\s+\\w+)?\\s+(?:trying|going|revising|running))\\b[^.?!]{0,30}\\buntil\\b|\\buntil\\s+(?:it|they|each|all|every)\\b[^.?!]{0,30}\\b(?:pass\\w*|green|correct|good\\s+enough)\\b|\\b(?:nightly|scheduled|automat\\w+|cron|every\\s+night)\\b[^.?!]{0,40}\\b(?:regenerat\\w+|revis\\w+|retr(?:y|ies)|rebuild\\w*|re-?run)\\b)",
     "message": "this prompt describes a self-correcting / iterate-until-it-passes / fan-out automation — apply loop-engineering BEFORE building: name the generator + a SEPARATE verifier, a concrete machine-checkable gate, a stop condition, and a numeric budget cap, then run loop_lint.py on the spec. No gate, or generator==verifier, means it is not a loop — just an open-ended spin.",
     "severity": "warn"
+  },
+  {
+    "id": "fleet-orchestration-intent",
+    "kind": "prompt_intent",
+    "pattern": "(?i)(?:\\b(?:spawn|dispatch|orchestrat\\w+|fan[- ]?out|fleet)\\b[^.?!\\n]{0,40}\\b(?:agents?|sub-?agents?|workers?)\\b|\\b(?:agents?|sub-?agents?|workers?)\\b[^.?!\\n]{0,30}\\bin parallel\\b|\\bsplit (?:the |up )?(?:work|task|goal)\\b[^.?!\\n]{0,40}\\b(?:independent|parallel|pieces|across|concurrent)\\b|\\bgive each (?:agent|sub-?agent|worker)\\b|\\b(?:multiple|several|many) (?:parallel )?(?:agents?|sub-?agents?)\\b|\\bdispatch(?:ed|ing)? (?:them |these |the )?(?:concurrently|in parallel)\\b)",
+    "message": "this prompt asks you to ORCHESTRATE A FLEET — apply loop-engineering's orchestration section: write the GOAL, split into independent pieces, give each agent a self-contained brief (goal + in-scope files + done-means + explicit OUT-of-scope), dispatch concurrently, synthesize as they return. Require the executor report contract ('READY FOR JUDGING', attempts+assumptions, never 'done'); worktree-isolate any writers; quarantine untrusted-content readers (read-only tools). CRITICAL: hooks/probes do NOT fire inside subagents — inline the relevant skill directives into each subagent prompt and re-verify their output in the main loop.",
+    "severity": "warn"
   }
 ]

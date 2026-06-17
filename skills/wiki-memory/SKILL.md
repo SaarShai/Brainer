@@ -23,6 +23,8 @@ Creates the `wiki/` tree (`L0_rules.md`, `L1_index.md`, `schema.md`, `L2_facts/`
 
 Use when the task references past work, decisions, docs, memory, project facts, or "have we done X".
 
+**Wiki-first:** when in doubt about any fact, rule, or decision, prefer reading the wiki over scrolling back through conversation history. The wiki is persistent and indexed; the context window is ephemeral and lossy (compaction silently drops detail). Retrieve before re-deriving.
+
 1. Read `wiki/L1_index.md` first.
 2. Run `python skills/wiki-memory/tools/wiki.py search "<query>"`.
 3. For relevant hits, `python ... timeline "<id>"`.
