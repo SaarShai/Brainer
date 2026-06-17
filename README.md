@@ -37,9 +37,9 @@ graphify extract .
 
 `./install.sh` installs `graphify` from our maintained fork ([SaarShai/graphify@token-economy-patches](https://github.com/SaarShai/graphify/tree/token-economy-patches)) — published `graphifyy` 0.8.17 ships four bugs that affect our skill flow (see [skills/index-first/EVAL.md](skills/index-first/EVAL.md) for the bug list and impact). The installer prefers `pipx` and falls back to `python3 -m pip install --user`. Opt out with `./install.sh --no-graphify` (the wiki-memory and index-first skills degrade gracefully when the graph isn't present). After bootstrap the stack is on automatically — hooks fire per event, descriptions trigger on prompt shape.
 
-## The catalog (16 skills)
+## The catalog (18 skills)
 
-**All installed by `./install.sh`.** `compliance-canary` (the single drift watcher — it absorbed `skill-pulse` at v1.10) auto-wires its `UserPromptSubmit` hook (`auto-install: true`, **default-on since v1.7**); `think` is slash-only (`/think`, no hook). To disable a default-on hook, remove its entry from `.claude/settings.json` by hand.
+**All 18 are symlinked by `./install.sh`; 16 are default-installed, while `loop-engineering` and `eval-gate` ship opt-in (`auto-install: false`, wire no hook).** `compliance-canary` (the single drift watcher — it absorbed `skill-pulse` at v1.10) auto-wires its `UserPromptSubmit` hook (`auto-install: true`, **default-on since v1.7**); `think` is slash-only (`/think`, no hook). To disable a default-on hook, remove its entry from `.claude/settings.json` by hand.
 
 | Skill | Trigger | Desc tokens | Notes |
 |---|---|---:|---|
@@ -58,8 +58,11 @@ graphify extract .
 | [write-gate](skills/write-gate/SKILL.md) | before any persistent write | 72 | Content-quality gate on durable memory. Signal-score (ogham lineage) + why-clause enforcement (codenamev lineage). Prevents reasonless decisions and recap-style writes. |
 | [wiki-refresh](skills/wiki-refresh/SKILL.md) | "refresh wiki / audit vs code" | 76 | Code-grounded reconcile of wiki pages (Keep/Update/Consolidate/Replace/Delete) via `audit-refs`; emits typed `contradicts:` edges. Ground-truth reconcile. |
 | [cache-lint](skills/cache-lint/SKILL.md) | before merging hooks/skills, CI | 71 | Static audit against Anthropic's 6 prompt-cache rules (ussumant lineage). FAIL on dynamic content above breakpoint, prefix mutation by Stop-hooks, etc. |
+| [task-retrospective](skills/task-retrospective/SKILL.md) | task end / `/retro` / mid-task correction | 157 | Use at the end of any non-trivial task (after the work is verified, before the final report), when the user gives a corrective message mid-task, or when the user types /retro. Runs a fixed agent self-audit (incl. 5-whys root-cause), shows the user the evidence, asks at most 3 closed feedback questions, then routes each banked lesson through write-gate to the NARROWEST home — escalating a REPEATED failure to a mechanical gate (a compliance-canary drift probe) instead of more prose. For high-stakes or contested results it dispatches a separate, preferably cross-vendor, verifier agent (Claude ↔ GPT-via-Codex ↔ Gemini) for independent review + root-cause. Default-installed. |
+| [loop-engineering](skills/loop-engineering/SKILL.md) | before building a loop / fleet / verifier pipeline | 96 | Use BEFORE building any multi-step agentic loop, generator→verifier pipeline, fan-out/fleet, or iterate-until-correct/retry loop. Picks the loop shape (open/closed · inner/outer · single/fleet), pairs a generator with a SEPARATE verifier, and forces a concrete gate + stop + budget cap up front. Ships loop_lint.py to refuse no-gate / self-grading / unbounded specs. Override with ONE SHOT. **Opt-in** (`auto-install: false`). |
+| [eval-gate](skills/eval-gate/SKILL.md) | "is this good enough / score this" | 117 | Score AI output against a written rubric before it ships — an LLM-as-judge quality gate for content output (drafts, posts, answers) and product output (an agent's reply, an extraction, a generated payload). Use when asked "is this good enough", "score/grade this", "would this pass", to gate output on quality, to regression-check a prompt/model/pipeline change, or to turn a flagged bad output into a permanent test case. Returns 0-5 + reason; exit code gates. **Opt-in** (`auto-install: false`, N≥50 validation pending). |
 
-**Always-resident context tax (16 descriptions): ~1,078 tokens.** Roughly 0.5% of a 200K context window. Every skill's description is resident; hook scripts and `tools/` load only when fired, adding no resident tax.
+**Always-resident context tax (18 descriptions): ~1,070 tokens** (per `.claude-plugin/marketplace.json` `context_cost_estimate_tokens`). Roughly 0.5% of a 200K context window. Every skill's description is resident; hook scripts and `tools/` load only when fired, adding no resident tax.
 
 Full body cost (worst case, all loaded at once): ~17,200 tokens. In practice, only the triggered skill's body loads.
 
@@ -99,7 +102,7 @@ See [eval/results/static_cost.json](eval/results/static_cost.json) for the full 
 | Codex / Cursor / Gemini CLI / Copilot | per-project (no plugin format exists for these) | clone into `<project>/.brainer`, then `.brainer/install.sh --host <name>` + symlink — see [Per-project install](#per-project-install-non-claude-code-hosts) |
 | any host (inside the brainer clone itself, e.g. contributing) | for that clone only | `./install.sh` (all hosts) or `./install.sh --host <name>` |
 
-The plugin (`brainer` v1.7.0) bundles all 16 skills plus their `UserPromptSubmit` and `PreCompact` hooks.
+The plugin (`brainer` v1.10.0) bundles all 18 skills plus their `UserPromptSubmit` and `PreCompact` hooks.
 
 ### Host install matrix
 
@@ -206,7 +209,7 @@ Built on prior work:
 
 ## Status
 
-- 16 skills written and lint-clean.
+- 18 skills written and lint-clean.
 - 4 hosts wired and verified (Claude Code, Codex, Cursor, Gemini CLI).
 - Static-cost measurements published.
 - Live A/B harness ready; needs a healthy Ollama / explicit `ANTHROPIC_API_KEY` / `HF_TOKEN` to run.
