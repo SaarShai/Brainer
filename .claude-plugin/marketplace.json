@@ -1,7 +1,7 @@
 {
   "$schema": "https://claude.com/schemas/plugin-marketplace.json",
   "name": "brainer",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "description": "Token/context-efficient skills for AI coding agents. 19 skills across output style, planning, lean execution, verification, wiki memory (write-gate / wiki-refresh / provenance trust), prompt triage, PreCompact extraction, semantic AST diff, output filtering, retrieval indexing, task-end retrospectives, loop/verifier-gate design, LLM-as-judge output gating, a visible requirements ledger (no user request dropped), and drift mitigation (one always-on watcher: periodic re-anchor + symptomatic probes). Measured per-skill savings range from ~-20% (routing) to ~-97% (re-reads / compaction) depending on skill type; see eval/FINDINGS.md.",
   "homepage": "https://github.com/SaarShai/Brainer",
   "license": "MIT",
@@ -9,8 +9,8 @@
   "plugins": [
     {
       "name": "brainer",
-      "version": "1.10.0",
-      "description": "All 19 skills bundled; compliance-canary (the single drift watcher — periodic re-anchor + symptomatic probes, formerly two skills) auto-wires its UserPromptSubmit hook (auto-install: true, default-on since v1.7) and now also enforces requirements-ledger (no user request silently dropped); loop-engineering and eval-gate ship opt-in (auto-install: false, wire no hook).",
+      "version": "1.11.0",
+      "description": "All 19 skills bundled; compliance-canary (the single drift watcher — periodic re-anchor + symptomatic probes, formerly two skills) auto-wires its UserPromptSubmit hook (auto-install: true, default-on since v1.7) and now also enforces requirements-ledger (no user request silently dropped); loop-engineering and eval-gate are default-installed skills with deterministic local gates.",
       "source": {
         "type": "git-subdirectory",
         "directory": "skills/"
@@ -38,6 +38,13 @@
         "requirements-ledger"
       ],
       "hooks": [
+        {
+          "event": "UserPromptSubmit",
+          "command": "bash ${PLUGIN_DIR}/skills/compliance-canary/tools/hook.sh",
+          "matcher": "*",
+          "optional": false,
+          "description": "compliance-canary default-on drift watcher and requirements-ledger guard."
+        },
         {
           "event": "UserPromptSubmit",
           "command": "bash ${PLUGIN_DIR}/skills/prompt-triage/tools/hook.sh",

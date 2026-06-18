@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Single deterministic test entrypoint — exit code is the verdict.
+# Full deterministic offline test entrypoint — exit code is the verdict.
 #
 # Runs every offline test the repo ships: SKILL.md lint, per-skill unit
 # tests, hook self-tests, carrier sync. Model-dependent evals (eval/exp*,
@@ -8,6 +8,8 @@
 #
 # Usage: bash scripts/run_all_tests.sh [--quiet]
 set -uo pipefail
+export PYTHONDONTWRITEBYTECODE=1
+export BRAINER_CHECK_NO_WRITE="${BRAINER_CHECK_NO_WRITE:-0}"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
@@ -40,8 +42,8 @@ run "marketplace-sync" python3 scripts/check_marketplace_sync.py
 # 3. Tracked JSON validity (mirrors CI)
 run "json-valid" bash -c "git ls-files -z '*.json' | xargs -0 -n1 python3 -m json.tool > /dev/null"
 
-# 4. Python syntax (mirrors CI)
-run "py-compile" bash -c "git ls-files -z '*.py' | xargs -0 python3 -m py_compile"
+# 4. Python syntax (mirrors CI), compile in memory so the gate writes no .pyc files.
+run "py-syntax" python3 scripts/check_python_syntax.py
 
 # 5. Per-skill unit tests (plain-python, no pytest dep)
 UNIT_TESTS=(
@@ -86,12 +88,12 @@ for t in "${UNIT_TESTS[@]}"; do
 done
 
 # 5b. Deterministic eval sims (offline; exit code is the verdict)
-run "sims" python3 eval/sims/run_all.py --quiet
+run "sims" env BRAINER_CHECK_NO_WRITE="$BRAINER_CHECK_NO_WRITE" python3 eval/sims/run_all.py --quiet
 
 # 5c. Ablation guard — fails only if a write-gate feature becomes NET-HARMFUL on
 # the labeled corpus (removing it would improve accuracy). A real miscalibration
 # signal; 0-flip/low-impact features are reported but never fail the gate.
-run "ablation-guard" python3 eval/ablation.py --json
+run "ablation-guard" env BRAINER_CHECK_NO_WRITE="$BRAINER_CHECK_NO_WRITE" python3 eval/ablation.py --json
 
 # 5d. Skill-corpus audit — fails if a NEW cross-skill directive conflict or a
 # near-duplicate directive is introduced (standing #3 guard; suite is clean now,

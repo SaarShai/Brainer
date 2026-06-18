@@ -22,6 +22,7 @@ Conventions:
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from dataclasses import dataclass, field
@@ -73,9 +74,11 @@ class Report:
 
 def write_report(report: Report) -> Path:
     out_dir = REPO / "eval/sims/results"
-    out_dir.mkdir(parents=True, exist_ok=True)
     name = f"{report.skill}_{report.shape}.json"
     path = out_dir / name
+    if os.environ.get("BRAINER_CHECK_NO_WRITE") == "1":
+        return path
+    out_dir.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({
         "skill": report.skill,
         "shape": report.shape,

@@ -9,6 +9,55 @@ A skill catalog for AI coding agents — Claude Code, Codex, Cursor, Gemini CLI,
 
 **Skills, not a framework.** Drop the catalog into any [agentskills.io](https://agentskills.io)-compatible host. Each skill is a single folder with a `SKILL.md`, optional bundled tools, and measured evaluation numbers.
 
+## No-drift promise
+
+Brainer's operating rule is:
+
+> Edit the source of truth, then run `make check`.
+
+`skills/` is the canonical skill body catalog. Host carriers, hook maps, marketplace metadata, generated resident catalogs, wiki indexes, and local audit outputs are either derived from that source or checked against it. A future agent should not need to remember the rules from a chat transcript; the repo should fail loudly when the surfaces disagree.
+
+## Quickstart
+
+```bash
+python3 -m pip install pytest
+make check
+./install.sh --dry-run
+```
+
+`make check` is the canonical local health gate. It runs skill lint, carrier sync, marketplace sync, skill contract checks, conflict checks, drift-probe schema checks, generated-file policy checks, wiki hygiene, deterministic pytest tests, and the full offline runner in non-writing check mode.
+
+`make full-check` is kept as a compatibility alias for `make check`.
+
+## Source-of-Truth Model
+
+```mermaid
+flowchart TD
+  Skills["skills/*/SKILL.md"] --> Contracts["schema/skill.schema.json"]
+  Skills --> SkillChecks["skill contract checks"]
+  Skills --> Index["skills/SKILLS_INDEX.md"]
+  Skills --> Hooks["skills/HOOKS_MAP.md"]
+  Skills --> Hosts["AGENTS.md / CLAUDE.md / GEMINI.md"]
+  Hosts --> CarrierChecks["carrier sync checks"]
+  Hooks --> GeneratedChecks["generated-file checks"]
+  Marketplace[".claude-plugin/marketplace.json"] --> MarketplaceChecks["marketplace sync checks"]
+  Wiki["wiki/*.md"] --> WikiIndex[".brainer/wiki.sqlite3"]
+  ConflictRules["schema/skill_conflicts.json"] --> ConflictChecks["conflict checks"]
+  Check["make check"] --> CI["GitHub Actions"]
+  SkillChecks --> Check
+  CarrierChecks --> Check
+  GeneratedChecks --> Check
+  MarketplaceChecks --> Check
+  ConflictChecks --> Check
+```
+
+Operational docs:
+
+- [`docs/GENERATED_FILES.md`](docs/GENERATED_FILES.md) defines canonical, generated, synchronized, and local runtime surfaces.
+- [`docs/ADDING_A_SKILL.md`](docs/ADDING_A_SKILL.md) is the checklist for adding or changing a skill without drift.
+- [`docs/INSTALL_SAFETY.md`](docs/INSTALL_SAFETY.md) explains installer effects, dry-run behavior, and restore posture.
+- [`docs/MEMORY_MODEL.md`](docs/MEMORY_MODEL.md) separates canonical wiki memory from derived indexes and scratch output.
+
 ## Most-recommended stack
 
 If you only install one combination, install this. Each item earns its slot with measured numbers — see [`eval/FINDINGS.md`](eval/FINDINGS.md) for the full breakdown.
@@ -37,9 +86,9 @@ graphify extract .
 
 `./install.sh` installs `graphify` from our maintained fork ([SaarShai/graphify@token-economy-patches](https://github.com/SaarShai/graphify/tree/token-economy-patches)) — published `graphifyy` 0.8.17 ships four bugs that affect our skill flow (see [skills/index-first/EVAL.md](skills/index-first/EVAL.md) for the bug list and impact). The installer prefers `pipx` and falls back to `python3 -m pip install --user`. Opt out with `./install.sh --no-graphify` (the wiki-memory and index-first skills degrade gracefully when the graph isn't present). After bootstrap the stack is on automatically — hooks fire per event, descriptions trigger on prompt shape.
 
-## The catalog (18 skills)
+## The catalog (19 skills)
 
-**All 18 are symlinked by `./install.sh` and default-installed (as of v1.11; `loop-engineering` and `eval-gate` were promoted from opt-in on user request).** `compliance-canary` (the single drift watcher — it absorbed `skill-pulse` at v1.10) auto-wires its `UserPromptSubmit` hook (`auto-install: true`, **default-on since v1.7**); `think` is slash-only (`/think`, no hook). To disable a default-on hook, remove its entry from `.claude/settings.json` by hand.
+**All 19 are symlinked by `./install.sh` and default-installed (as of v1.11; `loop-engineering`, `eval-gate`, and `requirements-ledger` are in the default catalog).** `compliance-canary` (the single drift watcher — it absorbed `skill-pulse` at v1.10) auto-wires its `UserPromptSubmit` hook (`auto-install: true`, **default-on since v1.7**); `think` is slash-only (`/think`, no hook). To disable a default-on hook, remove its entry from `.claude/settings.json` by hand.
 
 | Skill | Trigger | Desc tokens | Notes |
 |---|---|---:|---|
@@ -62,7 +111,7 @@ graphify extract .
 | [loop-engineering](skills/loop-engineering/SKILL.md) | before building a loop / fleet / verifier pipeline | 96 | Use BEFORE building any multi-step agentic loop, generator→verifier pipeline, fan-out/fleet, or iterate-until-correct/retry loop. Picks the loop shape (open/closed · inner/outer · single/fleet), pairs a generator with a SEPARATE verifier, and forces a concrete gate + stop + budget cap up front. Ships loop_lint.py to refuse no-gate / self-grading / unbounded specs. Override with ONE SHOT. **Default-installed** (v1.11). |
 | [eval-gate](skills/eval-gate/SKILL.md) | "is this good enough / score this" | 117 | Score AI output against a written rubric before it ships — an LLM-as-judge quality gate for content output (drafts, posts, answers) and product output (an agent's reply, an extraction, a generated payload). Use when asked "is this good enough", "score/grade this", "would this pass", to gate output on quality, to regression-check a prompt/model/pipeline change, or to turn a flagged bad output into a permanent test case. Returns 0-5 + reason; exit code gates. **Default-installed** (v1.11; N≥50 validation pending). |
 
-**Always-resident context tax (18 descriptions): ~1,070 tokens** (per `.claude-plugin/marketplace.json` `context_cost_estimate_tokens`). Roughly 0.5% of a 200K context window. Every skill's description is resident; hook scripts and `tools/` load only when fired, adding no resident tax.
+**Always-resident context tax (19 descriptions): ~1,070 tokens** (per `.claude-plugin/marketplace.json` `context_cost_estimate_tokens`). Roughly 0.5% of a 200K context window. Every skill's description is resident; hook scripts and `tools/` load only when fired, adding no resident tax.
 
 Full body cost (worst case, all loaded at once): ~17,200 tokens. In practice, only the triggered skill's body loads.
 
@@ -99,10 +148,11 @@ See [eval/results/static_cost.json](eval/results/static_cost.json) for the full 
 |---|---|---|
 | **Claude Code** | **everywhere** (recommended) | `git clone https://github.com/SaarShai/Brainer.git ~/.local/share/brainer && claude plugin install ~/.local/share/brainer/.claude-plugin/marketplace.json` |
 | Claude Code | in one project only | clone into `<project>/.brainer`, then `mkdir -p .claude/skills && ln -sfn ../.brainer/skills/* .claude/skills/` |
-| Codex / Cursor / Gemini CLI / Copilot | per-project (no plugin format exists for these) | clone into `<project>/.brainer`, then `.brainer/install.sh --host <name>` + symlink — see [Per-project install](#per-project-install-non-claude-code-hosts) |
-| any host (inside the brainer clone itself, e.g. contributing) | for that clone only | `./install.sh` (all hosts) or `./install.sh --host <name>` |
+| Codex / Cursor / Gemini CLI | per-project (no plugin format exists for these) | clone into `<project>/.brainer`, then `.brainer/install.sh --host <codex|cursor|gemini>` + symlink — see [Per-project install](#per-project-install-non-claude-code-hosts) |
+| Copilot / VS Code | per-project | use the root `AGENTS.md` shim from the Brainer checkout; there is no `install.sh --host copilot` flag |
+| any supported host (inside the brainer clone itself, e.g. contributing) | for that clone only | `./install.sh` (all supported hosts) or `./install.sh --host <claude-code|codex|cursor|gemini>` |
 
-The plugin (`brainer` v1.10.0) bundles all 18 skills plus their `UserPromptSubmit` and `PreCompact` hooks.
+The plugin (`brainer` v1.11.0) bundles all 19 skills. Its manifest declares the default-on `compliance-canary` hook plus optional `prompt-triage` and `context-keeper` hooks.
 
 ### Host install matrix
 
@@ -174,7 +224,7 @@ This used to be framed as a framework with a `te` CLI, layered docs (`start.md`,
 - `te` CLI → deleted. Each skill owns its scripts in `skills/<name>/tools/`.
 - `start.md`, `L0_rules.md`, `L1_index.md`, `brainer.yaml`, `models.yaml` → deleted. Replaced by `skills/SKILLS_INDEX.md`.
 - `adapters/`, `prompts/`, `hooks/` → deleted. Folded into per-skill `tools/`.
-- 11 old skills → audited and expanded to ~21, then trimmed to **15** after measurement (drops listed above).
+- 11 old skills → audited, expanded, trimmed after measurement, and then rebuilt into the current **19-skill** catalog.
 - Working Python projects (ComCom, semdiff, context-keeper, agents-triage, output-filter) → bundled into their matching skills' `tools/` folders.
 - Wiki content (`raw/`, `concepts/`, `patterns/`, `projects/`, `people/`, `queries/`, `L2_facts/`, `L3_sops/`, `L4_archive/`, `index.md`, `log.md`, `schema.md`, `templates/`) → moved under `wiki/`. The `wiki-memory` skill reads it.
 - `bench/` → kept at root for eval datasets.
@@ -209,7 +259,7 @@ Built on prior work:
 
 ## Status
 
-- 18 skills written and lint-clean.
+- 19 skills written and lint-clean.
 - 4 hosts wired and verified (Claude Code, Codex, Cursor, Gemini CLI).
 - Static-cost measurements published.
 - Live A/B harness ready; needs a healthy Ollama / explicit `ANTHROPIC_API_KEY` / `HF_TOKEN` to run.

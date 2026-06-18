@@ -12,6 +12,7 @@ Output: eval/sims/results/write_gate_corpus.json + console summary.
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -261,8 +262,9 @@ def main() -> int:
     }
 
     out_path = REPO / "eval/sims/results/write_gate_corpus.json"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(out, indent=2))
+    if os.environ.get("BRAINER_CHECK_NO_WRITE") != "1":
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(out, indent=2))
 
     # console summary
     print(f"=== write-gate corpus calibration (threshold={DEFAULT_THRESHOLD}, t={elapsed}s) ===\n")

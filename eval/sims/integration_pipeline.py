@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import re
 import sys
 import tempfile
@@ -192,8 +193,9 @@ def run() -> dict:
 def main() -> int:
     out = run()
     out_path = REPO / "eval/sims/results/integration_pipeline.json"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(out, indent=2))
+    if os.environ.get("BRAINER_CHECK_NO_WRITE") != "1":
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(out, indent=2))
 
     print("=== end-to-end integration: write-gate → wiki → memory-decay → cache-lint ===\n")
     print("PHASE 1 — gate decisions:")

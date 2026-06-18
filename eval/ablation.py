@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -208,9 +209,10 @@ def main() -> int:
                 harmful.append((rep["skill"], r["rule"], r["acc_delta"]))
             if r["flips"] == 0:
                 dead.append((rep["skill"], r["rule"]))
-    out_dir = REPO / "eval/results"; out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "ablation.json").write_text(json.dumps(
-        {"reports": reports, "harmful": harmful, "dead": dead}, indent=2) + "\n")
+    if os.environ.get("BRAINER_CHECK_NO_WRITE") != "1":
+        out_dir = REPO / "eval/results"; out_dir.mkdir(parents=True, exist_ok=True)
+        (out_dir / "ablation.json").write_text(json.dumps(
+            {"reports": reports, "harmful": harmful, "dead": dead}, indent=2) + "\n")
     if args.json:
         print(json.dumps({"reports": reports, "harmful": harmful, "dead": dead}, indent=2))
         return 1 if harmful else 0

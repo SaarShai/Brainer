@@ -25,6 +25,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 SKILLS = REPO / "skills"
 MANIFEST = REPO / ".claude-plugin" / "marketplace.json"
+HOOK_EVENT_RE = re.compile(r'hooks\.setdefault\("([^"]+)"')
 
 
 def discover_skill_dirs() -> set[str]:
@@ -33,6 +34,34 @@ def discover_skill_dirs() -> set[str]:
     # would wrongly include stray files and miss the SKILL.md requirement.
     return {d.name for d in SKILLS.iterdir()
             if d.is_dir() and not d.name.startswith("_") and (d / "SKILL.md").is_file()}
+
+
+def frontmatter_value(path: Path, key: str) -> str:
+    text = path.read_text(encoding="utf-8", errors="replace")
+    if not text.startswith("---\n"):
+        return ""
+    end = text.find("\n---\n", 4)
+    if end == -1:
+        return ""
+    for line in text[4:end].splitlines():
+        if line.strip().startswith(f"{key}:"):
+            return line.split(":", 1)[1].strip()
+    return ""
+
+
+def auto_install_hook_skills() -> set[tuple[str, str]]:
+    expected: set[tuple[str, str]] = set()
+    for skill_dir in SKILLS.iterdir():
+        skill_md = skill_dir / "SKILL.md"
+        installer = skill_dir / "tools" / "install.sh"
+        if not skill_md.is_file() or not installer.is_file():
+            continue
+        if frontmatter_value(skill_md, "auto-install").lower() != "true":
+            continue
+        events = HOOK_EVENT_RE.findall(installer.read_text(encoding="utf-8", errors="replace"))
+        for event in events:
+            expected.add((skill_dir.name, event))
+    return expected
 
 
 def main() -> int:
@@ -59,6 +88,17 @@ def main() -> int:
         for m in re.finditer(r"\b(?:all\s+)?(\d+)\s+skills\b", text, re.I):
             if int(m.group(1)) != n:
                 errors.append(f'{label} says "{m.group(0)}" but there are {n} skills')
+
+    hooks = plugin.get("hooks", [])
+    declared_hooks = set()
+    for hook in hooks:
+        command = hook.get("command", "")
+        event = hook.get("event", "")
+        m = re.search(r"/skills/([\w-]+)/tools/", command)
+        if m and event:
+            declared_hooks.add((m.group(1), event))
+    for skill, event in sorted(auto_install_hook_skills() - declared_hooks):
+        errors.append(f"auto-install hook missing from plugin hooks: {skill} {event}")
 
     if errors:
         print("marketplace-sync FAILED:")

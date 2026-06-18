@@ -55,15 +55,20 @@ def skill_hook_inventory() -> list[dict]:
         )
         if not hook_files:
             continue
-        # Best-effort event detection from the skill's own docs/scripts
+        # Prefer concrete installer-declared events; fall back to broad docs/script
+        # scan only when no installer advertises the hook it will write.
         text = ""
         skill_md = skill_dir / "SKILL.md"
         if skill_md.exists():
             text += skill_md.read_text(errors="ignore")
         for hf in hook_files:
             text += (REPO / hf).read_text(errors="ignore")
-        events = sorted(set(HOOK_EVENT_RE.findall(text))) or ["?"]
         installer = tools / "install.sh"
+        installer_text = installer.read_text(errors="ignore") if installer.exists() else ""
+        installer_events = sorted(set(re.findall(r'hooks\.setdefault\("([^"]+)"', installer_text)))
+        events = sorted(set(HOOK_EVENT_RE.findall(text))) or ["?"]
+        if installer_events:
+            events = installer_events
         rows.append({
             "skill": skill_dir.name,
             "events": events,

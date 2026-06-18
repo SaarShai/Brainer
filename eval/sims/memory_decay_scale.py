@@ -13,6 +13,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import math
+import os
 import sys
 import tempfile
 import time
@@ -243,9 +244,12 @@ def main() -> int:
 
     out = {"scale": scale, "correctness": corr, "trajectory": traj}
     out_path = REPO / "eval/sims/results/memory_decay_scale.json"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(out, indent=2))
-    print(f"\nfull JSON: {out_path}")
+    if os.environ.get("BRAINER_CHECK_NO_WRITE") != "1":
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(out, indent=2))
+        print(f"\nfull JSON: {out_path}")
+    else:
+        print(f"\nfull JSON: skipped (BRAINER_CHECK_NO_WRITE=1; target would be {out_path})")
 
     failures = (
         (0 if scale["appears_linear"] else 1)

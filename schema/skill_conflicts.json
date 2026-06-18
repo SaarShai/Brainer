@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "conflicts": [
+    {
+      "skills": ["plan-first-execute", "lean-execution"],
+      "status": "accepted",
+      "risk": "Planning can become too verbose for tasks that should stay lean.",
+      "resolution": "Plan before non-trivial work, then prune the plan to the smallest shape that still reduces risk and supports verification."
+    },
+    {
+      "skills": ["requirements-ledger", "caveman-ultra"],
+      "status": "accepted",
+      "risk": "A visible requirements ledger can add verbosity while caveman-ultra demands terse output.",
+      "resolution": "Track requirements in the ledger or task system as needed, while keeping user-facing prose terse when caveman-ultra is active."
+    },
+    {
+      "skills": ["wiki-memory", "write-gate"],
+      "status": "accepted",
+      "risk": "Memory writes can preserve unverified or low-signal facts.",
+      "resolution": "write-gate controls persistence; wiki-memory writes only verified, durable, useful facts that pass the gate."
+    },
+    {
+      "skills": ["loop-engineering", "lean-execution"],
+      "status": "accepted",
+      "risk": "Loop design can become process-heavy or add unnecessary delegation.",
+      "resolution": "Use loop-engineering only for real generator-verifier or retry loops, and cap scope, budget, and stop conditions up front."
+    },
+    {
+      "skills": ["task-retrospective", "verify-before-completion"],
+      "status": "accepted",
+      "risk": "A task retrospective can start before evidence exists and turn into narrative instead of verified learning.",
+      "resolution": "Run fresh verification first; only then do the retrospective and record durable lessons when the evidence supports them."
+    },
+    {
+      "skills": ["prompt-triage", "cache-lint"],
+      "status": "accepted",
+      "risk": "Model-routing hooks can save tokens while also changing hot-path cache behavior.",
+      "resolution": "Keep prompt-triage routing explicit in hook config and run cache-lint before relying on prompt-cache measurements."
+    }
+  ]
+}

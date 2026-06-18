@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Brainer skill metadata",
+  "description": "Transitional contract: name and description are required today; richer routing fields are validated when present and required for new skills.",
+  "type": "object",
+  "required": ["name", "description"],
+  "additionalProperties": true,
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 10
+    },
+    "trigger_type": {
+      "type": "string",
+      "enum": ["slash", "model", "hook", "manual"]
+    },
+    "risk_level": {
+      "type": "string",
+      "enum": ["low", "medium", "high"]
+    },
+    "host_support": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["claude", "codex", "cursor", "gemini", "copilot", "generic"]
+      },
+      "uniqueItems": true
+    },
+    "side_effects": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "none",
+          "reads_repo",
+          "writes_files",
+          "runs_commands",
+          "updates_memory",
+          "network",
+          "installs_hooks",
+          "edits_host_config",
+          "dispatches_subagents"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "requires_tools": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "none",
+          "read",
+          "write",
+          "edit",
+          "bash",
+          "grep",
+          "glob",
+          "ls",
+          "web",
+          "memory",
+          "filesystem",
+          "host_hooks",
+          "subagent"
+        ]
+      },
+      "uniqueItems": true
+    }
+  }
+}

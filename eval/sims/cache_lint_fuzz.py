@@ -8,6 +8,7 @@ clean projects, and behavior on adversarial inputs.
 from __future__ import annotations
 
 import json
+import os
 import random
 import string
 import sys
@@ -190,8 +191,9 @@ def run() -> dict:
 def main() -> int:
     out = run()
     out_path = REPO / "eval/sims/results/cache_lint_fuzz.json"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(out, indent=2))
+    if os.environ.get("BRAINER_CHECK_NO_WRITE") != "1":
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(out, indent=2))
 
     print(f"=== cache-lint fuzz battery ===")
     print(f"  cases: {out['n_cases']}")
