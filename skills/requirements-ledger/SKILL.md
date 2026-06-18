@@ -86,6 +86,21 @@ Authoritative source of truth. The native task list is a mirror. Never delete a 
    → `declined` (kept visible), never silently promoted to work.
 5. On Claude Code, refresh the [native-task mirror](#native-task-mirror).
 
+## Spec-first bridge
+
+When [`plan-first-execute`](../plan-first-execute/SKILL.md) creates or reads a
+spec/plan/task packet, this ledger is the intent ledger, not the technical plan.
+Use the open rows to seed the spec's WHAT/WHY, scope, constraints, questions, and
+acceptance criteria. Do not let implementation choices silently replace ledgered
+requirements.
+
+- A ledger `question` row maps to a spec `[NEEDS CLARIFICATION: ...]` only when
+  the answer changes scope, UX, data, security, or validation.
+- A ledger `constraint` row must either appear in the spec/plan or be explicitly
+  deferred/declined with a reason.
+- A completed task is not enough to close a row; the completion evidence must
+  show the user-facing requirement or question was addressed.
+
 ## At a completion claim (before you say "done")
 
 Emit the reconcile block — for **each** row in `## Open` and `## Deferred`:
