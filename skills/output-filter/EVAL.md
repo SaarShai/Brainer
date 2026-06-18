@@ -5,8 +5,8 @@
 | field | tokens / size |
 |---|---|
 | description (always resident) | **70 tokens** (347 chars) |
-| body (loaded on trigger)      | **393 tokens** (1636 chars) |
-| tools/ payload                 | 44.5 KB |
+| body (loaded on trigger)      | **589 tokens** (2536 chars) |
+| tools/ payload                 | 53.1 KB |
 | model pin                      | `any` |
 | effort pin                     | `low` |
 
@@ -41,3 +41,7 @@ To be filled in after analysis of result outputs (see raw JSON for individual tr
 ## Measured gain (2026-06-13, `eval/gains.py`)
 
 **83.6% fewer tokens** on a realistic noisy build/test stream (redrawing progress bar + ANSI + cycling compile logs), with the `ERROR`/`FAILED` signal lines preserved verbatim (0% signal loss). Perf is locked by `eval/sims/hotpath_perf.py` (ANSI+dedupe on 10k hostile lines under a hard time budget).
+
+## Deterministic checks
+
+`python3 skills/output-filter/tools/test_output_filter.py` — 10 tests covering ANSI stripping, error preservation, content-aware search/log/diff summaries, raw archive rewind, `rewind --grep`, and opt-in recovery markers.

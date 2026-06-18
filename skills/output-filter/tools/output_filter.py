@@ -17,6 +17,15 @@ from config import load_config
 ANSI = re.compile(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[@-Z\\-_])")
 DEFAULT_KEEP = re.compile(r"(error|fail|fatal|traceback|exception)", re.I)
 DEFAULT_COLLAPSE = [re.compile(r"\r"), re.compile(r"\d+%\s*$")]
+SEARCH_LINE_RE = re.compile(r"^[^:\n]{1,220}:\d+(?::|-)")
+DIFF_LINE_RE = re.compile(r"^(?:diff --git|index |--- |\+\+\+ |@@ )")
+LOG_KEEP_RE = re.compile(
+    r"(?:error|fail|fatal|traceback|exception|warning|warn|"
+    r"\bpassed\b|\bfailed\b|\berrors?\b|collected|summary|"
+    r"^=+|^-{3,}|^\s*File \".+\", line \d+)",
+    re.I,
+)
+CONTENT_TYPES = ("auto", "plain", "search", "log", "diff")
 
 
 @dataclass
@@ -89,7 +98,108 @@ def _save_seen(path: Path, seen: set[str]) -> None:
     path.write_text("\n".join(sorted(seen)) + ("\n" if seen else ""), encoding="utf-8")
 
 
-def filter_text(text: str, *, rules: FilterRules, session_aware: bool = False, seen_path: Path | None = None) -> tuple[str, dict[str, Any]]:
+def _token_estimate(text: str) -> int:
+    return max(1, len(text) // 4) if text else 0
+
+
+def detect_content_type(text: str) -> str:
+    lines = text.splitlines()
+    if not lines:
+        return "plain"
+    sample = lines[:400]
+    if any(DIFF_LINE_RE.search(line) for line in sample) and any(line.startswith("@@ ") for line in sample):
+        return "diff"
+    search_hits = sum(1 for line in sample if SEARCH_LINE_RE.match(line))
+    if search_hits >= 12 and search_hits / max(len(sample), 1) >= 0.45:
+        return "search"
+    if len(lines) >= 120 and sum(1 for line in sample if LOG_KEEP_RE.search(line)) >= 3:
+        return "log"
+    return "plain"
+
+
+def _ordered_keep(lines: list[str], keep_indexes: set[int], note: str) -> list[str]:
+    if not keep_indexes or len(keep_indexes) >= len(lines):
+        return lines
+    kept = [line for i, line in enumerate(lines) if i in keep_indexes]
+    return [note, *kept]
+
+
+def _compress_search(text: str) -> tuple[str, dict[str, Any]]:
+    lines = text.splitlines()
+    match_indexes = [i for i, line in enumerate(lines) if SEARCH_LINE_RE.match(line)]
+    if len(match_indexes) <= 80:
+        return text, {"content_lines_removed": 0, "transforms": []}
+    keep: set[int] = set(match_indexes[:12]) | set(match_indexes[-12:])
+    seen_files: set[str] = set()
+    for i in match_indexes:
+        file_name = lines[i].split(":", 1)[0]
+        if file_name not in seen_files:
+            seen_files.add(file_name)
+            keep.add(i)
+        if len(seen_files) >= 40:
+            break
+    for i, line in enumerate(lines):
+        if DEFAULT_KEEP.search(line):
+            keep.add(i)
+    note = f"[output-filter: search results compressed; kept {len(keep)}/{len(lines)} lines across {len(seen_files)} files]"
+    kept = _ordered_keep(lines, keep, note)
+    if len(kept) >= len(lines):
+        return text, {"content_lines_removed": 0, "transforms": []}
+    return "\n".join(kept) + "\n", {"content_lines_removed": len(lines) - len(kept), "transforms": ["search-summary"]}
+
+
+def _compress_log(text: str) -> tuple[str, dict[str, Any]]:
+    lines = text.splitlines()
+    if len(lines) <= 220:
+        return text, {"content_lines_removed": 0, "transforms": []}
+    keep: set[int] = set(range(min(20, len(lines)))) | set(range(max(0, len(lines) - 50), len(lines)))
+    for i, line in enumerate(lines):
+        if LOG_KEEP_RE.search(line):
+            keep.add(i)
+    note = f"[output-filter: log compressed; kept {len(keep)}/{len(lines)} signal lines]"
+    kept = _ordered_keep(lines, keep, note)
+    if len(kept) >= len(lines):
+        return text, {"content_lines_removed": 0, "transforms": []}
+    return "\n".join(kept) + "\n", {"content_lines_removed": len(lines) - len(kept), "transforms": ["log-summary"]}
+
+
+def _compress_diff(text: str) -> tuple[str, dict[str, Any]]:
+    lines = text.splitlines()
+    if len(lines) <= 300:
+        return text, {"content_lines_removed": 0, "transforms": []}
+    keep: set[int] = set()
+    for i, line in enumerate(lines):
+        if DIFF_LINE_RE.search(line) or line.startswith(("+", "-")):
+            keep.add(i)
+    note = f"[output-filter: diff compressed; kept {len(keep)}/{len(lines)} headers and changed lines]"
+    kept = _ordered_keep(lines, keep, note)
+    if len(kept) >= len(lines) or len("\n".join(kept)) >= len(text):
+        return text, {"content_lines_removed": 0, "transforms": []}
+    return "\n".join(kept) + "\n", {"content_lines_removed": len(lines) - len(kept), "transforms": ["diff-hunks"]}
+
+
+def _compress_content(text: str, content_type: str) -> tuple[str, dict[str, Any]]:
+    detected = detect_content_type(text) if content_type == "auto" else content_type
+    if detected == "search":
+        out, meta = _compress_search(text)
+    elif detected == "log":
+        out, meta = _compress_log(text)
+    elif detected == "diff":
+        out, meta = _compress_diff(text)
+    else:
+        out, meta = text, {"content_lines_removed": 0, "transforms": []}
+    meta["content_type"] = detected
+    return out, meta
+
+
+def filter_text(
+    text: str,
+    *,
+    rules: FilterRules,
+    session_aware: bool = False,
+    seen_path: Path | None = None,
+    content_type: str = "auto",
+) -> tuple[str, dict[str, Any]]:
     prev: str | None = None
     repeat = 0
     output: list[str] = []
@@ -101,6 +211,7 @@ def filter_text(text: str, *, rules: FilterRules, session_aware: bool = False, s
         "collapsed_lines": 0,
         "dropped_lines": 0,
         "session_suppressed_lines": 0,
+        "raw_tokens_est": _token_estimate(text),
     }
 
     def flush_repeat() -> None:
@@ -136,7 +247,14 @@ def filter_text(text: str, *, rules: FilterRules, session_aware: bool = False, s
     if session_aware and seen_path:
         _save_seen(seen_path, seen)
     stats["filtered_lines"] = len(output)
-    return "\n".join(output) + ("\n" if output else ""), stats
+    filtered = "\n".join(output) + ("\n" if output else "")
+    try:
+        filtered, content_stats = _compress_content(filtered, content_type)
+    except Exception as exc:
+        content_stats = {"content_type": "plain", "content_lines_removed": 0, "transforms": [], "content_filter_error": str(exc)}
+    stats.update(content_stats)
+    stats["filtered_tokens_est"] = _token_estimate(filtered)
+    return filtered, stats
 
 
 def archive_event(repo_root: Path, raw: str, filtered: str, stats: dict[str, Any], session_id: str) -> dict[str, Any]:
@@ -154,6 +272,7 @@ def archive_event(repo_root: Path, raw: str, filtered: str, stats: dict[str, Any
         "raw_chars": len(raw),
         "filtered_chars": len(filtered),
         "char_savings": 1 - (len(filtered) / max(len(raw), 1)),
+        "recover_command": f"python3 skills/output-filter/tools/output_filter.py --repo {repo_root} rewind {event_id}-{session_id}",
         **stats,
     }
     index = root / "index.jsonl"
@@ -193,7 +312,7 @@ def stats(repo_root: Path, limit: int | None = None) -> dict[str, Any]:
     }
 
 
-def rewind(repo_root: Path, event_id: str = "last") -> str:
+def rewind(repo_root: Path, event_id: str = "last", grep: str | None = None) -> str:
     rows = read_index(repo_root)
     if not rows:
         raise SystemExit("no output-filter archive entries")
@@ -201,7 +320,14 @@ def rewind(repo_root: Path, event_id: str = "last") -> str:
     if row is None:
         raise SystemExit(f"unknown output-filter event: {event_id}")
     path = repo_root / str(row["raw_path"])
-    return path.read_text(encoding="utf-8", errors="replace")
+    raw = path.read_text(encoding="utf-8", errors="replace")
+    if not grep:
+        return raw
+    try:
+        rx = re.compile(grep)
+    except re.error as exc:
+        raise SystemExit(f"invalid grep regex: {exc}") from exc
+    return "\n".join(line for line in raw.splitlines() if rx.search(line)) + "\n"
 
 
 def cmd_filter(args: argparse.Namespace) -> int:
@@ -210,10 +336,22 @@ def cmd_filter(args: argparse.Namespace) -> int:
     session_id = _session_id()
     seen_path = _state_dir(cfg.repo_root) / "seen" / f"{session_id}.txt"
     session_aware = args.session_aware or bool(cfg.output_filter_session_aware)
-    filtered, filter_stats = filter_text(raw, rules=load_rules(cfg.output_filter_rules), session_aware=session_aware, seen_path=seen_path)
-    sys.stdout.write(filtered)
+    filtered, filter_stats = filter_text(
+        raw,
+        rules=load_rules(cfg.output_filter_rules),
+        session_aware=session_aware,
+        seen_path=seen_path,
+        content_type=args.content_type,
+    )
+    marker = ""
     if cfg.output_filter_archive and not args.no_archive:
-        archive_event(cfg.repo_root, raw, filtered, filter_stats, session_id)
+        record = archive_event(cfg.repo_root, raw, filtered, filter_stats, session_id)
+        if args.show_marker and raw != filtered:
+            marker = (
+                f"\n[output-filter: raw archived id={record['id']}; "
+                f"recover: python3 skills/output-filter/tools/output_filter.py --repo {cfg.repo_root} rewind {record['id']}]\n"
+            )
+    sys.stdout.write(filtered + marker)
     return 0
 
 
@@ -225,7 +363,7 @@ def cmd_stats(args: argparse.Namespace) -> int:
 
 def cmd_rewind(args: argparse.Namespace) -> int:
     cfg = load_config(args.repo)
-    sys.stdout.write(rewind(cfg.repo_root, args.id))
+    sys.stdout.write(rewind(cfg.repo_root, args.id, grep=args.grep))
     return 0
 
 
@@ -253,12 +391,15 @@ def build_parser() -> argparse.ArgumentParser:
     flt = sub.add_parser("filter")
     flt.add_argument("--no-archive", action="store_true")
     flt.add_argument("--session-aware", action="store_true")
+    flt.add_argument("--content-type", choices=CONTENT_TYPES, default="auto")
+    flt.add_argument("--show-marker", action="store_true", help="print a raw-output recovery marker when archived output is compressed")
     flt.set_defaults(func=cmd_filter)
     st = sub.add_parser("stats")
     st.add_argument("--limit", type=int)
     st.set_defaults(func=cmd_stats)
     rw = sub.add_parser("rewind")
     rw.add_argument("id", nargs="?", default="last")
+    rw.add_argument("--grep", help="return only archived raw lines matching this regex")
     rw.set_defaults(func=cmd_rewind)
     rules = sub.add_parser("rules")
     rules.add_argument("--init", action="store_true")

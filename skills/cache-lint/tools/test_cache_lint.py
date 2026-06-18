@@ -41,6 +41,7 @@ def test_dynamic_content_flagged() -> None:
         report = audit(root, rule_filter=2)
         flagged = [f for f in report.findings if f.rule == 2 and f.severity == "FAIL"]
         assert flagged, "should flag $(date) and {{env.USER}}"
+        assert all(f.suggested_action for f in flagged), f"dynamic findings need suggested_action: {flagged}"
 
 
 def test_inline_code_typography_not_flagged() -> None:
@@ -90,6 +91,7 @@ def test_model_switching_warns() -> None:
         report = audit(root, rule_filter=4)
         warns = [f for f in report.findings if f.rule == 4]
         assert warns, "multi-model setup should WARN"
+        assert warns[0].suggested_action, "model-switching WARN should include a report-only fix hint"
 
 
 def test_fork_safety_fails_on_stop_hook_mutating_prefix() -> None:
@@ -138,6 +140,7 @@ def test_rule6_actual_write_still_flagged() -> None:
         report = audit(root, rule_filter=6)
         fails = [f for f in report.findings if f.rule == 6 and f.severity == "FAIL"]
         assert fails, "actual `>> CLAUDE.md` write must still FAIL"
+        assert fails[0].suggested_action, "rule 6 FAIL should explain the sidecar alternative"
 
 
 def test_rule6_follows_invoked_script() -> None:

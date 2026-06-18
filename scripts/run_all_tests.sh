@@ -66,6 +66,7 @@ UNIT_TESTS=(
   skills/wiki-memory/tools/test_claim_grade.py
   skills/wiki-memory/tools/test_sim_eval.py
   skills/wiki-memory/tools/test_config.py
+  scripts/test_mine_transcripts.py
 )
 # semantic-diff needs tree-sitter; SKIP (not FAIL) where the dep is absent
 # (e.g. bare CI runners) — semdiff's own suite covers it on dev machines.

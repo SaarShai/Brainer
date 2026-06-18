@@ -593,6 +593,95 @@ def interpret(agg):
     return issues
 
 
+def candidate_lessons(agg):
+    """Advisory lesson candidates mined from aggregate traces.
+
+    These are inputs to task-retrospective/write-gate, not durable memory writes.
+    The miner stays report-only so transcript noise cannot mutate skills, carriers,
+    or the wiki.
+    """
+    out = []
+
+    def add(candidate_id, pattern, evidence_count, evidence, prevention, route, confidence="medium"):
+        if evidence_count <= 0:
+            return
+        out.append({
+            "id": candidate_id,
+            "pattern": pattern,
+            "confidence": confidence,
+            "evidence_count": evidence_count,
+            "evidence": evidence,
+            "prevention": prevention,
+            "route": route,
+        })
+
+    errors = agg.get("all_error_signatures", {})
+    edit_without_read = sum(
+        cnt for sig, cnt in errors.items()
+        if "File has not been read yet" in sig
+    )
+    add(
+        "edit-without-read",
+        "edit-without-read",
+        edit_without_read,
+        "Tool error signature: File has not been read yet.",
+        "Read or semantic-diff the file before applying edits; repeated recurrence belongs in a drift probe, not more prose.",
+        "task-retrospective -> existing verify-before-completion/compliance-canary gate",
+        confidence="high",
+    )
+
+    stale_read = sum(
+        cnt for sig, cnt in errors.items()
+        if "File has been modified since read" in sig
+    )
+    add(
+        "stale-read-before-edit",
+        "stale-read-before-edit",
+        stale_read,
+        "Tool error signature: File has been modified since read.",
+        "Re-read the target after tests/formatters/user edits and before the next patch.",
+        "task-retrospective -> write-gate only if the recurrence is not already mechanically covered",
+        confidence="high",
+    )
+
+    missing_path = sum(
+        cnt for sig, cnt in errors.items()
+        if "File does not exist" in sig or "No such file or directory" in sig
+    )
+    add(
+        "path-grounding-before-action",
+        "path-grounding-before-action",
+        missing_path,
+        "Missing-path errors appeared in tool output.",
+        "Confirm paths with rg --files/find before issuing path-specific edits or test commands.",
+        "task-retrospective -> narrow wiki lesson only if tied to a project-specific path convention",
+    )
+
+    add(
+        "large-bash-output-needs-filter",
+        "large-bash-output-needs-filter",
+        int(agg.get("bash_results_over_5kb_total", 0)),
+        "Bash tool results exceeded 5KB.",
+        "Pipe noisy commands through output-filter, then use rewind/grep for raw recovery.",
+        "output-filter SKILL.md usage guidance",
+        confidence="high",
+    )
+
+    repeated_reads = len(agg.get("multi_reads", []))
+    add(
+        "repeated-read-use-index-or-semdiff",
+        "repeated-read-use-index-or-semdiff",
+        repeated_reads + int(agg.get("search_chain_occurrences_total", 0)),
+        "Repeated file reads and/or long Grep/Glob/Read chains.",
+        "Use index-first for corpus lookup and semantic-diff for second reads of the same file.",
+        "index-first / semantic-diff guidance; write only if a concrete missed trigger is found",
+        confidence="medium",
+    )
+
+    out.sort(key=lambda item: (-item["evidence_count"], item["id"]))
+    return out
+
+
 # ─── main ────────────────────────────────────────────────────────────────────
 
 def main():
@@ -614,6 +703,7 @@ def main():
 
     print("Interpreting...", file=sys.stderr)
     issues = interpret(agg)
+    lessons = candidate_lessons(agg)
 
     cache_rows = [
         {"session": s["session_id"][:8], **s["cache"]}
@@ -633,6 +723,7 @@ def main():
             "overall_hit_ratio": round(tot_read / denom, 4) if denom else None,
         },
         "top_issues": issues,
+        "candidate_lessons": lessons,
     }
     print("\nCACHE (read / creation / uncached / hit-ratio / busts>1k):", file=sys.stderr)
     for r in cache_rows:
@@ -707,3 +798,6 @@ if __name__ == "__main__":
         print(f"  {issue['description']}")
         print(f"  Example: {issue['example']}")
         print(f"  {issue['classification']}")
+    print(f"\n\nCANDIDATE LESSONS (advisory, not auto-written): {len(report['candidate_lessons'])}")
+    for item in report["candidate_lessons"][:8]:
+        print(f"  [{item['evidence_count']}x] {item['id']} -> {item['route']}")

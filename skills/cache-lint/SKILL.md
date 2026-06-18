@@ -8,7 +8,7 @@ pulse_reminder: prompt cache silently dies when CLAUDE.md grows dynamic content 
 
 # cache-lint
 
-Static linter for prompt-cache hygiene. Reads a project's Claude Code surface (`CLAUDE.md`, `AGENTS.md`, `.claude/settings*.json`, hook configs, skill bodies) and checks for the six failure modes that silently bust Anthropic's prompt cache.
+Static linter for prompt-cache hygiene. Reads a project's Claude Code surface (`CLAUDE.md`, `AGENTS.md`, `.claude/settings*.json`, hook configs, skill bodies) and checks for the six failure modes that silently bust Anthropic's prompt cache. Findings include report-only `suggested_action` hints for cache alignment; the tool never rewrites carrier files.
 
 Lineage: [ussumant/cache-audit](https://github.com/ussumant/cache-audit) (52★) — same six-rule framing, applied per-project as a precheck.
 
@@ -75,6 +75,7 @@ python skills/cache-lint/tools/cache_lint.py audit . --list-targets
 
 - Doesn't read Anthropic's live cache stats — that's `ccmeter`'s job ([vnmoorthy/ccmeter](https://github.com/vnmoorthy/ccmeter)). cache-lint is **static**; ccmeter is **dynamic**. Pair them.
 - Doesn't transform files. It tells you; you fix it.
+- Doesn't move dynamic content automatically. `suggested_action` is an advisory hint, not an auto-fix plan.
 - Doesn't know about MCP-server-provided tools (they aren't in the repo). Tool stability is approximated from `skills/*/SKILL.md`.
 - Doesn't catch every form of dynamic content — regex heuristics only. A FAIL is high-confidence; an OK is "no smells detected," not a guarantee. In particular, legacy POSIX backtick command substitution is **not** checked — Markdown prose uses identical syntax for inline-code typography, and the false-positive rate is too high to be useful.
 

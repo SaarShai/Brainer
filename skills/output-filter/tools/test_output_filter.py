@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import sys
+import subprocess
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from output_filter import ANSI, filter_text, load_rules  # noqa: E402
+from output_filter import ANSI, archive_event, filter_text, load_rules, rewind  # noqa: E402
 
 ESC = "\x1b"
+_OUTPUT_FILTER = Path(__file__).parent / "output_filter.py"
 
 
 def assert_strips(seq: str, msg: str = "") -> None:
@@ -51,6 +54,68 @@ def test_no_raw_esc_leaks_and_error_preserved() -> None:
     assert "Building..." in out, f"content corrupted: {out!r}"
 
 
+def test_search_content_filter_keeps_diversity_and_errors() -> None:
+    raw = "\n".join(
+        f"src/file{i % 12}.py:{i}: match {i}" for i in range(120)
+    ) + "\nERROR: important failure\n"
+    out, stats = filter_text(raw, rules=load_rules(None), content_type="search")
+    assert stats["content_type"] == "search", stats
+    assert "search-summary" in stats["transforms"], stats
+    assert len(out.splitlines()) < len(raw.splitlines()), "search output should shrink"
+    assert "src/file0.py:0: match 0" in out, "first hit lost"
+    assert "src/file11.py:119: match 119" in out, "last hit lost"
+    assert "ERROR: important failure" in out, "error signal lost"
+
+
+def test_log_content_filter_preserves_signal_lines() -> None:
+    raw = "\n".join(
+        [f"progress chunk {i}" for i in range(180)]
+        + ["WARNING: retrying slow test", "FAILED tests/test_api.py::test_auth"]
+        + [f"tail progress {i}" for i in range(120)]
+    )
+    out, stats = filter_text(raw, rules=load_rules(None), content_type="log")
+    assert stats["content_type"] == "log", stats
+    assert "log-summary" in stats["transforms"], stats
+    assert len(out.splitlines()) < len(raw.splitlines()), "log output should shrink"
+    assert "WARNING: retrying slow test" in out, "warning line lost"
+    assert "FAILED tests/test_api.py::test_auth" in out, "failure line lost"
+
+
+def test_diff_content_filter_preserves_headers_and_changes() -> None:
+    raw = "\n".join(
+        ["diff --git a/app.py b/app.py", "index abc..def 100644", "--- a/app.py", "+++ b/app.py", "@@ -1,320 +1,320 @@"]
+        + [f" context {i}" for i in range(330)]
+        + ["-old line", "+new line"]
+    )
+    out, stats = filter_text(raw, rules=load_rules(None), content_type="diff")
+    assert stats["content_type"] == "diff", stats
+    assert "diff-hunks" in stats["transforms"], stats
+    assert "diff --git a/app.py b/app.py" in out, "diff header lost"
+    assert "@@ -1,320 +1,320 @@" in out, "hunk header lost"
+    assert "-old line" in out and "+new line" in out, "changed lines lost"
+    assert " context 42" not in out, "large context block should be omitted"
+
+
+def test_archive_rewind_roundtrip_and_grep() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        raw = "alpha\nbeta ERROR\nbeta ok\n"
+        record = archive_event(root, raw, "alpha\n", {"raw_lines": 3, "filtered_lines": 1, "raw_tokens_est": 6}, "s1")
+        assert rewind(root, record["id"]) == raw
+        assert rewind(root, record["id"], grep="ERROR") == "beta ERROR\n"
+        assert record["raw_tokens_est"] == 6
+
+
+def test_cli_show_marker_is_opt_in() -> None:
+    raw = "\n".join(f"src/file{i % 3}.py:{i}: match {i}" for i in range(120)) + "\n"
+    with tempfile.TemporaryDirectory() as td:
+        base = [sys.executable, str(_OUTPUT_FILTER), "--repo", td, "filter", "--content-type", "search"]
+        plain = subprocess.run(base, input=raw, text=True, capture_output=True, check=True)
+        marked = subprocess.run([*base, "--show-marker"], input=raw, text=True, capture_output=True, check=True)
+    assert "raw archived id=" not in plain.stdout, plain.stdout
+    assert "raw archived id=" in marked.stdout, marked.stdout
+
+
 def main() -> int:
     tests = [
         test_strips_csi_color_codes,
@@ -58,6 +123,11 @@ def main() -> int:
         test_strips_osc_sequence,
         test_strips_single_char_escape,
         test_no_raw_esc_leaks_and_error_preserved,
+        test_search_content_filter_keeps_diversity_and_errors,
+        test_log_content_filter_preserves_signal_lines,
+        test_diff_content_filter_preserves_headers_and_changes,
+        test_archive_rewind_roundtrip_and_grep,
+        test_cli_show_marker_is_opt_in,
     ]
     failed = 0
     for t in tests:

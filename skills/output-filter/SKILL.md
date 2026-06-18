@@ -9,7 +9,7 @@ tools: [Bash]
 
 ## What it does
 
-Strips ANSI escape codes and progress-bar redraws, collapses adjacent duplicate lines, and preserves error lines / exit-status markers verbatim. Raw output is archived under `.brainer/output-filter/<session>/` so you can always recover the original. CLI exposes `stats` (token savings per session) and `rewind` (restore raw output for the last N runs).
+Strips ANSI escape codes and progress-bar redraws, collapses adjacent duplicate lines, and preserves error lines / exit-status markers verbatim. For large search results, logs, and diffs it can apply conservative content-aware summaries while archiving the raw output under `.brainer/output-filter/<session>/` so you can always recover the original. CLI exposes `stats` (token savings per session) and `rewind` (restore raw output for the last N runs, optionally grep-filtered).
 
 ## Usage
 
@@ -17,6 +17,7 @@ Direct pipe:
 
 ```bash
 some-noisy-command | TOKEN_ECONOMY_ROOT="$PWD" bash skills/output-filter/tools/filter.sh
+rg "needle" | TOKEN_ECONOMY_ROOT="$PWD" bash skills/output-filter/tools/filter.sh filter --content-type search --show-marker
 ```
 
 CLI:
@@ -24,12 +25,22 @@ CLI:
 ```bash
 python skills/output-filter/tools/cli.py stats
 python skills/output-filter/tools/cli.py rewind
+python skills/output-filter/tools/cli.py rewind <archive-id> --grep "ERROR|FAILED"
 python skills/output-filter/tools/cli.py rules --init
 ```
 
 Custom rules live at `.brainer/output-filter-rules.txt`. Syntax: `keep:<regex>`, `drop:<regex>`, `collapse:<regex>`.
 
 Optional session-aware suppression (suppresses lines already seen in the current `TOKEN_ECONOMY_SESSION_ID`) is OFF by default — repeated lines often matter during debugging. Enable with `--session-aware`.
+
+Content-aware mode is deterministic and fail-safe:
+
+- `--content-type auto` (default) detects large search/log/diff output and summarizes only above conservative size thresholds.
+- `search` keeps first/last hits, one hit per file, and all failure lines.
+- `log` keeps test/build summaries, warnings, errors, tracebacks, and the tail.
+- `diff` keeps diff headers, hunk headers, and changed lines.
+
+Use `--show-marker` when you want the filtered output itself to include the archive id and recovery command. The marker is opt-in so normal command output stays quiet.
 
 ## Hook wiring (Claude Code)
 

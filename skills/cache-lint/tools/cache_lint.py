@@ -34,6 +34,7 @@ class Finding:
     file: str = ""
     line: int = 0
     detail: str = ""
+    suggested_action: str = ""
 
 
 @dataclass
@@ -139,6 +140,18 @@ DYNAMIC_PATTERNS = [
 MAX_FINDINGS_PER_RULE_PER_FILE = 5  # cap to keep reports readable + bound DoS
 
 
+def _dynamic_suggestion(label: str) -> str:
+    if "shell substitution" in label or "wall-clock" in label or "timestamp" in label:
+        return "Move runtime/date values below the stable prefix or into a sidecar hook payload; keep cached files deterministic."
+    if "env" in label or "hostname" in label:
+        return "Pass machine/user-specific values at runtime below the cache breakpoint instead of embedding them in prefix files."
+    if "session" in label:
+        return "Move session/run identifiers into transient state or hook output, not resident prompt files."
+    if "jinja" in label:
+        return "Render templates before the cached prefix or keep template expressions out of resident carrier docs."
+    return "Keep volatile content out of cached prefix files; place it in runtime context instead."
+
+
 def check_dynamic_content(report: Report, files: list[Path]) -> None:
     for p in files:
         if p.suffix == ".json":
@@ -190,6 +203,7 @@ def check_dynamic_content(report: Report, files: list[Path]) -> None:
                     file=str(p),
                     line=line,
                     detail=lines[line - 1][:160] if line - 1 < len(lines) else "",
+                    suggested_action=_dynamic_suggestion(label),
                 ))
                 emitted_by_label[label] = emitted_by_label.get(label, 0) + 1
         for label, suppressed in suppressed_by_label.items():
@@ -198,6 +212,7 @@ def check_dynamic_content(report: Report, files: list[Path]) -> None:
                 title=f"+{suppressed} more '{label}' match(es) suppressed (cap {MAX_FINDINGS_PER_RULE_PER_FILE} per pattern)",
                 file=str(p),
                 detail="Fix the visible occurrences of this pattern and re-run to surface the rest.",
+                suggested_action=_dynamic_suggestion(label),
             ))
 
 
@@ -288,6 +303,7 @@ def check_sizing(report: Report, root: Path) -> None:
                 title=f"{name} is tiny ({n_tokens_est} token est) — cache slot likely wasted",
                 file=str(p),
                 detail=f"Consider inlining into another prefix file or accepting no caching here.",
+                suggested_action="If intentional, document the progressive-disclosure tradeoff; otherwise merge tiny stable content into an existing carrier.",
             ))
         elif n_tokens_est > SIZING_LARGE:
             report.add(Finding(
@@ -295,6 +311,7 @@ def check_sizing(report: Report, root: Path) -> None:
                 title=f"{name} is large ({n_tokens_est} token est) — long cache rebuild on changes",
                 file=str(p),
                 detail="Split stable rules from volatile content; keep volatile below breakpoint.",
+                suggested_action="Move volatile or rarely used detail into lazy-loaded skills/wiki pages so the stable prefix stays small.",
             ))
 
 
@@ -331,6 +348,7 @@ def check_model_switching(report: Report, files: list[Path]) -> None:
                 "(every-prompt hooks), expect cache misses on the model swap. "
                 "OK if the swap is rare or routed through a separate subagent."
             ),
+            suggested_action="Keep model routing off the hot prompt path where possible; route through short-lived subagents or document the cache tradeoff.",
         ))
 
 
@@ -448,6 +466,7 @@ def check_fork_safety(report: Report, files: list[Path]) -> None:
                         "for the current session and any fork. Queue the write for "
                         "SessionStart instead, or write to a sidecar."
                     ),
+                    suggested_action="Write hook state to .brainer/ or another sidecar; never mutate CLAUDE.md/AGENTS.md/settings from hot-path hooks.",
                 ))
             # Script-following: open invoked scripts and grep for prefix writes.
             # group(1) = interpreter+script form; group(2) = direct ./ or /abs path.
@@ -468,6 +487,7 @@ def check_fork_safety(report: Report, files: list[Path]) -> None:
                             f"Referenced by {p}. Evidence: {evidence}. "
                             "Cache-busts the hot path. Move the write to SessionStart or a sidecar."
                         ),
+                        suggested_action="Move the script write to a sidecar/state file or a non-hot-path setup step.",
                     ))
 
 
@@ -562,6 +582,7 @@ def check_ordering_and_tools(report: Report, root: Path) -> None:
             rule=1, severity="WARN",
             title=f"{root} doesn't look like a Claude Code project; skipping rule 1/3 fingerprint",
             detail="Expected one of: CLAUDE.md, AGENTS.md, GEMINI.md, .claude/, .claude-plugin/, skills/",
+            suggested_action="Run cache-lint from the actual project root so the fingerprint baseline is local and reviewable.",
         ))
         return
     fp_path = root / FINGERPRINT_NAME
@@ -578,12 +599,14 @@ def check_ordering_and_tools(report: Report, root: Path) -> None:
                 rule=1, severity="WARN",
                 title=f"could not persist {FINGERPRINT_NAME} baseline ({e})",
                 detail="Rules 1 and 3 require a writable project root. Re-run from a writable checkout, or run as a user with write access.",
+                suggested_action="Use a writable checkout or pre-create the fingerprint baseline in version-controlled project context.",
             ))
             return
         report.add(Finding(
             rule=1, severity="OK",
             title="ordering/tool fingerprint initialized (no prior baseline)",
             detail=f"Wrote {FINGERPRINT_NAME}; next run will compare against it.",
+            suggested_action="Commit or intentionally ignore this local baseline according to project policy.",
         ))
         return
     try:
@@ -597,6 +620,7 @@ def check_ordering_and_tools(report: Report, root: Path) -> None:
             rule=1, severity="WARN",
             title=f"prefix-file heading order changed since last audit: {changed_orders}",
             detail="Reordering busts the cache for every session that depended on the prior order.",
+            suggested_action="Keep stable carrier headings in a fixed order; move churny content below the stable prefix or into skills.",
         ))
 
     changed_skills = [
@@ -608,6 +632,7 @@ def check_ordering_and_tools(report: Report, root: Path) -> None:
             rule=3, severity="WARN",
             title=f"{len(changed_skills)} skill description(s) changed since last audit",
             detail="Each description change re-keys the cache for any prompt that loaded that skill.",
+            suggested_action="Keep frontmatter descriptions stable and push evolving guidance into the lazy-loaded skill body.",
         ))
 
     # Update baseline. Surface write failures (read-only checkout) so the next
@@ -619,6 +644,7 @@ def check_ordering_and_tools(report: Report, root: Path) -> None:
             rule=1, severity="WARN",
             title=f"could not update {FINGERPRINT_NAME} ({e})",
             detail="Future runs will compare against the previous (now-stale) baseline until the file is writable.",
+            suggested_action="Re-run from a writable checkout before relying on rule 1/3 drift results.",
         ))
 
 
@@ -686,6 +712,8 @@ def main(argv: list[str]) -> int:
                 print(f"      at {loc}")
             if f.detail:
                 print(f"      → {f.detail}")
+            if f.suggested_action:
+                print(f"      fix: {f.suggested_action}")
         print(f"summary: {report.summary['FAIL']} fail · {report.summary['WARN']} warn")
 
     if report.summary["FAIL"] > 0:

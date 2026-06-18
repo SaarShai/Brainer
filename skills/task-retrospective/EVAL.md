@@ -5,7 +5,7 @@
 | field | tokens / size |
 |---|---|
 | description (always resident) | **213 tokens** (902 chars; budget ≤1536) |
-| body (loaded on trigger) | **4,909 tokens** (19.3 KB) — incl. Part D cross-vendor cross-check |
+| body (loaded on trigger) | **5,005 tokens** (19,688 chars) — incl. Part D cross-vendor cross-check |
 | tools/ payload | **9.2 KB** (`audit_lessons.py` · `lesson_patterns.json` · `drift_probes.json`) |
 | model pin | `any` (none) |
 | effort pin | `medium` |

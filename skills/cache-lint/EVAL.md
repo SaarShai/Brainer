@@ -2,7 +2,7 @@
 
 ## What it does
 
-Static linter for prompt-cache hygiene against Anthropic's six prompt-cache rules. Reads `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` / `.claude/settings*.json` / `skills/*/SKILL.md`, applies six rule-checkers, emits typed findings + exit codes.
+Static linter for prompt-cache hygiene against Anthropic's six prompt-cache rules. Reads `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` / `.claude/settings*.json` / `skills/*/SKILL.md`, applies six rule-checkers, emits typed findings + exit codes + report-only `suggested_action` hints.
 
 ## Lineage
 
@@ -23,16 +23,17 @@ Backtick command substitution (`` `date` ``) is intentionally not checked — se
 
 ## Built-in tests
 
-`python tools/test_cache_lint.py` — 8 tests:
+`python tools/test_cache_lint.py` — 20 tests:
 
 - clean project passes
-- `$(date)` and `{{env.USER}}` flagged as FAIL
+- `$(date)` and `{{env.USER}}` flagged as FAIL with `suggested_action`
 - inline-code typography (`` `CLAUDE.md` ``) not flagged
 - dynamic content inside ``` fence ``` downgraded to WARN
 - tiny CLAUDE.md triggers Rule 5 WARN
-- multi-model settings trigger Rule 4 WARN
-- Stop hook writing CLAUDE.md triggers Rule 6 FAIL
+- multi-model settings trigger Rule 4 WARN with a report-only hint
+- Stop hook writing CLAUDE.md triggers Rule 6 FAIL with sidecar guidance
 - fingerprint baseline creates, then catches description drift
+- nested hook/plugin discovery, recursive-skip guards, block-scalar descriptions, cap/typography ordering, interpreter flags, non-dict JSON settings, and read-only prefix mentions are covered.
 
 ## Real-world calibration
 

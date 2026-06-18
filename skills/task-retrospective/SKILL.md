@@ -209,6 +209,15 @@ RULE. Every recurrence row carries the grep-locatable log date + the verbatim sn
 a queryable record, not prose. A pattern with zero post-promotion hits is reported as *holding*. Run
 at the retrospective or periodically.
 
+Transcript mining can also surface advisory candidates:
+```
+python3 scripts/mine_transcripts.py
+```
+The ignored `scratch/transcript_report.json` may contain `candidate_lessons` mined from repeated tool
+errors, large Bash outputs, and repeated-read/search-chain traces. Treat these as prompts for Part A
+and Part C only. They are not durable memory, they do not bypass `write-gate`, and they never auto-write
+wiki pages or carrier files.
+
 ## Never
 - Run Part B for a one-file trivial edit — a `wiki/log.md` line is enough.
 - Bank a lesson that fails write-gate (no reason, just a recap).
