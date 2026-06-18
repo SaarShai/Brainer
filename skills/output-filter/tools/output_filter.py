@@ -83,6 +83,26 @@ def _state_dir(repo_root: Path) -> Path:
     return repo_root / ".brainer" / "output-filter"
 
 
+def _resolve_rewind_raw_path(repo_root: Path, raw_path: str) -> Path:
+    """Resolve an archived raw output path without trusting index.jsonl blindly.
+
+    Archive entries are metadata, not authority. A tampered `raw_path` must not
+    allow rewind to read arbitrary files outside `.brainer/output-filter/raw`.
+    Resolving the candidate also rejects symlink escapes from that archive root.
+    """
+    archive_raw_root = (_state_dir(repo_root) / "raw").resolve()
+    raw_ref = Path(raw_path).expanduser()
+    candidate = raw_ref if raw_ref.is_absolute() else repo_root / raw_ref
+    resolved = candidate.resolve()
+    try:
+        resolved.relative_to(archive_raw_root)
+    except ValueError as exc:
+        raise SystemExit(f"unsafe output-filter raw_path outside archive root: {raw_path}") from exc
+    if not resolved.is_file():
+        raise SystemExit(f"output-filter raw archive is not a file: {raw_path}")
+    return resolved
+
+
 def _line_hash(line: str) -> str:
     return hashlib.sha256(line.encode("utf-8", errors="replace")).hexdigest()
 
@@ -319,7 +339,10 @@ def rewind(repo_root: Path, event_id: str = "last", grep: str | None = None) -> 
     row = rows[-1] if event_id == "last" else next((item for item in rows if item.get("id") == event_id), None)
     if row is None:
         raise SystemExit(f"unknown output-filter event: {event_id}")
-    path = repo_root / str(row["raw_path"])
+    raw_path = row.get("raw_path")
+    if not isinstance(raw_path, str) or not raw_path.strip():
+        raise SystemExit(f"output-filter event has no raw_path: {row.get('id', event_id)}")
+    path = _resolve_rewind_raw_path(repo_root, raw_path)
     raw = path.read_text(encoding="utf-8", errors="replace")
     if not grep:
         return raw

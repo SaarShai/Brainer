@@ -31,8 +31,8 @@ budget: max_iterations=20
 """
 
 
-def _rules(text, source="spec.yaml", rule=None):
-    rep = loop_lint.lint(text, source, rule_filter=rule)
+def _rules(text, source="spec.yaml", rule=None, strict_memory=False):
+    rep = loop_lint.lint(text, source, rule_filter=rule, strict_memory=strict_memory)
     return [(f.rule, f.severity) for f in rep.findings]
 
 
@@ -40,7 +40,7 @@ def _has(text, rule, sev, **kw):
     return (rule, sev) in _rules(text, **kw)
 
 
-def _exit_for(text, suffix=".yaml"):
+def _exit_for(text, suffix=".yaml", args=None):
     """Run main() against a temp file; return the process exit code."""
     with tempfile.NamedTemporaryFile("w", suffix=suffix, delete=False) as fh:
         fh.write(text)
@@ -48,7 +48,7 @@ def _exit_for(text, suffix=".yaml"):
     try:
         buf = io.StringIO()
         with redirect_stdout(buf):
-            return loop_lint.main([path])
+            return loop_lint.main([*(args or []), path])
     finally:
         os.unlink(path)
 
@@ -492,6 +492,42 @@ def test_fleet_state_concurrency_invalid_warns_r9():
             + MEMORY_FIELDS
             + "state_concurrency: vibes\n")
     assert _has(spec, 9, "WARN"), _rules(spec)
+
+
+def test_memory_findings_are_advisory_by_default():
+    spec = CLEAN.replace("topology: closed · inner · single", "topology: closed · outer · single")
+    assert _has(spec, 8, "WARN"), _rules(spec)
+    assert not _has(spec, 8, "FAIL"), _rules(spec)
+    assert _exit_for(spec) == 1
+
+
+def test_strict_memory_missing_contract_fails_r8():
+    for spec in [
+        CLEAN.replace("topology: closed · inner · single", "topology: closed · outer · single"),
+        CLEAN.replace("stop: all target tests green", "stop: nightly cron run completes green"),
+        CLEAN.replace("stop: all target tests green", "stop: background worker runs continuously"),
+    ]:
+        assert _has(spec, 8, "FAIL", strict_memory=True), _rules(spec, strict_memory=True)
+        assert not _has(spec, 8, "WARN", strict_memory=True), _rules(spec, strict_memory=True)
+        assert _exit_for(spec, args=["--strict-memory"]) == 2
+
+
+def test_strict_memory_missing_fleet_state_concurrency_fails_r9():
+    spec = (CLEAN.replace("topology: closed · inner · single", "topology: closed · outer · fleet")
+            .replace("gate: pytest tests/ -q", "gate: pytest -q then reviewer quorum >=2/3")
+            + MEMORY_FIELDS)
+    assert _has(spec, 9, "FAIL", strict_memory=True), _rules(spec, strict_memory=True)
+    assert not _has(spec, 9, "WARN", strict_memory=True), _rules(spec, strict_memory=True)
+    assert _exit_for(spec, args=["--strict-memory"]) == 2
+
+
+def test_strict_memory_valid_contract_and_concurrency_pass():
+    spec = (CLEAN.replace("topology: closed · inner · single", "topology: closed · outer · fleet")
+            .replace("gate: pytest tests/ -q", "gate: pytest -q then reviewer quorum >=2/3")
+            + MEMORY_FIELDS
+            + "state_concurrency: worktree_isolated\n")
+    assert _rules(spec, strict_memory=True) == [], _rules(spec, strict_memory=True)
+    assert _exit_for(spec, args=["--strict-memory"]) == 0
 
 
 # --- input forms ----------------------------------------------------------

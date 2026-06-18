@@ -2,6 +2,8 @@
 """Smoke tests for output_filter.py — runnable standalone with no pytest dep."""
 from __future__ import annotations
 
+import json
+import os
 import sys
 import subprocess
 import tempfile
@@ -106,6 +108,68 @@ def test_archive_rewind_roundtrip_and_grep() -> None:
         assert record["raw_tokens_est"] == 6
 
 
+def test_rewind_rejects_tampered_raw_path_escape() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        outside = root / "outside.txt"
+        outside.write_text("do not read me\n", encoding="utf-8")
+        index = root / ".brainer" / "output-filter" / "index.jsonl"
+        index.parent.mkdir(parents=True)
+        index.write_text(
+            json.dumps({"id": "evil", "raw_path": "../../outside.txt"}) + "\n",
+            encoding="utf-8",
+        )
+        try:
+            rewind(root, "evil")
+        except SystemExit as exc:
+            msg = str(exc)
+            assert "unsafe output-filter raw_path" in msg, msg
+        else:
+            raise AssertionError("tampered raw_path escape was accepted")
+
+
+def test_cli_noisy_content_types_preserve_signal_and_rewind_roundtrip() -> None:
+    search_raw = "\n".join(
+        f"src/file{i % 50}.py:{i}: match {i}" for i in range(140)
+    ) + "\nERROR: search failed late\n"
+    log_raw = (
+        ESC + "[?25l" + "\n".join(f"progress {i} 99%" for i in range(180))
+        + "\nWARNING: retrying flaky shard\nFAILED tests/test_api.py::test_auth\n"
+        + "\n".join(f"tail {i}" for i in range(120))
+        + ESC + "[?25h\n"
+    )
+    diff_raw = "\n".join(
+        ["diff --git a/app.py b/app.py", "index abc..def 100644", "--- a/app.py", "+++ b/app.py", "@@ -1,340 +1,340 @@"]
+        + [f" context {i}" for i in range(340)]
+        + ["-old important line", "+new important line"]
+    ) + "\n"
+    cases = [
+        ("search", search_raw, ["ERROR: search failed late", "src/file0.py:0: match 0"]),
+        ("log", log_raw, ["WARNING: retrying flaky shard", "FAILED tests/test_api.py::test_auth"]),
+        ("diff", diff_raw, ["diff --git a/app.py b/app.py", "-old important line", "+new important line"]),
+    ]
+    for content_type, raw, signals in cases:
+        with tempfile.TemporaryDirectory() as td:
+            env = {**os.environ, "TOKEN_ECONOMY_SESSION_ID": f"stress-{content_type}"}
+            filtered = subprocess.run(
+                [sys.executable, str(_OUTPUT_FILTER), "--repo", td, "filter", "--content-type", content_type, "--show-marker"],
+                input=raw,
+                text=True,
+                capture_output=True,
+                check=True,
+                env=env,
+            )
+            for signal in signals:
+                assert signal in filtered.stdout, (content_type, signal, filtered.stdout)
+            recovered = subprocess.run(
+                [sys.executable, str(_OUTPUT_FILTER), "--repo", td, "rewind", "last"],
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            assert recovered.stdout == raw, content_type
+
+
 def test_cli_show_marker_is_opt_in() -> None:
     raw = "\n".join(f"src/file{i % 3}.py:{i}: match {i}" for i in range(120)) + "\n"
     with tempfile.TemporaryDirectory() as td:
@@ -127,6 +191,8 @@ def main() -> int:
         test_log_content_filter_preserves_signal_lines,
         test_diff_content_filter_preserves_headers_and_changes,
         test_archive_rewind_roundtrip_and_grep,
+        test_rewind_rejects_tampered_raw_path_escape,
+        test_cli_noisy_content_types_preserve_signal_and_rewind_roundtrip,
         test_cli_show_marker_is_opt_in,
     ]
     failed = 0
