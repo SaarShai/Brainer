@@ -8,6 +8,18 @@ pulse_reminder: at task end run task-retrospective — self-audit (5-whys to roo
 
 # task-retrospective — close the learning loop
 
+> **SCOPE — run this ONLY in a consuming ("current") repo, NEVER on the canonical Brainer
+> repo itself.** Brainer is the source-of-truth skill library that is *synced out* into
+> working repos; it is not a place where tasks get done. A retrospective harvests lessons
+> and gates into the repo where the work happened — so it must execute against that working
+> repo, writing to *its* wiki/memory/skills (synced copies) and *its* drift probes. Pointing
+> this skill at the Brainer repo (treating Brainer's own development as the "task") pollutes
+> the canonical library with project-specific lessons and creates sync conflicts. If you find
+> yourself about to bank a retrospective lesson into `Brainer/` because that is `cwd`, STOP:
+> the only edits this skill may make under `Brainer/` are deliberate, human-directed changes
+> to the skill definitions themselves — not auto-harvested task lessons. (Even those should be
+> the rare exception, made knowingly.)
+
 [`wiki-memory`](../wiki-memory/SKILL.md) records and retrieves lessons; [`write-gate`](../write-gate/SKILL.md)
 keeps junk out; [`compliance-canary`](../compliance-canary/SKILL.md) fires drift probes. What was
 missing is the **close**: a fast self-audit, a real user check, a gated write, and — the load-bearing
