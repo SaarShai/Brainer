@@ -36,6 +36,9 @@ It validates a loop spec against three FAIL rules and six WARN rules:
   R9 FLEET-STATE-NO-CONCURRENCY (WARN) — fleet has shared state with no explicit
                                single-writer / optimistic-revision / worktree strategy.
 
+Use --strict-memory to promote R8/R9 findings to FAIL for loops where durable
+state matters: scheduled, fleet, outer, or long-running loops.
+
 Exit code IS the verdict: 0 clean · 1 any WARN · 2 any FAIL · 3 usage/unparseable.
 
 House style mirrors skills/cache-lint/tools/cache_lint.py (stdlib only, typed
@@ -290,6 +293,11 @@ _SCHEDULED = re.compile(
     r"\b(cron|schedule[sd]?|scheduled|nightly|daily|weekly|hourly|timer|"
     r"webhook|event\s+loop|file\s+watcher|watch(?:es|er)?|inbox|"
     r"monitoring\s+(?:job|automation|agent|loop))\b", re.I)
+_LONG_RUNNING = re.compile(
+    r"\b(long[-\s]?running|daemon|persistent|continuously|continuous|always[-\s]?on|"
+    r"background\s+(?:job|worker|loop|agent)|service\s+loop|until\s+(?:interrupted|cancelled|stopped))\b",
+    re.I,
+)
 _MEMORY_CONTRACT_FIELDS = ("anchor_files", "state_store", "recall", "writeback")
 _STATE_CONCURRENCY_ALLOWED = {"single_writer", "optimistic_revision", "worktree_isolated"}
 
@@ -498,7 +506,7 @@ def _irreversible_action(text: str) -> "re.Match | None":
 
 # --- Checks ---------------------------------------------------------------
 
-def check_spec(report: Report, spec: Spec, rule_filter: int | None) -> None:
+def check_spec(report: Report, spec: Spec, rule_filter: int | None, *, strict_memory: bool = False) -> None:
     src = spec.source
     label = spec.name or f"(unnamed @ line {spec.start_line})"
 
@@ -518,6 +526,9 @@ def check_spec(report: Report, spec: Spec, rule_filter: int | None) -> None:
     is_closed = "closed" in toks or (not is_open and bool(toks))
     all_fields = " ".join(spec.fields.values())
     is_scheduled = bool(_SCHEDULED.search(all_fields))
+    is_long_running = bool(_LONG_RUNNING.search(all_fields))
+    needs_memory_contract = is_outer or is_fleet or is_scheduled or is_long_running
+    memory_severity: Severity = "FAIL" if strict_memory else "WARN"
 
     # R1 NO-GATE
     if want(1):
@@ -604,34 +615,35 @@ def check_spec(report: Report, spec: Spec, rule_filter: int | None) -> None:
                                "sign-off gate) before merge / deploy / migrate / charge; scope its permissions."))
 
     # R8 NO-MEMORY-CONTRACT — context rot starts to matter for loops that are
-    # outer, scheduled/event-triggered, or parallel. Do not fail simple inner
-    # fix loops; warn only where pass state must survive the context window.
-    if want(8) and (is_outer or is_fleet or is_scheduled):
+    # outer, scheduled/event-triggered, long-running, or parallel. Do not fail
+    # simple inner fix loops by default; --strict-memory turns durable-state gaps
+    # into a hard gate where pass state must survive the context window.
+    if want(8) and needs_memory_contract:
         missing = [k for k in _MEMORY_CONTRACT_FIELDS if not spec.get(k)]
         if missing:
-            report.add(Finding(8, "WARN", f"spec '{label}' lacks a loop memory contract",
+            report.add(Finding(8, memory_severity, f"spec '{label}' lacks a loop memory contract",
                                src, spec.line_of("topology") or spec.start_line,
-                               "scheduled/fleet/outer loops need recall-before-pass and write-after-pass. "
+                               "scheduled/fleet/outer/long-running loops need recall-before-pass and "
+                               "write-after-pass. "
                                f"Missing: {', '.join(missing)}. Add anchor_files, state_store, recall, "
                                "and writeback so each pass resumes from durable state instead of memory."))
 
     # R9 FLEET-STATE-NO-CONCURRENCY — when a fleet writes shared pass state, name
-    # the merge strategy. Advisory because some fleets isolate state outside the
-    # spec, but an absent strategy is exactly how parallel agents clobber each
-    # other.
+    # the merge strategy. Advisory by default because some fleets isolate state
+    # outside the spec; --strict-memory makes missing strategy a hard gate.
     if want(9) and is_fleet and spec.get("state_store"):
         sc = spec.get("state_concurrency")
         if not sc or not _state_concurrency_ok(sc):
             detail = ("missing state_concurrency" if not sc
                       else f"state_concurrency={sc!r} is not one of "
                            "single_writer / optimistic_revision / worktree_isolated")
-            report.add(Finding(9, "WARN", f"spec '{label}' has fleet state with no concurrency strategy",
+            report.add(Finding(9, memory_severity, f"spec '{label}' has fleet state with no concurrency strategy",
                                src, spec.line_of("state_concurrency") or spec.line_of("state_store"),
                                f"{detail}. Shared state needs a single writer, optimistic revision checks, "
                                "or worktree-isolated state before aggregation."))
 
 
-def lint(text: str, source: str, rule_filter: int | None = None) -> Report:
+def lint(text: str, source: str, rule_filter: int | None = None, *, strict_memory: bool = False) -> Report:
     report = Report(root=source)
     specs = parse_specs(text, source)
     report.n_specs = len(specs)
@@ -643,7 +655,7 @@ def lint(text: str, source: str, rule_filter: int | None = None) -> Report:
         report.finalize()
         return report
     for spec in specs:
-        check_spec(report, spec, rule_filter)
+        check_spec(report, spec, rule_filter, strict_memory=strict_memory)
     report.finalize()
     return report
 
@@ -732,7 +744,7 @@ def to_mermaid(spec: Spec, findings: list[Finding]) -> str:
     return "\n".join(out)
 
 
-def diagrams(text: str, source: str, rule_filter: int | None = None) -> list[str]:
+def diagrams(text: str, source: str, rule_filter: int | None = None, *, strict_memory: bool = False) -> list[str]:
     """One Mermaid diagram per spec in `text`, each with its own findings
     overlaid. Raises ValueError/JSONDecodeError on an unparseable spec (same as
     lint)."""
@@ -740,7 +752,7 @@ def diagrams(text: str, source: str, rule_filter: int | None = None) -> list[str
     out: list[str] = []
     for spec in specs:
         per = Report(root=source)
-        check_spec(per, spec, rule_filter)
+        check_spec(per, spec, rule_filter, strict_memory=strict_memory)
         per.finalize()
         out.append(to_mermaid(spec, per.findings))
     return out
@@ -758,6 +770,8 @@ def main(argv: list[str]) -> int:
                          "(grounded in the parsed spec; wrap in a ```mermaid fence to render)")
     ap.add_argument("--rule", type=int, choices=[1, 2, 3, 4, 5, 6, 7, 8, 9],
                     help="restrict to one rule")
+    ap.add_argument("--strict-memory", action="store_true",
+                    help="promote R8/R9 loop-memory findings to FAIL for scheduled/fleet/outer/long-running loops")
     args = ap.parse_args(argv)
 
     if args.path == "-":
@@ -775,7 +789,7 @@ def main(argv: list[str]) -> int:
         source = str(p)
 
     try:
-        report = lint(text, source, rule_filter=args.rule)
+        report = lint(text, source, rule_filter=args.rule, strict_memory=args.strict_memory)
     except (ValueError, json.JSONDecodeError) as e:
         print(f"error: unparseable loop spec in {source}: {e}", file=sys.stderr)
         return 3
@@ -783,7 +797,7 @@ def main(argv: list[str]) -> int:
     if args.diagram:
         # Render the parsed spec(s); keep the lint verdict as the exit code so
         # `loop_lint --diagram spec.md` is still a CI-composable gate.
-        blocks = diagrams(text, source, rule_filter=args.rule)
+        blocks = diagrams(text, source, rule_filter=args.rule, strict_memory=args.strict_memory)
         if not blocks:
             print(f"%% loop-lint: no loop spec found in {source}")
         print("\n\n".join(blocks))

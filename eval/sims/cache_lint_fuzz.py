@@ -191,9 +191,13 @@ def run() -> dict:
 def main() -> int:
     out = run()
     out_path = REPO / "eval/sims/results/cache_lint_fuzz.json"
-    if os.environ.get("BRAINER_CHECK_NO_WRITE") != "1":
+    no_write = os.environ.get("BRAINER_CHECK_NO_WRITE") == "1"
+    before = out_path.read_bytes() if out_path.exists() else None
+    if not no_write:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(json.dumps(out, indent=2))
+    after = out_path.read_bytes() if out_path.exists() else None
+    no_write_preserved_results_file = (before == after) if no_write else True
 
     print(f"=== cache-lint fuzz battery ===")
     print(f"  cases: {out['n_cases']}")
@@ -206,6 +210,10 @@ def main() -> int:
         if not v:
             failed += 1
         print(f"    [{flag}]  {k}")
+    flag = "ok" if no_write_preserved_results_file else "FAIL"
+    if not no_write_preserved_results_file:
+        failed += 1
+    print(f"    [{flag}]  no_write_preserved_results_file")
 
     if out["crashes"] > 0 or failed > 0:
         print(f"\n  per-case timings:")

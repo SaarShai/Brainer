@@ -9,7 +9,7 @@
 # Usage: bash scripts/run_all_tests.sh [--quiet]
 set -uo pipefail
 export PYTHONDONTWRITEBYTECODE=1
-export BRAINER_CHECK_NO_WRITE="${BRAINER_CHECK_NO_WRITE:-0}"
+export BRAINER_CHECK_NO_WRITE="${BRAINER_CHECK_NO_WRITE:-1}"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
