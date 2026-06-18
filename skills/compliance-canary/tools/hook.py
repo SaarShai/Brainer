@@ -480,9 +480,18 @@ def detect_forbidden_regex(probe: dict, messages: list[dict], _tool_uses, _tool_
     except re.error as e:
         log_err(f"bad-regex probe={probe.get('_probe_id')} err={e!r}")
         return None
+    unless = None
+    unless_str = probe.get("unless_pattern")
+    if unless_str:
+        try:
+            unless = re.compile(unless_str)
+        except re.error as e:
+            log_err(f"bad-unless-regex probe={probe.get('_probe_id')} err={e!r}")
     for m in messages:
         match = pat.search(m["text"])
         if match:
+            if unless and unless.search(m["text"]):
+                continue
             snippet = m["text"]
             i = max(0, match.start() - 20)
             j = min(len(snippet), match.end() + 20)

@@ -36,7 +36,13 @@ REQUIRED_BY_KIND = {
     "ledger_not_materialized": ["min_open"],
 }
 
-REGEX_FIELDS = ["pattern", "claim_pattern", "warrant_pattern", "maintenance_path_pattern"]
+REGEX_FIELDS = [
+    "pattern",
+    "claim_pattern",
+    "warrant_pattern",
+    "unless_pattern",
+    "maintenance_path_pattern",
+]
 
 
 def validate_probe(probe: object, source: str, seen_ids: set[str]) -> list[str]:
