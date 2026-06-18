@@ -1,6 +1,6 @@
 ---
 name: loop-engineering
-description: Use BEFORE building any multi-step agentic loop, generator→verifier pipeline, fan-out/fleet, or iterate-until-correct/retry loop — INCLUDING an automated / unattended / scheduled / nightly process that regenerates, revises, or rebuilds artifacts and keeps retrying each until it passes a check, any self-correcting or "keep going until it's good enough" automation, and any build-and-verify or generate-and-grade pipeline. If the task is "set up something that runs repeatedly and fixes its own output", this skill applies. Picks the loop shape (open/closed · inner/outer · single/fleet), pairs a generator with a SEPARATE verifier, and forces a concrete gate + stop + budget cap up front. Ships loop_lint.py to refuse no-gate / self-grading / unbounded specs. Override with ONE SHOT.
+description: Use BEFORE building any multi-step agentic loop, generator→verifier pipeline, fan-out/fleet, or iterate-until-correct/retry loop — INCLUDING an automated / unattended / scheduled / nightly process that regenerates, revises, or rebuilds artifacts and keeps retrying each until it passes a check, any self-correcting or "keep going until it's good enough" automation, and any build-and-verify or generate-and-grade pipeline. If the task is "set up something that runs repeatedly and fixes its own output", this skill applies. Picks the loop shape (open/closed · inner/outer · single/fleet), pairs a generator with a SEPARATE verifier, and forces a concrete gate + stop + budget cap up front. Ships loop_lint.py to refuse no-gate / self-grading / unbounded specs and loop_run_monitor.py to gate runtime traces for stuck/costly loops. Override with ONE SHOT.
 effort: medium
 tools: [Bash, Read, Write]
 auto-install: true
@@ -35,6 +35,17 @@ This is the net-new judgment no other skill makes. Pick each axis deliberately a
 | **single vs fleet** | **single** — one agent rewrites its own draft (draft → check → fix → repeat). | **fleet** — an orchestrator splits the goal, every level runs discover/plan/execute/verify, only verified results bubble up. Adds git-worktree isolation + a quorum/aggregation gate where parallel results merge. |
 
 Both layers are verification. Native tooling: `/goal` encodes the stop condition across turns; dynamic workflows make the fleet native (capped 16 concurrent / 1000 agents). They cost far more tokens — reach for them only when the task genuinely does not fit one pass.
+
+## Stack the runtime loops deliberately
+
+Use the four-loop stack as a diagnosis before adding machinery:
+
+1. **Agent loop** — model ↔ tools until a result exists. This is the ordinary work loop; for a single bounded task, [`plan-first-execute`](../plan-first-execute/SKILL.md) plus [`verify-before-completion`](../verify-before-completion/SKILL.md) is usually enough.
+2. **Verification loop** — grader/rubric/test sends feedback back to the agent. This skill names the verifier and gate; [`eval-gate`](../eval-gate/SKILL.md) handles judgment rubrics when deterministic tests cannot express "good enough".
+3. **Event loop** — a trigger (cron, webhook, inbox/channel, file watcher) starts the verified agent loop repeatedly. This is deployment wiring, not new autonomy: the same loop spec still needs a gate, stop, budget, permissions audit, and human approval before irreversible actions.
+4. **Hill-climbing loop** — traces from repeated runs feed a separate analysis pass that proposes harness improvements. Never let this loop self-merge. It should produce a reviewed patch or lesson routed through [`task-retrospective`](../task-retrospective/SKILL.md), [`write-gate`](../write-gate/SKILL.md), and [`wiki-memory`](../wiki-memory/SKILL.md).
+
+The outer-loop handoff artifact is the trace, not a vibe. For every scheduled or unattended loop, decide up front which fields are emitted per iteration (`command`, `error`, `metric`, `accepted`, `cost`) so the next layer can measure improvement instead of reading tea leaves.
 
 ## Wire the generator to a SEPARATE verifier
 
@@ -72,7 +83,13 @@ Then answer the questions the four fields don't cover:
 
 ## Instrument before you scale
 
-**You cannot improve a loop you do not measure** — instrument the gate (iteration count, pass rate, failure reasons, per-step cost/success) BEFORE you scale, or you are just generating wrong answers faster. The metric that matters is **cost per accepted change**, not tokens spent — under ~50% accepted means the loop is making review work, not saving it. Add cheap deterministic **stuck detectors** distinct from the correctness gate, with concrete thresholds: **same command 3×, same error 2× (the `repeated_tool_error` probe), or 2 iterations with no metric movement = stuck.** On stuck, do NOT retry harder — **force entropy**: require a *structurally different* hypothesis before the next execution. Caps stay small (≈2–3 for a fix loop); on hitting the cap, **escalate with a decision brief** — the options tried and the evidence behind each, never a bare "it doesn't work". Per-cycle, ask the overfit question: *am I building the general solution, or memorizing this eval?* A recurring "ran past budget" or "no gate" violation across sessions is promoted by [`task-retrospective`](../task-retrospective/SKILL.md) into a [`compliance-canary`](../compliance-canary/SKILL.md) drift probe — `drift_probes.json` is the runtime home for the static checks this skill's linter makes. Build the **minimum viable loop** in order — get one manual run reliable → make it a skill → wrap it in a loop → schedule it; skipping ahead ships a loop nobody understands.
+**You cannot improve a loop you do not measure** — instrument the gate (iteration count, pass rate, failure reasons, per-step cost/success) BEFORE you scale, or you are just generating wrong answers faster. The metric that matters is **cost per accepted change**, not tokens spent — under ~50% accepted means the loop is making review work, not saving it. Add cheap deterministic **stuck detectors** distinct from the correctness gate, with concrete thresholds: **same command 3×, same error 2× (the `repeated_tool_error` probe), or 2 iterations with no metric movement = stuck.** Emit the iteration trace as JSON and run `loop_run_monitor.py` against it:
+
+```bash
+python3 skills/loop-engineering/tools/loop_run_monitor.py trace.json
+```
+
+On stuck, do NOT retry harder — **force entropy**: require a *structurally different* hypothesis before the next execution. Caps stay small (≈2–3 for a fix loop); on hitting the cap, **escalate with a decision brief** — the options tried and the evidence behind each, never a bare "it doesn't work". Per-cycle, ask the overfit question: *am I building the general solution, or memorizing this eval?* A recurring "ran past budget" or "no gate" violation across sessions is promoted by [`task-retrospective`](../task-retrospective/SKILL.md) into a [`compliance-canary`](../compliance-canary/SKILL.md) drift probe — `drift_probes.json` is the runtime home for the static checks this skill's linter makes. Build the **minimum viable loop** in order — get one manual run reliable → make it a skill → wrap it in a loop → schedule it; skipping ahead ships a loop nobody understands.
 
 ## Design against the quiet failures
 
@@ -106,10 +123,12 @@ A reusable generator/verifier/budget recipe is just another durable fact — rou
 
 - [`SKILL.md`](SKILL.md) — this doctrine.
 - [`tools/loop_lint.py`](tools/loop_lint.py) — the mechanical gate: static loop-spec linter (R1–R7, exit code = verdict).
-- [`tools/test_loop_lint.py`](tools/test_loop_lint.py) — 61 tests (4 adversarial rounds + R7 verify + `--diagram`); registered in `scripts/run_all_tests.sh`.
+- [`tools/loop_run_monitor.py`](tools/loop_run_monitor.py) — runtime trace gate: stuck detection + cost-per-accepted-change over iteration JSON.
+- [`tools/test_loop_lint.py`](tools/test_loop_lint.py) — static-spec tests; registered in `scripts/run_all_tests.sh`.
+- [`tools/test_loop_run_monitor.py`](tools/test_loop_run_monitor.py) — runtime-trace tests; registered in `scripts/run_all_tests.sh`.
 - [`tools/schema.md`](tools/schema.md) — loop-spec field reference.
 - [`drift_probes.json`](drift_probes.json) — three probes (loop-done claim with no gate run; loop-build intent; fleet-orchestration intent); auto-discovered by compliance-canary.
-- [`EVAL.md`](EVAL.md) — static cost + promotion path (opt-in until measured).
+- [`EVAL.md`](EVAL.md) — static cost, deterministic checks, and measurement status.
 
 ## Lineage
 
