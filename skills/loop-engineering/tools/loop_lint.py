@@ -15,7 +15,7 @@ generator != verifier} is not a loop — it is an open-ended spin. This linter
 refuses such specs BEFORE the loop runs, turning the doctrine into a mechanical
 gate (per Brainer's "no prose rule where a mechanical gate can stand").
 
-It validates a loop spec against three FAIL rules and four WARN rules:
+It validates a loop spec against three FAIL rules and six WARN rules:
 
   R1 NO-GATE          (FAIL) — gate absent, or prose with no machine-checkable
                                pass/fail signal (allowlist: a command / test id /
@@ -31,6 +31,10 @@ It validates a loop spec against three FAIL rules and four WARN rules:
   R6 NO-TOPOLOGY      (WARN) — topology not declared (you did not choose a shape).
   R7 IRREVERSIBLE-NO-HUMAN (WARN) — autonomous loop that merges/deploys/migrates/
                                charges with no human approval gate (the security tax).
+  R8 NO-MEMORY-CONTRACT (WARN) — scheduled/fleet/outer loop lacks anchor/read/write
+                               state fields, so it will re-derive after context rot.
+  R9 FLEET-STATE-NO-CONCURRENCY (WARN) — fleet has shared state with no explicit
+                               single-writer / optimistic-revision / worktree strategy.
 
 Exit code IS the verdict: 0 clean · 1 any WARN · 2 any FAIL · 3 usage/unparseable.
 
@@ -102,7 +106,8 @@ class Report:
 # Keys the spec understands. Unknown keys are kept (harmless) but never required.
 KNOWN_KEYS = {
     "name", "topology", "generator", "verifier", "gate", "stop", "budget",
-    "accepted_open_loop", "quorum", "aggregate",
+    "accepted_open_loop", "quorum", "aggregate", "anchor_files", "state_store",
+    "recall", "writeback", "state_concurrency",
 }
 
 _KV_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*(.*)$")
@@ -281,6 +286,12 @@ _DECISION_VERB = re.compile(r"\b(approv\w+|sign[\s-]?off|signs?\s+off|signed\s+o
 
 _UNBOUNDED = re.compile(r"\b(unbounded|infinite|none|no\s*limit|unlimited|never|forever)\b", re.I)
 _QUORUM = re.compile(r"\b(quorum|aggregat\w*|merge|reviewer|vote|consensus|majority|reduce)\b", re.I)
+_SCHEDULED = re.compile(
+    r"\b(cron|schedule[sd]?|scheduled|nightly|daily|weekly|hourly|timer|"
+    r"webhook|event\s+loop|file\s+watcher|watch(?:es|er)?|inbox|"
+    r"monitoring\s+(?:job|automation|agent|loop))\b", re.I)
+_MEMORY_CONTRACT_FIELDS = ("anchor_files", "state_store", "recall", "writeback")
+_STATE_CONCURRENCY_ALLOWED = {"single_writer", "optimistic_revision", "worktree_isolated"}
 
 # A real budget cap is a NUMBER bound to a cap unit (iterations / tokens / a
 # duration) — not a stray digit in a prose sentence ("run until inbox has 0 unread").
@@ -439,6 +450,12 @@ def _is_true(v: str) -> bool:
     return _strip_quotes(v).strip().lower() in {"true", "yes", "1", "on"}
 
 
+def _state_concurrency_ok(v: str) -> bool:
+    """True when `state_concurrency` names one of the documented strategies."""
+    norm = re.sub(r"[\s-]+", "_", _strip_quotes(v).strip().lower())
+    return norm in _STATE_CONCURRENCY_ALLOWED
+
+
 # An IRREVERSIBLE action — something an autonomous loop should not do without a
 # human in the loop (the article's "human review before anything irreversible" +
 # the security tax). A verb allowlist (it is a tripwire, not a proof — a novel
@@ -497,7 +514,10 @@ def check_spec(report: Report, spec: Spec, rule_filter: int | None) -> None:
     toks = _topology_tokens(topology)
     is_open = "open" in toks
     is_fleet = "fleet" in toks
+    is_outer = "outer" in toks
     is_closed = "closed" in toks or (not is_open and bool(toks))
+    all_fields = " ".join(spec.fields.values())
+    is_scheduled = bool(_SCHEDULED.search(all_fields))
 
     # R1 NO-GATE
     if want(1):
@@ -583,6 +603,33 @@ def check_spec(report: Report, spec: Spec, rule_filter: int | None) -> None:
                                "before it runs. Require a human sign-off (a human verifier, or an approve/"
                                "sign-off gate) before merge / deploy / migrate / charge; scope its permissions."))
 
+    # R8 NO-MEMORY-CONTRACT — context rot starts to matter for loops that are
+    # outer, scheduled/event-triggered, or parallel. Do not fail simple inner
+    # fix loops; warn only where pass state must survive the context window.
+    if want(8) and (is_outer or is_fleet or is_scheduled):
+        missing = [k for k in _MEMORY_CONTRACT_FIELDS if not spec.get(k)]
+        if missing:
+            report.add(Finding(8, "WARN", f"spec '{label}' lacks a loop memory contract",
+                               src, spec.line_of("topology") or spec.start_line,
+                               "scheduled/fleet/outer loops need recall-before-pass and write-after-pass. "
+                               f"Missing: {', '.join(missing)}. Add anchor_files, state_store, recall, "
+                               "and writeback so each pass resumes from durable state instead of memory."))
+
+    # R9 FLEET-STATE-NO-CONCURRENCY — when a fleet writes shared pass state, name
+    # the merge strategy. Advisory because some fleets isolate state outside the
+    # spec, but an absent strategy is exactly how parallel agents clobber each
+    # other.
+    if want(9) and is_fleet and spec.get("state_store"):
+        sc = spec.get("state_concurrency")
+        if not sc or not _state_concurrency_ok(sc):
+            detail = ("missing state_concurrency" if not sc
+                      else f"state_concurrency={sc!r} is not one of "
+                           "single_writer / optimistic_revision / worktree_isolated")
+            report.add(Finding(9, "WARN", f"spec '{label}' has fleet state with no concurrency strategy",
+                               src, spec.line_of("state_concurrency") or spec.line_of("state_store"),
+                               f"{detail}. Shared state needs a single writer, optimistic revision checks, "
+                               "or worktree-isolated state before aggregation."))
+
 
 def lint(text: str, source: str, rule_filter: int | None = None) -> Report:
     report = Report(root=source)
@@ -666,7 +713,8 @@ def to_mermaid(spec: Spec, findings: list[Finding]) -> str:
     # R2 cap==0 WARN must paint amber, not FAIL-red). Per-NODE, not per-rule, so
     # a node hit by two rules of different severity can't get two conflicting
     # `class` lines (FAIL dominates WARN).
-    rule_nodes = {1: ("K",), 2: ("S", "B"), 3: ("G", "V"), 5: ("V",), 6: ("TOPO",)}
+    rule_nodes = {1: ("K",), 2: ("S", "B"), 3: ("G", "V"), 5: ("V",),
+                  6: ("TOPO",), 8: ("TOPO",), 9: ("V",)}
     node_sev: dict[str, str] = {}
     for f in findings:
         for n in rule_nodes.get(f.rule, ()):
@@ -708,7 +756,8 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--diagram", action="store_true",
                     help="emit a Mermaid diagram of each spec with lint findings overlaid "
                          "(grounded in the parsed spec; wrap in a ```mermaid fence to render)")
-    ap.add_argument("--rule", type=int, choices=[1, 2, 3, 4, 5, 6, 7], help="restrict to one rule")
+    ap.add_argument("--rule", type=int, choices=[1, 2, 3, 4, 5, 6, 7, 8, 9],
+                    help="restrict to one rule")
     args = ap.parse_args(argv)
 
     if args.path == "-":

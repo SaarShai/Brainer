@@ -22,5 +22,19 @@
     "pattern": "(?i)(?:\\b(?:spawn|dispatch|orchestrat\\w+|fan[- ]?out|fleet)\\b[^.?!\\n]{0,40}\\b(?:agents?|sub-?agents?|workers?|assistants?)\\b|\\b(?:agents?|sub-?agents?|workers?|assistants?)\\b[^.?!\\n]{0,30}\\bin parallel\\b|\\b(?:team|swarm|fleet|group|pool|army|set) of (?:parallel )?(?:agents?|sub-?agents?|workers?|assistants?)\\b|\\bparallel (?:agents?|sub-?agents?|workers?|assistants?)\\b|\\bsplit (?:the |up )?(?:work|task|goal)\\b[^.?!\\n]{0,40}\\b(?:independent|parallel|pieces|across|concurrent)\\b|\\bgive each (?:agent|sub-?agent|worker|assistant)\\b|\\b(?:multiple|several|many|separate|distinct|various) (?:(?:parallel|ai|sub|independent|concurrent|separate) )*(?:agents?|sub-?agents?|assistants?|workers?)\\b|\\bdispatch(?:ed|ing)? (?:them |these |the )?(?:concurrently|in parallel)\\b)",
     "message": "this prompt asks you to ORCHESTRATE A FLEET — apply loop-engineering's orchestration section: write the GOAL, split into independent pieces, give each agent a self-contained brief (goal + in-scope files + done-means + explicit OUT-of-scope), dispatch concurrently, synthesize as they return. Require the executor report contract ('READY FOR JUDGING', attempts+assumptions, never 'done'); worktree-isolate any writers; quarantine untrusted-content readers (read-only tools). CRITICAL: hooks/probes do NOT fire inside subagents — inline the relevant skill directives into each subagent prompt and re-verify their output in the main loop.",
     "severity": "warn"
+  },
+  {
+    "id": "harness-audit-intent",
+    "kind": "prompt_intent",
+    "pattern": "(?i)(?:\\b(?:agent|claude|codex)\\s+harness\\b|\\bharness\\s+(?:engineering|audit|setup|config|configuration|review)\\b|\\b(?:audit|review|configure|harden|scan)\\b[^.?!\\n]{0,40}\\bharness\\b|\\bdefault\\s+harness\\b|\\.claude/[^.?!\\n]{0,80}\\b(?:settings\\.json|hooks?|subagents?|agents?|skills?|memory|permissions)\\b|\\b(?:context|permissions|hooks?|subagents?|skills?|memory)\\b[^.?!\\n]{0,60}\\b(?:before|under(?:neath)?|beneath)\\b[^.?!\\n]{0,40}\\b(?:loop|automation|agent))",
+    "message": "this prompt is about the harness under an agent or loop — apply loop-engineering's harness pre-flight: inventory context, tools, permissions, hooks, subagents, skills, and memory. Keep standing facts in context, deterministic enforcement in hooks/probes, reusable procedures in skills, isolation/verification in subagents, and durable lessons in wiki-memory via write-gate. Do not schedule or fan out a default/unknown harness.",
+    "severity": "warn"
+  },
+  {
+    "id": "loop-memory-intent",
+    "kind": "prompt_intent",
+    "pattern": "(?i)(?:\\b(?:context rot|catastrophic forgetting|goal drift|repeated work)\\b|\\b(?:recall before pass|store after pass|write after pass|writeback|durable semantic memory|loop memory|memory contract|LOOP-STATE|STATE\\.md|VISION\\.md)\\b|\\b(?:long[- ]running|scheduled|outer|event[- ]triggered)\\b[^.?!\\n]{0,60}\\b(?:loop|agent|automation)\\b[^.?!\\n]{0,80}\\b(?:memory|state|recall|writeback)\\b|\\b(?:memory|state)\\b[^.?!\\n]{0,60}\\b(?:loop|iteration|pass)\\b)",
+    "message": "this prompt is about memory for a long-running loop — apply loop-engineering's loop memory contract: define anchor_files, state_store, recall, writeback, and for fleets state_concurrency. Recall before every pass, write state after every pass, keep ephemeral attempts in loop state, and route only durable verified lessons through write-gate into wiki-memory.",
+    "severity": "warn"
   }
 ]

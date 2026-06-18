@@ -53,8 +53,12 @@ the fields present are checked):
                                     #   number (tests passing, % done, score…).
                                     #   None / absent => "unknown", not a stall.
     "accepted": false,             # did this iteration produce an ACCEPTED change?
-    "cost":    1200                 # cost units for this iteration (tokens / $ / s);
+    "cost":    1200,                # cost units for this iteration (tokens / $ / s);
                                     #   summed for cost-per-accepted-change.
+    "state_revision": "abc123",     # optional loop-state revision/hash read by this pass
+    "recalled": true,               # optional: pre-pass recall ran
+    "wrote_state": true,            # optional: post-pass writeback ran
+    "verdict": "fail"               # optional verifier verdict: pass/fail/blocked/...
   }
 
 Minimal example (healthy): [{"command":"a","metric":1},{"command":"b","metric":2}]

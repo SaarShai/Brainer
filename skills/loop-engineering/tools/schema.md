@@ -22,8 +22,17 @@ No PyYAML dependency — values are read as plain strings after the first `:`.
 | `budget` | **yes** | a numeric cap (`max_iterations` / `max_tokens` / `max_wallclock`). Missing or `unbounded` → **R2 FAIL** |
 | `accepted_open_loop` | open only | `true` declares "no feedback gate is intentional"; silences **R4** |
 | `quorum` / `aggregate` | fleet only | the convergence gate for parallel results; absent (and no quorum/reviewer/merge token in the gate) → **R5 WARN** |
+| `anchor_files` | scheduled/fleet/outer | fixed files re-read before every pass, e.g. `VISION.md`, `PROMPT.md`, `AGENTS.md`, `SKILL.md`, or the task packet. Missing on scheduled/fleet/outer loops → **R8 WARN** |
+| `state_store` | scheduled/fleet/outer | durable pass state path or system, e.g. `LOOP-STATE.json`, a markdown board, or wiki-backed state. Missing on scheduled/fleet/outer loops → **R8 WARN** |
+| `recall` | scheduled/fleet/outer | exact pre-pass retrieval procedure: read `state_store`, query wiki-memory, fetch timeline/pages, or load the task board. Missing on scheduled/fleet/outer loops → **R8 WARN** |
+| `writeback` | scheduled/fleet/outer | exact post-pass persistence procedure: record attempts, verifier verdict, failures, next action, and changed facts. Missing on scheduled/fleet/outer loops → **R8 WARN** |
+| `state_concurrency` | fleet with state | one of `single_writer`, `optimistic_revision`, or `worktree_isolated`. Missing/invalid on fleet specs with `state_store` → **R9 WARN** |
 
 **R7 IRREVERSIBLE-NO-HUMAN (WARN):** if `stop` / `gate` / `generator` names an irreversible action (deploy / merge to main / migrate / `rm -rf` / force-push / charge / refund / rotate secret / npm publish) and there is **no human in the loop** (no approve/sign-off/escalate gate, no human-token verifier) → WARN. Silence it by giving a human approval gate or a human verifier — the security tax: an unattended loop is an unattended attack surface.
+
+**R8 NO-MEMORY-CONTRACT (WARN):** if a loop is scheduled/event-triggered, fleet-shaped, or outer-loop-shaped, it must say what survives the context window: `anchor_files`, `state_store`, `recall`, and `writeback`. This is advisory for v1 so small inner fix loops stay lightweight, but a long-running loop without these fields is expected to re-derive, repeat work, or drift.
+
+**R9 FLEET-STATE-NO-CONCURRENCY (WARN):** if a fleet has a `state_store`, it must also name `state_concurrency`. Use `single_writer` when only the orchestrator writes state, `optimistic_revision` when workers read a revision/hash and retry on conflict, and `worktree_isolated` when each worker writes isolated state that only merges through aggregation.
 
 ## What makes a `gate` machine-checkable (R1 allowlist)
 
@@ -54,6 +63,11 @@ gate: cargo build && cargo test --quiet
 stop: build clean and ≥99.8% of the existing suite green
 budget: max_iterations=40
 quorum: 2 reviewers agree + refuter finds nothing
+anchor_files: SPEC.md, AGENTS.md, skills/loop-engineering/SKILL.md
+state_store: work/LOOP-STATE.json
+recall: read state_store and wiki-memory timeline before each pass
+writeback: record attempts, verifier verdict, failures, next action after each pass
+state_concurrency: worktree_isolated
 ```
 
 ## Example (fails: R1 + R2 + R3)

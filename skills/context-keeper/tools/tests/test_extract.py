@@ -172,6 +172,24 @@ def test_bom_prefixed_frontmatter_parses():
     assert _parse_frontmatter(bom).get("output_style") == "true", "BOM defeated frontmatter parse"
 
 
+def test_loop_pass_memory_contract_extraction():
+    events = [_assistant(
+        "pass 47 of N\n"
+        "anchor_files: VISION.md, PROMPT.md, skills/loop-engineering/SKILL.md\n"
+        "state_store: work/LOOP-STATE.json revision abc123\n"
+        "verifier verdict: fail because tests still fail\n"
+        "attempts tried: patched parser -> failed on R8 warning\n"
+        "next action: add optimistic_revision state_concurrency\n"
+    )]
+    out = regex_extract(events)
+    assert "pass 47" in out.get("loop_passes", []), out
+    assert any("VISION.md" in x and "PROMPT.md" in x for x in out.get("loop_anchor_files", [])), out
+    assert any("LOOP-STATE.json" in x for x in out.get("loop_state_stores", [])), out
+    assert any("verifier verdict: fail" in x for x in out.get("loop_verdicts", [])), out
+    assert any("patched parser" in x for x in out.get("loop_attempts", [])), out
+    assert any("optimistic_revision" in x for x in out.get("loop_next_actions", [])), out
+
+
 def main():
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in fns:

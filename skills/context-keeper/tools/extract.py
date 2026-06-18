@@ -10,6 +10,12 @@ Schema (stable — pre-registered):
   - errors_seen      exact stderr/exception strings
   - numbers          measured/claimed numeric facts
   - urls             external references
+  - loop_passes      loop pass / iteration / round identifiers
+  - loop_anchor_files fixed files a loop says it re-reads before each pass
+  - loop_state_stores durable loop state paths/systems
+  - loop_verdicts    verifier verdict lines
+  - loop_attempts    attempts tried / failed attempts summaries
+  - loop_next_actions next-pass / next-action lines
   - user_goals       lines from user messages starting with imperative verbs
   - failed_attempts  blocks near "fail/error/bug/wrong/doesn't work"
   - pending_todos    unchecked items from TodoWrite (if present)
@@ -35,6 +41,12 @@ NUM_RE = re.compile(r"\b\d+(?:\.\d+)?\s*(?:%|ms|s|x|tokens?|tok|GB|MB|KB|B|bytes
 ERROR_RE = re.compile(r"(?:Error|Exception|Traceback|fail(?:ed|ure)?|SIGKILL|exit code [1-9]|stderr)[^\n]{3,200}", re.I)
 IMPERATIVE_RE = re.compile(r"^(?:build|make|create|fix|find|implement|add|run|test|check|set up|design|write|measure|eval|compare|explain|research|install|deploy)\b", re.I)
 FAIL_WORD_RE = re.compile(r"didn't work|doesn't work|not work|broke|broken|bug|wrong|mismatch|incompat", re.I)
+LOOP_PASS_RE = re.compile(r"\b(?:loop\s+)?(?:pass|iteration|round)\s*(?:#|:|=)?\s*\d+\b", re.I)
+LOOP_ANCHOR_RE = re.compile(r"\b(?:anchor_files|anchor files?|VISION\.md|PROMPT\.md|AGENTS\.md|SKILL\.md)\b[^\n]{0,180}", re.I)
+LOOP_STATE_RE = re.compile(r"\b(?:state_store|state store|state path|loop state|LOOP-STATE(?:\.json)?|STATE\.md)\b[^\n]{0,180}", re.I)
+LOOP_VERDICT_RE = re.compile(r"\b(?:verifier\s+)?verdict\s*[:=]\s*(?:pass|passed|fail|failed|blocked|accept(?:ed)?|reject(?:ed)?)\b[^\n]{0,120}", re.I)
+LOOP_ATTEMPT_RE = re.compile(r"\b(?:attempts? tried|tried and abandoned|failed attempts?)\s*[:=]\s*[^\n]{3,200}", re.I)
+LOOP_NEXT_RE = re.compile(r"\b(?:next action|next pass|next step)\s*[:=]\s*[^\n]{3,180}", re.I)
 
 
 def iter_events(path):
@@ -100,6 +112,9 @@ def regex_extract(events):
         "files_created": 0.95, "files_touched": 0.70, "commands_run": 0.90,
         "errors_seen": 0.85, "user_goals": 0.80, "numbers": 0.60,
         "urls": 0.95, "failed_attempts": 0.50,
+        "loop_passes": 0.75, "loop_anchor_files": 0.75,
+        "loop_state_stores": 0.80, "loop_verdicts": 0.85,
+        "loop_attempts": 0.65, "loop_next_actions": 0.65,
     }
 
     def add(key, val, limit=50):
@@ -147,6 +162,21 @@ def regex_extract(events):
         # Numbers
         for n in NUM_RE.findall(text):
             add("numbers", n.strip(), limit=80)
+
+        # Loop pass memory contract: preserve the compact "where was this loop?"
+        # facts that should survive compaction (recall before pass, write after pass).
+        for rx, key, limit in (
+            (LOOP_PASS_RE, "loop_passes", 30),
+            (LOOP_ANCHOR_RE, "loop_anchor_files", 20),
+            (LOOP_STATE_RE, "loop_state_stores", 20),
+            (LOOP_VERDICT_RE, "loop_verdicts", 30),
+            (LOOP_ATTEMPT_RE, "loop_attempts", 20),
+            (LOOP_NEXT_RE, "loop_next_actions", 20),
+        ):
+            for m in rx.findall(text):
+                s = str(m).strip().rstrip(".")
+                if len(s) > 4:
+                    add(key, s[:220], limit=limit)
 
         # Errors (assistant or tool_result)
         if t in ("assistant", "user"):
@@ -271,6 +301,23 @@ def render_markdown(regex_out, llm_out, session_id, transcript_path):
         lines.append("")
 
     section("User goals", regex_out.get("user_goals", []), section_key="user_goals")
+
+    loop_rows = []
+    for title, key in (
+        ("pass", "loop_passes"),
+        ("anchors", "loop_anchor_files"),
+        ("state", "loop_state_stores"),
+        ("verdict", "loop_verdicts"),
+        ("attempts", "loop_attempts"),
+        ("next", "loop_next_actions"),
+    ):
+        for item in regex_out.get(key, []):
+            loop_rows.append(f"**{title}:** {item}")
+    if loop_rows:
+        lines.append("## Loop pass memory")
+        for row in loop_rows:
+            lines.append(f"- {row}")
+        lines.append("")
 
     if llm_out and not llm_out.get("_error"):
         dec = llm_out.get("decisions", [])

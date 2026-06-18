@@ -4,16 +4,16 @@
 
 | field | tokens / size |
 |---|---|
-| description (frontmatter) | **195 tokens** (854 chars; budget ≤ 1,536) |
+| description (frontmatter) | **221 tokens** (973 chars; budget ≤ 1,536) |
 | resident catalog line (first sentence only) | **~32 tokens** — what `install.sh` injects into CLAUDE.md/AGENTS.md/GEMINI.md |
-| body (loaded on trigger) | **4,374 tokens** (18,055 chars) |
-| tools/ payload | **132.1 KB** (`loop_lint.py` · `loop_run_monitor.py` · tests · `schema.md`) |
+| body (loaded on trigger) | **5,270 tokens** (22,084 chars) |
+| tools/ payload | **139.9 KB** (`loop_lint.py` · `loop_run_monitor.py` · tests · `schema.md`) |
 | model pin | `any` (none) |
 | effort pin | `medium` |
 
 Resident cost when a project installs the suite is the ~32-token first-sentence
 catalog line (install.sh's `short_desc` truncates to the first sentence). The
-195-token full description, the 4,374-token body, and the tools load only on
+221-token full description, the 5,270-token body, and the tools load only on
 trigger.
 
 ## A/B savings
@@ -46,9 +46,11 @@ bug.
   cost-per-accepted-change WARNs, JSON output, bad-input exits).
 - `python3 skills/loop-engineering/tools/loop_lint.py <gateless-fixture>` exits **2**;
   a clean fixture exits **0**.
-- `drift_probes.json` is a top-level array using only a shipped kind
-  (`claim_without_evidence` / `prompt_intent`), so compliance-canary auto-discovers
-  it after `./install.sh` and never crashes on it.
+- `drift_probes.json` is a top-level array using only shipped kinds
+  (`claim_without_evidence` / `prompt_intent`), including harness-audit and
+  loop-memory intent,
+  so compliance-canary auto-discovers it after `./install.sh` and never crashes
+  on it.
 - `python3 scripts/lint_skill_md.py skills/loop-engineering/SKILL.md` passes
   (name + `Use BEFORE…` trigger + `##` nav headings).
 

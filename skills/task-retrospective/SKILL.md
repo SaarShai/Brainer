@@ -85,6 +85,17 @@ bracket breaks naive splitting). The caller reads the LAST such block:
 All three arrays may be empty — `{"retrospective": {"banked": [], "dropped": [], "recurrence": []}}` is
 the valid "no durable lesson" result.
 
+## Loop-pass mode
+
+When called from a long-running loop, this skill does not replace the loop state file. It closes one pass:
+
+1. Read the loop contract (`anchor_files`, `state_store`, `recall`, `writeback`, `state_concurrency`) from the [`loop-engineering`](../loop-engineering/SKILL.md) spec.
+2. Persist the pass-local facts to `state_store`: pass number, attempts tried/abandoned, verifier verdict, failure reason, state revision, and next action. This write happens even when no durable lesson is banked.
+3. Apply the Part C nomination cap to decide whether any finding is a general lesson. Most pass facts stay in loop state; only verified, project-specific lessons route through [`write-gate`](../write-gate/SKILL.md) into [`wiki-memory`](../wiki-memory/SKILL.md).
+4. For fleets, record which writer owned the state update (`single_writer`, `optimistic_revision`, or `worktree_isolated`) so a later pass can detect clobbered or stale state.
+
+The loop may run thousands of passes; the wiki should not receive thousands of pass logs. Promote the rule, not the trace.
+
 ## Part C — route each accepted lesson
 
 1. **Cap nominations at ≤3 BEFORE the gate.** write-gate scores items one-at-a-time and has no count

@@ -435,6 +435,65 @@ def test_missing_topology_warns():
     assert _has(spec, 6, "WARN"), _rules(spec)
 
 
+# --- R8/R9 LOOP MEMORY CONTRACT ------------------------------------------
+
+MEMORY_FIELDS = """\
+anchor_files: VISION.md, PROMPT.md, skills/loop-engineering/SKILL.md
+state_store: work/LOOP-STATE.json
+recall: wiki.py search plus state_store read before every pass
+writeback: append verifier verdict and attempts after every pass
+"""
+
+
+def test_outer_loop_without_memory_contract_warns_r8():
+    spec = CLEAN.replace("topology: closed · inner · single", "topology: closed · outer · single")
+    assert _has(spec, 8, "WARN"), _rules(spec)
+
+
+def test_scheduled_loop_without_memory_contract_warns_r8():
+    spec = CLEAN.replace("stop: all target tests green", "stop: nightly cron run completes green")
+    assert _has(spec, 8, "WARN"), _rules(spec)
+
+
+def test_loop_run_monitor_gate_not_scheduled_r8():
+    spec = CLEAN.replace("gate: pytest tests/ -q", "gate: python3 skills/loop-engineering/tools/loop_run_monitor.py trace.json")
+    assert not _has(spec, 8, "WARN"), _rules(spec)
+
+
+def test_inner_single_loop_does_not_need_memory_contract_r8():
+    assert not _has(CLEAN, 8, "WARN"), _rules(CLEAN)
+
+
+def test_outer_loop_with_memory_contract_ok_r8():
+    spec = CLEAN.replace("topology: closed · inner · single", "topology: closed · outer · single")
+    spec += MEMORY_FIELDS
+    assert not _has(spec, 8, "WARN"), _rules(spec)
+
+
+def test_fleet_state_store_without_concurrency_warns_r9():
+    spec = (CLEAN.replace("topology: closed · inner · single", "topology: closed · outer · fleet")
+            .replace("gate: pytest tests/ -q", "gate: pytest -q then reviewer quorum >=2/3")
+            + MEMORY_FIELDS)
+    assert _has(spec, 9, "WARN"), _rules(spec)
+
+
+def test_fleet_state_concurrency_ok_r9():
+    spec = (CLEAN.replace("topology: closed · inner · single", "topology: closed · outer · fleet")
+            .replace("gate: pytest tests/ -q", "gate: pytest -q then reviewer quorum >=2/3")
+            + MEMORY_FIELDS
+            + "state_concurrency: optimistic_revision\n")
+    assert not _has(spec, 8, "WARN"), _rules(spec)
+    assert not _has(spec, 9, "WARN"), _rules(spec)
+
+
+def test_fleet_state_concurrency_invalid_warns_r9():
+    spec = (CLEAN.replace("topology: closed · inner · single", "topology: closed · outer · fleet")
+            .replace("gate: pytest tests/ -q", "gate: pytest -q then reviewer quorum >=2/3")
+            + MEMORY_FIELDS
+            + "state_concurrency: vibes\n")
+    assert _has(spec, 9, "WARN"), _rules(spec)
+
+
 # --- input forms ----------------------------------------------------------
 
 def test_fenced_loop_block_in_markdown():

@@ -37,6 +37,17 @@ Never:
 - speculatively fetch raw/ archives
 - cite a superseded page without noting the newer one
 
+## Loop Mode
+
+Use this mode when [`loop-engineering`](../loop-engineering/SKILL.md) names a loop memory contract. The rhythm is **recall before pass, write after pass**:
+
+1. **Recall before each pass:** read the loop's `state_store`, then run `wiki.py search "<loop topic>"`, inspect relevant timelines, and fetch only the pages needed to re-anchor the pass. Treat `anchor_files` and the loop state as required inputs, not optional context.
+2. **Write after each pass:** record attempts tried, verifier verdict, failures, state revision, and next action in the loop state file or board. Do not write every pass log into the wiki.
+3. **Promote only durable lessons:** if a pass produced a verified, project-specific lesson that future sessions should recall, use the normal write path below: search/overlap first, gate with `write-gate`, update or create one narrow page, read it back, and append `wiki/log.md`.
+4. **Update facts in place:** prefer updating/superseding the existing same-subject page over appending a fresh near-duplicate. Use `overlap` and `resolve` when a new pass changes an old fact.
+
+Brainer's default memory backend is this repo-local wiki plus explicit loop state on disk. External semantic stores can be explored later behind an adapter only after they beat this contract on a Brainer task benchmark; do not add a vendor dependency just because a loop needs memory.
+
 ## Write
 
 **Trigger — the self-improvement sources (harvest a lesson from each):**

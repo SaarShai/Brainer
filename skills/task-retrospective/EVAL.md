@@ -4,17 +4,17 @@
 
 | field | tokens / size |
 |---|---|
-| description (always resident) | **~116 tokens** (462 chars; budget ≤1536) |
-| body (loaded on trigger) | **~3,984 tokens** (15.9 KB) — incl. Part D cross-vendor cross-check |
-| tools/ payload | `audit_lessons.py` 7.2 KB · `lesson_patterns.json` 0.4 KB · `drift_probes.json` 0.7 KB |
+| description (always resident) | **213 tokens** (902 chars; budget ≤1536) |
+| body (loaded on trigger) | **4,909 tokens** (19.3 KB) — incl. Part D cross-vendor cross-check |
+| tools/ payload | **9.2 KB** (`audit_lessons.py` · `lesson_patterns.json` · `drift_probes.json`) |
 | model pin | `any` (none) |
 | effort pin | `medium` |
 
-agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K context window). 462 chars — well under.
+agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K context window). 902 chars — well under.
 
 This is a heavier body than the prose-only skills (write-gate ~ body) because it carries three acts
 (self-audit / user check / gated write) + the Measure phase + the escalation ladder. It loads only on
-trigger (task end / corrective message / `/retro`), so the resident cost is the 116-token description.
+trigger (task end / corrective message / `/retro`), so the resident cost is the 213-token description.
 
 ## A/B savings
 

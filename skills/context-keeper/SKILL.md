@@ -14,6 +14,19 @@ Parses the transcript JSONL, regex-extracts structured state (goals, files touch
 
 Measured on an 893-line transcript: 100 files, 40 commands, 30 errors logged in ~290 lines. See [`EVAL.md`](EVAL.md).
 
+## Loop-pass checkpoints
+
+When a session contains a long-running loop, the checkpoint must preserve the compact pass state that would otherwise rot out of context. The regex pass extracts:
+
+- pass / iteration / round identifiers;
+- anchor files the loop says it re-reads before each pass;
+- state store paths such as `LOOP-STATE.json` or `STATE.md`;
+- verifier verdict lines;
+- attempts tried / failed attempts summaries;
+- next-pass / next-action lines.
+
+This is a compaction checkpoint, not a durable learning write. The hook may surface the loop state so the next context recalls it, but general lessons still route through [`task-retrospective`](../task-retrospective/SKILL.md), [`write-gate`](../write-gate/SKILL.md), and [`wiki-memory`](../wiki-memory/SKILL.md) after verification.
+
 ## Install
 
 Claude Code (project-local):
@@ -56,4 +69,4 @@ Errors are logged to stderr with an ISO timestamp prefix; Claude Code captures t
 
 ## Lineage
 
-Pattern aligned with coleam00/claude-memory-compiler (SessionEnd → distillation). This skill targets PreCompact specifically — intra-session memory survival, not cross-session synthesis.
+Pattern aligned with coleam00/claude-memory-compiler (SessionEnd → distillation). This skill targets PreCompact specifically — intra-session memory survival, not cross-session synthesis. Compaction is the bulk-ingestion point for loop pass state; durable fact promotion stays outside the hook so a failing or noisy memory write can never block compaction.
