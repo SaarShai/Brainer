@@ -97,7 +97,9 @@ def build_markdown_report(events: Sequence[Dict[str, Any]], findings: Sequence[F
         ref = event.get("_ref") or event.get("turn_id") or event.get("timestamp") or "event"
         kind = event.get("event", "unknown")
         text = str(event.get("content_summary") or event.get("command") or event.get("path") or "")[:160]
-        lines.append(f"- {ref}: {kind} — {text}")
+        fidelity = event.get("evidence_fidelity")
+        suffix = f" [{fidelity}]" if fidelity else ""
+        lines.append(f"- {ref}: {kind}{suffix} — {text}")
 
     lines.extend(["", "## Remaining risks"])
     lines.append("- Offline fixtures are lower fidelity than live hooks; PR 4 owns host adapters.")

@@ -106,6 +106,17 @@ python3 skills/brainer-audit/tools/audit_session.py finish --report
 
 The hook adapter checks marker files first. If no Brainer audit marker and no task-retrospective marker is active, it writes nothing. If task-retrospective is armed, the same hook can append lightweight evidence notes to that task's ignored `.brainer/task-retrospective/` event log.
 
+## Antigravity sidecar
+
+PR 5 adds best-effort Antigravity support without assuming native hooks:
+
+```bash
+python3 skills/brainer-audit/tools/antigravity_sidecar.py status --artifact-dir <path-if-known>
+python3 skills/brainer-audit/tools/antigravity_sidecar.py snapshot --artifact-dir <path-if-known>
+```
+
+The sidecar records git status/diff signals and optional artifact/log folder metadata as `host: antigravity` events with `evidence_fidelity: lower-sidecar`. It does not claim native Antigravity hooks, does not launch Antigravity, and treats artifact content as evidence only.
+
 ## Initial detectors
 
 - **unverified completion claim** — assistant claims tests passed, work is fixed/done, commits/push/PR happened, or a change is ready without recent tool/test/git/gh evidence.
@@ -120,6 +131,8 @@ The hook adapter checks marker files first. If no Brainer audit marker and no ta
 
 - [`SKILL.md`](SKILL.md) — this report-only audit mode.
 - [`tools/audit_session.py`](tools/audit_session.py) — opt-in start/status/finish marker tool for live collection.
+- [`tools/antigravity_sidecar.py`](tools/antigravity_sidecar.py) — lower-fidelity Antigravity sidecar snapshot CLI.
+- [`tools/watch_artifacts.py`](tools/watch_artifacts.py) — git/artifact sidecar helpers.
 - [`tools/hook.py`](tools/hook.py) / [`tools/hook.sh`](tools/hook.sh) — Claude/Codex command hook adapter.
 - [`tools/install.sh`](tools/install.sh) — optional hook installer.
 - [`tools/normalize.py`](tools/normalize.py) — host payload normalizer.
@@ -129,3 +142,4 @@ The hook adapter checks marker files first. If no Brainer audit marker and no ta
 - [`tools/report.py`](tools/report.py) — stable report rendering.
 - [`tools/test_brainer_audit.py`](tools/test_brainer_audit.py) — standalone offline tests.
 - [`tools/test_hooks.py`](tools/test_hooks.py) — standalone hook adapter tests.
+- [`tools/test_antigravity_sidecar.py`](tools/test_antigravity_sidecar.py) — standalone Antigravity sidecar tests.

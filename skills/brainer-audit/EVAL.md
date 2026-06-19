@@ -7,8 +7,8 @@ Run `python3 eval/static_cost.py --json` after catalog changes.
 | field | tokens / size |
 |---|---|
 | description (always resident) | **67 tokens** (344 chars) |
-| body (loaded on trigger) | **1,191 tokens** (5,219 chars) |
-| tools/ payload | **53.4 KB** (`audit_session.py` · `hook.py` · `install.sh` · `normalize.py` · `ingest_event.py` · `inspect_session.py` · `detectors.py` · `report.py` · tests) |
+| body (loaded on trigger) | **1,412 tokens** (6,121 chars) |
+| tools/ payload | **69.0 KB** (`audit_session.py` · `antigravity_sidecar.py` · `watch_artifacts.py` · `hook.py` · `install.sh` · `normalize.py` · `ingest_event.py` · `inspect_session.py` · `detectors.py` · `report.py` · tests) |
 | model pin | `any` (none) |
 | effort pin | `medium` |
 
@@ -20,6 +20,7 @@ This skill optimizes Brainer obedience and drift discovery, not token reduction.
 
 - `python3 skills/brainer-audit/tools/test_brainer_audit.py`
 - `python3 skills/brainer-audit/tools/test_hooks.py`
+- `python3 skills/brainer-audit/tools/test_antigravity_sidecar.py`
 - `python3 skills/brainer-audit/tools/inspect_session.py --events <events.jsonl> --format json`
 - `python3 skills/brainer-audit/tools/inspect_session.py --events <events.jsonl> --format markdown`
 
@@ -38,6 +39,6 @@ Current fixture coverage:
 ## Known gaps
 
 - Claude/Codex hooks are opt-in and marker-gated; no hooks are auto-installed by a bare `./install.sh`.
-- No Antigravity sidecar yet. PR 5 owns lower-fidelity watcher support.
+- Antigravity support is lower-fidelity sidecar support only; no native hook adapter is claimed.
 - No apply mode. Candidate Brainer improvements are report-only.
 - No LLM judge. MVP detectors are deterministic and intentionally conservative.
