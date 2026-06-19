@@ -61,6 +61,36 @@ def strip_quoted_spans(text: str) -> str:
     return QUOTED_SPAN_RE.sub(" ", text)
 
 
+# PRECISION FIX: closure-by-prose must ignore NEGATED restatements. "I did not
+# add caching" contains the requirement substring "add caching" but is the
+# OPPOSITE of closing it. A negator within a short window before an occurrence
+# marks that occurrence as negated; a requirement counts as closed via prose
+# only if it appears at least once WITHOUT a preceding negator.
+NEGATOR_RE = re.compile(
+    r"\b(?:not|no|never|without|cannot|can'?t|won'?t|don'?t|doesn'?t|didn'?t|"
+    r"haven'?t|hasn'?t|isn'?t|aren'?t|wasn'?t|weren'?t|couldn'?t|wouldn'?t|"
+    r"shouldn'?t|unable to|failed to|fail to|yet to|skipp?ed|deferred?|dropped)\b",
+    re.I,
+)
+
+
+def mentioned_unnegated(phrase: str, text: str, window: int = 40) -> bool:
+    """True if ``phrase`` occurs in ``text`` at least once with no negator in the
+    preceding ``window`` chars. Biases toward firing the dropped-requirement
+    warning (a missed real drop is worse than an over-flag) without tripping on
+    plain closures like 'I will update docs'."""
+    if not phrase:
+        return False
+    start = 0
+    while True:
+        i = text.find(phrase, start)
+        if i == -1:
+            return False
+        if not NEGATOR_RE.search(text[max(0, i - window):i]):
+            return True
+        start = i + len(phrase)
+
+
 @dataclass(frozen=True)
 class Finding:
     detector: str
@@ -239,7 +269,7 @@ def detect_dropped_requirements(events: Sequence[Dict[str, Any]]) -> List[Findin
         missing = []
         for req in reqs:
             norm = req.lower()
-            if norm in completed or norm in later_text:
+            if norm in completed or mentioned_unnegated(norm, later_text):
                 continue
             missing.append(req)
         if missing:

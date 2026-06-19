@@ -288,21 +288,29 @@ FIXTURES: Dict[str, List[Dict[str, Any]]] = {
             ],
         },
         {
-            # KNOWN LIMITATION: closure is decided by case-insensitive substring
-            # overlap (detectors.detect_dropped_requirements: `norm in later_text`).
-            # A NEGATED restatement ("I did not add caching") contains the
-            # requirement substring "add caching", so the detector treats it as
-            # closed and does NOT fire -> a false NEGATIVE. Fixing this robustly
-            # needs negation-scoped closure, which is non-trivial and risks
-            # over-firing on legitimate closures, so we record it as expect=False
-            # rather than silently relaxing the recall threshold.
-            "name": "KNOWN LIMITATION: negated closure counted as done",
-            "expect": False,
+            # FIXED (was KNOWN LIMITATION): closure-by-prose is now negation-aware
+            # (detectors.mentioned_unnegated). A NEGATED restatement ("I did not
+            # add caching") no longer counts the requirement substring "add
+            # caching" as closed, so the detector correctly FIRES -> true positive.
+            "name": "negated closure no longer counts as done",
+            "expect": True,
             "events": [
                 _ev("user_prompt", content_summary="add caching",
                     requirements=["add caching"]),
                 _ev("assistant_message",
                     content_summary="I did not add caching because it was risky."),
+            ],
+        },
+        {
+            # Guard the fix's other direction: a PLAIN closure must still NOT fire,
+            # i.e. negation-awareness must not over-flag legitimate completions.
+            "name": "plain prose closure still counts as done",
+            "expect": False,
+            "events": [
+                _ev("user_prompt", content_summary="add caching",
+                    requirements=["add caching"]),
+                _ev("assistant_message",
+                    content_summary="I will add caching now and have done so."),
             ],
         },
         {
