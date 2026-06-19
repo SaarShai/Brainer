@@ -17,7 +17,11 @@ from typing import Any, Dict, List, Optional
 HERE = Path(__file__).resolve().parent
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
+_SHARED = Path(__file__).resolve().parents[2] / "_shared"
+if str(_SHARED) not in sys.path:
+    sys.path.insert(0, str(_SHARED))
 
+from audit_paths import PathConfinementError, safe_resolve_under  # noqa: E402
 from watch_artifacts import build_sidecar_events, append_jsonl, discover_artifact_dirs  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -41,7 +45,8 @@ def ensure_write_allowed(path: Path) -> None:
 
 
 def current_events_path(root: Path) -> Path:
-    marker = root / ".brainer" / "brainer-audit" / "current.json"
+    base = root / ".brainer" / "brainer-audit"
+    marker = base / "current.json"
     if not marker.exists():
         raise SidecarError("no --events path and no active .brainer/brainer-audit/current.json marker")
     try:
@@ -51,7 +56,11 @@ def current_events_path(root: Path) -> Path:
     path = data.get("events_path")
     if not path:
         raise SidecarError(f"{marker} has no events_path")
-    return Path(path)
+    # A tampered marker must not redirect the write outside the audit store.
+    try:
+        return safe_resolve_under(base, path)
+    except PathConfinementError as exc:
+        raise SidecarError(f"marker events_path escapes audit store: {exc}") from exc
 
 
 def command_status(args: argparse.Namespace) -> int:
@@ -73,7 +82,14 @@ def command_status(args: argparse.Namespace) -> int:
 
 def command_snapshot(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser().resolve()
-    events_path = Path(args.events).expanduser().resolve() if args.events else current_events_path(root)
+    if args.events:
+        # Operator-supplied target: confine it under the project root.
+        try:
+            events_path = safe_resolve_under(root, args.events)
+        except PathConfinementError as exc:
+            raise SidecarError(f"--events path escapes project root: {exc}") from exc
+    else:
+        events_path = current_events_path(root)
     ensure_write_allowed(events_path)
     events = build_sidecar_events(
         root,

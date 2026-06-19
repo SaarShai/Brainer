@@ -19,7 +19,11 @@ from typing import Any, Dict, Optional
 HERE = Path(__file__).resolve().parent
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
+_SHARED = Path(__file__).resolve().parents[2] / "_shared"
+if str(_SHARED) not in sys.path:
+    sys.path.insert(0, str(_SHARED))
 
+from audit_paths import PathConfinementError, safe_resolve_under  # noqa: E402
 from normalize import normalize_event, normalize_task_retro_event  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -71,22 +75,32 @@ def append_jsonl(path: Path, event: Dict[str, Any]) -> None:
 
 
 def maybe_write_brainer_audit(root: Path, event: Dict[str, Any]) -> bool:
-    state = load_json(root / ".brainer" / "brainer-audit" / "current.json")
+    base = root / ".brainer" / "brainer-audit"
+    state = load_json(base / "current.json")
     if not state:
         return False
-    path = Path(state.get("events_path") or "")
-    if not path:
+    raw = state.get("events_path") or ""
+    if not raw:
+        return False
+    try:
+        path = safe_resolve_under(base, raw)
+    except PathConfinementError:
         return False
     append_jsonl(path, event)
     return True
 
 
 def maybe_write_task_retro(root: Path, event: Dict[str, Any]) -> bool:
-    state = load_json(root / ".brainer" / "task-retrospective" / "current.json")
+    base = root / ".brainer" / "task-retrospective"
+    state = load_json(base / "current.json")
     if not state:
         return False
-    path = Path(state.get("events_path") or "")
-    if not path:
+    raw = state.get("events_path") or ""
+    if not raw:
+        return False
+    try:
+        path = safe_resolve_under(base, raw)
+    except PathConfinementError:
         return False
     append_jsonl(path, normalize_task_retro_event(event))
     return True

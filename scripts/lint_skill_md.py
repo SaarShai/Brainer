@@ -15,6 +15,11 @@ import re
 import sys
 from pathlib import Path
 
+try:  # PyYAML is optional — keep the "dependency-free" promise when absent.
+    import yaml  # type: ignore
+except ImportError:  # pragma: no cover - exercised only on hosts without PyYAML
+    yaml = None  # type: ignore
+
 DESC_MAX = 1536
 REQUIRED_FIELDS = ("name", "description")
 TRIGGER_HINTS = (
@@ -23,27 +28,59 @@ TRIGGER_HINTS = (
 )
 
 
-def parse_frontmatter(text: str) -> tuple[dict, str]:
+def _unquote(value: str) -> str:
+    """Strip surrounding YAML double/single quotes and unescape `\\"`/`\\\\`.
+
+    A value containing `: ` (colon-space) must ship as a quoted YAML scalar so
+    real YAML parsers accept it; the hand-rolled `partition(":")` below would
+    otherwise leak the surrounding quotes into the extracted value (and break
+    the length / trigger-keyword checks). Normalize to the logical value here.
+    """
+    v = value.strip()
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+        inner = v[1:-1]
+        if v[0] == '"':
+            inner = inner.replace('\\"', '"').replace("\\\\", "\\")
+        return inner
+    return v
+
+
+def parse_frontmatter(text: str) -> tuple[dict, str, str | None]:
     m = re.match(r"^---\n(.*?)\n---\n(.*)$", text, re.DOTALL)
     if not m:
-        return {}, text
+        return {}, text, None
     fm_block, body = m.group(1), m.group(2)
     fm: dict[str, str] = {}
     for line in fm_block.splitlines():
         if ":" not in line:
             continue
         k, _, v = line.partition(":")
-        fm[k.strip()] = v.strip()
-    return fm, body
+        fm[k.strip()] = _unquote(v)
+    return fm, body, fm_block
 
 
 def lint_one(path: Path) -> list[str]:
     issues: list[str] = []
     text = path.read_text()
-    fm, body = parse_frontmatter(text)
+    fm, body, fm_block = parse_frontmatter(text)
     if not fm:
         issues.append("missing YAML frontmatter")
         return issues
+    # Strict YAML gate: when PyYAML is importable, the frontmatter MUST parse
+    # with the SAME parser GitHub/agentskills.io use. This is the check the old
+    # hand-rolled `partition(":")` could never do — it is why 7 SKILL.md files
+    # with `: ` (colon-space) in an unquoted description shipped broken. Skipped
+    # (with the dependency-free promise intact) only where PyYAML is absent.
+    if yaml is not None and fm_block is not None:
+        try:
+            loaded = yaml.safe_load(fm_block)
+        except yaml.YAMLError as exc:  # type: ignore[union-attr]
+            first = str(exc).splitlines()[0] if str(exc) else exc.__class__.__name__
+            issues.append(f"frontmatter is not valid YAML (yaml.safe_load: {first})")
+            return issues
+        if not isinstance(loaded, dict):
+            issues.append("frontmatter YAML did not parse to a mapping")
+            return issues
     for k in REQUIRED_FIELDS:
         if k not in fm:
             issues.append(f"missing required field: {k}")

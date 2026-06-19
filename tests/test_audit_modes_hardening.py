@@ -70,7 +70,7 @@ def test_golden_clean_report_is_stable():
             "schema_version": 1,
             "mode": "brainer-audit",
             "summary": {
-                "audit_mode": "offline-report-only",
+                "audit_mode": "offline",
                 "schema_version": 1,
                 "host": "codex",
                 "project": "/repo",

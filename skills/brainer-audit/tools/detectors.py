@@ -30,6 +30,35 @@ SKILL_TRIGGER_PATTERNS = [
 DURABLE_WRITE_PATH_RE = re.compile(
     r"^(wiki/|AGENTS\.md$|CLAUDE\.md$|GEMINI\.md$|skills/[^/]+/SKILL\.md$|skills/[^/]+/drift_probes\.json$)"
 )
+# PRECISION FIX (Zone 3): a completion word that is directly negated ("not done
+# yet", "isn't fixed", "not ready", "tests did not pass") is the OPPOSITE of a
+# completion claim. Match a negator immediately before the completion word so we
+# can drop just that span rather than the whole message (a message can hold both
+# a real claim and a negated mention).
+NEGATED_COMPLETION_RE = re.compile(
+    r"\b(?:not|no|n't|never|isn'?t|aren'?t|wasn'?t|weren'?t|don'?t|doesn'?t|"
+    r"didn'?t|won'?t|can'?t|cannot|haven'?t|hasn'?t|without|yet to|still)\s+"
+    r"(?:\w+\s+){0,3}?"
+    r"(?:done|fixed|ready|complete|completed|passed?|pass|green|clean|"
+    r"committed|pushed|shipp?ed)\b",
+    re.I,
+)
+# PRECISION FIX (Zone 3): a trigger phrase that lives inside a quoted span is
+# usually a recap of the transcript ("the user said: 'this task will repeat'"),
+# not a live instruction. Strip quoted spans before scanning for triggers.
+QUOTED_SPAN_RE = re.compile(
+    r"\"[^\"]*\"|'[^']*'|“[^”]*”|‘[^’]*’|`[^`]*`",
+)
+
+
+def strip_negated_completion(text: str) -> str:
+    """Remove negated completion spans so 'not done yet' doesn't read as 'done'."""
+    return NEGATED_COMPLETION_RE.sub(" ", text)
+
+
+def strip_quoted_spans(text: str) -> str:
+    """Remove quoted/backticked spans so quoted triggers don't fire detectors."""
+    return QUOTED_SPAN_RE.sub(" ", text)
 
 
 @dataclass(frozen=True)
@@ -86,11 +115,42 @@ def recent_events(events: Sequence[Dict[str, Any]], idx: int, window: int = 6) -
     return events[max(0, idx - window):idx]
 
 
+def _is_failed_result(event: Dict[str, Any]) -> bool:
+    """True when a tool_result carries an explicit failure signal."""
+    if bool(event.get("is_error")):
+        return True
+    exit_code = event.get("exit_code")
+    if isinstance(exit_code, int):
+        return exit_code != 0
+    if isinstance(exit_code, str):
+        return exit_code.strip() not in {"", "0"}
+    return False
+
+
 def has_recent_verification(events: Sequence[Dict[str, Any]], idx: int) -> bool:
     for event in recent_events(events, idx):
         blob = text_of(event)
-        if event.get("event") in {"tool_call", "tool_result"} and VERIFY_COMMAND_RE.search(blob):
-            return True
+        if not VERIFY_COMMAND_RE.search(blob):
+            continue
+        kind = event.get("event")
+        # PRECISION FIX (Zone 3): a FAILED verification (non-zero exit / is_error)
+        # is NOT evidence of completion — a "tests passed" claim sitting next to a
+        # failed pytest must still fire. Only count tool_results that did not fail.
+        if kind == "tool_result":
+            if not _is_failed_result(event):
+                return True
+            continue
+        if kind == "tool_call":
+            # A bare invocation only counts as verification when no failed
+            # result for it appears in the same recent window.
+            if not any(
+                e.get("event") == "tool_result"
+                and VERIFY_COMMAND_RE.search(text_of(e))
+                and _is_failed_result(e)
+                for e in recent_events(events, idx)
+            ):
+                return True
+            continue
         if event.get("exit_code") == 0 and VERIFY_COMMAND_RE.search(blob):
             return True
     return False
@@ -102,7 +162,10 @@ def detect_unverified_completion_claim(events: Sequence[Dict[str, Any]]) -> List
         if event.get("event") != "assistant_message":
             continue
         blob = text_of(event)
-        if not blob or not any(pattern.search(blob) for pattern in COMPLETION_PATTERNS):
+        # PRECISION FIX (Zone 3): drop negated completion spans ("not done yet")
+        # before testing the completion patterns, so a non-claim doesn't fire.
+        scan = strip_negated_completion(blob)
+        if not scan.strip() or not any(pattern.search(scan) for pattern in COMPLETION_PATTERNS):
             continue
         if has_recent_verification(events, idx):
             continue
@@ -287,9 +350,16 @@ def detect_skill_trigger_opportunity(events: Sequence[Dict[str, Any]]) -> List[F
         blob = text_of(event)
         if not blob:
             continue
+        # PRECISION FIX (Zone 3): scan only the *unquoted* surface for triggers so
+        # a phrase quoted from the transcript ("the user said: 'this task will
+        # repeat'") is not mistaken for a live instruction. Negated triggers
+        # ("we will NOT need output-filter here") are likewise dropped.
+        scan = strip_negated_completion(strip_quoted_spans(blob))
+        if not scan.strip():
+            continue
         recent_blob = "\n".join(text_of(e) for e in events[max(0, idx - 4):idx + 1])
         for skill, pattern in SKILL_TRIGGER_PATTERNS:
-            if not pattern.search(blob):
+            if not pattern.search(scan):
                 continue
             if re.search(rf"\b{re.escape(skill)}\b", recent_blob, re.I):
                 continue

@@ -1,6 +1,6 @@
 ---
 name: task-retrospective
-description: Use only when the user explicitly activates task audit mode, asks for task-retrospective, says this task will repeat and should be learned from, requests an after-the-fact task learning audit, or types /retro. Helps the current project learn from a repeatable task: reconstruct what happened, identify reusable project lessons, and route sparse durable updates to project memory, SOPs, checklists, or project-specific skills through write-gate. Does not audit Brainer skill obedience and does not edit canonical Brainer skills.
+description: "Use only when the user explicitly activates task audit mode, asks for task-retrospective, says this task will repeat and should be learned from, requests an after-the-fact task learning audit, or types /retro. Helps the current project learn from a repeatable task: reconstruct what happened, identify reusable project lessons, and route sparse durable updates to project memory, SOPs, checklists, or project-specific skills through write-gate. Does not audit Brainer skill obedience and does not edit canonical Brainer skills."
 effort: medium
 tools: [Bash, Read, Write, Grep]
 pulse_reminder: when task-retrospective is armed, record corrections and evidence; at close, produce a task learning report and persist only sparse project-specific lessons that pass write-gate or an explicit user-directed override. Do not auto-launch on ordinary task end or unarmed corrections.

@@ -1,6 +1,6 @@
 ---
 name: wiki-refresh
-description: Reconcile wiki-memory pages against the current codebase — Keep / Update / Consolidate / Replace / Delete drifted ones. Use on "refresh the wiki", "audit wiki against code", "are these facts still true", "clean up stale pages", or after a refactor/rename/migration that invalidated cited paths. Ground-truth reconcile; emits typed contradicts: edges.
+description: "Reconcile wiki-memory pages against the current codebase — Keep / Update / Consolidate / Replace / Delete drifted ones. Use on \"refresh the wiki\", \"audit wiki against code\", \"are these facts still true\", \"clean up stale pages\", or after a refactor/rename/migration that invalidated cited paths. Ground-truth reconcile; emits typed contradicts: edges."
 effort: medium
 tools: [Bash, Read, Edit, Glob, Grep]
 pulse_reminder: a wiki page whose cited code paths are gone is drifting against ground truth, not just the clock. Reconcile vs the codebase, don't just decay confidence.

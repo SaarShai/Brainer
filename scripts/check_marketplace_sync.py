@@ -36,6 +36,23 @@ def discover_skill_dirs() -> set[str]:
             if d.is_dir() and not d.name.startswith("_") and (d / "SKILL.md").is_file()}
 
 
+def _unquote(value: str) -> str:
+    """Strip surrounding YAML double/single quotes and unescape `\\"`/`\\\\`.
+
+    Descriptions (and any value containing `: `) ship as quoted YAML scalars so
+    `yaml.safe_load` accepts them; a naive `split(":", 1)[1].strip()` would
+    otherwise capture the surrounding quotes. Normalize back to the logical
+    value here.
+    """
+    v = value.strip()
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+        inner = v[1:-1]
+        if v[0] == '"':
+            inner = inner.replace('\\"', '"').replace("\\\\", "\\")
+        return inner
+    return v
+
+
 def frontmatter_value(path: Path, key: str) -> str:
     text = path.read_text(encoding="utf-8", errors="replace")
     if not text.startswith("---\n"):
@@ -45,7 +62,7 @@ def frontmatter_value(path: Path, key: str) -> str:
         return ""
     for line in text[4:end].splitlines():
         if line.strip().startswith(f"{key}:"):
-            return line.split(":", 1)[1].strip()
+            return _unquote(line.split(":", 1)[1])
     return ""
 
 

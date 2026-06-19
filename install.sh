@@ -88,21 +88,39 @@ short_desc() {
 }
 
 # Extract a single frontmatter field value from a SKILL.md.
+# Quote-aware: a value wrapped in YAML double/single quotes is UNquoted (and
+# `\"` / `\\` unescaped for double-quoted scalars) so the extracted text is the
+# logical value, never the surrounding quote characters. Required because the 7
+# descriptions containing `: ` (colon-space) must ship as quoted YAML scalars;
+# a naive `sub(/^[^:]+: */, "")` would otherwise leak the quotes into the
+# resident catalog and break check_carrier_sync.py. Uses python3 (already a hard
+# dependency of this installer, see ensure_global_output_style_hooks).
 skill_field() {
   local file="$1" field="$2"
-  awk -v field="$field" '
-    /^---$/ { c++; if (c==2) exit; next }
-    c==1 {
-      key=$0
-      sub(/:.*/, "", key)
-      if (key == field) {
-        val=$0
-        sub(/^[^:]+: */, "", val)
-        print val
-        exit
-      }
-    }
-  ' "$file"
+  FIELD="$field" python3 - "$file" <<'PY'
+import os, sys
+field = os.environ["FIELD"]
+text = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+if not text.startswith("---"):
+    sys.exit(0)
+end = text.find("\n---", 3)
+block = text[3:end] if end >= 0 else text[3:]
+for line in block.splitlines():
+    s = line.strip()
+    if not s or s.startswith("#") or ":" not in line:
+        continue
+    k = line.split(":", 1)[0].strip()
+    if k != field:
+        continue
+    v = line.split(":", 1)[1].strip()
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+        inner = v[1:-1]
+        if v[0] == '"':
+            inner = inner.replace('\\"', '"').replace("\\\\", "\\")
+        v = inner
+    sys.stdout.write(v)
+    break
+PY
 }
 
 skill_is_slash_only() {

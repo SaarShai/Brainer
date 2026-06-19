@@ -14,7 +14,11 @@ from typing import Any, Dict, List, Optional
 HERE = Path(__file__).resolve().parent
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
+_SHARED = Path(__file__).resolve().parents[2] / "_shared"
+if str(_SHARED) not in sys.path:
+    sys.path.insert(0, str(_SHARED))
 
+from audit_paths import PathConfinementError, safe_resolve_under  # noqa: E402
 from detectors import load_events, run_detectors  # noqa: E402
 from report import build_json_report, build_markdown_report, dump_json  # noqa: E402
 
@@ -67,6 +71,18 @@ def atomic_write_json(path: Path, payload: Dict[str, Any]) -> None:
     tmp.replace(path)
 
 
+def confined(root: Path, raw: Any, field: str) -> Path:
+    """Resolve a marker-derived path and confine it under the audit store root.
+
+    A tampered marker could point events/report paths outside
+    ``.brainer/brainer-audit``; every such path is gated here before use.
+    """
+    try:
+        return safe_resolve_under(store(root), raw)
+    except PathConfinementError as exc:
+        raise AuditSessionError(f"marker {field} escapes audit store: {exc}") from exc
+
+
 def load_current(root: Path) -> Dict[str, Any]:
     path = current_path(root)
     if not path.exists():
@@ -77,6 +93,10 @@ def load_current(root: Path) -> Dict[str, Any]:
         raise AuditSessionError(f"malformed {path}: {exc}") from exc
     if not isinstance(data, dict):
         raise AuditSessionError(f"malformed {path}: expected JSON object")
+    # Confine every marker-derived path before any read/write uses it.
+    for field in ("events_path", "report_path", "json_report_path"):
+        if data.get(field):
+            confined(root, data[field], field)
     return data
 
 
@@ -143,13 +163,17 @@ def command_finish(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser().resolve()
     ensure_write_allowed(root)
     session = load_current(root)
-    events = load_events(Path(session["events_path"])) if Path(session["events_path"]).exists() else []
+    events_path = confined(root, session["events_path"], "events_path")
+    events = load_events(events_path) if events_path.exists() else []
     findings = run_detectors(events)
     wrote_report = False
     if args.report:
-        Path(session["report_path"]).parent.mkdir(parents=True, exist_ok=True)
-        Path(session["report_path"]).write_text(build_markdown_report(events, findings), encoding="utf-8")
-        Path(session["json_report_path"]).write_text(dump_json(build_json_report(events, findings)), encoding="utf-8")
+        report_p = confined(root, session["report_path"], "report_path")
+        json_report_p = confined(root, session["json_report_path"], "json_report_path")
+        report_p.parent.mkdir(parents=True, exist_ok=True)
+        report_p.write_text(build_markdown_report(events, findings), encoding="utf-8")
+        json_report_p.parent.mkdir(parents=True, exist_ok=True)
+        json_report_p.write_text(dump_json(build_json_report(events, findings)), encoding="utf-8")
         wrote_report = True
     current_path(root).unlink(missing_ok=True)
     out = summary(session, False)

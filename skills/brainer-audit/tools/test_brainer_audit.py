@@ -145,7 +145,36 @@ def test_markdown_report_is_report_only():
         after = sorted(p.relative_to(root) for p in root.rglob("*"))
         assert before == after
         assert proc.stdout.startswith("# Brainer audit report")
-        assert "offline-report-only" in proc.stdout
+        # audit_mode is now derived from the actual collection source; this
+        # fixture is a hand-ingested offline event with no live/sidecar provenance.
+        assert "Audit mode: offline" in proc.stdout
+        assert "offline-report-only" not in proc.stdout
+
+
+def test_audit_mode_derived_from_event_source():
+    # offline (hand-ingested fixture, no live/sidecar provenance)
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "events.jsonl"
+        write_events(path, [{"event": "user_prompt", "content_summary": "hi"}])
+        assert audit_json(path)["summary"]["audit_mode"] == "offline"
+    # live-hook (normalize.py sets hook_event_name)
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "events.jsonl"
+        write_events(path, [{"event": "user_prompt", "hook_event_name": "UserPromptSubmit", "session_id": "hook"}])
+        assert audit_json(path)["summary"]["audit_mode"] == "live-hook"
+    # sidecar (collector marker)
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "events.jsonl"
+        write_events(path, [{"event": "git_snapshot", "collector": "antigravity_sidecar", "evidence_fidelity": "lower-sidecar"}])
+        assert audit_json(path)["summary"]["audit_mode"] == "sidecar"
+    # mixed (offline + live-hook)
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "events.jsonl"
+        write_events(path, [
+            {"event": "user_prompt", "content_summary": "offline one"},
+            {"event": "tool_call", "hook_event_name": "PreToolUse"},
+        ])
+        assert audit_json(path)["summary"]["audit_mode"] == "mixed"
 
 
 def test_malformed_events_fail_cleanly():

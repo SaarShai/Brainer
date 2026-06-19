@@ -9,11 +9,17 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence
+
+_SHARED = Path(__file__).resolve().parents[2] / "_shared"
+if str(_SHARED) not in sys.path:
+    sys.path.insert(0, str(_SHARED))
+
+from audit_redact import redact, redact_obj  # noqa: E402
 
 SCHEMA_VERSION = 1
 TEXT_SUFFIXES = {".txt", ".md", ".json", ".jsonl", ".log", ".yaml", ".yml"}
@@ -24,23 +30,10 @@ KNOWN_DIRS = [
     "artifacts",
     "logs",
 ]
-REDACT_PATTERNS = [
-    re.compile(r"(?i)(authorization\s*:\s*bearer\s+)[A-Za-z0-9._~+/=-]+"),
-    re.compile(r"(?i)\b(api[_-]?key|token|password|secret)\s*[:=]\s*['\"]?[^'\"\s]+"),
-    re.compile(r"\bsk-[A-Za-z0-9]{16,}\b"),
-]
 
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-
-def redact(text: str) -> str:
-    out = text or ""
-    out = REDACT_PATTERNS[0].sub(lambda m: m.group(1) + "[REDACTED]", out)
-    out = REDACT_PATTERNS[1].sub(lambda m: m.group(1) + "=[REDACTED]", out)
-    out = REDACT_PATTERNS[2].sub("[REDACTED]", out)
-    return out
 
 
 def run_git(root: Path, args: Sequence[str]) -> str:
@@ -174,6 +167,8 @@ def append_jsonl(path: Path, events: Iterable[Dict[str, Any]]) -> int:
     count = 0
     with path.open("a", encoding="utf-8") as fh:
         for event in events:
-            fh.write(json.dumps(event, sort_keys=True) + "\n")
+            # Final redaction gate: scrub every string leaf (content previews,
+            # artifact paths, raw_ref) before it hits disk.
+            fh.write(json.dumps(redact_obj(event), sort_keys=True) + "\n")
             count += 1
     return count
