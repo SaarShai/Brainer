@@ -4,10 +4,10 @@
 
 | field | tokens / size |
 |---|---|
-| description (frontmatter) | **221 tokens** (973 chars; budget ≤ 1,536) |
-| resident catalog line (first sentence only) | **~32 tokens** — what `install.sh` injects into CLAUDE.md/AGENTS.md/GEMINI.md |
-| body (loaded on trigger) | **5,270 tokens** (22,084 chars) |
-| tools/ payload | **139.9 KB** (`loop_lint.py` · `loop_run_monitor.py` · tests · `schema.md`) |
+| description (frontmatter) | **288 tokens** (1,224 chars; budget ≤ 1,536) |
+| resident catalog line (first sentence only) | **~32 tokens** — what `install.sh` injects into CLAUDE.md/AGENTS.md/GEMINI.md (unchanged by the pipeline clause, which lands later in the description) |
+| body (loaded on trigger) | **5,495 tokens** (23,128 chars) |
+| tools/ payload | **145.3 KB** (`loop_lint.py` · `loop_run_monitor.py` · tests · `schema.md`) |
 | model pin | `any` (none) |
 | effort pin | `medium` |
 
@@ -36,11 +36,28 @@ The falsifiable parts are the gates: a self-grading or gateless spec
 `loop_run_monitor.py` passes, or a healthy trace it flags STUCK is a measurable
 bug.
 
+## Non-iterating pipelines (budget=1) — doc-only
+
+A fixed once-through pipeline (A→B→C, each stage runs once, nothing retries) is the
+degenerate **budget=1 case** of a loop, not a separate artifact: `max_iterations=1`
++ a machine gate + a verifier separate from each stage's producer lints clean with
+**no new schema and no new tool**. Settled by falsification, not assertion — three
+real pipeline specs (import→validate→transform→write, intake→classify→route→file,
+parse→render→publish) lint clean as budget=1 loops, while their naive forms correctly
+FAIL R1/R2/R3. Two regression tests (`test_noniterating_pipeline_budget1_passes`,
+`test_naive_pipeline_without_budget1_still_fails`) guard the claim: if `loop_lint`
+ever FAILs a budget=1 pipeline, the doctrine is broken. A graph linter (`stages:`/
+`edges:` keys + reachability rules) was scoped and **cut** — no multi-node workflow
+in the repo has hit a reachability failure that budget=1 cannot express, so it fails
+the promotion bar above (ship a gate only for a failure that actually occurs).
+
 ## Functional checks (deterministic — in `scripts/run_all_tests.sh`)
 
-- `python3 skills/loop-engineering/tools/test_loop_lint.py` → 61/61 pass (clean
+- `python3 skills/loop-engineering/tools/test_loop_lint.py` → 75/75 pass (clean
   spec exit 0; gateless R1 exit 2; unbounded/no-stop R2 exit 2; generator==verifier
-  R3 exit 2; open-no-ack R4 / fleet-no-quorum R5 / no-topology R6 each WARN exit 1).
+  R3 exit 2; open-no-ack R4 / fleet-no-quorum R5 / no-topology R6 each WARN exit 1;
+  a non-iterating pipeline modeled as a budget=1 loop lints clean exit 0, and a
+  naive pipeline written without it FAILs R1/R2/R3).
 - `python3 skills/loop-engineering/tools/test_loop_run_monitor.py` → runtime trace
   gate tests pass (same-command / repeated-error / flat-metric STUCK triggers,
   cost-per-accepted-change WARNs, JSON output, bad-input exits).

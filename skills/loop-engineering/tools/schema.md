@@ -70,6 +70,20 @@ writeback: record attempts, verifier verdict, failures, next action after each p
 state_concurrency: worktree_isolated
 ```
 
+## A non-iterating pipeline is a budget=1 loop
+
+A fixed once-through pipeline (A→B→C, each stage runs once, nothing retries) is **not a separate artifact** — it is a closed loop with `budget: max_iterations=1`. Give it a machine `gate` and a `verifier` separate from each stage's producer and it lints clean — no `stages:`/`edges:` keys, no second tool. The moment a stage loops back to retry an earlier one it is a real loop: raise the budget.
+
+```loop
+name: import-pipeline
+topology: closed · inner · single
+generator: import + transform stages
+verifier: validate stage + final schema check (separate actor)
+gate: python3 ./validate.py && python3 ./check_schema.py out.json
+stop: out.json written and passes the schema check
+budget: max_iterations=1
+```
+
 ## Example (fails: R1 + R2 + R3)
 
 ```loop

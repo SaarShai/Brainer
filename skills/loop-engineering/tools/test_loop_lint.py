@@ -712,6 +712,43 @@ def test_diagram_no_spec_is_graceful():
     assert rc == 1, rc
 
 
+# --- non-iterating pipeline = budget=1 loop -------------------------------
+
+def test_noniterating_pipeline_budget1_passes():
+    """A fixed once-through pipeline modeled as a budget=1 closed loop must lint
+    CLEAN — the load-bearing claim that a pipeline needs no new schema/tool. If
+    loop_lint ever FAILs this, the 'a pipeline is a budget=1 loop' doctrine is
+    broken (see SKILL.md 'Do you even need a loop?' + schema.md)."""
+    spec = (
+        "name: import-pipeline\n"
+        "topology: closed · inner · single\n"
+        "generator: import + transform stages\n"
+        "verifier: validate stage + final schema check (separate actor)\n"
+        "gate: python3 ./validate.py && python3 ./check_schema.py out.json\n"
+        "stop: out.json written and passes the schema check\n"
+        "budget: max_iterations=1\n"
+    )
+    assert _rules(spec) == [], _rules(spec)
+    assert _exit_for(spec) == 0
+
+
+def test_naive_pipeline_without_budget1_still_fails():
+    """A pipeline written WITHOUT the budget=1 framing (no budget, self-grading,
+    prose gate) is correctly refused — the failure that sends the author to the
+    budget=1 spec, not to a new tool."""
+    spec = (
+        "name: import-naive\n"
+        "topology: closed · inner · single\n"
+        "generator: claude does all the stages\n"
+        "verifier: claude\n"
+        "gate: each stage hands its output to the next\n"
+        "stop: when out.json is written\n"
+    )
+    rules = _rules(spec)
+    assert (1, "FAIL") in rules and (2, "FAIL") in rules and (3, "FAIL") in rules, rules
+    assert _exit_for(spec) == 2
+
+
 # --- runner ---------------------------------------------------------------
 
 def main() -> int:
