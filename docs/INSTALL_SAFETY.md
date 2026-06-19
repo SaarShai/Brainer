@@ -10,6 +10,7 @@
 - Writes Cursor `.mdc` rule shims under `.cursor/rules/`.
 - Ensures `.gemini/settings.json` points Gemini at `.gemini/skills`.
 - Runs per-skill `tools/install.sh` scripts unless a skill declares `auto-install: false`.
+- Skips `brainer-audit` live hook wiring by default because that skill declares `auto-install: false`; wire it deliberately with `bash skills/brainer-audit/tools/install.sh`.
 - Optionally installs graphify unless `--no-graphify` is passed.
 
 ## Global vs repo-local changes

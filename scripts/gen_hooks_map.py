@@ -18,7 +18,7 @@ SKILLS = REPO / "skills"
 OUT = SKILLS / "HOOKS_MAP.md"
 
 HOOK_EVENT_RE = re.compile(
-    r"(UserPromptSubmit|PreCompact|PreToolUse|PostToolUse|SessionStart|Stop|SubagentStop)"
+    r"(UserPromptSubmit|PreCompact|PostCompact|PreToolUse|PostToolUse|SessionStart|SessionEnd|PermissionRequest|Stop|SubagentStart|SubagentStop)"
 )
 
 

@@ -6,6 +6,7 @@ risk_level: low
 host_support: [claude, codex, cursor, gemini]
 side_effects: [reads_repo]
 requires_tools: [read, bash]
+auto-install: false
 ---
 
 # brainer-audit — report-only Brainer skill-use audit mode
@@ -90,7 +91,20 @@ python3 skills/brainer-audit/tools/inspect_session.py --events <events.jsonl> --
 python3 skills/brainer-audit/tools/inspect_session.py --events <events.jsonl> --format json
 ```
 
-`ingest_event.py` appends redacted normalized events. `inspect_session.py` reads events, runs deterministic detectors, and emits a report. Both are offline/report-only; no live hooks are installed in this PR.
+`ingest_event.py` appends redacted normalized events. `inspect_session.py` reads events, runs deterministic detectors, and emits a report.
+
+## Optional live collection
+
+PR 4 adds opt-in Claude/Codex hook adapters. They are **not auto-installed**; wire them only when the user wants live Brainer audit collection:
+
+```bash
+bash skills/brainer-audit/tools/install.sh
+python3 skills/brainer-audit/tools/audit_session.py start --title "<session>"
+python3 skills/brainer-audit/tools/audit_session.py status
+python3 skills/brainer-audit/tools/audit_session.py finish --report
+```
+
+The hook adapter checks marker files first. If no Brainer audit marker and no task-retrospective marker is active, it writes nothing. If task-retrospective is armed, the same hook can append lightweight evidence notes to that task's ignored `.brainer/task-retrospective/` event log.
 
 ## Initial detectors
 
@@ -105,8 +119,13 @@ python3 skills/brainer-audit/tools/inspect_session.py --events <events.jsonl> --
 ## Files
 
 - [`SKILL.md`](SKILL.md) — this report-only audit mode.
+- [`tools/audit_session.py`](tools/audit_session.py) — opt-in start/status/finish marker tool for live collection.
+- [`tools/hook.py`](tools/hook.py) / [`tools/hook.sh`](tools/hook.sh) — Claude/Codex command hook adapter.
+- [`tools/install.sh`](tools/install.sh) — optional hook installer.
+- [`tools/normalize.py`](tools/normalize.py) — host payload normalizer.
 - [`tools/ingest_event.py`](tools/ingest_event.py) — append redacted normalized events to a fixture/event log.
 - [`tools/inspect_session.py`](tools/inspect_session.py) — run detectors and emit JSON/markdown reports.
 - [`tools/detectors.py`](tools/detectors.py) — deterministic MVP detectors.
 - [`tools/report.py`](tools/report.py) — stable report rendering.
 - [`tools/test_brainer_audit.py`](tools/test_brainer_audit.py) — standalone offline tests.
+- [`tools/test_hooks.py`](tools/test_hooks.py) — standalone hook adapter tests.

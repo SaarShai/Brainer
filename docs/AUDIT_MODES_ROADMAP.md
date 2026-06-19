@@ -142,11 +142,11 @@ Add optional live collection for task-retrospective armed mode and Brainer audit
 ### Expected files
 
 ```text
-skills/brainer-audit/tools/hooks/claude_hook.py
-skills/brainer-audit/tools/hooks/codex_hook.py
+skills/brainer-audit/tools/audit_session.py
+skills/brainer-audit/tools/hook.py
+skills/brainer-audit/tools/install.sh
 skills/brainer-audit/tools/normalize.py
-skills/brainer-audit/tools/test_hooks_*.py
-docs/INSTALL_SAFETY.md
+skills/brainer-audit/tools/test_hooks.py
 skills/HOOKS_MAP.md
 .claude-plugin/marketplace.json
 ```
@@ -168,8 +168,9 @@ skills/HOOKS_MAP.md
 - active markers append events.
 - malformed payloads exit safely.
 - secrets are redacted.
-- no-write mode refuses writes.
+- no-write mode suppresses hook writes.
 - hook map, marketplace, carrier, and generated-file checks pass.
+- hook installer is opt-in; a bare `./install.sh` skips it via `auto-install: false`.
 
 ### Not in PR 4
 

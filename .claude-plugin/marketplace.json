@@ -10,7 +10,7 @@
     {
       "name": "brainer",
       "version": "1.12.0",
-      "description": "All 20 skills bundled; compliance-canary (the single drift watcher — periodic re-anchor + symptomatic probes, formerly two skills) auto-wires its UserPromptSubmit hook (auto-install: true, default-on since v1.7) and now also enforces requirements-ledger (no user request silently dropped); loop-engineering, eval-gate, and brainer-audit are default-installed skills with deterministic local gates.",
+      "description": "All 20 skills bundled; compliance-canary (the single drift watcher — periodic re-anchor + symptomatic probes, formerly two skills) auto-wires its UserPromptSubmit hook (auto-install: true, default-on since v1.7) and now also enforces requirements-ledger (no user request silently dropped); loop-engineering, eval-gate, and brainer-audit ship deterministic local gates. brainer-audit live hooks are opt-in.",
       "source": {
         "type": "git-subdirectory",
         "directory": "skills/"
