@@ -50,15 +50,17 @@ Brainer's default memory backend is this repo-local wiki plus explicit loop stat
 
 ## Write
 
-**Trigger — the self-improvement sources (harvest a lesson from each):**
+**Triggers:** write only when there is an explicit persistence request, an armed [`task-retrospective`](../task-retrospective/SKILL.md) run has selected a durable project lesson, a loop contract calls for durable lesson promotion, or the user-confirmed task outcome genuinely requires a repo-local memory update.
+
+Potential sources:
 - **failure / bug / issue** — a non-trivial failure, wrong approach, or bug. Record what went wrong + the exact prevention rule (error/lesson page; decay-protected).
-- **feedback / correction** — the user corrected you, a review rejected an approach, or a test/tool signal contradicted your plan. Record the corrected rule and *why* the original was wrong.
-- **successful execution** — a non-trivial task solved with a reusable procedure. Distill the playbook (SOP/procedure page).
+- **feedback / correction** — when persistence is explicitly requested or task-retrospective is armed, record the corrected rule and *why* the original was wrong.
+- **successful execution** — a non-trivial task solved with a reusable procedure. Distill the playbook only when it will recur and belongs in this project.
 - also: verified finding · user-confirmed decision · source ingested.
 
-**Reflexive harvest (close the loop):** self-improvement compounds only if lessons get *written*, not merely write-able. At the **end of any non-trivial task** — and right after a failure, a correction, or a clean success — actively run the gated write for whichever sources fired. This is a reflex at the task boundary, not an optional afterthought; [`verify-before-completion`](../verify-before-completion/SKILL.md) triggers it. (Adopts the post-session learning-extraction intent of EveryInc ce-compound / kw-compound, now in scope under the project's explicit self-improvement goal; `write-gate` keeps the harvest from polluting.)
+**No automatic task-boundary harvest:** do not run the write protocol merely because an ordinary task ended, a correction arrived, or work succeeded. If task-retrospective was armed, let it decide relevance and target. If it was not armed, fix the issue and optionally suggest task audit mode when the lesson is clearly repeatable; do not launch a full retrospective or memory write by default.
 
-**Fire condition (one-line test):** harvest **iff** the task produced a *durable, project-specific* lesson you'd want a FUTURE session to recall. **Do NOT harvest** plain acknowledgements, ephemeral / general-knowledge questions (arithmetic, definitions, one-off lookups), or anything with no new project-specific fact — `write-gate` filters *low-signal* noise but not *off-topic* writes, so the should-fire judgement is yours. (Cross-model testing — `eval/exp7_wiring/` — showed models both over-fire on trivial prompts and under-fire on real lessons without this explicit gate.)
+**Fire condition (one-line test):** write **iff** the candidate is a *durable, project-specific* fact, decision, procedure, or lesson you'd want a FUTURE session to recall. **Do NOT write** plain acknowledgements, ephemeral / general-knowledge questions (arithmetic, definitions, one-off lookups), or anything with no new project-specific fact — `write-gate` filters *low-signal* noise but not *off-topic* writes, so the should-fire judgement remains with the invoking protocol.
 
 Protocol:
 1. Search existing pages first.

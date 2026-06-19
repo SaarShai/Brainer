@@ -28,8 +28,8 @@
     {
       "skills": ["task-retrospective", "verify-before-completion"],
       "status": "accepted",
-      "risk": "A task retrospective can start before evidence exists and turn into narrative instead of verified learning.",
-      "resolution": "Run fresh verification first; only then do the retrospective and record durable lessons when the evidence supports them."
+      "risk": "A task retrospective can start before evidence exists, or verification can imply an automatic learning write.",
+      "resolution": "Run fresh verification first; only armed task-retrospective or explicit persistence requests may route durable project lessons through write-gate."
     },
     {
       "skills": ["prompt-triage", "cache-lint"],

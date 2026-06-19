@@ -1,5 +1,5 @@
 ---
-description: Plan before executing non-trivial tasks. Trigger when the task has more than 3 steps, unclear scope, multiple files, real risk, or architecture decisions. Inspect reality first, draft a phased plan with verification gates, simplify, then execute.
+description: Plan before executing non-trivial or spec-worthy tasks. Trigger when the task has more than 3 steps, unclear scope, multiple files, real risk, user-visible behavior, or architecture decisions. Inspect reality first, separate WHAT from HOW, draft a phased plan with verification gates, simplify, then execute.
 globs: ["**/*"]
 alwaysApply: false
 ---

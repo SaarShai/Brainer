@@ -89,7 +89,17 @@ Before persistent write:
 1. Run `write_gate.py gate --kind <kind> --file <candidate>`.
 2. On exit 0: proceed with write.
 3. On exit 1: read the explanation. Either revise the candidate (add the reason, cite evidence, drop the filler) or drop the write entirely. Do not bypass.
-4. Bypass is only legitimate when the user explicitly says "save it anyway" or "I know it's thin, save it" — record the override in `wiki/log.md`.
+4. Override is only legitimate when the user explicitly says "save it anyway" or "I know it's thin, save it". Record it as user-directed in the write target or `wiki/log.md`:
+
+```json
+{
+  "write_gate": "rejected",
+  "override": "user_directed",
+  "override_reason": "User explicitly wants this remembered despite gate rejection."
+}
+```
+
+There is no agent-only override.
 
 ## Anti-patterns
 

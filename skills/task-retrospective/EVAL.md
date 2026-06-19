@@ -4,17 +4,15 @@
 
 | field | tokens / size |
 |---|---|
-| description (always resident) | **213 tokens** (902 chars; budget ≤1536) |
-| body (loaded on trigger) | **5,005 tokens** (19,688 chars) — incl. Part D cross-vendor cross-check |
+| description (always resident) | **105 tokens** (527 chars; budget ≤1536) |
+| body (loaded on trigger) | **2,624 tokens** (11,548 chars) — user-triggered project-learning mode incl. optional cross-check |
 | tools/ payload | **9.2 KB** (`audit_lessons.py` · `lesson_patterns.json` · `drift_probes.json`) |
 | model pin | `any` (none) |
 | effort pin | `medium` |
 
-agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K context window). 902 chars — well under.
+agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K context window). 527 chars — well under.
 
-This is a heavier body than the prose-only skills (write-gate ~ body) because it carries three acts
-(self-audit / user check / gated write) + the Measure phase + the escalation ladder. It loads only on
-trigger (task end / corrective message / `/retro`), so the resident cost is the 213-token description.
+This is a heavier body than the prose-only skills because it carries arm/observe/review/persist/close doctrine, write-target rules, report format, and the optional cross-check. It loads only on explicit task audit / task-retrospective / `/retro` triggers or after-the-fact reconstruction, so ordinary task ends and unarmed corrections pay only the resident description cost.
 
 ## A/B savings
 
@@ -24,7 +22,7 @@ N≥50 per the repo's promotion bar):
 
 | metric | without skill | with skill | Δ |
 |---|---|---|---|
-| lessons banked per non-trivial task that survive to next session | — | — | not yet measured |
+| useful lessons banked per armed repeatable task that survive to next session | — | — | not yet measured |
 | repeated-failure recurrences caught (audit_lessons exit 1) before re-shipping | — | — | not yet measured |
 | user "I can't see what I'm judging" corrections per review | — | — | not yet measured |
 | false done-claims at task end (paired with verify-before-completion) | — | — | not yet measured |
@@ -54,7 +52,7 @@ theater):
 - **Cross-repo:** copied into PROMPTER (a different vendored repo, no `wiki/log.md`), `audit_lessons.py`
   is path-portable (`REPO_ROOT = parents[3]`) → clean exit 2 on the absent log, exit 1 on a fixture;
   PROMPTER's own compliance-canary discovers the probe; PROMPTER left git-byte-identical.
-- `scripts/lint_skill_md.py skills/task-retrospective/SKILL.md` passes; `scripts/run_all_tests.sh` 49/49.
+- `scripts/lint_skill_md.py skills/task-retrospective/SKILL.md` passes; `tests/test_task_retrospective_doctrine.py` guards the user-triggered boundary.
 - **Part D cross-vendor verifier (channels smoke-tested — mixed):** `codex`, `claude`, `gemini` CLIs are
   all on PATH. One-shot smoke test (`<cli> "Reply with exactly: READY"`): **`codex exec` → READY (exit 0)**,
   **`gemini -p --approval-mode plan` → READY (exit 0)**, **`claude -p` → 401 Invalid authentication** in
@@ -63,7 +61,7 @@ theater):
   dispatch to GPT/Gemini is live; the reciprocal **→Claude** channel (used from Codex/Gemini hosts) needs
   host auth wired or it 401s — the Part D fallback ladder (same-vendor subagent → in-context adversarial)
   covers a dead channel. **Cost-gated** — fires only on high-stakes / contested / repeated results, never
-  on a clean trivial retro. **Not yet measured:** disagreement-reconciliation quality and cross-vendor
+  on a clean low-risk task audit. **Not yet measured:** disagreement-reconciliation quality and cross-vendor
   catch-rate vs same-vendor (candidate A/B).
 - **Headless block:** emitted as a fenced `json` `{"retrospective": {...}}` object (pinned grammar) so a
   parent orchestrator can tokenize it — the earlier free-text `RETROSPECTIVE: banked=[…]` line was
@@ -77,8 +75,7 @@ theater):
 
 ## Failure modes
 
-- **Ceremony creep** — running Part B on trivial edits. Mitigated by the explicit "skip for trivial"
-  rule + the blessed null exit. Not mechanically gated (the trigger is model judgment).
+- **Ceremony creep** — activating task audit mode for one-off work or persisting too many lessons. Mitigated by explicit user activation, the ≤3 candidate cap, and the blessed null exit. Not mechanically gated once the user deliberately asks for the mode.
 - **Probe false positives** — `harvest-claimed-not-written` fires on phrasing without a real write.
   Kept sober (narrow `claim_pattern`, broad `verify_keywords`); tested clean on "harvesting crops" and
   claims-with-a-write. Tune via compliance-canary's `measure.py` evidence if noisy.
@@ -94,7 +91,7 @@ theater):
   message like "retrospective done, build is green" can match both. Overlap is narrow (this probe
   requires retrospective/harvest/wiki context) and the two correctives describe distinct symptoms, but a
   co-fire test over one transcript is not yet written.
-- **Part C persistence chain** — the write-gate-reject→revise loop and the `wiki.py fetch` read-back are
+- **Persistence chain** — the write-gate-reject→revise loop and the `wiki.py fetch` read-back are
   instructed but not integration-tested here (the components are tested in their own suites).
 - **Scale** — `audit_lessons.py` reads the whole log into memory; not benchmarked against a multi-
   thousand-entry log (expected sub-second; read-only, so no concurrency hazard beyond a torn append,

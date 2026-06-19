@@ -3,7 +3,7 @@
     "id": "user-correction",
     "kind": "user_correction",
     "pattern": "(?i)(?:^\\s*(?:no[,.! ]|nope\\b|not that\\b|wrong[,. ])|that'?s (?:wrong|incorrect|not right)|don'?t use\\b|stop using\\b|i (?:said|asked|told you)\\b|instead,? use\\b|use \\S{1,40} instead|you (?:misunderstood|got it wrong))",
-    "message": "the user just corrected you — act on it, then harvest the corrected rule (with the why) through write-gate into wiki-memory so the same mistake doesn't recur next session",
+    "message": "the user corrected you. Act on the correction. Persist a lesson only if the user explicitly asks, task-retrospective is armed, or the candidate independently passes the durable project-specific write test; run write-gate before any durable write.",
     "severity": "warn"
   }
 ]

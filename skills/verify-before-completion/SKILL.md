@@ -67,19 +67,18 @@ Steps 1–5 prove the work runs. For a **high-stakes or hard-to-reverse** result
 
 **How:** dispatch the OTHER vendor read-only and synchronous — `codex exec` (Claude→GPT), `claude -p --model opus` (GPT→Claude), or `gemini -p --approval-mode plan`. Hand it the result + evidence; ask it to re-run the key check and **refute if it can** (holds:bool, exit 0). See Part D for the full vendor table, channel caveats, the odd-N (default 3) majority rule, and the `loop`-spec. Agreement → ship. Refutation → do not ship; resolve or escalate to the user.
 
-This is verification, not generation — a different foundation model catching errors, the one ensemble mechanism the evidence backs. It does NOT replace the task-end retro; it's the pre-ship gate for results that can't wait for it.
+This is verification, not generation — a different foundation model catching errors, the one ensemble mechanism the evidence backs. It does not replace an armed task-retrospective; it is the pre-ship gate for results that cannot wait for the project-learning report.
 
-## Harvest the learning (before you call it done)
+## Learning handoff
 
-Completion is also the moment experience compounds. Before the final claim, decide whether to harvest with this **one-line test**:
+Completion is a good moment to decide whether anything durable was learned, but this skill does **not** auto-launch task-retrospective or write memory.
 
-> **Harvest IFF the task produced a _durable, project-specific_ lesson you would want a FUTURE session to recall.**
+- If [`task-retrospective`](../task-retrospective/SKILL.md) is armed, hand it the verification evidence and any corrections before closing the task.
+- If the user explicitly asked to remember/log/save a lesson, route the candidate through [`wiki-memory`](../wiki-memory/SKILL.md) and [`write-gate`](../write-gate/SKILL.md).
+- If neither is true, do not persist by default. Optionally mention that task audit mode would be useful when the same task will recur and the nudge is low-noise.
 
-**Fire the harvest** — write the lesson to [`wiki-memory`](../wiki-memory/SKILL.md) via [`write-gate`](../write-gate/SKILL.md) — when ANY of these is true:
-- **failure / bug** hit and fixed → the prevention rule;
-- **feedback / correction** received (user, review, red test) → the corrected rule + *why*;
-- **reusable success** → a non-trivial procedure worth repeating.
+One-line test for any durable write:
 
-**Do NOT harvest** (this is the discipline cross-model testing showed models get wrong — both over- and under-firing): plain acknowledgements/thanks, ephemeral or general-knowledge questions (arithmetic, definitions, one-off lookups), chit-chat, or any task that produced **no new project-specific fact**. When unsure, re-apply the one-line test — if you would not retrieve this next session, skip.
+> **Write IFF the task produced a _durable, project-specific_ lesson you would want a FUTURE session to recall.**
 
-Both directions are failures: an un-harvested genuine lesson doesn't compound, and a spurious harvest pollutes memory (and `write-gate` only filters *low-signal* noise, not *off-topic* writes). The one-line test is the gate. (Harvest logic lives in `wiki-memory`; this is the reflex that fires it — including on quick, unplanned tasks `plan-first-execute` never sees.)
+Do **not** write plain acknowledgements/thanks, ephemeral or general-knowledge questions (arithmetic, definitions, one-off lookups), chit-chat, or any task that produced no new project-specific fact. `write-gate` filters low-signal prose, not off-topic persistence; the invoking protocol must decide relevance and target.

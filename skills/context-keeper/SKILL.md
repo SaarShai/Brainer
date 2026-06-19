@@ -25,7 +25,7 @@ When a session contains a long-running loop, the checkpoint must preserve the co
 - attempts tried / failed attempts summaries;
 - next-pass / next-action lines.
 
-This is a compaction checkpoint, not a durable learning write. The hook may surface the loop state so the next context recalls it, but general lessons still route through [`task-retrospective`](../task-retrospective/SKILL.md), [`write-gate`](../write-gate/SKILL.md), and [`wiki-memory`](../wiki-memory/SKILL.md) after verification.
+This is a compaction checkpoint, not a durable learning write. The hook may surface the loop state so the next context recalls it, but durable project lessons are written only when explicitly requested or selected by an armed [`task-retrospective`](../task-retrospective/SKILL.md), then routed through [`write-gate`](../write-gate/SKILL.md) and [`wiki-memory`](../wiki-memory/SKILL.md) after verification.
 
 ## Install
 

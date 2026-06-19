@@ -43,7 +43,7 @@ This is the net-new judgment no other skill makes. Pick each axis deliberately a
 | Axis | Left | Right |
 |---|---|---|
 | **open vs closed** | **open/explore** — fans out to novel-but-slop, no gate, expensive, drifts. Source of novelty; a slop machine on loose criteria. The freer the loop, the more it depends on what checks it. | **closed/execute** — bounds and gates each step, ships on a normal budget because paths are bounded. Closed loops ship today because of the gate, not the autonomy. |
-| **inner vs outer** | **inner** (within one task) — edit → run the gate → confirm green THEN answer; fix and rerun on fail. Mature. | **outer** (across sessions) — write the lesson to SKILL.md/AGENTS.md so the next session starts ahead. Hand the whole learn/measure/escalate mechanic to [`task-retrospective`](../task-retrospective/SKILL.md); don't re-implement it. |
+| **inner vs outer** | **inner** (within one task) — edit → run the gate → confirm green THEN answer; fix and rerun on fail. Mature. | **outer** (across sessions) — preserve traces so the next session starts ahead. If the user armed project learning, hand the learn/measure/escalate mechanic to [`task-retrospective`](../task-retrospective/SKILL.md); don't re-implement it inside the loop. |
 | **single vs fleet** | **single** — one agent rewrites its own draft (draft → check → fix → repeat). | **fleet** — an orchestrator splits the goal, every level runs discover/plan/execute/verify, only verified results bubble up. Adds git-worktree isolation + a quorum/aggregation gate where parallel results merge. |
 
 Both layers are verification. Native tooling: `/goal` encodes the stop condition across turns; dynamic workflows make the fleet native (capped 16 concurrent / 1000 agents). They cost far more tokens — reach for them only when the task genuinely does not fit one pass.
@@ -55,7 +55,7 @@ Use the four-loop stack as a diagnosis before adding machinery:
 1. **Agent loop** — model ↔ tools until a result exists. This is the ordinary work loop; for a single bounded task, [`plan-first-execute`](../plan-first-execute/SKILL.md) plus [`verify-before-completion`](../verify-before-completion/SKILL.md) is usually enough.
 2. **Verification loop** — grader/rubric/test sends feedback back to the agent. This skill names the verifier and gate; [`eval-gate`](../eval-gate/SKILL.md) handles judgment rubrics when deterministic tests cannot express "good enough".
 3. **Event loop** — a trigger (cron, webhook, inbox/channel, file watcher) starts the verified agent loop repeatedly. This is deployment wiring, not new autonomy: the same loop spec still needs harness pre-flight, a gate, stop, budget, permissions audit, and human approval before irreversible actions.
-4. **Hill-climbing loop** — traces from repeated runs feed a separate analysis pass that proposes harness improvements. Never let this loop self-merge. It should produce a reviewed patch or lesson routed through [`task-retrospective`](../task-retrospective/SKILL.md), [`write-gate`](../write-gate/SKILL.md), and [`wiki-memory`](../wiki-memory/SKILL.md).
+4. **Hill-climbing loop** — traces from repeated runs feed a separate analysis pass that proposes harness improvements. Never let this loop self-merge. It should produce a reviewed patch, or when project learning is armed, a lesson routed through [`task-retrospective`](../task-retrospective/SKILL.md), [`write-gate`](../write-gate/SKILL.md), and [`wiki-memory`](../wiki-memory/SKILL.md).
 
 The outer-loop handoff artifact is the trace, not a vibe. For every scheduled or unattended loop, decide up front which fields are emitted per iteration (`command`, `error`, `metric`, `accepted`, `cost`) so the next layer can measure improvement instead of reading tea leaves.
 
@@ -71,7 +71,7 @@ For any scheduled, event-triggered, outer, or fleet loop, add these advisory fie
 - `writeback` — the exact post-pass command/procedure: record attempts tried, verifier verdict, failures, changed facts, and the next action.
 - `state_concurrency` — for fleets only: `single_writer`, `optimistic_revision`, or `worktree_isolated`. Shared state without a merge strategy creates parallel-agent conflicts.
 
-Keep the boundary clean: `state_store` records run-local state; [`wiki-memory`](../wiki-memory/SKILL.md) records durable, verified lessons through [`write-gate`](../write-gate/SKILL.md); [`context-keeper`](../context-keeper/SKILL.md) preserves a compaction checkpoint; [`task-retrospective`](../task-retrospective/SKILL.md) decides what generalizes after verification. Do not install Mem0/Zep/etc. just because a loop needs memory; first express the contract against Brainer's repo-local stores, then measure whether an external semantic backend beats it.
+Keep the boundary clean: `state_store` records run-local state; [`wiki-memory`](../wiki-memory/SKILL.md) records durable, verified lessons through [`write-gate`](../write-gate/SKILL.md) when persistence is explicitly selected; [`context-keeper`](../context-keeper/SKILL.md) preserves a compaction checkpoint; armed [`task-retrospective`](../task-retrospective/SKILL.md) decides what generalizes after verification. Do not install Mem0/Zep/etc. just because a loop needs memory; first express the contract against Brainer's repo-local stores, then measure whether an external semantic backend beats it.
 
 ## Wire the generator to a SEPARATE verifier
 
@@ -106,7 +106,7 @@ Then answer the questions the four fields don't cover:
 - Is the loop **open or closed**, and is that intentional for THIS task (novelty wanted vs bounded shipping)?
 - If the loop is scheduled/fleet/outer, where do `anchor_files`, `state_store`, `recall`, and `writeback` live — and who owns `state_concurrency`?
 - **green ≠ correct**: does the gate cover behaviour nobody wrote a test for yet, or only reproduce what existing tests already describe? 99.8% on an existing suite is *benchmark-green*, not correct — production is the behaviour nobody tested.
-- For an **outer loop**: the highest-signal, lowest-friction feedback channel is the human's **in-place override delta** — what they changed and the reason they left at the work site (a relabel + a reply), not a report you ask them to write. **Grade that feedback before acting on it**: an explicit correction/relabel is strong, a reaction is moderate, silence is weak-positive — edit the spec/SKILL.md only on a *generalizable, well-supported* lesson; conflicting or weak signal ⇒ no change (don't thrash). Then store the WHY in a FILE, not the context window, at the right grain so the next run reads it. (ReAct → Reflexion; owned by [`task-retrospective`](../task-retrospective/SKILL.md).)
+- For an **outer loop**: the highest-signal, lowest-friction feedback channel is the human's **in-place override delta** — what they changed and the reason they left at the work site (a relabel + a reply), not a report you ask them to write. **Grade that feedback before acting on it**: an explicit correction/relabel is strong, a reaction is moderate, silence is weak-positive. If project learning is armed, [`task-retrospective`](../task-retrospective/SKILL.md) owns the decision about whether that lesson belongs in memory, an SOP, a checklist, or a project-specific skill. Conflicting or weak signal ⇒ no durable write.
 
 ## Instrument before you scale
 
@@ -116,7 +116,7 @@ Then answer the questions the four fields don't cover:
 python3 skills/loop-engineering/tools/loop_run_monitor.py trace.json
 ```
 
-On stuck, do NOT retry harder — **force entropy**: require a *structurally different* hypothesis before the next execution. Caps stay small (≈2–3 for a fix loop); on hitting the cap, **escalate with a decision brief** — the options tried and the evidence behind each, never a bare "it doesn't work". Per-cycle, ask the overfit question: *am I building the general solution, or memorizing this eval?* A recurring "ran past budget" or "no gate" violation across sessions is promoted by [`task-retrospective`](../task-retrospective/SKILL.md) into a [`compliance-canary`](../compliance-canary/SKILL.md) drift probe — `drift_probes.json` is the runtime home for the static checks this skill's linter makes. Build the **minimum viable loop** in order — get one manual run reliable → make it a skill → wrap it in a loop → schedule it; skipping ahead ships a loop nobody understands.
+On stuck, do NOT retry harder — **force entropy**: require a *structurally different* hypothesis before the next execution. Caps stay small (≈2–3 for a fix loop); on hitting the cap, **escalate with a decision brief** — the options tried and the evidence behind each, never a bare "it doesn't work". Per-cycle, ask the overfit question: *am I building the general solution, or memorizing this eval?* A recurring "ran past budget" or "no gate" violation across project tasks can be reviewed by armed [`task-retrospective`](../task-retrospective/SKILL.md), but task-retrospective must not auto-edit Brainer probes. Build the **minimum viable loop** in order — get one manual run reliable → make it a skill → wrap it in a loop → schedule it; skipping ahead ships a loop nobody understands.
 
 ## Design against the quiet failures
 
@@ -145,7 +145,7 @@ python3 skills/loop-engineering/tools/loop_lint.py --diagram <file>   # Mermaid 
 
 ## Persisting a reusable topology
 
-A reusable generator/verifier/budget recipe is just another durable fact — route it through [`write-gate`](../write-gate/SKILL.md) into [`wiki-memory`](../wiki-memory/SKILL.md) as a `pattern` page. loop-engineering owns no store and no write path of its own.
+A reusable generator/verifier/budget recipe is just another durable project fact. Persist it only when explicitly requested or selected by an armed task-retrospective, then route it through [`write-gate`](../write-gate/SKILL.md) into [`wiki-memory`](../wiki-memory/SKILL.md) as a `pattern` page. loop-engineering owns no store and no write path of its own.
 
 ## Files
 

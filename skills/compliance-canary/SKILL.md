@@ -107,7 +107,7 @@ Use for: any tool error the agent keeps re-triggering after the native error mes
 
 #### `user_correction` *(v1.7)*
 
-Matches the user's CURRENT prompt (not the transcript) against correction patterns ("no, use X", "that's wrong", "I said …"). Fires the harvest reflex at the exact turn the correction lands — corrections are the highest-value learning source (exp1: feedback lift +0.667) but the prose-only reflex under-fires. Lineage: BayramAnnakov/claude-reflect; ships in `wiki-memory/drift_probes.json`.
+Matches the user's CURRENT prompt (not the transcript) against correction patterns ("no, use X", "that's wrong", "I said …"). It surfaces the correction at the exact turn it lands; if task-retrospective is armed, record it as evidence, and if persistence is explicitly selected, route the lesson through write-gate. Lineage: BayramAnnakov/claude-reflect; ships in `wiki-memory/drift_probes.json`.
 
 ```json
 {
@@ -118,7 +118,7 @@ Matches the user's CURRENT prompt (not the transcript) against correction patter
 }
 ```
 
-Use for: routing corrections into write-gate → wiki-memory instead of losing them to the session.
+Use for: preventing corrections from being ignored without turning every correction into an automatic memory write.
 
 #### `trajectory_drift` *(v1.8)*
 
