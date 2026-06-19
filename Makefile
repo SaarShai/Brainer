@@ -1,10 +1,12 @@
 PYTHON ?= python3
 
-.PHONY: check full-check lint carrier-sync marketplace-sync contracts conflicts drift-probes generated wiki-hygiene test existing-tests py-syntax
+.PHONY: check full-check check-tail lint carrier-sync marketplace-sync contracts conflicts drift-probes generated wiki-hygiene test existing-tests existing-tests-core existing-tests-tail py-syntax
 
-check: lint carrier-sync marketplace-sync contracts conflicts drift-probes generated wiki-hygiene test existing-tests
+check: lint carrier-sync marketplace-sync contracts conflicts drift-probes generated wiki-hygiene test existing-tests-core
 
-full-check: check
+full-check: check check-tail
+
+check-tail: existing-tests-tail
 
 lint:
 	@for f in skills/*/SKILL.md; do \
@@ -35,8 +37,13 @@ wiki-hygiene:
 test:
 	PYTHONDONTWRITEBYTECODE=1 $(PYTHON) -m pytest -p no:cacheprovider tests
 
-existing-tests:
-	BRAINER_CHECK_NO_WRITE=1 PYTHONDONTWRITEBYTECODE=1 bash scripts/run_all_tests.sh --quiet
+existing-tests: existing-tests-core existing-tests-tail
+
+existing-tests-core:
+	BRAINER_CHECK_NO_WRITE=1 PYTHONDONTWRITEBYTECODE=1 bash scripts/run_all_tests.sh --quiet --group core
+
+existing-tests-tail:
+	BRAINER_CHECK_NO_WRITE=1 PYTHONDONTWRITEBYTECODE=1 bash scripts/run_all_tests.sh --quiet --group tail
 
 py-syntax:
 	PYTHONDONTWRITEBYTECODE=1 $(PYTHON) scripts/check_python_syntax.py

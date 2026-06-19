@@ -69,6 +69,7 @@ Use:
 ./install.sh --dry-run
 git status --short
 make check
+make check-tail
 ```
 
-Do not run a real install merely to verify a docs or checker change. Dry-run is the safe install check for this repo health pass.
+Do not run a real install merely to verify a docs or checker change. Dry-run is the safe install check for this repo health pass. Use `make check` for the fast deterministic gate and `make check-tail` for the slower hook/replay tail; `make full-check` runs both when the shell wrapper allows a longer single command.

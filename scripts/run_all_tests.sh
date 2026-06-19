@@ -6,14 +6,28 @@
 # eval/longrun) are NOT here — they need ollama/GPU and live behind their
 # own runners.
 #
-# Usage: bash scripts/run_all_tests.sh [--quiet]
+# Usage: bash scripts/run_all_tests.sh [--quiet] [--group core|tail|all]
 set -uo pipefail
 export PYTHONDONTWRITEBYTECODE=1
 export BRAINER_CHECK_NO_WRITE="${BRAINER_CHECK_NO_WRITE:-1}"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-QUIET=${1:-}
+QUIET=""
+GROUP="all"
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --quiet) QUIET="--quiet" ;;
+    --group) shift; GROUP="${1:-all}" ;;
+    --group=*) GROUP="${1#--group=}" ;;
+    *) echo "unknown arg: $1" >&2; exit 2 ;;
+  esac
+  shift || true
+done
+case "$GROUP" in
+  core|tail|all) ;;
+  *) echo "unknown group: $GROUP (core|tail|all)" >&2; exit 2 ;;
+esac
 PASS=0; FAIL=0
 declare -a FAILED
 
@@ -29,6 +43,8 @@ run() {
     echo "$out" | tail -8 | sed 's/^/  | /'
   fi
 }
+
+if [ "$GROUP" = "core" ] || [ "$GROUP" = "all" ]; then
 
 # 1. SKILL.md lint — every skill, one call each so the failing file is named
 for f in skills/*/SKILL.md; do
@@ -106,6 +122,10 @@ run "ablation-guard" env BRAINER_CHECK_NO_WRITE="$BRAINER_CHECK_NO_WRITE" python
 # -efficacy (#2, eval/inert_probe.py) is model-dependent → NOT gated.
 run "skill-audit" python3 eval/skill_audit.py --check
 
+fi
+
+if [ "$GROUP" = "tail" ] || [ "$GROUP" = "all" ]; then
+
 # 6. Hook self-test suites
 run "hook:compliance-canary" bash skills/compliance-canary/tools/test.sh
 run "tool:eval-gate" bash skills/eval-gate/tools/test.sh
@@ -118,6 +138,8 @@ if ls ~/.claude/projects/-Users-za-Documents-Brainer/*.jsonl >/dev/null 2>&1; th
   run "audit:triage-replay" python3 scripts/replay_triage.py
 else
   echo "SKIP triage replay audit (no local transcripts)"
+fi
+
 fi
 
 echo

@@ -21,6 +21,7 @@ This skill optimizes Brainer obedience and drift discovery, not token reduction.
 - `python3 skills/brainer-audit/tools/test_brainer_audit.py`
 - `python3 skills/brainer-audit/tools/test_hooks.py`
 - `python3 skills/brainer-audit/tools/test_antigravity_sidecar.py`
+- `python3 -m pytest tests/test_audit_modes_hardening.py -q`
 - `python3 skills/brainer-audit/tools/inspect_session.py --events <events.jsonl> --format json`
 - `python3 skills/brainer-audit/tools/inspect_session.py --events <events.jsonl> --format markdown`
 
@@ -34,7 +35,10 @@ Current fixture coverage:
 - repeated tool-error loop detection;
 - task-retrospective boundary violation detection;
 - write-gate bypass detection and suppression when gate evidence exists;
-- malformed event log fails cleanly.
+- malformed event log fails cleanly;
+- cross-collector no-write regression coverage;
+- redaction consistency across task-retrospective and Brainer-audit collectors;
+- stable report fixtures for clean, compound-finding, boundary-error, and Antigravity lower-fidelity cases.
 
 ## Known gaps
 

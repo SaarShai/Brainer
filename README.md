@@ -22,12 +22,13 @@ Brainer's operating rule is:
 ```bash
 python3 -m pip install pytest
 make check
+make check-tail
 ./install.sh --dry-run
 ```
 
-`make check` is the canonical local health gate. It runs skill lint, carrier sync, marketplace sync, skill contract checks, conflict checks, drift-probe schema checks, generated-file policy checks, wiki hygiene, deterministic pytest tests, and the full offline runner in non-writing check mode.
+`make check` is the canonical fast local health gate. It runs skill lint, carrier sync, marketplace sync, skill contract checks, conflict checks, drift-probe schema checks, generated-file policy checks, wiki hygiene, deterministic pytest tests, and the core offline runner in non-writing check mode.
 
-`make full-check` is kept as a compatibility alias for `make check`.
+`make check-tail` runs the slower hook/replay tail. `make full-check` is equivalent to `make check` plus `make check-tail`, but some local wrappers cap a single command before both phases can finish.
 
 ## Source-of-Truth Model
 

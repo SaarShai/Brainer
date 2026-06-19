@@ -229,3 +229,4 @@ Make both modes testable, safe, non-mutating by default, and resistant to drift.
 - redaction tests.
 - report stability tests.
 - boundary tests that keep task-retrospective and Brainer audit mode separate.
+- split `run_all_tests.sh` into `core` and `tail` groups so `make check` can complete in short local wrappers while `make check-tail` still covers slower hook/replay tests.
