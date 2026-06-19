@@ -8,6 +8,35 @@ from typing import Any, Dict, List, Sequence
 from detectors import Finding
 
 
+def _event_source(event: Dict[str, Any]) -> str:
+    """Classify a single event by how it was collected.
+
+    - ``sidecar``: best-effort Antigravity sidecar snapshot (lower fidelity).
+    - ``live-hook``: emitted by a host hook adapter (normalize.py sets
+      ``hook_event_name``; hook sessions default ``session_id`` to ``hook``).
+    - ``offline``: hand-ingested fixture (ingest_event.py), no live provenance.
+    """
+    if event.get("collector") == "antigravity_sidecar" or event.get("evidence_fidelity") == "lower-sidecar":
+        return "sidecar"
+    if event.get("hook_event_name") or event.get("session_id") == "hook":
+        return "live-hook"
+    return "offline"
+
+
+def derive_audit_mode(events: Sequence[Dict[str, Any]]) -> str:
+    """Derive the audit mode from the ACTUAL collection sources present.
+
+    Returns one of ``offline``, ``live-hook``, ``sidecar``, ``mixed``, or
+    ``offline-report-only`` when there are no events to classify.
+    """
+    if not events:
+        return "offline-report-only"
+    sources = {_event_source(event) for event in events}
+    if len(sources) == 1:
+        return next(iter(sources))
+    return "mixed"
+
+
 def session_summary(events: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     first = events[0] if events else {}
     hosts = sorted({str(e.get("host")) for e in events if e.get("host")})
@@ -18,7 +47,7 @@ def session_summary(events: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
         kind = str(event.get("event") or "unknown")
         event_types[kind] = event_types.get(kind, 0) + 1
     return {
-        "audit_mode": "offline-report-only",
+        "audit_mode": derive_audit_mode(events),
         "schema_version": 1,
         "host": ", ".join(hosts) or str(first.get("host") or "unknown"),
         "project": ", ".join(projects) or str(first.get("project_path") or "unknown"),
@@ -102,7 +131,10 @@ def build_markdown_report(events: Sequence[Dict[str, Any]], findings: Sequence[F
         lines.append(f"- {ref}: {kind}{suffix} — {text}")
 
     lines.extend(["", "## Remaining risks"])
-    lines.append("- Offline fixtures are lower fidelity than live hooks; PR 4 owns host adapters.")
+    lines.append(
+        f"- Collection source for this run: {summary['audit_mode']}. "
+        "Offline fixtures and sidecar snapshots are lower fidelity than live host hooks."
+    )
     lines.append("- This report is advisory and does not apply canonical Brainer edits.")
     return "\n".join(lines) + "\n"
 

@@ -4,9 +4,16 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
+
+_SHARED = Path(__file__).resolve().parents[2] / "_shared"
+if str(_SHARED) not in sys.path:
+    sys.path.insert(0, str(_SHARED))
+
+from audit_redact import redact, redact_obj  # noqa: E402
 
 SCHEMA_VERSION = 1
 HOSTS = {"claude", "codex", "antigravity", "unknown"}
@@ -24,11 +31,6 @@ EVENT_MAP = {
     "PostCompact": "git_snapshot",
 }
 TEXT_KEYS = {"content_summary", "command", "raw_ref"}
-REDACT_PATTERNS = [
-    re.compile(r"(?i)(authorization\s*:\s*bearer\s+)[A-Za-z0-9._~+/=-]+"),
-    re.compile(r"(?i)\b(api[_-]?key|token|password|secret)\s*[:=]\s*['\"]?[^'\"\s]+"),
-    re.compile(r"\bsk-[A-Za-z0-9]{16,}\b"),
-]
 CORRECTION_RE = re.compile(
     r"(?i)(?:^\s*(?:no[,.! ]|nope\b|wrong[,. ])|that'?s (?:wrong|incorrect)|i (?:said|asked|told you)|you (?:skipped|assumed|claimed|misunderstood))"
 )
@@ -36,14 +38,6 @@ CORRECTION_RE = re.compile(
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-
-def redact(text: str) -> str:
-    out = text or ""
-    out = REDACT_PATTERNS[0].sub(lambda m: m.group(1) + "[REDACTED]", out)
-    out = REDACT_PATTERNS[1].sub(lambda m: m.group(1) + "=[REDACTED]", out)
-    out = REDACT_PATTERNS[2].sub("[REDACTED]", out)
-    return out
 
 
 def _stringify(value: Any, limit: int = 1200) -> str:
@@ -129,17 +123,19 @@ def normalize_event(payload: Dict[str, Any], *, host: str = "unknown", event_nam
         event["line_count"] = payload.get("line_count")
     if payload.get("output_bytes") is not None:
         event["output_bytes"] = payload.get("output_bytes")
-    return event
+    # Final redaction gate: scrub every string leaf (incl. project_path / tool)
+    # so no raw secret reaches disk regardless of which payload field carried it.
+    return redact_obj(event)
 
 
 def normalize_task_retro_event(audit_event: Dict[str, Any]) -> Dict[str, Any]:
     text = audit_event.get("content_summary") or audit_event.get("command") or audit_event.get("hook_event_name") or ""
     kind = "correction" if CORRECTION_RE.search(str(text)) else "evidence"
-    return {
+    return redact_obj({
         "schema_version": 1,
         "mode": "task-retrospective",
         "timestamp": audit_event.get("timestamp") or utc_now(),
         "type": kind,
         "text": text,
         "evidence_ref": f"{audit_event.get('host', 'unknown')}:{audit_event.get('hook_event_name', audit_event.get('event', 'event'))}",
-    }
+    })

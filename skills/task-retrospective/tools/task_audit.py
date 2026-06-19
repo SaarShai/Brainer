@@ -17,6 +17,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
+_SHARED = Path(__file__).resolve().parents[2] / "_shared"
+if str(_SHARED) not in sys.path:
+    sys.path.insert(0, str(_SHARED))
+
+from audit_paths import PathConfinementError, safe_resolve_under  # noqa: E402
+from audit_redact import redact, redact_obj  # noqa: E402
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 STORE_REL = Path(".brainer") / "task-retrospective"
 SCHEMA_VERSION = 1
@@ -28,13 +35,6 @@ EVENT_TYPES = {
     "evidence",
     "candidate_lesson",
 }
-
-SECRET_PATTERNS = [
-    re.compile(r"(?i)(authorization\s*:\s*bearer\s+)[A-Za-z0-9._~+/=-]+"),
-    re.compile(r"(?i)\b(api[_-]?key|token|password|secret)\s*[:=]\s*['\"]?[^'\"\s]+"),
-    re.compile(r"\bsk-[A-Za-z0-9]{16,}\b"),
-    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S),
-]
 
 
 class AuditError(Exception):
@@ -49,21 +49,6 @@ def slugify(text: str, fallback: str = "task") -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
     slug = re.sub(r"-+", "-", slug)
     return (slug or fallback)[:48].strip("-") or fallback
-
-
-def redact(text: Optional[str]) -> str:
-    if not text:
-        return ""
-    out = text
-    for pattern in SECRET_PATTERNS:
-        def repl(match: re.Match[str]) -> str:
-            if pattern.pattern.startswith("(?i)(authorization"):
-                return match.group(1) + "[REDACTED]"
-            if "api" in pattern.pattern or "token" in pattern.pattern:
-                return match.group(1) + "=[REDACTED]"
-            return "[REDACTED]"
-        out = pattern.sub(repl, out)
-    return out
 
 
 def is_relative_to(path: Path, parent: Path) -> bool:
@@ -99,17 +84,37 @@ def ensure_write_allowed(root: Path) -> None:
         )
 
 
+# Marker keys that hold filesystem paths the tool round-trips on later reads.
+# These must NOT be redacted (masking a /Users/<name>/ component would break the
+# path); confinement, not redaction, protects them.
+_PATH_KEYS = {"events_path", "report_path", "json_report_path", "project_path"}
+
+
+def redact_marker(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Redact every string leaf of a marker EXCEPT round-tripped path fields.
+
+    Covers start metadata (task, goal, constraints, repeat_trigger,
+    definition_of_done) and any nested string. Path fields are left structurally
+    intact so subsequent reads still resolve; they are guarded by confinement.
+    """
+    out: Dict[str, Any] = {}
+    for key, value in payload.items():
+        out[key] = value if key in _PATH_KEYS else redact_obj(value)
+    return out
+
+
 def atomic_write_json(path: Path, payload: Dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    tmp.write_text(json.dumps(redact_marker(payload), indent=2, sort_keys=True) + "\n", encoding="utf-8")
     tmp.replace(path)
 
 
 def append_jsonl(path: Path, payload: Dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(payload, sort_keys=True) + "\n")
+        # Final redaction gate: scrub every string leaf before the event is written.
+        fh.write(json.dumps(redact_obj(payload), sort_keys=True) + "\n")
 
 
 def load_json(path: Path) -> Dict[str, Any]:
@@ -122,11 +127,28 @@ def load_json(path: Path) -> Dict[str, Any]:
     return data
 
 
+def confined(root: Path, raw: Any, field: str) -> Path:
+    """Resolve a marker-derived path and confine it under the task-retro store.
+
+    A tampered marker could redirect events/report writes outside
+    ``.brainer/task-retrospective``; every such path is gated here before use.
+    """
+    try:
+        return safe_resolve_under(store_dir(root), raw)
+    except PathConfinementError as exc:
+        raise AuditError(f"marker {field} escapes task-retrospective store: {exc}") from exc
+
+
 def load_current(root: Path) -> Dict[str, Any]:
     path = current_path(root)
     if not path.exists():
         raise AuditError("task-retrospective is not armed; run `task_audit.py start ...` first")
-    return load_json(path)
+    data = load_json(path)
+    # Confine every marker-derived path before any read/write uses it.
+    for field in ("events_path", "report_path"):
+        if data.get(field):
+            confined(root, data[field], field)
+    return data
 
 
 def event_path(session: Dict[str, Any]) -> Path:
@@ -233,7 +255,7 @@ def command_start(args: argparse.Namespace) -> int:
         events.unlink()
     append_jsonl(events, make_event("start", task=args.task, repeat_trigger=args.repeat_trigger))
     atomic_write_json(cur, session)
-    print(json.dumps(session_summary(session, True, 1), indent=2, sort_keys=True))
+    print(json.dumps(redact_marker(session_summary(session, True, 1)), indent=2, sort_keys=True))
     return 0
 
 
@@ -248,8 +270,9 @@ def command_note(args: argparse.Namespace) -> int:
         implication=args.implication,
         evidence_ref=args.evidence_ref,
     )
-    append_jsonl(event_path(session), event)
-    print(json.dumps({"ok": True, "event": event}, indent=2, sort_keys=True))
+    append_jsonl(confined(root, session["events_path"], "events_path"), event)
+    # Redact the echoed event the same way it was written to disk.
+    print(json.dumps({"ok": True, "event": redact_obj(event)}, indent=2, sort_keys=True))
     return 0
 
 
@@ -260,8 +283,8 @@ def command_status(args: argparse.Namespace) -> int:
         print(json.dumps({"active": False, "mode": "task-retrospective"}, indent=2, sort_keys=True))
         return 0
     session = load_json(cur)
-    events = read_events(event_path(session))
-    print(json.dumps(session_summary(session, True, len(events)), indent=2, sort_keys=True))
+    events = read_events(confined(root, session["events_path"], "events_path"))
+    print(json.dumps(redact_marker(session_summary(session, True, len(events))), indent=2, sort_keys=True))
     return 0
 
 
@@ -360,15 +383,18 @@ def command_finish(args: argparse.Namespace) -> int:
     root = repo_root_from_args(args)
     ensure_write_allowed(root)
     session = load_current(root)
+    events_p = confined(root, session["events_path"], "events_path")
     finish_event = make_event("finish", task_id=session.get("task_id"))
-    append_jsonl(event_path(session), finish_event)
-    events = read_events(event_path(session))
+    append_jsonl(events_p, finish_event)
+    events = read_events(events_p)
     evidence_quality = infer_evidence_quality(events, args.evidence_quality or "")
 
     wrote_report = False
     if args.report:
-        text = render_report(session, events, evidence_quality)
-        path = report_path(session)
+        # session came from a redacted marker, but redact the rendered report
+        # again so no secret can leak via interpolated metadata.
+        text = redact(render_report(session, events, evidence_quality))
+        path = confined(root, session["report_path"], "report_path")
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
         wrote_report = True
@@ -376,7 +402,7 @@ def command_finish(args: argparse.Namespace) -> int:
     current_path(root).unlink(missing_ok=True)
     result = session_summary(session, False, len(events))
     result.update({"finished": True, "report_written": wrote_report, "evidence_quality": evidence_quality})
-    print(json.dumps(result, indent=2, sort_keys=True))
+    print(json.dumps(redact_marker(result), indent=2, sort_keys=True))
     return 0
 
 

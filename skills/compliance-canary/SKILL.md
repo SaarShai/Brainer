@@ -1,6 +1,6 @@
 ---
 name: compliance-canary
-description: Use when a long session drifts — the single always-on drift watcher: one UserPromptSubmit hook combining a periodic skill-rule re-anchor (every N turns), symptomatic per-skill drift probes (filler creep, word-count growth, unverified done-claims, self-closing without asking, looping tool errors, rule fade), and a request ledger that keeps every user request OPEN until completed or the user closes it (so nothing the user asked for is silently dropped). Absorbs the former skill-pulse; the re-anchor yields to a fired probe so the two never double-nag. Tune/disable via COMPLIANCE_CANARY_* env vars (SKILL_PULSE_* honored as aliases).
+description: "Use when a long session drifts — the single always-on drift watcher: one UserPromptSubmit hook combining a periodic skill-rule re-anchor (every N turns), symptomatic per-skill drift probes (filler creep, word-count growth, unverified done-claims, self-closing without asking, looping tool errors, rule fade), and a request ledger that keeps every user request OPEN until completed or the user closes it (so nothing the user asked for is silently dropped). Absorbs the former skill-pulse; the re-anchor yields to a fired probe so the two never double-nag. Tune/disable via COMPLIANCE_CANARY_* env vars (SKILL_PULSE_* honored as aliases)."
 model: haiku
 effort: low
 tools: [Bash, Read, Write]

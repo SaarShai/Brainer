@@ -5,11 +5,16 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+_SHARED = Path(__file__).resolve().parents[2] / "_shared"
+if str(_SHARED) not in sys.path:
+    sys.path.insert(0, str(_SHARED))
+
+from audit_redact import redact, redact_obj  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCHEMA_VERSION = 1
@@ -24,12 +29,6 @@ EVENT_TYPES = {
 }
 HOSTS = {"codex", "claude", "antigravity", "unknown"}
 TEXT_KEYS = {"content_summary", "command", "raw_ref"}
-
-REDACT_PATTERNS = [
-    re.compile(r"(?i)(authorization\s*:\s*bearer\s+)[A-Za-z0-9._~+/=-]+"),
-    re.compile(r"(?i)\b(api[_-]?key|token|password|secret)\s*[:=]\s*['\"]?[^'\"\s]+"),
-    re.compile(r"\bsk-[A-Za-z0-9]{16,}\b"),
-]
 
 
 class IngestError(Exception):
@@ -51,14 +50,6 @@ def is_relative_to(path: Path, parent: Path) -> bool:
 def ensure_write_allowed(path: Path) -> None:
     if os.environ.get("BRAINER_CHECK_NO_WRITE") == "1" and is_relative_to(path, REPO_ROOT):
         raise IngestError(f"BRAINER_CHECK_NO_WRITE=1: refusing to write audit event inside {REPO_ROOT}")
-
-
-def redact(text: str) -> str:
-    out = text or ""
-    out = REDACT_PATTERNS[0].sub(lambda m: m.group(1) + "[REDACTED]", out)
-    out = REDACT_PATTERNS[1].sub(lambda m: m.group(1) + "=[REDACTED]", out)
-    out = REDACT_PATTERNS[2].sub("[REDACTED]", out)
-    return out
 
 
 def parse_field(values: List[str]) -> Dict[str, Any]:
@@ -108,7 +99,9 @@ def build_event(args: argparse.Namespace) -> Dict[str, Any]:
             event[key] = redact(str(value))
         else:
             event[key] = value
-    return event
+    # Final redaction gate: scrub every string leaf, incl. arbitrary --field
+    # values and project_path, before the event is written to disk.
+    return redact_obj(event)
 
 
 def main(argv: Optional[List[str]] = None) -> int:

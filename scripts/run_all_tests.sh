@@ -67,6 +67,9 @@ UNIT_TESTS=(
   skills/brainer-audit/tools/test_brainer_audit.py
   skills/brainer-audit/tools/test_antigravity_sidecar.py
   skills/brainer-audit/tools/test_hooks.py
+  skills/brainer-audit/tools/test_path_confinement.py
+  skills/brainer-audit/tools/test_redaction.py
+  skills/brainer-audit/tools/test_detector_precision.py
   skills/loop-engineering/tools/test_loop_lint.py
   skills/loop-engineering/tools/test_loop_run_monitor.py
   skills/context-keeper/tools/tests/test_extract.py

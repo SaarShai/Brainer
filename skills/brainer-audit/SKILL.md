@@ -1,6 +1,6 @@
 ---
 name: brainer-audit
-description: Use when the user explicitly activates Brainer audit mode, asks to audit this session, audit Brainer use, or track Brainer skill usage. Report-only by default: inspect normalized events or fixtures for Brainer skill-use opportunities, missed triggers, task-retrospective boundary violations, write-gate issues, and unverified completion claims.
+description: "Use when the user explicitly activates Brainer audit mode, asks to audit this session, audit Brainer use, or track Brainer skill usage. Report-only by default: inspect normalized events or fixtures for Brainer skill-use opportunities, missed triggers, task-retrospective boundary violations, write-gate issues, and unverified completion claims."
 trigger_type: model
 risk_level: low
 host_support: [claude, codex, cursor, gemini]
@@ -55,11 +55,11 @@ Disallowed unless separately and explicitly approved by the user:
 - edit installed copies in consuming projects;
 - write project memory/SOPs/checklists;
 - run an apply mode;
-- claim live hook coverage before PR 4.
+- claim live hook coverage that was not actually collected (only assert what the events show).
 
 ## Evidence model
 
-MVP input is normalized events or transcript fixtures. Live host hooks come later.
+Default input is normalized events or transcript fixtures. Opt-in live host hooks (Claude/Codex) and a lower-fidelity Antigravity sidecar also exist for live collection; they are not auto-installed.
 
 Event schema:
 
@@ -95,7 +95,7 @@ python3 skills/brainer-audit/tools/inspect_session.py --events <events.jsonl> --
 
 ## Optional live collection
 
-PR 4 adds opt-in Claude/Codex hook adapters. They are **not auto-installed**; wire them only when the user wants live Brainer audit collection:
+Opt-in Claude/Codex hook adapters ship with this skill. They are **not auto-installed**; wire them only when the user wants live Brainer audit collection:
 
 ```bash
 bash skills/brainer-audit/tools/install.sh
@@ -108,7 +108,7 @@ The hook adapter checks marker files first. If no Brainer audit marker and no ta
 
 ## Antigravity sidecar
 
-PR 5 adds best-effort Antigravity support without assuming native hooks:
+A best-effort Antigravity sidecar ships with this skill for hosts without native hooks. It is opt-in and not auto-installed:
 
 ```bash
 python3 skills/brainer-audit/tools/antigravity_sidecar.py status --artifact-dir <path-if-known>

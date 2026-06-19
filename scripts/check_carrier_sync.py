@@ -25,13 +25,30 @@ START = "<!-- brainer:skills-catalog:start -->"
 END = "<!-- brainer:skills-catalog:end -->"
 
 
+def _unquote(value: str) -> str:
+    """Strip surrounding YAML double/single quotes and unescape `\\"`/`\\\\`.
+
+    Frontmatter values that contain `: ` (colon-space) must ship as quoted YAML
+    scalars (else `yaml.safe_load` raises "mapping values are not allowed
+    here"). A naive `split(":", 1)[1].strip()` then captures the value WITH its
+    surrounding quotes; this normalizes it back to the logical value.
+    """
+    v = value.strip()
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+        inner = v[1:-1]
+        if v[0] == '"':
+            inner = inner.replace('\\"', '"').replace("\\\\", "\\")
+        return inner
+    return v
+
+
 def frontmatter_flag(text: str, key: str) -> bool:
     m = re.match(r"^---\n(.*?)\n---\n", text, re.DOTALL)
     if not m:
         return False
     for line in m.group(1).splitlines():
         if line.strip().startswith(f"{key}:"):
-            return line.split(":", 1)[1].strip().lower() == "true"
+            return _unquote(line.split(":", 1)[1]).lower() == "true"
     return False
 
 
