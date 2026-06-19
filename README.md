@@ -86,9 +86,9 @@ graphify extract .
 
 `./install.sh` installs `graphify` from our maintained fork ([SaarShai/graphify@token-economy-patches](https://github.com/SaarShai/graphify/tree/token-economy-patches)) — published `graphifyy` 0.8.17 ships four bugs that affect our skill flow (see [skills/index-first/EVAL.md](skills/index-first/EVAL.md) for the bug list and impact). The installer prefers `pipx` and falls back to `python3 -m pip install --user`. Opt out with `./install.sh --no-graphify` (the wiki-memory and index-first skills degrade gracefully when the graph isn't present). After bootstrap the stack is on automatically — hooks fire per event, descriptions trigger on prompt shape.
 
-## The catalog (19 skills)
+## The catalog (20 skills)
 
-**All 19 are symlinked by `./install.sh` and default-installed (as of v1.11; `loop-engineering`, `eval-gate`, and `requirements-ledger` are in the default catalog).** `compliance-canary` (the single drift watcher — it absorbed `skill-pulse` at v1.10) auto-wires its `UserPromptSubmit` hook (`auto-install: true`, **default-on since v1.7**); `think` is slash-only (`/think`, no hook). To disable a default-on hook, remove its entry from `.claude/settings.json` by hand.
+**All 20 are symlinked by `./install.sh` and default-installed (as of v1.12; `loop-engineering`, `eval-gate`, `requirements-ledger`, and `brainer-audit` are in the default catalog).** `compliance-canary` (the single drift watcher — it absorbed `skill-pulse` at v1.10) auto-wires its `UserPromptSubmit` hook (`auto-install: true`, **default-on since v1.7**); `think` is slash-only (`/think`, no hook). To disable a default-on hook, remove its entry from `.claude/settings.json` by hand.
 
 | Skill | Trigger | Desc tokens | Notes |
 |---|---|---:|---|
@@ -108,12 +108,13 @@ graphify extract .
 | [wiki-refresh](skills/wiki-refresh/SKILL.md) | "refresh wiki / audit vs code" | 76 | Code-grounded reconcile of wiki pages (Keep/Update/Consolidate/Replace/Delete) via `audit-refs`; emits typed `contradicts:` edges. Ground-truth reconcile. |
 | [cache-lint](skills/cache-lint/SKILL.md) | before merging hooks/skills, CI | 71 | Static audit against Anthropic's 6 prompt-cache rules (ussumant lineage). FAIL on dynamic content above breakpoint, prefix mutation by Stop-hooks, etc. |
 | [task-retrospective](skills/task-retrospective/SKILL.md) | explicit task audit / `/retro` / after-the-fact reconstruction | 105 | User-triggered task audit mode for repeatable project work. Arm it before the task when possible, or reconstruct after the fact; it produces a project-learning report and routes at most 3 durable lessons to project memory, SOPs, checklists, project-specific skills, or broad repo instructions through write-gate. It does not audit Brainer skill obedience or edit canonical Brainer skills. Default-installed. |
+| [brainer-audit](skills/brainer-audit/SKILL.md) | explicit Brainer/session audit | 67 | Report-only Brainer skill-use audit mode over normalized event fixtures. Detects missed skill triggers, unverified completion claims, output-filter opportunities, dropped requirements, write-gate bypasses, and task-retrospective boundary violations. Default-installed. |
 | [loop-engineering](skills/loop-engineering/SKILL.md) | before building a loop / fleet / verifier pipeline | 96 | Use BEFORE building any multi-step agentic loop, generator→verifier pipeline, fan-out/fleet, or iterate-until-correct/retry loop. Picks the loop shape (open/closed · inner/outer · single/fleet), pairs a generator with a SEPARATE verifier, and forces a concrete gate + stop + budget cap up front. Ships loop_lint.py to refuse no-gate / self-grading / unbounded specs. Override with ONE SHOT. **Default-installed** (v1.11). |
 | [eval-gate](skills/eval-gate/SKILL.md) | "is this good enough / score this" | 117 | Score AI output against a written rubric before it ships — an LLM-as-judge quality gate for content output (drafts, posts, answers) and product output (an agent's reply, an extraction, a generated payload). Use when asked "is this good enough", "score/grade this", "would this pass", to gate output on quality, to regression-check a prompt/model/pipeline change, or to turn a flagged bad output into a permanent test case. Returns 0-5 + reason; exit code gates. **Default-installed** (v1.11; N≥50 validation pending). |
 
-**Always-resident context tax (19 descriptions): ~1,070 tokens** (per `.claude-plugin/marketplace.json` `context_cost_estimate_tokens`). Roughly 0.5% of a 200K context window. Every skill's description is resident; hook scripts and `tools/` load only when fired, adding no resident tax.
+**Always-resident context tax (20 descriptions): ~1,750 tokens** (per `.claude-plugin/marketplace.json` `context_cost_estimate_tokens`). Roughly 0.9% of a 200K context window. Every skill's description is resident; hook scripts and `tools/` load only when fired, adding no resident tax.
 
-Full body cost (worst case, all loaded at once): ~17,200 tokens. In practice, only the triggered skill's body loads.
+Full body cost (worst case, all loaded at once): ~36,200 tokens. In practice, only the triggered skill's body loads.
 
 See [eval/results/static_cost.json](eval/results/static_cost.json) for the full measurement.
 
@@ -152,7 +153,7 @@ See [eval/results/static_cost.json](eval/results/static_cost.json) for the full 
 | Copilot / VS Code | per-project | use the root `AGENTS.md` shim from the Brainer checkout; there is no `install.sh --host copilot` flag |
 | any supported host (inside the brainer clone itself, e.g. contributing) | for that clone only | `./install.sh` (all supported hosts) or `./install.sh --host <claude-code|codex|cursor|gemini>` |
 
-The plugin (`brainer` v1.11.0) bundles all 19 skills. Its manifest declares the default-on `compliance-canary` hook plus optional `prompt-triage` and `context-keeper` hooks.
+The plugin (`brainer` v1.12.0) bundles all 20 skills. Its manifest declares the default-on `compliance-canary` hook plus optional `prompt-triage` and `context-keeper` hooks.
 
 ### Host install matrix
 
@@ -259,7 +260,7 @@ Built on prior work:
 
 ## Status
 
-- 19 skills written and lint-clean.
+- 20 skills written and lint-clean.
 - 4 hosts wired and verified (Claude Code, Codex, Cursor, Gemini CLI).
 - Static-cost measurements published.
 - Live A/B harness ready; needs a healthy Ollama / explicit `ANTHROPIC_API_KEY` / `HF_TOKEN` to run.

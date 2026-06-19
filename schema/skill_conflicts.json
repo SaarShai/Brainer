@@ -36,6 +36,12 @@
       "status": "accepted",
       "risk": "Model-routing hooks can save tokens while also changing hot-path cache behavior.",
       "resolution": "Keep prompt-triage routing explicit in hook config and run cache-lint before relying on prompt-cache measurements."
+    },
+    {
+      "skills": ["brainer-audit", "task-retrospective"],
+      "status": "accepted",
+      "risk": "Both use audit language; an agent could confuse Brainer skill-use audit with project task learning.",
+      "resolution": "Default 'activate audit mode' to brainer-audit unless the user uses task/project-learning language. task-retrospective writes only project learnings; brainer-audit is report-only by default and proposes Brainer improvements."
     }
   ]
 }

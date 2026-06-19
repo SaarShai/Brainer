@@ -29,6 +29,7 @@ equivalent:
 You don't need to dispatch these manually — but knowing they exist helps you
 notice when context matches one (e.g. `wiki-memory` for "have we done X").
 
+- `brainer-audit` — Use when the user explicitly activates Brainer audit mode, asks to audit this session, audit Brainer use, or track Brainer skill usage
 - `cache-lint` — Audit a Claude Code project for prompt-cache hygiene against Anthropic's six cache rules (ordering, dynamic-content injection, tool stability, model switching, breakpoint sizing, fork safety)
 - `caveman-ultra` — Terse output style
 - `compliance-canary` — Use when a long session drifts — the single always-on drift watcher: one UserPromptSubmit hook combining a periodic skill-rule re-anchor (every N turns), symptomatic per-skill drift probes (filler creep, word-count growth, unverified done-claims, self-closing without asking, looping tool errors, rule fade), and a request ledger that keeps every user request OPEN until completed or the user closes it (so nothing the user asked for is silently dropped)
