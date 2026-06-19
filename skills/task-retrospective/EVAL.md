@@ -5,14 +5,14 @@
 | field | tokens / size |
 |---|---|
 | description (always resident) | **105 tokens** (527 chars; budget ≤1536) |
-| body (loaded on trigger) | **2,624 tokens** (11,548 chars) — user-triggered project-learning mode incl. optional cross-check |
-| tools/ payload | **9.2 KB** (`audit_lessons.py` · `lesson_patterns.json` · `drift_probes.json`) |
+| body (loaded on trigger) | **2,866 tokens** (12,640 chars) — user-triggered project-learning mode incl. optional cross-check and evidence recorder docs |
+| tools/ payload | **30.3 KB** (`task_audit.py` · `test_task_audit.py` · `audit_lessons.py` · `lesson_patterns.json` · `drift_probes.json`) |
 | model pin | `any` (none) |
 | effort pin | `medium` |
 
 agentskills.io budget reference: description ≤ 1,536 chars (1% of a 200K context window). 527 chars — well under.
 
-This is a heavier body than the prose-only skills because it carries arm/observe/review/persist/close doctrine, write-target rules, report format, and the optional cross-check. It loads only on explicit task audit / task-retrospective / `/retro` triggers or after-the-fact reconstruction, so ordinary task ends and unarmed corrections pay only the resident description cost.
+This is a heavier body than the prose-only skills because it carries arm/observe/review/persist/close doctrine, write-target rules, report format, the evidence-recorder commands, and the optional cross-check. It loads only on explicit task audit / task-retrospective / `/retro` triggers or after-the-fact reconstruction, so ordinary task ends and unarmed corrections pay only the resident description cost.
 
 ## A/B savings
 
@@ -52,7 +52,7 @@ theater):
 - **Cross-repo:** copied into PROMPTER (a different vendored repo, no `wiki/log.md`), `audit_lessons.py`
   is path-portable (`REPO_ROOT = parents[3]`) → clean exit 2 on the absent log, exit 1 on a fixture;
   PROMPTER's own compliance-canary discovers the probe; PROMPTER left git-byte-identical.
-- `scripts/lint_skill_md.py skills/task-retrospective/SKILL.md` passes; `tests/test_task_retrospective_doctrine.py` guards the user-triggered boundary.
+- `scripts/lint_skill_md.py skills/task-retrospective/SKILL.md` passes; `tests/test_task_retrospective_doctrine.py` guards the user-triggered boundary; `tools/test_task_audit.py` covers recorder start/note/status/finish, redaction, no-write behavior, malformed state, and after-the-fact reports.
 - **Part D cross-vendor verifier (channels smoke-tested — mixed):** `codex`, `claude`, `gemini` CLIs are
   all on PATH. One-shot smoke test (`<cli> "Reply with exactly: READY"`): **`codex exec` → READY (exit 0)**,
   **`gemini -p --approval-mode plan` → READY (exit 0)**, **`claude -p` → 401 Invalid authentication** in

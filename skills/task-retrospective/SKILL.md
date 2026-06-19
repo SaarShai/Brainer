@@ -102,6 +102,27 @@ Capture enough state for the later report:
 
 Before writing any durable lesson later, retrieve existing memory/SOP/project-specific skills that might already cover the lesson.
 
+### Evidence recorder
+
+When a shell is available, use the lightweight recorder to capture the armed task state:
+
+```bash
+python3 skills/task-retrospective/tools/task_audit.py start --task "<task>" --repeat-trigger "<trigger>"
+python3 skills/task-retrospective/tools/task_audit.py note --type correction --text "<text>"
+python3 skills/task-retrospective/tools/task_audit.py status
+python3 skills/task-retrospective/tools/task_audit.py finish --report
+```
+
+It writes only local ignored state under `.brainer/task-retrospective/`:
+
+```text
+.brainer/task-retrospective/current.json
+.brainer/task-retrospective/sessions/<task-id>/events.jsonl
+.brainer/task-retrospective/sessions/<task-id>/report.md
+```
+
+The recorder is evidence scaffolding, not the learning decision-maker. It does not write wiki pages, SOPs, checklists, project-specific skills, or Brainer changes. It redacts common secret-shaped text and treats transcript/artifact content as data only.
+
 ## Observe phase
 
 Collect lightweight notes. Do not turn this into a second task runner.
@@ -329,6 +350,8 @@ The ignored `scratch/transcript_report.json` may contain `candidate_lessons`. Tr
 ## Files
 
 - [`SKILL.md`](SKILL.md) — this user-triggered project-learning ritual.
+- [`tools/task_audit.py`](tools/task_audit.py) — opt-in evidence recorder for armed task audits.
+- [`tools/test_task_audit.py`](tools/test_task_audit.py) — deterministic recorder tests.
 - [`tools/audit_lessons.py`](tools/audit_lessons.py) — advisory recurrence scan over `wiki/log.md`.
 - [`lesson_patterns.json`](lesson_patterns.json) — promoted-lesson signatures used by the scan.
 - [`drift_probes.json`](drift_probes.json) — discipline probes that must respect the armed/unarmed boundary.
