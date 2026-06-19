@@ -2,11 +2,21 @@
   "hooks": {
     "PreCompact": [
       {
-        "matcher": "*",
         "hooks": [
           {
-            "type": "command",
-            "command": "bash ./.claude/skills/context-keeper/tools/hook.sh"
+            "command": "bash ./.claude/skills/context-keeper/tools/hook.sh",
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "command": "bash ./.claude/skills/context-keeper/tools/codex_archive.sh",
+            "type": "command"
           }
         ]
       }
@@ -15,8 +25,8 @@
       {
         "hooks": [
           {
-            "type": "command",
-            "command": "bash ./.claude/skills/prompt-triage/tools/hook.sh"
+            "command": "bash ./.claude/skills/prompt-triage/tools/hook.sh",
+            "type": "command"
           }
         ]
       }
