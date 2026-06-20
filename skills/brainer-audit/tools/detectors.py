@@ -233,14 +233,25 @@ def event_line_count(event: Dict[str, Any]) -> int:
     return str(event.get("content_summary") or "").count("\n") + 1
 
 
+# Below this output size (and <20 lines) a "noisy" marker is not worth filtering.
+NOISY_MIN_BYTES = 2000
+
+
 def detect_missed_output_filter(events: Sequence[Dict[str, Any]]) -> List[Finding]:
     findings: List[Finding] = []
     for event in events:
         if event.get("event") != "tool_result":
             continue
         blob = text_of(event)
-        large = event_output_size(event) >= 12000 or event_line_count(event) >= 200
-        noisy = bool(event.get("noisy")) or bool(re.search(r"\x1b\[|progress|spinner|\r", blob, re.I))
+        size = event_output_size(event)
+        lines = event_line_count(event)
+        large = size >= 12000 or lines >= 200
+        noisy_markers = bool(event.get("noisy")) or bool(re.search(r"\x1b\[|progress|spinner|\r", blob, re.I))
+        # PRECISION FIX: require non-trivial volume before flagging "noisy". A
+        # 1-line / ~123-byte result with a stray \r or the word "progress" is not
+        # worth the output-filter machinery (real-session false positive
+        # 2026-06-20: output_bytes=123 line_count=1 fired this warn).
+        noisy = noisy_markers and (size >= NOISY_MIN_BYTES or lines >= 20)
         archived = bool(event.get("output_filter_archive")) or bool(OUTPUT_FILTER_RE.search(blob))
         if (large or noisy) and not archived:
             findings.append(Finding(
@@ -375,7 +386,14 @@ def detect_repeated_tool_error(events: Sequence[Dict[str, Any]]) -> List[Finding
 def detect_skill_trigger_opportunity(events: Sequence[Dict[str, Any]]) -> List[Finding]:
     findings: List[Finding] = []
     for idx, event in enumerate(events):
-        if event.get("event") not in {"user_prompt", "assistant_message", "tool_result"}:
+        et = event.get("event")
+        if et not in {"user_prompt", "assistant_message", "tool_result"}:
+            continue
+        # PRECISION FIX (2026-06-20 dogfood): a file-edit payload (Write/Edit args)
+        # is not an instruction surface. Skill names appearing inside written file
+        # content — e.g. the agent maintaining its own requirements ledger, which
+        # lists skills and DONE statuses — are NOT missed triggers.
+        if event.get("file_path") or event.get("new_string") or event.get("old_string"):
             continue
         blob = text_of(event)
         if not blob:
@@ -389,6 +407,14 @@ def detect_skill_trigger_opportunity(events: Sequence[Dict[str, Any]]) -> List[F
             continue
         recent_blob = "\n".join(text_of(e) for e in events[max(0, idx - 4):idx + 1])
         for skill, pattern in SKILL_TRIGGER_PATTERNS:
+            # PRECISION FIX (2026-06-20 dogfood): tool_result is I/O (file contents,
+            # command output), not an instruction/claim surface. Only output-filter's
+            # trigger legitimately lives in tool output (noisy results); every other
+            # skill's trigger must appear in a user_prompt or assistant_message.
+            # This kills the false positives where a tool_result echoing the ledger
+            # ("verify-before-completion", "DONE") was read as a missed verify trigger.
+            if et == "tool_result" and skill != "output-filter":
+                continue
             if not pattern.search(scan):
                 continue
             if re.search(rf"\b{re.escape(skill)}\b", recent_blob, re.I):

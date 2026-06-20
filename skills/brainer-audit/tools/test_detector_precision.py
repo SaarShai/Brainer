@@ -200,10 +200,11 @@ FIXTURES: Dict[str, List[Dict[str, Any]]] = {
             ],
         },
         {
-            "name": "noisy ansi/progress output, unfiltered",
+            "name": "noisy ansi/progress output, unfiltered (non-trivial volume)",
             "expect": True,
             "events": [
-                _ev("tool_result", command="npm run build",
+                _ev("tool_result", command="npm run build", output_bytes=8000,
+                    line_count=120,
                     content_summary="\x1b[32mprogress\x1b[0m building..."),
             ],
         },
@@ -214,6 +215,17 @@ FIXTURES: Dict[str, List[Dict[str, Any]]] = {
             "events": [
                 _ev("tool_result", command="ls", output_bytes=40,
                     line_count=3, content_summary="a\nb\nc"),
+            ],
+        },
+        {
+            # PRECISION (2026-06-20 dogfood FP): a tiny output with a stray \r /
+            # "progress" word is NOT worth filtering. The live "workflow" session
+            # fired this warn on output_bytes=123 line_count=1 — must NOT fire.
+            "name": "tiny noisy output below size floor",
+            "expect": False,
+            "events": [
+                _ev("tool_result", command="echo", output_bytes=123, line_count=1,
+                    content_summary="progress\rdone"),
             ],
         },
         {
@@ -546,6 +558,29 @@ FIXTURES: Dict[str, List[Dict[str, Any]]] = {
                     content_summary="I loaded task-retrospective for this."),
                 _ev("user_prompt",
                     content_summary="good, this task will repeat so keep learning"),
+            ],
+        },
+        {
+            # PRECISION (2026-06-20 dogfood FP): a tool_result that echoes the
+            # requirements ledger mentions "verify-before-completion" and "DONE",
+            # but a tool_result is I/O, not a missed verify trigger -> must NOT fire.
+            "name": "verify keywords only inside a tool_result (ledger echo)",
+            "expect": False,
+            "events": [
+                _ev("tool_result",
+                    content_summary="| R26 | t2 | verify-before-completion | DONE | tests passed |"),
+            ],
+        },
+        {
+            # PRECISION (2026-06-20 dogfood FP): a Write/Edit payload to the ledger
+            # carries skill names + DONE in new_string; a file edit is not an
+            # instruction surface -> must NOT fire.
+            "name": "verify keywords only inside a file-edit payload",
+            "expect": False,
+            "events": [
+                _ev("tool_result", file_path=".brainer/ledger/s.md",
+                    new_string="| R1 | verify-before-completion | DONE | done, verified |",
+                    content_summary="| R1 | verify-before-completion | DONE | done, verified |"),
             ],
         },
         {
