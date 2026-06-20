@@ -17,6 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from classify import (  # noqa: E402
     _resolve_ollama_model,
+    _validate_llm_result,
     classify,
     emit_context,
     is_bypass,
@@ -182,10 +183,12 @@ def test_research_outranks_summarize_on_mixed_prompts():
     # round-2 codex: summarize rule shadowed research under first-match-wins.
     r = classify("summarize and research the available literature on X", use_ollama_fallback=False)
     assert r["agent"] == "research-lite" and r["tier"] == "medium", r
-    # plain summarize routes to haiku in-platform (never local-ollama —
-    # 2026-06-12 policy: triage targets platform models only)
+    # plain summarize routes to glm-executor (2026-06-19 policy override: bounded
+    # self-contained content tasks go to GLM-5.2/z.ai; model="haiku" is the
+    # coordinator subagent, real work runs on GLM). research still outranks it
+    # under first-match-wins (asserted above).
     r2 = classify("summarize this paragraph for me", use_ollama_fallback=False)
-    assert r2["agent"] == "general-purpose" and r2["model"] == "haiku", r2
+    assert r2["agent"] == "glm-executor" and r2["model"] == "haiku" and r2["tier"] == "medium", r2
 
 
 def test_quoted_bait_does_not_trigger_cheap_rules():
@@ -268,7 +271,9 @@ def test_llm_simple_verdict_vetoed_on_complex_hints():
             "tier": "medium", "agent": "research-lite", "model": "sonnet",
             "confidence": 0.8, "reason": "bounded research"}
         r2 = classify(p, use_ollama_fallback=True)
-        assert r2["source"] == "ollama" and r2["tier"] == "medium", r2
+        # "research" in the prompt makes the regex corroborate the LLM verdict
+        # (same agent); the verdict passes through at the regex prior's conf.
+        assert r2["source"] == "ollama+regex-corroborated" and r2["tier"] == "medium", r2
     finally:
         mod.ollama_classify = orig
 
@@ -297,7 +302,7 @@ def test_llm_medium_haiku_verdict_vetoed_on_complex_hints():
             "tier": "medium", "agent": "research-lite", "model": "sonnet",
             "confidence": 0.8, "reason": "bounded research"}
         r2 = classify(p, use_ollama_fallback=True)
-        assert r2["source"] == "ollama" and r2["model"] == "sonnet", r2
+        assert r2["source"] == "ollama+regex-corroborated" and r2["model"] == "sonnet", r2
     finally:
         mod.ollama_classify = orig
 
@@ -445,6 +450,85 @@ def test_no_local_models_in_routing_surface():
     r = _validate_llm_result({"tier": "medium", "agent": "research-lite",
                               "model": "gpt-4o", "confidence": 0.9})
     assert r and r["model"] == "sonnet", r
+
+
+def test_classify_extract_routes_to_glm_executor():
+    # 2026-06-19: bounded structured-output tasks over supplied content go to GLM.
+    for p in ("classify these log lines as ERROR/WARN/INFO",
+              "extract the email addresses from this file",
+              "label each row by category"):
+        r = classify(p, use_ollama_fallback=False)
+        assert r["agent"] == "glm-executor" and r["model"] == "haiku", (p, r)
+
+
+def test_glm_executor_never_fires_on_session_context():
+    # The context-blind guard runs BEFORE regex, so a summarize/classify verb
+    # bound to chat history must NOT reach glm-executor (it can't see history).
+    for p in ("summarize what we did this session",
+              "classify the decisions we made in this conversation"):
+        r = classify(p, use_ollama_fallback=False)
+        assert r["agent"] == "none", (p, r)
+
+
+def test_verbalized_confidence_uncorroborated_is_suppressed():
+    # Research 2026-06-19: a local LLM's self-reported confidence is ~random as a
+    # routing signal. An LLM verdict with NO regex corroboration must not clear
+    # the 0.7 emit gate on its own confidence — it defers to the main model.
+    import classify as mod
+    orig = mod.ollama_classify
+    # High verbalized confidence, but the prompt matches NO regex rule.
+    mod.ollama_classify = lambda *a, **k: {
+        "tier": "simple", "agent": "general-purpose", "model": "haiku",
+        "confidence": 0.95, "reason": "llm feels sure"}
+    try:
+        # ≥80 chars (clears the short-unmatched gate) and matches NO regex rule
+        # and no complex hint, so the Ollama path runs and is the ONLY signal.
+        p = ("take a good look at the widget thing and let me know what you "
+             "generally make of it whenever you get a free moment")
+        r = classify(p, use_ollama_fallback=True)
+        assert r["source"] == "ollama-uncorroborated", r
+        assert r["confidence"] < 0.7, r          # pushed below emit gate
+        assert emit_context(p, use_ollama_fallback=True) == "", r  # no directive
+    finally:
+        mod.ollama_classify = orig
+
+
+def test_verbalized_confidence_corroborated_uses_regex_prior():
+    # When the regex layer independently agrees, the verdict passes through —
+    # but at the deterministic regex prior's confidence, not the verbalized one.
+    import classify as mod
+    orig = mod.ollama_classify
+    mod.ollama_classify = lambda *a, **k: {
+        "tier": "medium", "agent": "research-lite", "model": "sonnet",
+        "confidence": 0.99, "reason": "llm very sure"}
+    try:
+        # "investigate" matches the research rule (sonnet/0.8) → corroborated.
+        r = classify("investigate the options here", use_ollama_fallback=True)
+        assert r["source"] == "ollama+regex-corroborated", r
+        assert r["confidence"] <= 0.8, r  # clamped to regex prior, not 0.99
+    finally:
+        mod.ollama_classify = orig
+
+
+def test_glm_executor_in_valid_agents():
+    # LLM-fallback verdicts naming glm-executor must validate, not be dropped.
+    r = _validate_llm_result({"tier": "medium", "agent": "glm-executor",
+                              "model": "haiku", "confidence": 0.8})
+    assert r and r["agent"] == "glm-executor" and r["model"] == "haiku", r
+
+
+def test_router_eval_gate_no_misroute_down():
+    # The cost-quality harness (router_eval.py) is the verifier SEPARATE from the
+    # router. Asymmetric gate: never route a needs_frontier prompt to a cheap
+    # worker. This locks the gate into CI so a future rule change can't regress
+    # it silently (research 2026-06-19; see wiki/projects/delegate-router.md).
+    import os
+    from router_eval import evaluate, load_corpus
+    corpus = load_corpus(os.path.join(os.path.dirname(__file__), "router_eval_corpus.jsonl"))
+    report = evaluate(corpus)
+    assert report["misroute_down"]["count"] == 0, report["misroute_down"]["cases"]
+    # Sanity: the router must also beat the always-opus baseline on cost.
+    assert report["cost_proxy"]["vs_opus_pct"] < 100, report["cost_proxy"]
 
 
 def main():

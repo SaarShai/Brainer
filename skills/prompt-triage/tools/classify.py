@@ -7,11 +7,16 @@ Two-tier classifier:
 
 Output (stdout, JSON one-line):
   {"tier": "simple|medium|hard|unknown",
-   "agent": "wiki-note|quick-fix|research-lite|general-purpose|none",
+   "agent": "wiki-note|quick-fix|research-lite|general-purpose|glm-executor|none",
    "model": "haiku|sonnet|opus",
    "confidence": 0.0-1.0,
    "reason": "<short>",
    "lean_context": ["paths or globs to load"]}
+
+  Note: agent="glm-executor" routes to GLM-5.2 via z.ai (out-of-platform). Its
+  `model` is "haiku" — that is the thin COORDINATOR subagent; the real inference
+  runs on GLM through the agent's Bash call, billed to the user's z.ai account.
+  See the 2026-06-19 policy note at the summarize rule below.
 
 Called by UserPromptSubmit hook; stdout is injected into CC context.
 """
@@ -114,12 +119,25 @@ RULES = [
     # (codex review 2026-06-12 — the summarize rule was shadowing this one).
     (r"\b(?:research|survey|find repos?|investigate|literature)\b",
      "medium", "research-lite", "sonnet", 0.8, "research-lite task", []),
-    # Summarize this file / path / log / etc. Routes to haiku (2026-06-12
-    # policy: triage only routes to smaller IN-PLATFORM models — haiku/sonnet
-    # in Claude Code — never out-of-platform local models; those are for
-    # explicit manual dispatch only).
+    # Summarize / condense / rewrite THIS content. Routes to glm-executor.
+    # POLICY (2026-06-19, supersedes the 2026-06-12 in-platform-only rule):
+    # the original policy barred routing to out-of-platform models because a
+    # context-blind subagent + billing was deemed too risky for auto-dispatch.
+    # That is now OVERRIDDEN for the glm-executor agent specifically: it wraps
+    # the out-of-platform call in a bounded coordinator (one call, capped
+    # tokens, validated output, no fan-out), and these task shapes
+    # (summarize/condense/rewrite of supplied content) are self-contained — the
+    # subagent reads the file/content, it does not need chat history. GLM-5.2's
+    # 1M context also handles large inputs that haiku truncates. Other rules
+    # still route in-platform; only these bounded content tasks go to GLM.
     (r"\b(?:summari[sz]e|tldr|abstract|condense|rewrite)\b",
-     "simple", "general-purpose", "haiku", 0.8, "summarization -- haiku fine",
+     "medium", "glm-executor", "haiku", 0.8, "bounded summarize/rewrite -- GLM-5.2",
+     []),
+    # Classify / label / extract / tag structured output from supplied content.
+    # GLM-5.2 sweet spot (frontier-capable structured output, cheap, 1M ctx);
+    # previously these fell through to opus or none. Self-contained like above.
+    (r"\b(?:classif\w*|categor\w*|label\w*|tag\w*|extract\w*|normaliz\w*|parse\s+out)\b",
+     "medium", "glm-executor", "haiku", 0.7, "bounded classify/extract -- GLM-5.2",
      []),
     # Install / setup / configure. Conf 0.6 (was 0.75): "configure the auth
     # system" is routinely complex — transcript mining (2026-06-12) found
@@ -307,7 +325,7 @@ def _resolve_ollama_model(timeout: float = 1) -> str | None:
     return None
 
 LLM_PROMPT = """Classify this user task for an LLM agent. Output ONLY one-line JSON:
-{"tier":"simple|medium|hard","agent":"wiki-note|quick-fix|research-lite|general-purpose|none","model":"haiku|sonnet|opus","confidence":0-1,"reason":"<15 words"}
+{"tier":"simple|medium|hard","agent":"wiki-note|quick-fix|research-lite|general-purpose|glm-executor|none","model":"haiku|sonnet|opus","confidence":0-1,"reason":"<15 words"}
 
 Rules:
 - simple = single file edit, add note, one-line fix, factual question, summarize
@@ -315,9 +333,9 @@ Rules:
 - medium = multi-step but bounded (research a topic, refactor one file, write one script)
 - hard = multi-file, architecture, design, novel reasoning
 - A task bundling 3+ distinct objectives (e.g. review AND research AND implement AND test) is hard
-- agent definitions: quick-fix = small scoped FILE EDITS only (never running tasks, tests, or simulations); wiki-note = wiki/markdown notes; research-lite = bounded web lookups; general-purpose = everything else simple/medium
+- agent definitions: quick-fix = small scoped FILE EDITS only (never running tasks, tests, or simulations); wiki-note = wiki/markdown notes; research-lite = bounded web lookups; glm-executor = bounded summarize/rewrite/classify/extract over SUPPLIED content, routed to GLM-5.2/z.ai (use for self-contained content tasks, esp. large input — set model="haiku", the coordinator); general-purpose = everything else simple/medium
 - agent="none" means fall through to main model (opus)
-- Prefer lowest capable tier. Haiku ~$0.25/M-tok input; sonnet ~$3; opus ~$15.
+- Prefer lowest capable tier. Haiku ~$0.25/M-tok input; sonnet ~$3; opus ~$15. glm-executor is cheap + 1M ctx but out-of-platform — only for bounded self-contained content tasks, never anything needing chat history.
 - If task mentions "simple", "quick", "tiny" — bias simple.
 - If task starts with imperative verb (add/fix/summarize/commit) — usually simple.
 
@@ -364,7 +382,7 @@ def ollama_classify(prompt: str, model: str | None = None, timeout: float = 2) -
 
 
 _VALID_TIERS = {"simple", "medium", "hard"}
-_VALID_AGENTS = {"wiki-note", "quick-fix", "research-lite", "general-purpose", "none"}
+_VALID_AGENTS = {"wiki-note", "quick-fix", "research-lite", "general-purpose", "glm-executor", "none"}
 _VALID_MODELS = {"haiku", "sonnet", "opus"}
 
 
@@ -480,6 +498,30 @@ def classify(prompt: str, use_ollama_fallback: bool = True) -> dict:
                         "confidence": 0.0,
                         "reason": "LLM picked the cheapest model but complex-work hints present; defer to main model",
                         "lean_context": [], "source": "hint-veto"}
+            # Verbalized-confidence guard (research 2026-06-19): a local LLM's
+            # SELF-REPORTED confidence is an unreliable routing signal — "in the
+            # best case comparable to random routing" (arXiv:2502.00409, citing
+            # Xiong et al. ICLR 2024 arXiv:2306.13063; corroborated 2502.04428).
+            # So the 7B verdict's own confidence number must NOT, by itself,
+            # clear the 0.7 emit gate. Require corroboration from the
+            # deterministic regex layer (same agent, or same tier); when they
+            # agree, trust the regex PRIOR's confidence, not the verbalized one.
+            # Uncorroborated → push below the emit gate so the strongest (main)
+            # model decides — the IPR empty-feasible-set→strongest fallback
+            # pattern (arXiv:2509.06274). This is the safe asymmetric direction.
+            corroborated = bool(fast and (
+                fast.get("agent") == llm.get("agent")
+                or fast.get("tier") == llm.get("tier")))
+            if corroborated:
+                llm["confidence"] = min(float(fast.get("confidence", 0.7)),
+                                        float(llm.get("confidence", 0.7)))
+                llm["source"] = "ollama+regex-corroborated"
+            else:
+                llm["confidence"] = 0.5  # < emit gate: advisory only, defers
+                llm["source"] = "ollama-uncorroborated"
+                llm["reason"] = (f"{llm.get('reason', '')} (uncorroborated LLM "
+                                 "verdict; verbalized confidence not trusted — "
+                                 "deferring to main model)")
             return llm
     # Fail CLOSED on complex prompts: if the prompt carries complex-work hints
     # and no LLM was available to overrule the regex, never emit the (cheap)

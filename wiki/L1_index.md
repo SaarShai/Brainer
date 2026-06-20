@@ -17,7 +17,7 @@ Compact pointers. Fetch details on demand.
 - projects/context-keeper (project tags=compaction,context-management,memory,hooks) -> `projects/context-keeper.md`
 - projects/context-keeper-v2 (project tags=context-keeper,v2,L0-L4,spec) -> `projects/context-keeper-v2.md`
 - projects/context-refresh (project tags=context-refresh,checkpoint,compaction) -> `projects/context-refresh.md`
-- projects/delegate-router (project tags=delegation,routing,subagents,models) -> `projects/delegate-router.md`
+- projects/delegate-router (project tags=delegation,routing,subagents,models,glm,zai) -> `projects/delegate-router.md`
 - projects/okf-adoption (project tags=okf,interop,wiki,decision,sibling-sync) -> `projects/okf-adoption.md`
 - projects/semdiff (project tags=semantic-diff,ast,context-compression) -> `projects/semdiff.md`
 - projects/wiki-search (project tags=retrieval,progressive-disclosure,mcp,wiki) -> `projects/wiki-search.md`

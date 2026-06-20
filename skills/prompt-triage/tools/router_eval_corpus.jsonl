@@ -1,0 +1,28 @@
+{"prompt": "fix the typo in the import statement", "gold": "cheap_ok", "note": "one-liner"}
+{"prompt": "correct this syntax error on line 12", "gold": "cheap_ok", "note": "one-liner"}
+{"prompt": "summarize this changelog file", "gold": "cheap_ok", "note": "bounded summarize -> glm"}
+{"prompt": "condense the release notes into three bullets", "gold": "cheap_ok", "note": "bounded summarize"}
+{"prompt": "classify these log lines as ERROR/WARN/INFO", "gold": "cheap_ok", "note": "bounded classify -> glm"}
+{"prompt": "extract every email address from this file", "gold": "cheap_ok", "note": "bounded extract -> glm"}
+{"prompt": "what is the capital of France?", "gold": "cheap_ok", "note": "factual"}
+{"prompt": "who is the author of this library?", "gold": "cheap_ok", "note": "factual"}
+{"prompt": "commit and push", "gold": "cheap_ok", "note": "git mechanical"}
+{"prompt": "add a note to the wiki that the build is green", "gold": "cheap_ok", "note": "wiki note"}
+{"prompt": "rewrite this paragraph to be more concise", "gold": "cheap_ok", "note": "bounded rewrite"}
+{"prompt": "label each row in this csv by category", "gold": "cheap_ok", "note": "bounded classify"}
+{"prompt": "could you fix this small typo for me", "gold": "cheap_ok", "note": "paraphrase robustness"}
+{"prompt": "give me a tldr of this log", "gold": "cheap_ok", "note": "tldr -> glm"}
+{"prompt": "research and audit the production deployment pipeline", "gold": "needs_frontier", "note": "audit+production hint"}
+{"prompt": "refactor the authentication system across modules", "gold": "needs_frontier", "note": "refactor+across"}
+{"prompt": "architect a multi-file caching layer for the API", "gold": "needs_frontier", "note": "architecture"}
+{"prompt": "design the data model and migration strategy for billing", "gold": "needs_frontier", "note": "design"}
+{"prompt": "debug why the integration tests flake under load", "gold": "needs_frontier", "note": "debug+integration"}
+{"prompt": "do a comprehensive security review of this branch", "gold": "needs_frontier", "note": "comprehensive+review"}
+{"prompt": "implement a rate-limiting system with backoff", "gold": "needs_frontier", "note": "implement system"}
+{"prompt": "review and critique the proposed API redesign in depth", "gold": "needs_frontier", "note": "review+in-depth"}
+{"prompt": "investigate and root-cause the production outage", "gold": "needs_frontier", "note": "investigate+root-cause"}
+{"prompt": "summarize what we did in this session", "gold": "needs_frontier", "note": "session context — must defer"}
+{"prompt": "continue with the plan we discussed earlier", "gold": "needs_frontier", "note": "continuation — must defer"}
+{"prompt": "trace the memory leak and propose a fix across the renderer", "gold": "needs_frontier", "note": "trace+across"}
+{"prompt": "migrate the codebase from webpack to vite and verify the build", "gold": "needs_frontier", "note": "migrate"}
+{"prompt": "analyze the architecture and recommend a scaling strategy", "gold": "needs_frontier", "note": "analyze+architecture"}

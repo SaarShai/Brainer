@@ -25,7 +25,7 @@ SETTINGS="$REPO/.claude/settings.json"
 # skill-pulse). An absolute machine-local path breaks if the repo moves
 # or if .claude/settings.json is committed and shared across machines.
 HOOK_CMD="bash ./.claude/skills/prompt-triage/tools/hook.sh"
-AGENTS=(wiki-note quick-fix local-ollama research-lite kaggle-feeder)
+AGENTS=(wiki-note quick-fix local-ollama research-lite kaggle-feeder glm-executor)
 
 merge_settings() {
   python3 - "$SETTINGS" "$HOOK_CMD" <<'PY'
