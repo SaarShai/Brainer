@@ -6,14 +6,14 @@
 |---|---|
 | description (frontmatter) | **288 tokens** (1,224 chars; budget ≤ 1,536) |
 | resident catalog line (first sentence only) | **~32 tokens** — what `install.sh` injects into CLAUDE.md/AGENTS.md/GEMINI.md (unchanged by the pipeline clause, which lands later in the description) |
-| body (loaded on trigger) | **5,495 tokens** (23,128 chars) |
-| tools/ payload | **145.3 KB** (`loop_lint.py` · `loop_run_monitor.py` · tests · `schema.md`) |
+| body (loaded on trigger) | **4,825 tokens** (20,381 chars) |
+| tools/ payload | **145.1 KB** (`loop_lint.py` · `loop_run_monitor.py` · tests · `schema.md`) |
 | model pin | `any` (none) |
 | effort pin | `medium` |
 
 Resident cost when a project installs the suite is the ~32-token first-sentence
 catalog line (install.sh's `short_desc` truncates to the first sentence). The
-221-token full description, the 5,270-token body, and the tools load only on
+288-token full description, the 4,825-token body, and the tools load only on
 trigger.
 
 ## A/B savings
@@ -111,3 +111,12 @@ loop. Every enforcement *reflex* is delegated by link, not re-implemented.
   machine token FAILs, so "the reviewer agrees" is caught.)
 - **Redundancy drift** — a future edit restating the verify/plan/learn/restraint reflexes
   instead of linking them. Guarded by `suite-health`'s prose-vs-code reconcile.
+
+## Lineage
+
+(Relocated out of `SKILL.md` so it does not load every trigger — provenance, not runtime doctrine.)
+
+Doctrine descends from the generator-verifier "design the verifier, not the prompt" framing (ReAct: Yao et al.; Reflexion: Shinn et al.). The five-components-plus-memory, maker/checker, comprehension-debt, and cognitive-surrender framings follow **Addy Osmani**'s loop-engineering essay; the **4-condition economics test** + minimum-viable-loop ordering + cost-per-accepted-change metric follow AlphaSignal / **Lev Deviatkin**'s prompter→loop-designer roadmap; the **Ralph Wiggum loop** failure mode is **Geoffrey Huntley**'s; the durable-project-loop / state-file-as-spine continuity framing is from the repo-as-loop writeups (Jason Liu, steipete). Pattern sources (inspiration, **not** imports — frameworks stay pattern sources per `GOAL.md`):
+- **HarnessCode** ([yzddp/harnesscode](https://github.com/yzddp/harnesscode)) — verifier-as-gate with a typed report + failure-type routing; the **anti-false-completion guard** (exit only on independently-recomputed gate state, never a model done-claim); thin deterministic driver + liveness counters.
+- **autonomy-loop** ([inferencegod/autonomy-loop](https://github.com/inferencegod/autonomy-loop)) — independent re-verification by a separate actor (Builder/Reviewer in separate worktrees); the **coverage-ratchet** monotonic-floor gate; frozen-invariant + human escalation; cheap-panel + expensive-judge-on-dissent with a bounded-rounds deadlock cap.
+- **issue-triage-loop** ([warpdotdev-demos/issue-triage-loop](https://github.com/warpdotdev-demos/issue-triage-loop)) — a worked inner/outer self-improvement loop: inner skill fires on issue-open, outer skill reads recent runs and PRs a SKILL.md diff that **never self-merges** (R7). Source of the **grade-the-feedback-by-source-strength** rule (correction/relabel strong · reaction moderate · silence weak-positive → don't thrash) and the **in-place override delta** as the cheapest feedback channel.

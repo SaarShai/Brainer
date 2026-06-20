@@ -45,7 +45,7 @@ This is the net-new judgment no other skill makes. Pick each axis deliberately a
 |---|---|---|
 | **open vs closed** | **open/explore** — fans out to novel-but-slop, no gate, expensive, drifts. Source of novelty; a slop machine on loose criteria. The freer the loop, the more it depends on what checks it. | **closed/execute** — bounds and gates each step, ships on a normal budget because paths are bounded. Closed loops ship today because of the gate, not the autonomy. |
 | **inner vs outer** | **inner** (within one task) — edit → run the gate → confirm green THEN answer; fix and rerun on fail. Mature. | **outer** (across sessions) — preserve traces so the next session starts ahead. If the user armed project learning, hand the learn/measure/escalate mechanic to [`task-retrospective`](../task-retrospective/SKILL.md); don't re-implement it inside the loop. |
-| **single vs fleet** | **single** — one agent rewrites its own draft (draft → check → fix → repeat). | **fleet** — an orchestrator splits the goal, every level runs discover/plan/execute/verify, only verified results bubble up. Adds git-worktree isolation + a quorum/aggregation gate where parallel results merge. |
+| **single vs fleet** | **single** — one agent rewrites its own draft (draft → check → fix → repeat). | **fleet** — an orchestrator splits the goal, every level runs discover/plan/execute/verify, only verified results bubble up. |
 
 Both layers are verification. Native tooling: `/goal` encodes the stop condition across turns; dynamic workflows make the fleet native (capped 16 concurrent / 1000 agents). They cost far more tokens — reach for them only when the task genuinely does not fit one pass.
 
@@ -53,7 +53,7 @@ Both layers are verification. Native tooling: `/goal` encodes the stop condition
 
 Use the four-loop stack as a diagnosis before adding machinery:
 
-1. **Agent loop** — model ↔ tools until a result exists. This is the ordinary work loop; for a single bounded task, [`plan-first-execute`](../plan-first-execute/SKILL.md) plus [`verify-before-completion`](../verify-before-completion/SKILL.md) is usually enough.
+1. **Agent loop** — model ↔ tools until a result exists — the ordinary work loop; for a single bounded task, [`plan-first-execute`](../plan-first-execute/SKILL.md) plus [`verify-before-completion`](../verify-before-completion/SKILL.md) is usually enough.
 2. **Verification loop** — grader/rubric/test sends feedback back to the agent. This skill names the verifier and gate; [`eval-gate`](../eval-gate/SKILL.md) handles judgment rubrics when deterministic tests cannot express "good enough".
 3. **Event loop** — a trigger (cron, webhook, inbox/channel, file watcher) starts the verified agent loop repeatedly. This is deployment wiring, not new autonomy: the same loop spec still needs harness pre-flight, a gate, stop, budget, permissions audit, and human approval before irreversible actions.
 4. **Hill-climbing loop** — traces from repeated runs feed a separate analysis pass that proposes harness improvements. Never let this loop self-merge. It should produce a reviewed patch, or when project learning is armed, a lesson routed through [`task-retrospective`](../task-retrospective/SKILL.md), [`write-gate`](../write-gate/SKILL.md), and [`wiki-memory`](../wiki-memory/SKILL.md).
@@ -138,7 +138,7 @@ python3 skills/loop-engineering/tools/loop_lint.py <file>   # exit 2 = fatal gap
 
 Exit **2** = no gate (R1) / no stop+budget (R2) / self-grading (R3). Exit **1** = open-loop-without-ack (R4) / fleet-without-quorum (R5) / no-topology declared (R6) / irreversible-action-without-human-gate (R7) / missing memory contract on scheduled/fleet/outer loops (R8) / fleet state with no concurrency strategy (R9) / degenerate zero-cap budget (R2 warn). On a non-zero exit, **fix the flagged field and re-lint until exit 0** — the spec is itself a closed inner loop with `loop_lint.py` as its gate. This is the gate-over-prose payoff: the failure modes are refused statically, not re-argued. Field reference: [`tools/schema.md`](tools/schema.md).
 
-**See the loop.** `--diagram` renders the spec as a Mermaid generator→gate→verifier loop with the lint findings overlaid — a missing gate, a `generator == verifier` self-loop, or an unbounded budget shows up as a coloured node, not a line in a report. The diagram is derived from the parsed spec (never invented), and the exit code is still the lint verdict, so it composes in CI:
+**See the loop.** `--diagram` renders the spec as a Mermaid generator→gate→verifier loop with the lint findings overlaid as coloured nodes — derived from the parsed spec (never invented), exit code still the lint verdict so it composes in CI (full node-colour mapping in [`tools/schema.md`](tools/schema.md)):
 
 ```bash
 python3 skills/loop-engineering/tools/loop_lint.py --diagram <file>   # Mermaid to stdout; wrap in a ```mermaid fence to render
@@ -150,18 +150,6 @@ A reusable generator/verifier/budget recipe is just another durable project fact
 
 ## Files
 
-- [`SKILL.md`](SKILL.md) — this doctrine.
-- [`tools/loop_lint.py`](tools/loop_lint.py) — the mechanical gate: static loop-spec linter (R1–R7, exit code = verdict).
-- [`tools/loop_run_monitor.py`](tools/loop_run_monitor.py) — runtime trace gate: stuck detection + cost-per-accepted-change over iteration JSON.
-- [`tools/test_loop_lint.py`](tools/test_loop_lint.py) — static-spec tests; registered in `scripts/run_all_tests.sh`.
-- [`tools/test_loop_run_monitor.py`](tools/test_loop_run_monitor.py) — runtime-trace tests; registered in `scripts/run_all_tests.sh`.
+- [`tools/loop_lint.py`](tools/loop_lint.py) — static loop-spec linter; exit code = verdict.
+- [`tools/loop_run_monitor.py`](tools/loop_run_monitor.py) — runtime trace gate: stuck + cost-per-accepted-change.
 - [`tools/schema.md`](tools/schema.md) — loop-spec field reference.
-- [`drift_probes.json`](drift_probes.json) — prompt/progress probes (loop-done claim with no gate run; loop-build intent; fleet-orchestration intent; harness-audit intent; loop-memory intent); auto-discovered by compliance-canary.
-- [`EVAL.md`](EVAL.md) — static cost, deterministic checks, and measurement status.
-
-## Lineage
-
-Doctrine descends from the generator-verifier "design the verifier, not the prompt" framing (ReAct: Yao et al.; Reflexion: Shinn et al.). The five-components-plus-memory, maker/checker, comprehension-debt, and cognitive-surrender framings follow **Addy Osmani**'s loop-engineering essay; the **4-condition economics test** + minimum-viable-loop ordering + cost-per-accepted-change metric follow AlphaSignal / **Lev Deviatkin**'s prompter→loop-designer roadmap; the **Ralph Wiggum loop** failure mode is **Geoffrey Huntley**'s; the durable-project-loop / state-file-as-spine continuity framing is from the repo-as-loop writeups (Jason Liu, steipete). Pattern sources (inspiration, **not** imports — frameworks stay pattern sources per `GOAL.md`):
-- **HarnessCode** ([yzddp/harnesscode](https://github.com/yzddp/harnesscode)) — verifier-as-gate with a typed report + failure-type routing; the **anti-false-completion guard** (exit only on independently-recomputed gate state, never a model done-claim); thin deterministic driver + liveness counters.
-- **autonomy-loop** ([inferencegod/autonomy-loop](https://github.com/inferencegod/autonomy-loop)) — independent re-verification by a separate actor (Builder/Reviewer in separate worktrees); the **coverage-ratchet** monotonic-floor gate; frozen-invariant + human escalation; cheap-panel + expensive-judge-on-dissent with a bounded-rounds deadlock cap.
-- **issue-triage-loop** ([warpdotdev-demos/issue-triage-loop](https://github.com/warpdotdev-demos/issue-triage-loop)) — a worked inner/outer self-improvement loop: inner skill fires on issue-open, outer skill reads recent runs and PRs a SKILL.md diff that **never self-merges** (R7). Source of the **grade-the-feedback-by-source-strength** rule (correction/relabel strong · reaction moderate · silence weak-positive → don't thrash) and the **in-place override delta** as the cheapest feedback channel.

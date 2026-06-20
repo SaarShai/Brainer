@@ -1,11 +1,6 @@
 # Loop-spec schema (`loop_lint.py` input)
 
-A loop spec is a flat `key: value` block. Three accepted carriers:
-
-- a fenced ` ```loop … ``` ` block inside any `.md` (SKILL.md / PLAN.md);
-- a standalone `.yaml` / `.yml` file (one spec, or several split by `---`);
-- a `.json` file (one object, or a list of objects);
-- `-` to read a spec from stdin.
+A loop spec is a flat `key: value` block, read from a fenced ` ```loop ` block in any `.md` (e.g. SKILL.md / PLAN.md), a `.yaml`/`.yml` file (one spec, or several split by `---`), a `.json` file (one object or a list of objects), or `-` for stdin.
 
 No PyYAML dependency — values are read as plain strings after the first `:`.
 
@@ -28,7 +23,7 @@ No PyYAML dependency — values are read as plain strings after the first `:`.
 | `writeback` | scheduled/fleet/outer | exact post-pass persistence procedure: record attempts, verifier verdict, failures, next action, and changed facts. Missing on scheduled/fleet/outer loops → **R8 WARN** |
 | `state_concurrency` | fleet with state | one of `single_writer`, `optimistic_revision`, or `worktree_isolated`. Missing/invalid on fleet specs with `state_store` → **R9 WARN** |
 
-**R7 IRREVERSIBLE-NO-HUMAN (WARN):** if `stop` / `gate` / `generator` names an irreversible action (deploy / merge to main / migrate / `rm -rf` / force-push / charge / refund / rotate secret / npm publish) and there is **no human in the loop** (no approve/sign-off/escalate gate, no human-token verifier) → WARN. Silence it by giving a human approval gate or a human verifier — the security tax: an unattended loop is an unattended attack surface.
+**R7 IRREVERSIBLE-NO-HUMAN (WARN):** if `stop` / `gate` / `generator` names an irreversible action (deploy / merge to main / migrate / `rm -rf` / force-push / charge / refund / rotate secret / npm publish) and there is **no human in the loop** (no approve/sign-off/escalate gate, no human-token verifier) → WARN. Silence it by giving a human approval gate or a human verifier.
 
 **R8 NO-MEMORY-CONTRACT (WARN):** if a loop is scheduled/event-triggered, fleet-shaped, or outer-loop-shaped, it must say what survives the context window: `anchor_files`, `state_store`, `recall`, and `writeback`. This is advisory for v1 so small inner fix loops stay lightweight, but a long-running loop without these fields is expected to re-derive, repeat work, or drift.
 
