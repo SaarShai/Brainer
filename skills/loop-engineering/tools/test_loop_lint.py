@@ -530,6 +530,97 @@ def test_strict_memory_valid_contract_and_concurrency_pass():
     assert _exit_for(spec, args=["--strict-memory"]) == 0
 
 
+# --- R10 OUTPUT-SURFACE-UNBOUNDED ----------------------------------------
+
+# An unattended (outer) loop with its memory contract satisfied, so R10 is the
+# ONLY finding under test. The side-effecting world action lives in `stop`.
+UNATTENDED = (
+    "name: mod-bot\n"
+    "topology: closed · outer · single\n"
+    "generator: claude agent triages each new issue\n"
+    "verifier: sonnet reviewer (fresh context)\n"
+    "gate: regex: spam patterns match\n"
+    "stop: nightly cron completes; the bot closes the issue and posts a comment\n"
+    "budget: max_iterations=50\n"
+) + MEMORY_FIELDS
+
+
+def test_unattended_side_effecting_no_allowlist_warns_r10():
+    # the falsifiable core: an unattended loop that mutates the world with no
+    # declared output surface MUST warn, and it must be the sole finding (exit 1).
+    assert _has(UNATTENDED, 10, "WARN"), _rules(UNATTENDED)
+    assert _rules(UNATTENDED) == [(10, "WARN")], _rules(UNATTENDED)
+    assert _exit_for(UNATTENDED) == 1
+
+
+def test_unattended_bounded_allowlist_silences_r10():
+    spec = UNATTENDED + "output_actions: add-label[wontfix] max 5, close-issue max 5\n"
+    assert not any(r == 10 for r, _ in _rules(spec)), _rules(spec)
+    assert _exit_for(spec) == 0
+
+
+def test_unattended_unbounded_allowlist_warns_r10():
+    # an allowlist of '*' permits everything — not a control, still warns.
+    spec = UNATTENDED + "output_actions: *\n"
+    assert _has(spec, 10, "WARN"), _rules(spec)
+
+
+def test_inner_watched_loop_side_effecting_no_r10():
+    # a human watches an inner loop and IS its output gate — no allowlist required.
+    spec = CLEAN.replace("generator: opus coder agent",
+                         "generator: opus agent commits the fix and pushes to the branch")
+    assert not any(r == 10 for r, _ in _rules(spec)), _rules(spec)
+
+
+def test_scheduled_pure_compute_no_r10():
+    # a nightly loop that mutates nothing outside itself needs no output allowlist.
+    spec = UNATTENDED.replace(
+        "stop: nightly cron completes; the bot closes the issue and posts a comment",
+        "stop: nightly cron completes green")
+    assert not any(r == 10 for r, _ in _rules(spec)), _rules(spec)
+
+
+def test_r10_rule_filter_resolves():
+    # --rule 10 isolates R10; filtering to another rule drops it.
+    assert (10, "WARN") in _rules(UNATTENDED, rule=10), _rules(UNATTENDED, rule=10)
+    assert not any(r == 10 for r, _ in _rules(UNATTENDED, rule=1)), _rules(UNATTENDED, rule=1)
+
+
+# neutralise UNATTENDED's stop action so the swapped-in generator is the sole trigger.
+_NEUTRAL = UNATTENDED.replace(
+    "stop: nightly cron completes; the bot closes the issue and posts a comment",
+    "stop: nightly cron completes green")
+
+
+def _with_gen(gen):
+    return _NEUTRAL.replace("generator: claude agent triages each new issue", "generator: " + gen)
+
+
+def test_r10_no_false_positive_on_readonly_state():
+    # active-verb gating: read-only noun/adjective phrases ('commit hash', 'open
+    # issues', 'merged PRs', 'deleted files') describe STATE, not an action — an
+    # output-surface warning on a loop that only reads them would be a false nag.
+    for gen in ["agent reviews the latest commit hash and merged PRs",
+                "agent triages when 0 open issues remain",
+                "agent counts closed pull-requests and deleted files",
+                "agent summarizes the open issue backlog",
+                "agent inspects the deployment config"]:
+        spec = _with_gen(gen)
+        assert not any(r == 10 for r, _ in _rules(spec)), (gen, _rules(spec))
+
+
+def test_r10_fires_through_adjectives():
+    # an adjective between the active verb and its object ('closes the duplicate
+    # issue', 'adds a wontfix label') must still register as a side effect.
+    for gen in ["bot closes the duplicate issue",
+                "bot adds a wontfix label",
+                "bot merges the approved PR",
+                "bot posts a templated comment",
+                "bot deletes the stale branch"]:
+        spec = _with_gen(gen)
+        assert _has(spec, 10, "WARN"), (gen, _rules(spec))
+
+
 # --- input forms ----------------------------------------------------------
 
 def test_fenced_loop_block_in_markdown():

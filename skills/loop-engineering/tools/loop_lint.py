@@ -15,7 +15,7 @@ generator != verifier} is not a loop — it is an open-ended spin. This linter
 refuses such specs BEFORE the loop runs, turning the doctrine into a mechanical
 gate (per Brainer's "no prose rule where a mechanical gate can stand").
 
-It validates a loop spec against three FAIL rules and six WARN rules:
+It validates a loop spec against three FAIL rules and seven WARN rules:
 
   R1 NO-GATE          (FAIL) — gate absent, or prose with no machine-checkable
                                pass/fail signal (allowlist: a command / test id /
@@ -35,6 +35,14 @@ It validates a loop spec against three FAIL rules and six WARN rules:
                                state fields, so it will re-derive after context rot.
   R9 FLEET-STATE-NO-CONCURRENCY (WARN) — fleet has shared state with no explicit
                                single-writer / optimistic-revision / worktree strategy.
+  R10 OUTPUT-SURFACE-UNBOUNDED (WARN) — an unattended (scheduled/event/outer/fleet/
+                               long-running) loop takes a side-effecting world action
+                               (post/comment/close/label/merge/email/commit/delete/…)
+                               but declares no bounded `output_actions` allowlist —
+                               default-deny + per-action caps, harness-enforced, not
+                               a "please don't" in the prompt (cf. GitHub Agentic
+                               Workflows `safe-outputs:`). An allowlist of `*`/`all`
+                               is not an allowlist and still warns.
 
 Use --strict-memory to promote R8/R9 findings to FAIL for loops where durable
 state matters: scheduled, fleet, outer, or long-running loops.
@@ -504,6 +512,59 @@ def _irreversible_action(text: str) -> "re.Match | None":
     return None
 
 
+# Optional determiner + up to two adjective words between an active verb and its
+# object noun, so "closes the duplicate issue" / "adds a wontfix label" match while
+# "closed issues" (no active verb) does not. Active-verb gating, not this gap, is
+# what kills the read-only false positives.
+_DET = r"(?:(?:the|a|an|this|that|its|their|your)\s+)?(?:\w+\s+){0,2}"
+
+# A SIDE-EFFECTING world action — something an UNATTENDED loop mutates outside
+# itself: a comment, an issue/PR state, a label, a merge/commit/push, an email/
+# message, a published/deployed/charged side effect. Broader than _IRREVERSIBLE
+# (which is only the catastrophic subset): R10 catches the mundane-but-unbounded
+# case (a moderation bot that closes/labels/comments with no cap). A tripwire,
+# not a proof — object-anchored so generic verbs (edit/update/write) inside a
+# generator description don't trip it; a novel surface will slip until adversarially
+# extended. cf. GitHub Agentic Workflows `safe-outputs:` (allowed actions + caps).
+# Active-verb forms only (3rd-person `-s` / gerund `-ing`). Bare and past-participle
+# forms are deliberately EXCLUDED because they collide with read-only noun/adjective
+# phrases that describe state rather than an action — "the commit hash", "0 open
+# issues", "count merged PRs", "deleted files" must NOT trip an output-surface warning.
+_SIDE_EFFECTING = re.compile(
+    r"\b("
+    r"posts?\s+" + _DET + r"comments?|posting\s+" + _DET + r"comments?|comments?\s+on\b|"
+    r"repl(?:ies|ying)\s+to\b|"
+    r"clos(?:es|ing)\s+" + _DET + r"(?:issue|pr|pull[\s-]?request|ticket)|"
+    r"reopen(?:s|ing)\b|"
+    r"add(?:s|ing)?\s+" + _DET + r"labels?|labell?(?:s|ing)\s+" + _DET + r"(?:issue|pr|pull[\s-]?request)|"
+    r"merg(?:es|ing)\s+" + _DET + r"(?:pr|pull[\s-]?request|branch)|"
+    r"commits\b|committing\b|"
+    r"push(?:es|ing)\s+(?:to\b|a\s|the\s)|"
+    r"open(?:s|ing)\s+" + _DET + r"(?:pr|pull[\s-]?request|issue)|"
+    r"creat(?:es|ing)\s+" + _DET + r"(?:issue|pr|pull[\s-]?request|ticket|branch|file|record)|"
+    r"delet(?:es|ing)\s+" + _DET + r"(?:issue|comment|file|branch|record|row)|"
+    r"sends?\s+(?:\w+\s+){0,3}(?:email|message|dm|slack|notification|reply)|"
+    r"sending\s+(?:\w+\s+){0,3}(?:email|message|dm|notification)|"
+    r"emails?\s+(?:the\s+)?(?:team|user|owner|list|subscribers?|customers?)|"
+    r"publish(?:es|ing)\b|deploys\b|deploying\b|deploy\s+to\b|"
+    r"charg(?:es|ing)\s+(?:the\s+)?(?:card|customer)|refund(?:s|ing)\b"
+    r")\b", re.I)
+# An `output_actions` value that permits everything is not an allowlist.
+_UNBOUNDED_ALLOWLIST = re.compile(r"(\*|\ball\b|\banything\b|\beverything\b|\bunrestricted\b|\bunbounded\b)", re.I)
+
+
+def _side_effecting_action(text: str) -> "re.Match | None":
+    """The first side-effecting world action in `text`, or None. Same path /
+    reversibility skips as _irreversible_action (a dry-run/preview is not an act)."""
+    for m in _SIDE_EFFECTING.finditer(text):
+        if m.start() > 0 and text[m.start() - 1] == "/":
+            continue
+        if _REVERSIBLE_CTX.search(text[max(0, m.start() - 16): m.end() + 16]):
+            continue
+        return m
+    return None
+
+
 # --- Checks ---------------------------------------------------------------
 
 def check_spec(report: Report, spec: Spec, rule_filter: int | None, *, strict_memory: bool = False) -> None:
@@ -642,6 +703,31 @@ def check_spec(report: Report, spec: Spec, rule_filter: int | None, *, strict_me
                                f"{detail}. Shared state needs a single writer, optimistic revision checks, "
                                "or worktree-isolated state before aggregation."))
 
+    # R10 OUTPUT-SURFACE-UNBOUNDED — an UNATTENDED loop (scheduled/event/outer/
+    # fleet/long-running) that mutates the outside world must declare a bounded
+    # output surface: an `output_actions` allowlist (what it MAY do) with per-action
+    # caps, enforced by the harness (default-deny), NOT asked for in the prompt.
+    # Inverts R7's catastrophic blocklist to catch the mundane-but-unbounded case
+    # (a bot that can close/label/comment at scale). Scoped to needs_memory_contract
+    # so a watched inner fix loop stays lightweight — the human IS its output gate.
+    # Ported from GitHub Agentic Workflows `safe-outputs:` (allowed actions + max).
+    if want(10) and needs_memory_contract:
+        m = next((mm for mm in (_side_effecting_action(f) for f in (generator, stop, gate)) if mm), None)
+        if m:
+            oa = spec.get("output_actions")
+            if not oa:
+                report.add(Finding(10, "WARN", f"spec '{label}' has an unbounded output surface",
+                                   src, spec.line_of("generator") or spec.start_line,
+                                   f"an unattended loop takes a side-effecting action ({m.group(0)!r}) but "
+                                   "declares no `output_actions` allowlist. Enumerate the actions it MAY take, "
+                                   "each with a per-action cap (default-deny, harness-enforced), so a drifted "
+                                   "run can't act at scale — a prompt-level 'don't' is not a control."))
+            elif _UNBOUNDED_ALLOWLIST.search(oa):
+                report.add(Finding(10, "WARN", f"spec '{label}' output_actions allowlist is unbounded",
+                                   src, spec.line_of("output_actions") or spec.start_line,
+                                   f"output_actions={oa!r}: an allowlist of '*'/'all' permits any action and is "
+                                   "not a control. Name the specific actions allowed, each with a cap."))
+
 
 def lint(text: str, source: str, rule_filter: int | None = None, *, strict_memory: bool = False) -> Report:
     report = Report(root=source)
@@ -768,7 +854,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--diagram", action="store_true",
                     help="emit a Mermaid diagram of each spec with lint findings overlaid "
                          "(grounded in the parsed spec; wrap in a ```mermaid fence to render)")
-    ap.add_argument("--rule", type=int, choices=[1, 2, 3, 4, 5, 6, 7, 8, 9],
+    ap.add_argument("--rule", type=int, choices=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
                     help="restrict to one rule")
     ap.add_argument("--strict-memory", action="store_true",
                     help="promote R8/R9 loop-memory findings to FAIL for scheduled/fleet/outer/long-running loops")
