@@ -228,6 +228,174 @@ def test_run_dispatch_glm_http_failure_is_dropped():
         mr._run_glm = orig
 
 
+# --- OpenRouter transport + Fusion advisor --------------------------------
+
+def _orb(lane, slug="x/y"):
+    return mr.Backend(vendor=f"{lane} via OpenRouter", lane=lane, kind="http",
+                      invocation=f"OpenRouter ({slug})", available=True, probe="key",
+                      transport="openrouter", slug=slug)
+
+
+def test_openrouter_slug_env_override():
+    import os as _os
+    key = "OPENROUTER_MODEL_GPT"
+    prev = _os.environ.get(key)
+    _os.environ[key] = "vendor/custom-model"
+    try:
+        return mr._openrouter_slug(mr.LANE_GPT) == "vendor/custom-model"
+    finally:
+        if prev is None:
+            _os.environ.pop(key, None)
+        else:
+            _os.environ[key] = prev
+
+
+def test_openrouter_default_slug_per_lane():
+    # every eligible lane has a real default slug; local is NOT eligible.
+    return (all(mr._openrouter_slug(l) for l in mr._OPENROUTER_LANES)
+            and mr.LANE_LOCAL not in mr._OPENROUTER_LANES)
+
+
+def test_openrouter_lanes_exclude_local_survivor():
+    # the on-box survivor backstop must never be routed THROUGH the proxy.
+    return mr.LANE_LOCAL not in mr._OPENROUTER_LANES
+
+
+def test_run_dispatch_routes_openrouter_http_to_run_openrouter():
+    orig = mr._run_openrouter
+    mr._run_openrouter = lambda prompt, **kw: (True, "idea\nFINDINGS: try a streaming parser", "")
+    try:
+        r = mr.run_dispatch(_orb(mr.LANE_GPT, "openai/gpt-5-mini"), "advisor", "t", "b", timeout=5)
+        return r["ok"] and r["findings"] == "try a streaming parser"
+    finally:
+        mr._run_openrouter = orig
+
+
+def test_run_dispatch_openrouter_passes_slug_as_model():
+    seen = {}
+    orig = mr._run_openrouter
+
+    def _stub(prompt, **kw):
+        seen["model"] = kw.get("model")
+        return (True, "FINDINGS: ok", "")
+    mr._run_openrouter = _stub
+    try:
+        mr.run_dispatch(_orb(mr.LANE_GEMINI, "google/gemini-3-flash-preview"), "advisor", "t", "b", timeout=5)
+        return seen["model"] == "google/gemini-3-flash-preview"
+    finally:
+        mr._run_openrouter = orig
+
+
+def test_run_dispatch_openrouter_failure_is_dropped():
+    orig = mr._run_openrouter
+    mr._run_openrouter = lambda prompt, **kw: (False, "", "OpenRouter: Insufficient credits")
+    try:
+        r = mr.run_dispatch(_orb(mr.LANE_GPT), "verifier", "t", "b", timeout=5)
+        return (not r["ok"]) and "credits" in r["error"]
+    finally:
+        mr._run_openrouter = orig
+
+
+def test_run_openrouter_no_key_errors():
+    orig = mr._openrouter_key
+    mr._openrouter_key = lambda: ""
+    try:
+        ok, _text, err = mr._run_openrouter("p", timeout=5, model="x/y")
+        return (not ok) and "no OpenRouter key" in err
+    finally:
+        mr._openrouter_key = orig
+
+
+def test_run_openrouter_no_slug_errors():
+    orig = mr._openrouter_key
+    mr._openrouter_key = lambda: "sk-test"
+    try:
+        ok, _text, err = mr._run_openrouter("p", timeout=5, model="")
+        return (not ok) and "slug" in err
+    finally:
+        mr._openrouter_key = orig
+
+
+def test_detect_roster_no_openrouter_without_key():
+    orig = mr._openrouter_key
+    mr._openrouter_key = lambda: ""
+    try:
+        roster = mr.detect_roster()
+        return not any(b.transport == "openrouter" for b in roster)
+    finally:
+        mr._openrouter_key = orig
+
+
+def test_detect_roster_prefer_replaces_eligible_lanes():
+    # with a key and prefer_transport, every eligible lane resolves to exactly one
+    # OpenRouter-backed backend (native replaced); local stays native.
+    orig = mr._openrouter_key
+    mr._openrouter_key = lambda: "sk-test"
+    try:
+        roster = mr.detect_roster(prefer_transport="openrouter")
+        for lane in mr._OPENROUTER_LANES:
+            same = [b for b in roster if b.lane == lane]
+            if not (len(same) == 1 and same[0].transport == "openrouter"):
+                return False
+        locals_ = [b for b in roster if b.lane == mr.LANE_LOCAL]
+        return all(b.transport == "" for b in locals_)
+    finally:
+        mr._openrouter_key = orig
+
+
+def test_detect_roster_backfill_never_doubles_a_lane():
+    # backfill (no prefer): an OpenRouter backend exists for a lane ONLY when no
+    # native backend in that lane is available — never both.
+    orig = mr._openrouter_key
+    mr._openrouter_key = lambda: "sk-test"
+    try:
+        roster = mr.detect_roster()
+        for b in roster:
+            if b.transport == "openrouter":
+                clash = [o for o in roster if o.lane == b.lane and o is not b and o.available]
+                if clash:
+                    return False
+        return True
+    finally:
+        mr._openrouter_key = orig
+
+
+def test_fusion_request_body_shape():
+    body = mr.fusion_request_body("the task", "the brief",
+                                  analysis_models=["a/1", "b/2"], judge_model="j/3",
+                                  preset="general-high")
+    if body["model"] != "openrouter/fusion":
+        return False
+    plugin = body["plugins"][0]
+    return (plugin["id"] == "fusion" and plugin["preset"] == "general-high"
+            and plugin["analysis_models"] == ["a/1", "b/2"] and plugin["model"] == "j/3"
+            and "the task" in body["messages"][0]["content"])
+
+
+def test_fusion_request_body_minimal_omits_optionals():
+    body = mr.fusion_request_body("t", "b")
+    plugin = body["plugins"][0]
+    return (plugin == {"id": "fusion"} and body["model"] == "openrouter/fusion")
+
+
+def test_fusion_uses_advisor_scaffold_not_verifier():
+    # Fusion is advisor-only; its prompt must carry the advisor framing, never the
+    # verifier's pass/fail framing (keeping the gate ours).
+    body = mr.fusion_request_body("t", "b")
+    content = body["messages"][0]["content"]
+    return ("ADVISOR" in content) and ("holds:" not in content)
+
+
+def test_run_fusion_no_key_errors():
+    orig = mr._openrouter_key
+    mr._openrouter_key = lambda: ""
+    try:
+        r = mr.run_fusion("t", "b")
+        return (not r["ok"]) and "no OpenRouter key" in r["error"]
+    finally:
+        mr._openrouter_key = orig
+
+
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
 
 
