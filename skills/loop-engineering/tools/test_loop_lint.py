@@ -840,6 +840,66 @@ def test_naive_pipeline_without_budget1_still_fails():
     assert _exit_for(spec) == 2
 
 
+# --- R11 STUCK-NO-ADVISOR -------------------------------------------------
+
+_R11_BASE = (
+    "name: fix-loop\n"
+    "topology: closed · inner · single\n"
+    "generator: opus coder agent\n"
+    "verifier: sonnet read-only reviewer\n"
+    "gate: pytest tests/ -q\n"
+    "stop: target tests green\n"
+    "budget: max_iterations=3\n"
+)
+
+
+def test_r11_stuck_policy_without_advisor_warns():
+    """A loop that declares a stuck policy but names no advisor leaves the stuck
+    agent re-deriving alone — the warning the whole multi-model design hangs on."""
+    spec = _R11_BASE + "stuck: same error 2x\n"
+    assert (11, "WARN") in _rules(spec), _rules(spec)
+
+
+def test_r11_stuck_with_advisor_is_clean():
+    spec = _R11_BASE + "stuck: same error 2x\nadvisor: cross-vendor panel (codex + gemini), read-only\n"
+    assert (11, "WARN") not in _rules(spec), _rules(spec)
+
+
+def test_r11_silent_when_no_stuck_declared():
+    """Opt-in: a plain inner fix loop with neither field gets no R11 — the rule
+    must not perturb the existing specs that declare no stuck policy."""
+    assert (11, "WARN") not in _rules(CLEAN), _rules(CLEAN)
+
+
+def test_r11_advisor_equals_verifier_warns():
+    """Advisor (divergent, proposes) collapsing into verifier (convergent, judges)
+    is self-grading by another door — propose-then-judge-your-own-proposal."""
+    spec = (
+        "name: collapsed-roles\n"
+        "topology: closed · inner · single\n"
+        "generator: opus coder\n"
+        "verifier: codex reviewer\n"
+        "advisor: codex reviewer\n"
+        "gate: pytest -q\n"
+        "stop: green\n"
+        "budget: max_iterations=3\n"
+        "stuck: same command 3x\n"
+    )
+    assert (11, "WARN") in _rules(spec), _rules(spec)
+
+
+def test_r11_is_warn_not_fail():
+    """R11 is advisory: a stuck-no-advisor spec that is otherwise complete exits 1,
+    never 2 — it must not block an otherwise-valid loop."""
+    spec = _R11_BASE + "stuck: 2 iters no movement\n"
+    assert _exit_for(spec) == 1, _exit_for(spec)
+
+
+def test_r11_rule_filter_isolates():
+    spec = _R11_BASE + "stuck: same error 2x\n"
+    assert _rules(spec, rule=11) == [(11, "WARN")], _rules(spec, rule=11)
+
+
 # --- runner ---------------------------------------------------------------
 
 def main() -> int:

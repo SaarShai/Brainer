@@ -63,6 +63,7 @@ run "py-syntax" python3 scripts/check_python_syntax.py
 
 # 5. Per-skill unit tests (plain-python, no pytest dep)
 UNIT_TESTS=(
+  skills/_shared/test_model_roster.py
   skills/cache-lint/tools/test_cache_lint.py
   skills/brainer-audit/tools/test_brainer_audit.py
   skills/brainer-audit/tools/test_antigravity_sidecar.py

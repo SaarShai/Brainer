@@ -43,6 +43,12 @@ It validates a loop spec against three FAIL rules and seven WARN rules:
                                a "please don't" in the prompt (cf. GitHub Agentic
                                Workflows `safe-outputs:`). An allowlist of `*`/`all`
                                is not an allowlist and still warns.
+  R11 STUCK-NO-ADVISOR (WARN) — a loop that declares a `stuck` policy names no
+                               `advisor` (the DIVERGENT, cross-vendor fresh-
+                               perspective panel that feeds the generator on a
+                               stall), or the advisor collapses into the verifier
+                               (propose-and-judge is self-grading). Sourced from
+                               skills/_shared/model_roster.py.
 
 Use --strict-memory to promote R8/R9 findings to FAIL for loops where durable
 state matters: scheduled, fleet, outer, or long-running loops.
@@ -118,7 +124,7 @@ class Report:
 KNOWN_KEYS = {
     "name", "topology", "generator", "verifier", "gate", "stop", "budget",
     "accepted_open_loop", "quorum", "aggregate", "anchor_files", "state_store",
-    "recall", "writeback", "state_concurrency",
+    "recall", "writeback", "state_concurrency", "stuck", "advisor",
 }
 
 _KV_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*(.*)$")
@@ -728,6 +734,33 @@ def check_spec(report: Report, spec: Spec, rule_filter: int | None, *, strict_me
                                    f"output_actions={oa!r}: an allowlist of '*'/'all' permits any action and is "
                                    "not a control. Name the specific actions allowed, each with a cap."))
 
+    # R11 STUCK-NO-ADVISOR — a loop that declares a `stuck` policy should source
+    # its next-hypothesis from an `advisor`: a DIVERGENT, preferably cross-vendor
+    # panel (skills/_shared/model_roster.py) that proposes structurally-different
+    # approaches, rather than the already-stuck agent retrying harder against its
+    # own blind spot. And the advisor must stay SEPARATE from the verifier — the
+    # advisor proposes (feeds the generator), the verifier judges (IS the gate);
+    # one actor doing both judges a fix it suggested, which is self-grading by
+    # another door. Opt-in (fires only once `stuck` is declared) so plain inner
+    # fix loops stay lightweight, exactly like R8/R9/R10.
+    if want(11):
+        stuck = spec.get("stuck")
+        advisor = spec.get("advisor")
+        if stuck and not advisor:
+            report.add(Finding(11, "WARN", f"spec '{label}' declares a stuck policy but names no `advisor`",
+                               src, spec.line_of("stuck") or spec.start_line,
+                               "on stuck, a fresh perspective beats retrying harder. Name an `advisor` panel "
+                               "(cross-vendor, read-only) from skills/_shared/model_roster.py to propose "
+                               "structurally-different approaches — the divergent counterpart to the verifier. "
+                               "Advisors propose new approaches/tools/methods; they never gate."))
+        if advisor and verifier and (_norm(advisor) == _norm(verifier) or _same_actor(advisor, verifier)):
+            report.add(Finding(11, "WARN", f"spec '{label}' advisor and verifier are the same actor",
+                               src, spec.line_of("advisor"),
+                               f"advisor={advisor!r}, verifier={verifier!r} resolve to the same actor. The advisor "
+                               "is DIVERGENT (proposes approaches, feeds the generator); the verifier is CONVERGENT "
+                               "(judges pass/fail, IS the gate). One actor doing both judges a fix it proposed — "
+                               "keep them separate vendors/agents (model_roster excludes the orchestrator's lane)."))
+
 
 def lint(text: str, source: str, rule_filter: int | None = None, *, strict_memory: bool = False) -> Report:
     report = Report(root=source)
@@ -779,6 +812,7 @@ def to_mermaid(spec: Spec, findings: list[Finding]) -> str:
     budget = _mm_label(spec.get("budget"))
     topo = _mm_label(spec.get("topology"), 40)
     name = _mm_label(spec.name or spec.source or "loop", 60)
+    advisor = spec.get("advisor")
 
     out: list[str] = []
     out.append(f"%% loop-lint diagram — {name}")
@@ -796,6 +830,12 @@ def to_mermaid(spec: Spec, findings: list[Finding]) -> str:
     out.append("  V -->|accept| S")
     out.append("  V -->|reject| G")
     out.append("  B -.caps.-> G")
+    # The advisor is a DIVERGENT side-input: on stuck it feeds fresh approaches
+    # back into the generator — it is never on the gate/verify path.
+    if advisor:
+        out.append(f'  ADV[["advisor: {_mm_label(advisor)}"]]')
+        out.append("  G -.stuck.-> ADV")
+        out.append("  ADV -.fresh approach.-> G")
 
     if findings:
         out.append("  subgraph lint[lint findings]")
@@ -811,8 +851,10 @@ def to_mermaid(spec: Spec, findings: list[Finding]) -> str:
     # R2 cap==0 WARN must paint amber, not FAIL-red). Per-NODE, not per-rule, so
     # a node hit by two rules of different severity can't get two conflicting
     # `class` lines (FAIL dominates WARN).
+    # R11 paints the generator: a stuck loop with no advisor leaves the generator
+    # re-deriving alone (G always exists; the ADV node may not, so don't key on it).
     rule_nodes = {1: ("K",), 2: ("S", "B"), 3: ("G", "V"), 5: ("V",),
-                  6: ("TOPO",), 8: ("TOPO",), 9: ("V",)}
+                  6: ("TOPO",), 8: ("TOPO",), 9: ("V",), 11: ("G",)}
     node_sev: dict[str, str] = {}
     for f in findings:
         for n in rule_nodes.get(f.rule, ()):
@@ -854,7 +896,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--diagram", action="store_true",
                     help="emit a Mermaid diagram of each spec with lint findings overlaid "
                          "(grounded in the parsed spec; wrap in a ```mermaid fence to render)")
-    ap.add_argument("--rule", type=int, choices=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    ap.add_argument("--rule", type=int, choices=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
                     help="restrict to one rule")
     ap.add_argument("--strict-memory", action="store_true",
                     help="promote R8/R9 loop-memory findings to FAIL for scheduled/fleet/outer/long-running loops")

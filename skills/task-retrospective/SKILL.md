@@ -309,6 +309,8 @@ Use the strongest available separation:
 | GPT / Codex | Claude / Opus, or Gemini |
 | Gemini / Antigravity | Claude or GPT |
 
+`python3 skills/_shared/model_roster.py --panel 3 --role verifier --exclude-lane <self>` resolves this table against what is actually installed on the host (codex · gemini · claude · ollama · glm) and renders the read-only dispatch, instead of assuming a fixed pair.
+
 Ask the verifier to judge, not edit:
 
 1. Does the result hold? Cite command/output or artifact evidence.

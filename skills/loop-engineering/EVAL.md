@@ -16,6 +16,15 @@ catalog line (install.sh's `short_desc` truncates to the first sentence). The
 288-token full description, the 4,825-token body, and the tools load only on
 trigger.
 
+> **2026-06-23 — figures predate the multi-model panel work.** Added the advisor
+> (diverge) / verifier (converge) panel section + the `stuck`/`advisor` spec
+> fields to the body, and `loop_lint` R11 (STUCK-NO-ADVISOR) with 6 tests. The
+> cross-vendor dispatch primitive lives in the shared
+> [`skills/_shared/model_roster.py`](../_shared/model_roster.py) (13 tests), not
+> in this skill's `tools/`, so the per-skill payload grew only by the R11 code +
+> schema prose. The description frontmatter is unchanged, so the resident catalog
+> line is unaffected. Body/tools token figures above need re-measurement.
+
 ## A/B savings
 
 **Not yet measured as a savings claim.** This skill optimizes *loop topology and
