@@ -17,9 +17,22 @@ REPO = Path(__file__).resolve().parent.parent
 SKILLS = REPO / "skills"
 OUT = SKILLS / "HOOKS_MAP.md"
 
-HOOK_EVENT_RE = re.compile(
-    r"(UserPromptSubmit|PreCompact|PostCompact|PreToolUse|PostToolUse|SessionStart|SessionEnd|PermissionRequest|Stop|SubagentStart|SubagentStop)"
+HOOK_EVENTS = (
+    "UserPromptSubmit", "PreCompact", "PostCompact", "PreToolUse", "PostToolUse",
+    "SessionStart", "SessionEnd", "PermissionRequest", "Stop", "SubagentStart", "SubagentStop",
 )
+HOOK_EVENT_RE = re.compile("(" + "|".join(HOOK_EVENTS) + ")")
+
+
+def installer_events(installer_text: str) -> list[str]:
+    """Events an installer actually wires, across both idioms used in this repo:
+    `hooks.setdefault("X", ...)` and the `ensure("X", cmd)` helper (which calls
+    setdefault internally). Intersected with the known event set so a stray
+    string arg can't pollute the result. Matching only setdefault — the prior
+    behavior — silently dropped ensure()-wired events (e.g. context-keeper's
+    PreCompact/SessionEnd), under-reporting the skill to a single event."""
+    found = set(re.findall(r'(?:hooks\.setdefault|ensure)\(\s*"([^"]+)"', installer_text))
+    return sorted(found & set(HOOK_EVENTS))
 
 
 def settings_hooks() -> list[tuple[str, str]]:
@@ -65,10 +78,10 @@ def skill_hook_inventory() -> list[dict]:
             text += (REPO / hf).read_text(errors="ignore")
         installer = tools / "install.sh"
         installer_text = installer.read_text(errors="ignore") if installer.exists() else ""
-        installer_events = sorted(set(re.findall(r'hooks\.setdefault\("([^"]+)"', installer_text)))
+        declared = installer_events(installer_text)
         events = sorted(set(HOOK_EVENT_RE.findall(text))) or ["?"]
-        if installer_events:
-            events = installer_events
+        if declared:
+            events = declared
         rows.append({
             "skill": skill_dir.name,
             "events": events,

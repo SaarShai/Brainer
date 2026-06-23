@@ -7,7 +7,7 @@ Read THIS instead of walking skills/*/tools/ file by file.
 |---|---|---|---|
 | brainer-audit | PostCompact, PostToolUse, PreCompact, PreToolUse, Stop, UserPromptSubmit | `skills/brainer-audit/tools/hook.py` | `skills/brainer-audit/tools/install.sh` |
 | compliance-canary | UserPromptSubmit | `skills/compliance-canary/tools/hook.py`<br>`skills/compliance-canary/tools/hook.sh` | `skills/compliance-canary/tools/install.sh` |
-| context-keeper | PreCompact | `skills/context-keeper/tools/hook.py`<br>`skills/context-keeper/tools/hook.sh` | `skills/context-keeper/tools/install.sh` |
+| context-keeper | PreCompact, SessionEnd, Stop | `skills/context-keeper/tools/hook.py`<br>`skills/context-keeper/tools/hook.sh` | `skills/context-keeper/tools/install.sh` |
 | prompt-triage | UserPromptSubmit | `skills/prompt-triage/tools/hook.sh` | `skills/prompt-triage/tools/install.sh` |
 
 LIVE wiring state is machine-local: check `.claude/settings.json`.
