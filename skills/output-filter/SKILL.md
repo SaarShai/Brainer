@@ -37,10 +37,10 @@ Content-aware mode is deterministic and fail-safe:
 
 - `--content-type auto` (default) detects large search/log/diff output and summarizes only above conservative size thresholds.
 - `search` keeps first/last hits, one hit per file, and all failure lines.
-- `log` keeps test/build summaries, warnings, errors, tracebacks, and the tail.
+- `log` keeps test/build summaries, warnings, errors, tracebacks, and the head+tail; also detects `git log` (runs of `commit <hash>` lines) so long histories compress instead of passing through as plain text.
 - `diff` keeps diff headers, hunk headers, and changed lines.
 
-Use `--show-marker` when you want the filtered output itself to include the archive id and recovery command. The marker is opt-in so normal command output stays quiet.
+Use `--show-marker` when you want the filtered output itself to include the archive id and recovery command. The recovery command advertises `--grep '<regex>'` so a consumer pulls only the matching raw lines instead of over-pulling the whole archived output. The marker is opt-in so normal command output stays quiet.
 
 ## Hook wiring (Claude Code)
 

@@ -181,6 +181,81 @@ def test_cost_per_accept_threshold_warns():
     assert _exit_for(trace, ["--max-cost-per-accept", "500"]) == 1
 
 
+# --- S4 RE-FETCH-LOOP (WARN, pagination-variant) --------------------------
+
+# Same logical command, only the limit grows — distinct raw strings so S1's
+# exact-match misses it; each call succeeds so S2/S3 miss it too.
+REFETCH = [
+    {"command": "grep foo src | head -50"},
+    {"command": "grep foo src | head -100"},
+    {"command": "grep foo src | head -200"},
+]
+
+
+def test_refetch_variant_loop_warns_s4():
+    assert _has(REFETCH, "S4", "WARN"), _codes(REFETCH)
+    assert _exit_for(REFETCH) == 1            # WARN, not STUCK
+    assert not _has(REFETCH, "S1", "STUCK"), _codes(REFETCH)  # S1 blind (raw differ)
+
+
+def test_identical_command_is_s1_not_s4():
+    # All-identical commands are S1's job; S4 must not double-report.
+    trace = [{"command": "pytest -q", "metric": i} for i in range(3)]
+    assert _has(trace, "S1", "STUCK"), _codes(trace)
+    assert not _has(trace, "S4", "WARN"), _codes(trace)
+
+
+def test_refetch_progress_guard_accepted():
+    trace = [dict(REFETCH[0]), dict(REFETCH[1]), {**REFETCH[2], "accepted": True}]
+    assert not _has(trace, "S4", "WARN"), _codes(trace)
+
+
+def test_refetch_progress_guard_metric_rising():
+    trace = [{**REFETCH[0], "metric": 1}, {**REFETCH[1], "metric": 2}, {**REFETCH[2], "metric": 5}]
+    assert not _has(trace, "S4", "WARN"), _codes(trace)
+
+
+def test_distinct_commands_no_s4():
+    assert not _has(HEALTHY, "S4", "WARN"), _codes(HEALTHY)
+
+
+def test_refetch_under_window_no_s4():
+    trace = [{"command": "grep foo | head -50"}, {"command": "grep foo | head -100"}]
+    assert not _has(trace, "S4", "WARN"), _codes(trace)
+
+
+def test_refetch_window_disabled():
+    assert not _has(REFETCH, "S4", "WARN", refetch_window=0), _codes(REFETCH, refetch_window=0)
+
+
+def test_canonical_command_collapses_pagination_only():
+    assert m._canonical_command("grep foo | head -50") == m._canonical_command("grep foo | head -100")
+    assert m._canonical_command("git log -n 20") == m._canonical_command("git log -n 100")
+    # differing in more than pagination must stay distinct (no false collapse)
+    assert m._canonical_command("tail -n 50 a.log") != m._canonical_command("tail -n 50 b.log")
+
+
+def test_canonical_does_not_collapse_distinct_numeric_args():
+    # Regression guard: we deliberately did NOT port Headroom's bare-integer
+    # collapse, which manufactured phantom loops from distinct commands. These
+    # pairs differ in a meaningful number (not pagination) and MUST stay distinct.
+    for a, b in [
+        ("kill 1234", "kill 5678"),
+        ("sleep 1", "sleep 60"),
+        ("git checkout HEAD~1", "git checkout HEAD~2"),
+        ("docker run -p 8080:80 img", "docker run -p 9090:90 img"),
+    ]:
+        assert m._canonical_command(a) != m._canonical_command(b), (a, b)
+
+
+def test_canonical_n_flag_does_not_bite_substring():
+    # `-n N` stripping must be boundary-anchored: it must NOT eat the tail of a
+    # longer flag like `--foo-n 5` (regression guard for the substring bite).
+    assert m._canonical_command("cmd --foo-n 5 x") == "cmd --foo-n 5 x"
+    # but a real standalone `-n N` IS pagination and collapses
+    assert m._canonical_command("git log -n 5") == m._canonical_command("git log -n 9")
+
+
 # --- input forms / robustness ---------------------------------------------
 
 def test_object_with_iterations_key():

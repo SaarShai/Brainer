@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from output_filter import ANSI, archive_event, filter_text, load_rules, rewind  # noqa: E402
+from output_filter import ANSI, archive_event, detect_content_type, filter_text, load_rules, rewind  # noqa: E402
 
 ESC = "\x1b"
 _OUTPUT_FILTER = Path(__file__).parent / "output_filter.py"
@@ -170,6 +170,50 @@ def test_cli_noisy_content_types_preserve_signal_and_rewind_roundtrip() -> None:
             assert recovered.stdout == raw, content_type
 
 
+def _git_log_raw(n: int = 60) -> str:
+    """A realistic `git log` default-format blob: `commit <40hex>` blocks with no
+    error/fail signal words (the case that used to mis-detect as 'plain')."""
+    blocks = []
+    for i in range(n):
+        blocks += [
+            f"commit {i:040x}",
+            "Author: Dev <dev@example.com>",
+            "Date:   Mon Jun 22 10:00:00 2026 +0000",
+            "",
+            f"    commit subject number {i}",
+            "",
+        ]
+    return "\n".join(blocks)
+
+
+def test_git_log_detected_as_log_and_compresses() -> None:
+    raw = _git_log_raw(60)  # 360 lines, 60 commit-hash lines, 0 LOG_KEEP signal words
+    assert detect_content_type(raw) == "log", "git log must route to the log compressor"
+    out, stats = filter_text(raw, rules=load_rules(None))  # content_type='auto'
+    assert stats["content_type"] == "log", stats
+    assert "log-summary" in stats["transforms"], stats
+    assert len(out.splitlines()) < len(raw.splitlines()), "git log should shrink"
+    assert f"commit {0:040x}" in out, "newest commit (head) must be preserved"
+    assert f"commit {59:040x}" in out, "oldest commit (tail) must be preserved"
+
+
+def test_plain_text_without_commits_stays_plain() -> None:
+    # Guard against false-positive routing: long plain text with no commit lines.
+    raw = "\n".join(f"just a normal line {i}" for i in range(300))
+    assert detect_content_type(raw) == "plain", "plain text must not route to log"
+
+
+def test_cli_marker_advertises_grep() -> None:
+    raw = _git_log_raw(60)
+    with tempfile.TemporaryDirectory() as td:
+        marked = subprocess.run(
+            [sys.executable, str(_OUTPUT_FILTER), "--repo", td, "filter", "--show-marker"],
+            input=raw, text=True, capture_output=True, check=True,
+        )
+    assert "raw archived id=" in marked.stdout, marked.stdout
+    assert "--grep" in marked.stdout, f"marker should advertise --grep affordance: {marked.stdout!r}"
+
+
 def test_cli_show_marker_is_opt_in() -> None:
     raw = "\n".join(f"src/file{i % 3}.py:{i}: match {i}" for i in range(120)) + "\n"
     with tempfile.TemporaryDirectory() as td:
@@ -192,6 +236,9 @@ def main() -> int:
         test_diff_content_filter_preserves_headers_and_changes,
         test_archive_rewind_roundtrip_and_grep,
         test_rewind_rejects_tampered_raw_path_escape,
+        test_git_log_detected_as_log_and_compresses,
+        test_plain_text_without_commits_stays_plain,
+        test_cli_marker_advertises_grep,
         test_cli_noisy_content_types_preserve_signal_and_rewind_roundtrip,
         test_cli_show_marker_is_opt_in,
     ]

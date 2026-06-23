@@ -25,6 +25,13 @@ LOG_KEEP_RE = re.compile(
     r"^=+|^-{3,}|^\s*File \".+\", line \d+)",
     re.I,
 )
+# `git log` default format emits `commit <7-40 hex>` per commit but carries NO
+# LOG_KEEP_RE signal words, so a long log was mis-detected as `plain` and never
+# compressed (a measured 3137->475 token blind spot). A run of commit-hash lines
+# is a strong, near-zero-false-positive signal that this is a git log -> route it
+# to the log compressor (which keeps head+tail commits + any signal lines, all
+# reversible via the raw archive). `\b` after the hash tolerates --decorate refs.
+GITLOG_COMMIT_RE = re.compile(r"^commit [0-9a-f]{7,40}\b")
 CONTENT_TYPES = ("auto", "plain", "search", "log", "diff")
 
 
@@ -132,7 +139,10 @@ def detect_content_type(text: str) -> str:
     search_hits = sum(1 for line in sample if SEARCH_LINE_RE.match(line))
     if search_hits >= 12 and search_hits / max(len(sample), 1) >= 0.45:
         return "search"
-    if len(lines) >= 120 and sum(1 for line in sample if LOG_KEEP_RE.search(line)) >= 3:
+    if len(lines) >= 120 and (
+        sum(1 for line in sample if LOG_KEEP_RE.search(line)) >= 3
+        or sum(1 for line in sample if GITLOG_COMMIT_RE.match(line)) >= 3
+    ):
         return "log"
     return "plain"
 
@@ -372,7 +382,8 @@ def cmd_filter(args: argparse.Namespace) -> int:
         if args.show_marker and raw != filtered:
             marker = (
                 f"\n[output-filter: raw archived id={record['id']}; "
-                f"recover: python3 skills/output-filter/tools/output_filter.py --repo {cfg.repo_root} rewind {record['id']}]\n"
+                f"recover: python3 skills/output-filter/tools/output_filter.py --repo {cfg.repo_root} rewind {record['id']}"
+                f"  (append --grep '<regex>' to pull only matching raw lines instead of the full output)]\n"
             )
     sys.stdout.write(filtered + marker)
     return 0
