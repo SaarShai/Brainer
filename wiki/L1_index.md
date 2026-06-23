@@ -21,3 +21,4 @@ Compact pointers. Fetch details on demand.
 - projects/okf-adoption (project tags=okf,interop,wiki,decision,sibling-sync) -> `projects/okf-adoption.md`
 - projects/semdiff (project tags=semantic-diff,ast,context-compression) -> `projects/semdiff.md`
 - projects/wiki-search (project tags=retrieval,progressive-disclosure,mcp,wiki) -> `projects/wiki-search.md`
+- queries/understand-anything-adoption-kept-2-3-4-dropped-1-5 (decision tags=decision) -> `queries/understand-anything-adoption-kept-2-3-4-dropped-1-5.md`

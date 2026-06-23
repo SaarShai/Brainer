@@ -97,6 +97,14 @@ These contradictions become durable graph state (not just sweep-time detection):
 3. Delete: re-check the three gates, then remove.
 4. After any write: `python3 skills/wiki-memory/tools/wiki.py --root wiki index` then `lint --strict`. Resolve new broken links / missing reverse edges before finishing.
 5. Append a `wiki/log.md` entry summarizing the pass.
+6. After a **full-scope** reconcile, record the baseline: `python3 skills/wiki-refresh/tools/staleness.py mark-refreshed`. This stores the current HEAD so the optional staleness nudge (below) stays silent until code advances past it.
+
+## Optional: staleness nudge (opt-in hook)
+
+`staleness.py` gates *when* to bother reconciling — nudge only when HEAD moved past the last full reconcile, never every session. `is-stale` returns JSON (`stale`, `stored`, `head`, `changed`, `code_changed`; the two counts are `null` when the marker commit is unreachable, never a fake 0). Only `nudge` is hook-safe — it always exits 0 and prints nothing on the no-op/fresh path (zero cache churn); `is-stale` exits 1 on fresh *by design*, so don't wire it under `set -e`. Wire by hand (output-filter precedent — shipped, not auto-installed) as a `SessionStart` hook in `.claude/settings.json`:
+```json
+{ "hooks": { "SessionStart": [ { "hooks": [ { "type": "command", "command": "python3 skills/wiki-refresh/tools/staleness.py nudge --root \"$CLAUDE_PROJECT_DIR\"" } ] } ] } }
+```
 
 ## Stale-marking (headless ambiguous cases)
 

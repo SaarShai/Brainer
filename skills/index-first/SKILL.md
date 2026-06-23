@@ -27,6 +27,7 @@ If a structured index already answers the question, scanning raw text repeats wo
 5. Pass natural-language queries through. Indexes that extract symbols (CamelCase, snake_case, dot.path, SCREAMING_SNAKE) will pull them out; you don't need to pre-parse.
 6. Use structured filters (`kind:function path:src/api`, `state:open label:bug`) to narrow before content search; full-text scoring runs within the narrowed set.
 7. If no index exists for a corpus you query often, build one once — the upfront cost amortizes over future queries.
+8. Fanning out N agents over one corpus? Build the index/facts ONCE in the orchestrator and inject; don't let each agent re-derive structure from raw source (~(N−1)/N redundant work avoided). The extractor is [`code_map`](../wiki-memory/tools/code_map.py); see fleet doctrine in [loop-engineering](../loop-engineering/SKILL.md).
 
 ## Anti-patterns
 

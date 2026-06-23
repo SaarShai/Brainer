@@ -67,3 +67,6 @@ scratch/
 # suite run. Same policy as the runlog/longrun dumps above: regenerate, don't track.
 # (The A/B task results under eval/results/ stay committed — they need a model run.)
 eval/sims/results/
+
+# wiki-refresh staleness marker (per-checkout HEAD hash; local-only)
+wiki/.refresh-state.json

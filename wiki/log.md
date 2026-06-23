@@ -319,3 +319,7 @@ Ported screenery-lean's `task-retrospective` to Brainer, generalized off the gra
 
 ## [2026-06-16b] test+fix | task-retrospective behaviorally verified, 1 bug fixed
 15-agent test workflow (3 deterministic probes + 5 judged scenario sims + adversarial skeptic/critic) against the new skill, using PROMPTER as a cross-repo subject (left git-byte-identical). Results: audit edge-cases 14/14 after fix, drift-probe 11/11 (true-positive fires; "harvesting crops" + claim-with-write correctly silent), PROMPTER portability 12/12, scenarios 5/5 PASS. BUG fixed: `audit_lessons.py parse_log` parsed log-header dates with no try/except (unlike the registry path), so a calendar-invalid header (`## [2026-13-40]`) raised an uncaught ValueError → traceback + exit 1 — indistinguishable from the recurrence exit 1. Lesson: guard EVERY external date-parse, not just the one you remembered — an asymmetric guard is a latent crash. Also corrected: the `edit-without-read` probe is declared in verify-before-completion/drift_probes.json (compliance-canary only fires it), and the headless result block is now a pinned `json` grammar (the free-text `banked=[…]` form was unparseable). pattern:guard-all-external-parses
+## [2026-06-22] update | Understand-Anything adoption: kept #2/#3/#4, dropped #1/#5
+
+Created `queries/understand-anything-adoption-kept-2-3-4-dropped-1-5.md` from `decision` template.
+
