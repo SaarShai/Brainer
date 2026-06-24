@@ -188,6 +188,31 @@ A project-specific skill is valid only when all are true:
 
 Canonical Brainer skill updates are not on this ladder.
 
+### Skill targets (6–7) hand off to `/learn`
+
+When — and ONLY when — the chosen target is a project-specific skill (rung 6 or 7),
+do not hand-write the `SKILL.md`. Hand the lesson to [`learn-skill`](../learn-skill/SKILL.md):
+
+```bash
+# rung 7 (new skill): author from the task you just retrospected
+/learn how we just did <task>        # described-workflow source
+
+# rung 6 (existing skill): dedup first — it will say PATCH if one already covers this
+python3 skills/learn-skill/tools/learn.py dedup --desc "<one-line procedure>" --body-file <draft>
+```
+
+Why route through `/learn` instead of writing the file directly: the skill then inherits
+the full governance — dedup-before-write (patch, don't duplicate), the same `write-gate`
+rationale check this ladder already runs, birth as `status: proposed` (slash-only, can't
+auto-fire), and the telemetry-gated `proposed → trusted` lifecycle. A hand-written skill
+skips all of that and ships untracked.
+
+This handoff is **conditional, not automatic** — rungs 1–5 and 8 (memory, wiki, SOP,
+checklist, broad agent instructions) are NOT skills and stay on their own targets.
+Most retrospective lessons are facts or gotchas, not reusable procedures, so most do not
+reach `/learn`. task-retrospective remains the router that decides *whether* a lesson is
+durable and *which* of the eight rungs it belongs to; `/learn` only owns the skill rung.
+
 ## Write pipeline
 
 ```text

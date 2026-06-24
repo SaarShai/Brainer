@@ -697,6 +697,68 @@ DETECTORS["user_correction"] = detect_user_correction
 DETECTORS["prompt_intent"] = detect_user_correction
 
 
+# ---- workflow_nomination (learn-skill's nominate-not-auto-write trigger) -----
+# Hermes auto-CREATES a skill after a complex (5+ tool-call) task. That is a
+# memory-pollution machine without a reasoning gate. Brainer's port instead
+# NOMINATES: when a non-trivial multi-step workflow completes, nudge the agent to
+# `/learn` it — and let write-gate + dedup (in the /learn flow) decide if it earns
+# a skill. The detector NEVER writes a skill; the system-reminder IS the nomination.
+# Conservative by construction to avoid alert fatigue (GLM review): fires only at a
+# WRAP-UP turn (last message is a completion claim), only past a tool-call floor,
+# and only when the recent work is NON-TRIVIAL (an Edit/Write, or a Bash command
+# that isn't build/test/install/lint/git/ls boilerplate).
+_TRIVIAL_CMD_RE = re.compile(
+    r"(?i)^\s*(?:cd\s+[^\n&|;]+(?:&&|;)\s*)*"
+    r"(?:npm|yarn|pnpm|pip3?|pytest|python3?\s+-m\s+pytest|make|cargo|go|ls|ll|cat|head|"
+    r"tail|echo|pwd|git|grep|rg|find|mkdir|cp|mv|rm|chmod|touch|source|node|"
+    r"\./install|\./check|\./run|bash\s+skills/\S+/tools/install)\b"
+)
+
+
+def detect_workflow_nomination(probe: dict, messages: list[dict], tool_uses: list[dict],
+                               _tool_errors=None, user_prompt: str = "",
+                               traj_stats: dict | None = None) -> dict | None:
+    if not traj_stats or not messages:
+        return None
+    calls = traj_stats.get("tool_calls", 0)
+    if calls < int(probe.get("min_tool_calls", 6)):
+        return None
+    # Wrap-up gate: only nominate when the agent's last turn reads as a completion
+    # claim — so this fires at task boundaries, not on every turn past the floor.
+    last = messages[-1]["text"]
+    try:
+        if not re.search(_COMPLETION_CLAIM_DEFAULT, last):
+            return None
+    except re.error:
+        return None
+    # Triviality filter: needs at least one substantive action this window.
+    try:
+        trivial = re.compile(probe.get("trivial_pattern", "")) if probe.get("trivial_pattern") else _TRIVIAL_CMD_RE
+    except re.error:
+        trivial = _TRIVIAL_CMD_RE
+    substantive = False
+    for tu in (tool_uses or []):
+        name = tu.get("name", "")
+        if name in ("Edit", "Write", "NotebookEdit"):
+            substantive = True
+            break
+        if name == "Bash":
+            cmd = str((tu.get("input") or {}).get("command", ""))
+            # Strip leading env-assignments / sudo so `FOO=1 npm test` or `sudo make`
+            # are still recognised as boilerplate (adversarial-review false-positive).
+            cmd = re.sub(r"^\s*(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:sudo\s+)?", "", cmd)
+            if cmd.strip() and not trivial.search(cmd):
+                substantive = True
+                break
+    if not substantive:
+        return None
+    return {"tool_calls": calls,
+            "recovered_after_errors": traj_stats.get("tool_errors", 0) > 0}
+
+
+DETECTORS["workflow_nomination"] = detect_workflow_nomination
+
+
 # Default patterns for early_stop (each overridable per-probe).
 _EARLY_STOP_PROMISE = (
     r"(?i)\b(?:i'?ll|i will|i'?m going to|i am going to|let me|let'?s|next,?\s+i)\b"
