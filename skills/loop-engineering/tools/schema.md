@@ -25,6 +25,9 @@ No PyYAML dependency — values are read as plain strings after the first `:`.
 | `output_actions` | unattended + side-effecting | the allowlist of world-mutating actions the loop MAY take (`post-comment`, `close-issue`, `add-label`, `merge`, `email`, …), each ideally with a per-action cap (`close-issue max 5`). Required once an unattended loop names a side-effecting action; missing → **R10 WARN**; a value of `*`/`all` is not an allowlist → **R10 WARN** |
 | `stuck` | fix loops | the stuck detector that fires the escalation, e.g. `same command 3×`, `same error 2×`, `2 iters no movement`. Declaring it opts the loop into **R11**: a stuck policy with no `advisor` warns. |
 | `advisor` | on `stuck` | the DIVERGENT panel consulted when stuck — a preferably cross-vendor, read-only set of models that propose structurally-different approaches/tools/methods and feed the **generator** (never the gate). Source it from [`skills/_shared/model_roster.py`](../../_shared/model_roster.py). `== verifier` → **R11 WARN** (propose-and-judge is self-grading). |
+| `redaction` | cross-vendor egress | what is scrubbed from the prompt before repo-derived content leaves the host for a third-party model (secrets / `.env` / keys / PII). Required once `advisor`/`verifier`/`egress` names a cross-vendor panel; missing → **R12 WARN (R12a)**. The scrub is *enforced* in [`model_roster.py`](../../_shared/model_roster.py) `render_prompt`; this field makes the data surface declarable + auditable. |
+| `consent` | unattended + egress | the gate that authorizes the first cross-vendor egress on an UNATTENDED loop (no human present to approve at runtime). Missing on a scheduled/fleet/outer/long-running loop that egresses → **R12 WARN (R12b)**. Enforced at the tool: `model_roster --run` refuses without `--consent` / `MODEL_ROSTER_EGRESS_CONSENT=1`. |
+| `egress` | optional | an explicit cross-vendor-egress declaration (alternative trigger for **R12** when the panel is not named in `advisor`/`verifier`). |
 
 **R7 IRREVERSIBLE-NO-HUMAN (WARN):** if `stop` / `gate` / `generator` names an irreversible action (deploy / merge to main / migrate / `rm -rf` / force-push / charge / refund / rotate secret / npm publish) and there is **no human in the loop** (no approve/sign-off/escalate gate, no human-token verifier) → WARN. Silence it by giving a human approval gate or a human verifier.
 
@@ -37,6 +40,12 @@ No PyYAML dependency — values are read as plain strings after the first `:`.
 **R11 STUCK-NO-ADVISOR (WARN):** two distinct triggers, both about the multi-model escalation a stalled loop should make:
 1. A spec that declares a `stuck` policy but names no `advisor` — the stuck agent retries harder against its own blind spot instead of consulting a fresh perspective. Silence it by naming an `advisor` panel sourced from [`skills/_shared/model_roster.py`](../../_shared/model_roster.py) (cross-vendor, read-only, fired on the stuck condition).
 2. An `advisor` that resolves to the same actor as the `verifier`. The advisor is **divergent** (proposes new approaches/tools/methods, feeds the generator); the verifier is **convergent** (judges pass/fail, IS the gate). One actor doing both judges a fix it proposed — self-grading by another door, the same hole R3 closes for generator/verifier. Keep them separate vendors; `model_roster.pick_panel(exclude_lane=…)` drops the orchestrator's own lane so the panel is genuinely independent. Opt-in: R11 stays silent until `stuck` (trigger 1) or `advisor` (trigger 2) is declared, so plain inner fix loops are never nagged.
+
+**R12 CROSS-VENDOR-EGRESS (WARN):** the moment a loop's `advisor`/`verifier` panel sends repo-derived content to a third-party model (cross-vendor / `model_roster` / OpenRouter / Fusion / codex / gemini / glm / z.ai / an "external panel"), two privacy controls are expected — borrowed from [ksimback/looper](https://github.com/ksimback/looper)'s privacy layer, generalized from glob lists to secret-shape detection:
+1. **R12a — `redaction`:** name what is scrubbed before egress. The scrub is *enforced* in [`model_roster.py`](../../_shared/model_roster.py) `render_prompt` (every copy-paste dispatch and `--run` funnels through it, reusing [`audit_redact.py`](../../_shared/audit_redact.py)); the field makes the surface auditable in the spec.
+2. **R12b — `consent`:** only for UNATTENDED loops (scheduled/fleet/outer/long-running), where no human approves the first send at runtime. Enforced at the tool: `model_roster --run` refuses egress without `--consent` / `MODEL_ROSTER_EGRESS_CONSENT=1`.
+
+R12 fires only when an egress signal is actually present, so a same-host / local-only loop is never nagged. Related: a VERIFIER panel's quorum is recomputed *after* dispatch by `model_roster.verifier_quorum` (R11b) — a 1-member or even panel is a weak gate (`which != usable` drops members), not a passed gate.
 
 ## What makes a `gate` machine-checkable (R1 allowlist)
 
@@ -55,6 +64,10 @@ This is an **allowlist**, not a prose denylist: `gate: the reviewer agrees` / `g
 ## Visualize a spec (`--diagram`)
 
 `loop_lint.py --diagram <file>` emits a Mermaid generator→gate→verifier loop for each spec, **derived from the parsed fields** (never invented), with the lint findings overlaid: the indicted node is coloured (R1 → the gate, R3 → generator + verifier, R2 → stop + budget, R6 → topology) and every finding is listed in a `lint findings` subgraph. A clean spec shows a single green `OK` node. Exit code stays the lint verdict (2/1/0), so `--diagram` is still a CI gate. Wrap the output in a ` ```mermaid ` fence to render it in GitHub / Obsidian / VS Code.
+
+## Freeze a snapshot (`--resolve`)
+
+`loop_lint.py --resolve <file>` emits an **immutable audit snapshot** (`loop.resolved` JSON) of each spec: normalized fields + the lint verdict at freeze time, flagged `unattended: true/false`. Borrowed from looper's `loop.resolved.json` but deliberately narrowed — it is a **replay/drift surface** ("rerun the exact spec we verified last Tuesday"), **NOT a resume checkpoint**: it carries no run state and no runner, so `loop_lint` stays a linter, not an orchestrator. It earns its keep for outer/fleet/scheduled loops; inner loops get a snapshot too but flagged `unattended:false`. Exit code stays the lint verdict, so `--resolve` composes in CI.
 
 ## Example (passes clean)
 

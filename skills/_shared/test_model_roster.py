@@ -88,6 +88,38 @@ def test_advisor_and_verifier_scaffolds_differ():
     return a != v
 
 
+def test_render_prompt_redacts_secrets_before_egress():
+    # a leaked key/.env/Authorization header in task/brief must be scrubbed before
+    # the prompt crosses a vendor boundary (R12a, enforced at render).
+    p = mr.render_prompt("advisor", task="key=sk-proj-abcdef0123456789abcdef",
+                         brief="Authorization: Bearer ghp_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+    return ("sk-proj-abcdef" not in p and "ghp_aaaa" not in p and "[REDACTED]" in p)
+
+
+def test_verifier_quorum_requires_odd_ge3():
+    return (mr.verifier_quorum(3)["ok"] is True
+            and mr.verifier_quorum(1)["ok"] is False        # too few
+            and mr.verifier_quorum(2)["ok"] is False        # even
+            and mr.verifier_quorum(5)["ok"] is True)
+
+
+def test_run_panel_attaches_quorum_for_verifier_only():
+    # no network: an empty roster yields 0 survivors; verifier gets a quorum verdict,
+    # advisor does not (advisors don't gate, so quorum is meaningless for them).
+    v = mr.run_panel([], 3, "verifier", "t", "b")
+    a = mr.run_panel([], 3, "advisor", "t", "b")
+    return ("quorum" in v and v["quorum"]["ok"] is False and "quorum" not in a)
+
+
+def test_run_refuses_egress_without_consent():
+    import io
+    from contextlib import redirect_stderr
+    buf = io.StringIO()
+    with redirect_stderr(buf):
+        rc = mr.main(["--panel", "2", "--role", "verifier", "--run", "--task", "t", "--brief", "b"])
+    return rc == 2 and "consent" in buf.getvalue().lower()
+
+
 def test_render_dispatch_cli_uses_heredoc():
     d = mr.render_dispatch(_b(mr.LANE_GPT, invocation="codex exec"),
                            "advisor", "task", "brief")

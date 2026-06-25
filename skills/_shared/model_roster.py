@@ -50,6 +50,20 @@ import sys
 from dataclasses import asdict, dataclass, field
 from typing import Literal
 
+# Cross-vendor egress is the moment repo content leaves this host for a third-party
+# model. Scrub a broad secret family from the prompt BEFORE it is rendered, so a
+# leaked key/.env value/PEM block never crosses the wire — whether the caller
+# copy-pastes render_dispatch's output or auto-runs via run_dispatch (both funnel
+# through render_prompt). One shared scrubber (skills/_shared/audit_redact.py), so
+# the redaction surface matches the audit tools. Borrowed control: ksimback/looper's
+# redaction globs, generalized to secret-shape detection. cf. loop_lint R12.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    from audit_redact import redact as _redact          # type: ignore
+except Exception:                                        # pragma: no cover - defensive
+    def _redact(s: str) -> str:                          # never let a missing import egress raw
+        return s
+
 Role = Literal["advisor", "verifier"]
 
 # Vendor LANES — the diversity unit. Two backends in the same lane (codex + an
@@ -424,8 +438,11 @@ _SCAFFOLDS = {"advisor": _ADVISOR_SCAFFOLD, "verifier": _VERIFIER_SCAFFOLD}
 
 
 def render_prompt(role: Role, task: str, brief: str) -> str:
-    return _SCAFFOLDS[role].format(task=task.strip() or "(task not given)",
-                                   brief=brief.strip() or "(none recorded)")
+    # Redact BEFORE formatting: task/brief are repo-derived and about to egress to a
+    # cross-vendor model. The scaffold text itself is static and safe.
+    task = _redact(task.strip()) or "(task not given)"
+    brief = _redact(brief.strip()) or "(none recorded)"
+    return _SCAFFOLDS[role].format(task=task, brief=brief)
 
 
 def render_dispatch(b: Backend, role: Role, task: str, brief: str, *, model: str = "") -> str:
@@ -528,6 +545,21 @@ def run_dispatch(b: Backend, role: Role, task: str, brief: str, *,
     return result
 
 
+def verifier_quorum(n_survivors: int) -> dict:
+    """Assess whether a VERIFIER panel of `n_survivors` ACTUALLY-RESPONDING members
+    is a sound gate. A verifier gate needs an ODD count ≥3 for a clean refute-able
+    majority — `which != usable`, so members drop at dispatch and the count must be
+    recomputed AFTER the run, never assumed from `requested`. R11b: a 1-member or
+    even panel is a weak gate, not a quorum. Returns {ok, reason}."""
+    if n_survivors >= 3 and n_survivors % 2 == 1:
+        return {"ok": True, "reason": f"{n_survivors} responders, odd majority"}
+    if n_survivors < 3:
+        return {"ok": False, "reason": f"only {n_survivors} responder(s) — a verifier gate wants ≥3 "
+                "(a 1-vendor check is barely a second opinion; majority is undefined)"}
+    return {"ok": False, "reason": f"{n_survivors} responders is EVEN — no clean majority; drop one or "
+            "add a tie-break before treating this as a gate"}
+
+
 def run_panel(roster: list[Backend], n: int, role: Role, task: str, brief: str, *,
               exclude_lane: str | None = None, timeout: float = 120.0) -> dict:
     """Pick a diverse panel and run every member. Returns survivors + failures
@@ -536,8 +568,12 @@ def run_panel(roster: list[Backend], n: int, role: Role, task: str, brief: str, 
     runs = [run_dispatch(b, role, task, brief, timeout=timeout) for b in panel]
     survivors = [r for r in runs if r["ok"]]
     failures = [r for r in runs if not r["ok"]]
-    return {"role": role, "requested": n, "dispatched": len(panel),
-            "survivors": survivors, "failures": failures}
+    out = {"role": role, "requested": n, "dispatched": len(panel),
+           "survivors": survivors, "failures": failures}
+    # R11b: a verifier panel's quorum is only known after dispatch (members drop).
+    if role == "verifier":
+        out["quorum"] = verifier_quorum(len(survivors))
+    return out
 
 
 # --- Fusion advisor (OpenRouter) ------------------------------------------
@@ -644,6 +680,11 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--brief", default="", help="the decision brief / evidence (what was tried, or the proof)")
     ap.add_argument("--run", action="store_true",
                     help="ACTUALLY dispatch the --panel (real spend); drop failed members, print survivors' findings")
+    ap.add_argument("--consent", action="store_true",
+                    help="explicit consent to egress repo-derived prompt content to cross-vendor models "
+                         "(required by --run; or set MODEL_ROSTER_EGRESS_CONSENT=1). Prompts are secret-redacted "
+                         "first, but the task/brief text still leaves this host — this gate makes that a choice, "
+                         "not a default.")
     ap.add_argument("--timeout", type=float, default=120.0, help="per-member dispatch timeout in seconds (--run)")
     ap.add_argument("--via", choices=["openrouter"], default="",
                     help="prefer this transport for every eligible lane even when a native CLI exists "
@@ -656,6 +697,16 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--judge-model", default="", help="OpenRouter slug for the Fusion judge (optional)")
     ap.add_argument("--preset", default="", help="Fusion preset, e.g. general-high | general-budget (optional)")
     args = ap.parse_args(argv)
+
+    # R12b consent gate: any --run egresses repo-derived content cross-vendor. Refuse
+    # unless the operator opted in (flag or env), so egress is a deliberate act. Pure
+    # rendering (no --run) never egresses, so it is exempt.
+    consent = args.consent or os.environ.get("MODEL_ROSTER_EGRESS_CONSENT", "").strip().lower() in {"1", "true", "yes", "on"}
+    if args.run and not consent:
+        print("# refusing --run: cross-vendor egress without consent. The prompt is secret-redacted, but the "
+              "task/brief still leaves this host. Re-run with --consent (or MODEL_ROSTER_EGRESS_CONSENT=1) to "
+              "authorize. Omit --run to render the dispatch locally without sending anything.", file=sys.stderr)
+        return 2
 
     if args.fusion:
         am = [s.strip() for s in args.analysis_models.split(",") if s.strip()] or None
@@ -699,6 +750,10 @@ def main(argv: list[str]) -> int:
                     print(f"  ✓ [{r['lane']}] {r['vendor']}\n      FINDINGS: {r['findings']}")
                 for r in res["failures"]:
                     print(f"  ✗ [{r['lane']}] {r['vendor']}  (dropped: {r['error']})")
+                q = res.get("quorum")
+                if q and not q["ok"]:
+                    print(f"  ⚠ R11b weak verifier quorum: {q['reason']} — do NOT treat this as a passed gate.",
+                          file=sys.stderr)
             # survivors present → 0; all members failed → 1 (caller decides on an empty panel)
             return 0 if res["survivors"] else 1
         blocks = [render_dispatch(b, args.role, args.task, args.brief) for b in panel]

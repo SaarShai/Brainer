@@ -49,6 +49,13 @@ It validates a loop spec against three FAIL rules and seven WARN rules:
                                stall), or the advisor collapses into the verifier
                                (propose-and-judge is self-grading). Sourced from
                                skills/_shared/model_roster.py.
+  R12 CROSS-VENDOR-EGRESS (WARN) — an advisor/verifier panel sends repo-derived
+                               content to a third-party model but declares no
+                               `redaction` surface (R12a), or an UNATTENDED loop
+                               egresses with no `consent` gate (R12b). The enforced
+                               scrub + consent live in model_roster.py; this makes
+                               the data surface declarable + auditable in the spec.
+                               (Borrowed from ksimback/looper's privacy layer.)
 
 Use --strict-memory to promote R8/R9 findings to FAIL for loops where durable
 state matters: scheduled, fleet, outer, or long-running loops.
@@ -73,6 +80,18 @@ Severity = Literal["OK", "WARN", "FAIL"]
 
 # Rules that are fatal (exit 2). Everything else is advisory (exit 1).
 FAIL_RULES = {1, 2, 3}
+
+# R12 CROSS-VENDOR EGRESS — a loop whose advisor/verifier panel sends repo-derived
+# content to a THIRD-PARTY model (cross-vendor, model_roster, codex/gemini/glm/
+# openrouter/fusion, or an "external"/"cross-vendor" panel). When that egress is
+# present the spec must declare two controls, mirroring ksimback/looper's privacy
+# layer: a `redaction` surface (R12a — what is scrubbed before it leaves) and, for
+# UNATTENDED loops, a `consent` gate (R12b — egress is authorized, not a default).
+# A tripwire over the actor strings; the enforced scrub + consent live in
+# skills/_shared/model_roster.py (render_prompt redacts; --run needs consent).
+_EGRESS = re.compile(
+    r"\b(cross[\s-]?vendor|model[\s_-]?roster|openrouter|fusion|codex|gemini|"
+    r"glm|z\.?ai|external\s+(?:model|panel|vendor|llm)|other\s+vendors?)\b", re.I)
 
 
 @dataclass
@@ -125,6 +144,7 @@ KNOWN_KEYS = {
     "name", "topology", "generator", "verifier", "gate", "stop", "budget",
     "accepted_open_loop", "quorum", "aggregate", "anchor_files", "state_store",
     "recall", "writeback", "state_concurrency", "stuck", "advisor",
+    "redaction", "consent", "egress",
 }
 
 _KV_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*(.*)$")
@@ -761,6 +781,29 @@ def check_spec(report: Report, spec: Spec, rule_filter: int | None, *, strict_me
                                "(judges pass/fail, IS the gate). One actor doing both judges a fix it proposed — "
                                "keep them separate vendors/agents (model_roster excludes the orchestrator's lane)."))
 
+    # R12 CROSS-VENDOR EGRESS — if the advisor/verifier panel sends repo content to a
+    # third-party model, demand the two privacy controls. R12a (redaction) always;
+    # R12b (consent) only for unattended loops, where no human is present to approve
+    # the first egress. Fires only when an egress signal is actually present, so a
+    # same-host / local-only loop is never nagged.
+    if want(12):
+        egress_fields = [spec.get("advisor"), verifier, spec.get("egress")]
+        if any(f and _EGRESS.search(f) for f in egress_fields):
+            if not spec.get("redaction"):
+                report.add(Finding(12, "WARN", f"spec '{label}' egresses cross-vendor with no `redaction` declared",
+                                   src, spec.line_of("advisor") or spec.line_of("verifier") or spec.start_line,
+                                   "the advisor/verifier panel sends repo-derived content to a third-party model "
+                                   "but the spec declares no `redaction` surface. Name what is scrubbed before egress "
+                                   "(secrets / .env / keys / PII); the enforced scrub is in skills/_shared/"
+                                   "model_roster.py (render_prompt), but declare it so the data surface is auditable."))
+            if needs_memory_contract and not spec.get("consent"):
+                report.add(Finding(12, "WARN", f"spec '{label}' is an unattended loop that egresses with no `consent` gate",
+                                   src, spec.line_of("consent") or spec.start_line,
+                                   "an unattended loop crosses vendor boundaries with no human present to approve the "
+                                   "first egress. Declare a `consent` gate (model_roster --run requires "
+                                   "--consent / MODEL_ROSTER_EGRESS_CONSENT=1) so cross-vendor send is authorized, "
+                                   "not a silent default."))
+
 
 def lint(text: str, source: str, rule_filter: int | None = None, *, strict_memory: bool = False) -> Report:
     report = Report(root=source)
@@ -854,7 +897,7 @@ def to_mermaid(spec: Spec, findings: list[Finding]) -> str:
     # R11 paints the generator: a stuck loop with no advisor leaves the generator
     # re-deriving alone (G always exists; the ADV node may not, so don't key on it).
     rule_nodes = {1: ("K",), 2: ("S", "B"), 3: ("G", "V"), 5: ("V",),
-                  6: ("TOPO",), 8: ("TOPO",), 9: ("V",), 11: ("G",)}
+                  6: ("TOPO",), 8: ("TOPO",), 9: ("V",), 11: ("G",), 12: ("V",)}
     node_sev: dict[str, str] = {}
     for f in findings:
         for n in rule_nodes.get(f.rule, ()):
@@ -870,6 +913,46 @@ def to_mermaid(spec: Spec, findings: list[Finding]) -> str:
     out.append("  classDef warn stroke:#b9770e,stroke-width:2px,color:#b9770e;")
     out.append("  classDef ok stroke:#1e8449,stroke-width:1px,color:#1e8449;")
     return "\n".join(out)
+
+
+# --- Resolved snapshot ----------------------------------------------------
+# An IMMUTABLE AUDIT SNAPSHOT of a spec — not a resume checkpoint. Borrowed from
+# ksimback/looper's loop.resolved.json, deliberately narrowed: looper compiles a
+# runnable artifact; we only freeze the spec + its lint verdict so a long-lived
+# (outer/fleet/scheduled) loop has a replay/drift surface ("rerun the exact spec we
+# verified last Tuesday"). It does NOT make loop_lint an orchestrator: there is no
+# runner, and the file carries no run state. The boundary is enforced by what we
+# emit — fields + verdict, never a resume cursor.
+
+def _is_unattended(spec: Spec) -> bool:
+    toks = _topology_tokens(spec.get("topology"))
+    all_fields = " ".join(spec.fields.values())
+    return ("fleet" in toks or "outer" in toks
+            or bool(_SCHEDULED.search(all_fields)) or bool(_LONG_RUNNING.search(all_fields)))
+
+
+def resolve_snapshot(spec: Spec, *, strict_memory: bool = False) -> dict:
+    """Freeze one spec into an immutable audit snapshot: normalized fields + the
+    lint verdict at freeze time. No timestamp (Date.now is unavailable in this
+    runtime and would also break reproducibility — stamp it outside if needed)."""
+    per = Report(root=spec.source)
+    check_spec(per, spec, None, strict_memory=strict_memory)
+    per.finalize()
+    verdict = "fail" if per.summary["FAIL"] else ("warn" if per.summary["WARN"] else "clean")
+    return {
+        "kind": "loop.resolved",
+        "note": "immutable audit snapshot of the spec + lint verdict at freeze time. "
+                "NOT a resume checkpoint: it carries no run state and no runner.",
+        "name": spec.name,
+        "source": spec.source,
+        "unattended": _is_unattended(spec),
+        "fields": dict(sorted(spec.fields.items())),
+        "lint": {
+            "verdict": verdict,
+            "summary": per.summary,
+            "findings": [asdict(f) for f in per.findings],
+        },
+    }
 
 
 def diagrams(text: str, source: str, rule_filter: int | None = None, *, strict_memory: bool = False) -> list[str]:
@@ -896,10 +979,14 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--diagram", action="store_true",
                     help="emit a Mermaid diagram of each spec with lint findings overlaid "
                          "(grounded in the parsed spec; wrap in a ```mermaid fence to render)")
-    ap.add_argument("--rule", type=int, choices=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+    ap.add_argument("--rule", type=int, choices=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
                     help="restrict to one rule")
     ap.add_argument("--strict-memory", action="store_true",
                     help="promote R8/R9 loop-memory findings to FAIL for scheduled/fleet/outer/long-running loops")
+    ap.add_argument("--resolve", action="store_true",
+                    help="emit an immutable audit snapshot (loop.resolved JSON) of each spec + its lint verdict — "
+                         "a replay/drift surface for outer/fleet/scheduled loops, NOT a resume checkpoint. "
+                         "Exit code stays the lint verdict so it composes in CI.")
     args = ap.parse_args(argv)
 
     if args.path == "-":
@@ -922,7 +1009,16 @@ def main(argv: list[str]) -> int:
         print(f"error: unparseable loop spec in {source}: {e}", file=sys.stderr)
         return 3
 
-    if args.diagram:
+    if args.resolve:
+        # Freeze each spec to an immutable audit snapshot; lint verdict stays the
+        # exit code so `loop_lint --resolve spec.md` is still a CI gate. Non-fleet/
+        # outer/scheduled specs get a snapshot too, but flagged unattended:false so a
+        # caller knows the replay surface only earns its keep for long-lived loops.
+        snaps = [resolve_snapshot(s, strict_memory=args.strict_memory)
+                 for s in parse_specs(text, source)]
+        print(json.dumps(snaps if len(snaps) != 1 else snaps[0], indent=2) if snaps
+              else json.dumps({"error": "no loop spec found", "source": source}, indent=2))
+    elif args.diagram:
         # Render the parsed spec(s); keep the lint verdict as the exit code so
         # `loop_lint --diagram spec.md` is still a CI-composable gate.
         blocks = diagrams(text, source, rule_filter=args.rule, strict_memory=args.strict_memory)

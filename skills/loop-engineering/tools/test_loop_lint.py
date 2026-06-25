@@ -900,6 +900,50 @@ def test_r11_rule_filter_isolates():
     assert _rules(spec, rule=11) == [(11, "WARN")], _rules(spec, rule=11)
 
 
+# --- R12 CROSS-VENDOR EGRESS ----------------------------------------------
+
+_R12_EGRESS = (
+    "name: e\ntopology: closed inner single\ngenerator: opus\n"
+    "verifier: cross-vendor model_roster panel\ngate: pytest -q\n"
+    "stop: green\nbudget: max_iterations=5\n"
+)
+_R12_EGRESS_OUTER = (
+    "name: e\ntopology: closed outer single\ngenerator: opus\n"
+    "verifier: cross-vendor model_roster panel\ngate: pytest -q\n"
+    "stop: green\nbudget: max_iterations=5\n"
+    "anchor_files: S.md\nstate_store: s.json\nrecall: read s.json\nwriteback: record\n"
+)
+
+
+def test_r12a_egress_without_redaction_warns():
+    assert _has(_R12_EGRESS, 12, "WARN"), _rules(_R12_EGRESS, rule=12)
+
+
+def test_r12a_silent_with_redaction():
+    spec = _R12_EGRESS + "redaction: secrets/.env/keys scrubbed\n"
+    assert _rules(spec, rule=12) == [], _rules(spec, rule=12)
+
+
+def test_r12_silent_without_egress():
+    spec = _R12_EGRESS.replace("cross-vendor model_roster panel", "a fresh sonnet subagent")
+    assert _rules(spec, rule=12) == [], _rules(spec, rule=12)
+
+
+def test_r12b_unattended_egress_needs_consent():
+    # outer loop egresses → both R12a (no redaction) and R12b (no consent) warn.
+    rs = _rules(_R12_EGRESS_OUTER, rule=12)
+    assert rs.count((12, "WARN")) == 2, rs
+    # add both controls → silent.
+    spec = _R12_EGRESS_OUTER + "redaction: secrets scrubbed\nconsent: human approves first egress\n"
+    assert _rules(spec, rule=12) == [], _rules(spec, rule=12)
+
+
+def test_r12b_inner_egress_no_consent_needed():
+    # inner (attended) loop with redaction declared: R12a satisfied, R12b not required.
+    spec = _R12_EGRESS + "redaction: secrets scrubbed\n"
+    assert _rules(spec, rule=12) == [], _rules(spec, rule=12)
+
+
 # --- runner ---------------------------------------------------------------
 
 def main() -> int:
