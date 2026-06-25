@@ -191,6 +191,7 @@ reading the nudge). Spec #4 in [`LOOPS.md`](LOOPS.md) declares the `output_actio
 `telemetry scan --defer-trailing` (defers the just-fired invocation until its reply exists,
 so hit/abort isn't judged early) and **UserPromptSubmit** → the same nudge. Codex transcripts
 are a different schema, normalized to Claude shape via [`../_shared/transcript_norm.py`](../_shared/transcript_norm.py).
-Caveat: Codex emits no discrete `Skill` tool_use, so scanning can only auto-capture
-**slash-triggered** skills (`/learn`, `/think`, `/retro` — synthesized from the user turn);
-model-invokable skill use on Codex must be logged with `telemetry.py record`.
+Codex has no discrete `Skill` tool_use, but it expands **every** skill invocation (slash OR
+model-invoked) into an injected `<skill><name>…</name>` user block — the normalizer reads that
+as the canonical invocation signal, so both kinds are auto-captured (verified live: a `/think`
+followed by a correction recorded a `think` abort from the real Codex transcript).

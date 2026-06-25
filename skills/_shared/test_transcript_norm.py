@@ -90,6 +90,33 @@ def test_codex_slash_skill_synthesizes_skill_tool_use():
     print("ok test_codex_slash_skill_synthesizes_skill_tool_use")
 
 
+def test_codex_skill_block_is_canonical_invocation():
+    """Codex expands any skill invocation into a <skill><name>X</name> user block.
+    That block must be recorded as a Skill invocation and NOT emitted as a user turn,
+    so abort-inference anchors on the next REAL user message."""
+    codex = [
+        {"type": "response_item", "timestamp": "t1", "payload": {"type": "message", "role": "user",
+         "content": [{"type": "input_text", "text": "[$think](/x/skills/think/SKILL.md) about config"}]}},
+        {"type": "response_item", "timestamp": "t2", "payload": {"type": "message", "role": "user",
+         "content": [{"type": "input_text", "text": "<skill>\n<name>think</name>\n<path>/x/skills/think/SKILL.md</path>\n---\nname: think\n"}]}},
+        {"type": "response_item", "timestamp": "t3", "payload": {"type": "message", "role": "assistant",
+         "content": [{"type": "output_text", "text": "here is my plan"}]}},
+        {"type": "response_item", "timestamp": "t4", "payload": {"type": "message", "role": "user",
+         "content": [{"type": "input_text", "text": "actually that's wrong, redo it"}]}},
+    ]
+    norm = tn.normalize(codex)
+    types = [(e["type"], e["message"]["content"][0].get("name") or e["message"]["content"][0].get("text", "")[:15]) for e in norm]
+    # the [$think] link msg = a user turn; the <skill> block = a Skill tool_use (not a user turn)
+    assert ("assistant", "Skill") in types, types
+    skill_inv = [e for e in norm if e["type"] == "assistant" and e["message"]["content"][0].get("name") == "Skill"]
+    assert skill_inv[0]["message"]["content"][0]["input"]["skill"] == "think", norm
+    # the <skill> block text is NOT a user turn (would mis-anchor abort-inference)
+    user_texts = [e["message"]["content"][0]["text"] for e in norm if e["type"] == "user"]
+    assert not any("<skill>" in t for t in user_texts), user_texts
+    assert any("actually that's wrong" in t for t in user_texts), user_texts
+    print("ok test_codex_skill_block_is_canonical_invocation")
+
+
 def test_codex_non_slash_user_no_synthesis():
     codex = [{"type": "response_item", "payload": {"type": "message", "role": "user",
               "content": [{"type": "input_text", "text": "just a normal request"}]}}]
@@ -106,5 +133,6 @@ if __name__ == "__main__":
     test_codex_bad_arguments_dont_crash()
     test_codex_user_and_assistant_messages()
     test_codex_slash_skill_synthesizes_skill_tool_use()
+    test_codex_skill_block_is_canonical_invocation()
     test_codex_non_slash_user_no_synthesis()
-    print("ALL 8 TESTS PASSED")
+    print("ALL 9 TESTS PASSED")

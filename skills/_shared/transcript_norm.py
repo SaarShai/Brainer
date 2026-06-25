@@ -26,6 +26,7 @@ on Codex remain uncapturable by scanning (no event exists) — those stay manual
 from __future__ import annotations
 
 import json
+import re
 
 _CODEX_RECORD_TYPES = {"response_item", "event_msg", "session_meta", "turn_context"}
 
@@ -41,6 +42,20 @@ SLASH_TO_SKILL = {
     "think": "think",
     "retro": "task-retrospective",
 }
+
+# Codex expands ANY skill invocation (slash OR model-invoked) into an injected
+# user message: "<skill>\n<name>think</name>\n<path>.../skills/think/SKILL.md</path>...".
+# `<name>` is already the skills/<dir> name telemetry tracks — the canonical,
+# host-emitted invocation signal (more reliable than parsing the slash, which Codex
+# rewrites to a markdown link). This block is scaffolding, not dialogue, so we record
+# the invocation but do NOT emit it as a user turn (keeps abort-inference anchored on
+# the next REAL user message).
+_CODEX_SKILL_BLOCK = re.compile(r"<skill>\s*<name>\s*([^<\s]+)\s*</name>", re.IGNORECASE)
+
+
+def _skill_tool_use(skill: str, ts: str) -> dict:
+    return {"type": "assistant", "timestamp": ts, "message": {"content": [
+        {"type": "tool_use", "name": "Skill", "input": {"skill": skill}}]}}
 
 
 def is_codex(events: list[dict]) -> bool:
@@ -83,12 +98,17 @@ def _norm_codex(events: list[dict]) -> list[dict]:
             role = p.get("role")
             text = _codex_text(p.get("content"))
             if role == "user":
+                m = _CODEX_SKILL_BLOCK.search(text)
+                if m:
+                    # Codex skill-expansion block: record the invocation, skip the
+                    # injected scaffolding as a dialogue turn.
+                    out.append(_skill_tool_use(m.group(1).strip(), ts))
+                    continue
                 out.append({"type": "user", "timestamp": ts,
                             "message": {"content": [{"type": "text", "text": text}]}})
-                skill = _slash_skill(text)
-                if skill:  # synthesize the Skill tool_use a slash invocation implies
-                    out.append({"type": "assistant", "timestamp": ts, "message": {"content": [
-                        {"type": "tool_use", "name": "Skill", "input": {"skill": skill}}]}})
+                skill = _slash_skill(text)  # fallback if a host passes a raw slash
+                if skill:
+                    out.append(_skill_tool_use(skill, ts))
             elif role == "assistant":
                 out.append({"type": "assistant", "timestamp": ts,
                             "message": {"content": [{"type": "text", "text": text}]}})
