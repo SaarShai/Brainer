@@ -94,4 +94,5 @@ stop: patch applied (skill reset to proposed + telemetry checkpointed), or budge
 budget: max_iterations=2
 stuck: same skill still aborts after 2 refinement rounds
 advisor: skills/_shared/model_roster.py cross-vendor panel — propose a structurally different fix (feeds the agent, not the gate)
+redaction: model_roster.render_prompt scrubs secrets/.env/keys/PII via audit_redact before the skill body + abort evidence egress to the advisor panel
 ```
