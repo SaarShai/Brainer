@@ -95,6 +95,7 @@ UNIT_TESTS=(
   skills/learn-skill/tools/test_telemetry.py
   skills/learn-skill/tools/test_nomination.py
   skills/learn-skill/tools/test_hooks.py
+  skills/learn-skill/tools/test_install_merge.py
   scripts/test_gen_hooks_map.py
   scripts/test_mine_transcripts.py
 )
