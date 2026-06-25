@@ -11,7 +11,7 @@ No PyYAML dependency — values are read as plain strings after the first `:`.
 | `name` | recommended | label for the spec in lint output |
 | `topology` | recommended | the shape: `open\|closed · inner\|outer · single\|fleet` (any non-letter separator). Missing → **R6 WARN** |
 | `generator` | yes (closed) | the actor that produces the work |
-| `verifier` | yes (closed) | the SEPARATE actor that runs the gate. `== generator` → **R3 FAIL**; empty on a closed loop → **R3 FAIL** |
+| `verifier` | yes (closed) | the SEPARATE actor that runs the gate. `== generator` → **R3 FAIL**; empty on a closed loop → **R3 FAIL**. Must be BLIND to the generator's reasoning/code/skill content — seeing only the task + the outputs, never the generator's self-justification, since a verifier that reads it inherits the same bias even when it is a different actor. |
 | `gate` | **yes** | a machine-checkable pass/fail signal. Prose with no command/test-id/assertion/path → **R1 FAIL** |
 | `stop` | **yes** | the completion condition the loop runs until. Missing → **R2 FAIL** |
 | `budget` | **yes** | a numeric cap (`max_iterations` / `max_tokens` / `max_wallclock`). Missing or `unbounded` → **R2 FAIL** |

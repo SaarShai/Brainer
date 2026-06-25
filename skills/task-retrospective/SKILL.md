@@ -1,5 +1,6 @@
 ---
 name: task-retrospective
+disable-model-invocation: true
 description: "Use only when the user explicitly activates task audit mode, asks for task-retrospective, says this task will repeat and should be learned from, requests an after-the-fact task learning audit, or types /retro. Helps the current project learn from a repeatable task: reconstruct what happened, identify reusable project lessons, and route sparse durable updates to project memory, SOPs, checklists, or project-specific skills through write-gate. Does not audit Brainer skill obedience and does not edit canonical Brainer skills."
 effort: medium
 tools: [Bash, Read, Write, Grep]
@@ -240,7 +241,7 @@ candidate lesson
 → route-probe: if procedure-shaped, test the skill (dest-3) gate before allowing a wiki page
 → run write-gate as content-quality filter
 → dedup/overlap check
-→ write/update target if accepted
+→ write/update target if accepted (for a wiki page, write the Trigger/symptom cue as a BODY line per wiki-memory step 8b, so the lesson is later findable by its symptom phrase via search — not in a frontmatter-only key, which search ignores)
 → read back
 → append project log entry if the project wiki exists
 → include final persistence summary in the report
@@ -288,6 +289,7 @@ A user override is valid, but record it using [`write-gate`](../write-gate/SKILL
 ## Reusable learnings
 1. Lesson:
    Applies when:
+   Trigger/symptom:   # the OBSERVABLE signal a future task pattern-matches on (the symptom, not the topic), e.g. "off-by-hours in date tests" -> timezone/UTC fix
    Evidence:
    Target:
    Write-gate:

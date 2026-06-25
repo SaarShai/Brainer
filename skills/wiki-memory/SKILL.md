@@ -71,6 +71,11 @@ Protocol:
 6. Fill v2 frontmatter completely.
 7. **Why-clause requirement (decisions / conventions):** the page body must contain at least one of `because …`, `so that …`, `to avoid …`, `in order to …`, `due to …`. (`since` is intentionally *not* accepted — it reads as temporal and was bypassing the gate; write a causal `because`/`in order to` instead. See `write_gate.py` `WHY_CLAUSES`.) Reasonless decisions are rejected by write-gate. Source: [codenamev/claude_memory](https://github.com/codenamev/claude_memory) (100% on a 100-case FEVER-derived test).
 8. For procedures/failures, include when it applies and the exact prevention rule.
+8b. **Retrieval cue (the observable symptom).** For `error` / `lesson` / `sop` pages, add a body line naming the *observable signal* a future agent would pattern-match on — the symptom, not the topic:
+    ```
+    **Trigger / symptom:** off-by-hours in date tests (failing by exactly the local UTC offset)
+    ```
+    Put it **in the page body**, not in a bespoke `trigger:` frontmatter key. `wiki.py search` ranks over title/type/tags/path/preview/**body** — it does **not** index arbitrary frontmatter keys, so a frontmatter-only `trigger:` is a silent search no-op (verified: a phrase living only in frontmatter returns zero hits). A body cue makes the lesson findable by its symptom phrase via the normal search→timeline→fetch path (no load-all-up-front). Phrase it as the symptom itself (a noun phrase / the left side of the "→"), not as ordered fix-steps. Optionally also echo the key symptom word in `tags:` (tags are indexed and weighted), but the body line is the canonical, always-searchable form.
 9. Add ≥2 useful wikilinks when possible.
 10. Append `wiki/log.md`.
 11. Run `python ... index`; for new v2 pages run `python ... lint --strict`.

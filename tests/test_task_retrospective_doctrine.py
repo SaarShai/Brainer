@@ -20,7 +20,11 @@ def frontmatter(text: str) -> str:
 
 def task_retrospective_catalog_line(carrier: str) -> str:
     text = read(ROOT / carrier)
-    match = re.search(r"^- `task-retrospective` — .*$", text, re.MULTILINE)
+    # task-retrospective was demoted to slash-only (disable-model-invocation: true),
+    # so install.sh now renders it as `/task-retrospective` under the Slash-triggered
+    # block. Accept either rendering — the optional leading slash is the demoted form,
+    # which satisfies this test's intent (no auto-trigger advertising) even more strongly.
+    match = re.search(r"^- `/?task-retrospective` — .*$", text, re.MULTILINE)
     assert match, f"task-retrospective catalog line missing from {carrier}"
     return match.group(0)
 

@@ -22,6 +22,12 @@ tags: []
 
 One compact statement.
 
+<!-- For error/lesson/sop pages, add the observable signal a future agent
+     pattern-matches on (the symptom, not the topic). Keep it in the BODY —
+     wiki.py search indexes body text, not bespoke frontmatter keys:
+**Trigger / symptom:** <observable signal — the symptom, not the topic> -->
+
+
 ## Evidence
 
 - Source or command path.
