@@ -56,10 +56,44 @@ settings_path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", enco
 PY
 }
 
+# Codex parity: Codex has no SessionStart/SessionEnd, but Stop (end of turn) and
+# UserPromptSubmit map cleanly. Stop -> scan (idempotent), UserPromptSubmit -> nudge.
+CODEX_HOOKS="$REPO/.codex/hooks.json"
+CODEX_END_CMD="bash ./.codex/skills/learn-skill/tools/hook_session_end.sh"
+CODEX_START_CMD="bash ./.codex/skills/learn-skill/tools/hook_session_start.sh"
+
+merge_codex() {
+  python3 - "$CODEX_HOOKS" "$CODEX_END_CMD" "$CODEX_START_CMD" <<'PY'
+import json, sys
+from pathlib import Path
+hp = Path(sys.argv[1]); end_cmd, start_cmd = sys.argv[2], sys.argv[3]
+if hp.exists():
+    try:
+        data = json.loads(hp.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        sys.stderr.write(f"ABORT: {hp} is not valid JSON ({e}). Fix or remove it.\n"); sys.exit(1)
+else:
+    data = {}
+hooks = data.setdefault("hooks", {})
+for event, cmd in (("Stop", end_cmd), ("UserPromptSubmit", start_cmd)):
+    rules = hooks.setdefault(event, [])
+    for rule in rules:
+        if rule.get("matcher") not in (None, "*"):
+            continue
+        if any(h.get("type") == "command" and h.get("command") == cmd for h in rule.get("hooks", [])):
+            break
+    else:
+        rules.append({"matcher": "*", "hooks": [{"type": "command", "command": cmd}]})
+hp.parent.mkdir(parents=True, exist_ok=True)
+hp.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+PY
+}
+
 if [ "$DRY_RUN" = "1" ]; then
   echo "dry-run: would symlink $SKILL_SRC → $SKILL_DIR/learn-skill"
   echo "dry-run: would add SessionEnd   * -> $END_CMD"
   echo "dry-run: would add SessionStart * -> $START_CMD"
+  [ -e "$REPO/.codex/skills/learn-skill" ] && { echo "dry-run: would add Codex Stop -> $CODEX_END_CMD"; echo "dry-run: would add Codex UserPromptSubmit -> $CODEX_START_CMD"; }
   exit 0
 fi
 
@@ -72,6 +106,15 @@ merge_settings
 echo "Installed learn-skill unattended hooks into repo-local .claude."
 echo "  SessionEnd   -> telemetry scan (append-only)"
 echo "  SessionStart -> promote/demote/stale nudge (read-only)"
+
+# Wire Codex too, if this repo has a .codex/skills/learn-skill symlink (from ./install.sh).
+if [ -e "$REPO/.codex/skills/learn-skill" ]; then
+  chmod +x "$TOOLS_DIR"/hook_session_end.sh "$TOOLS_DIR"/hook_session_start.sh 2>/dev/null || true
+  merge_codex
+  echo "Wired Codex hooks (.codex/hooks.json):"
+  echo "  Stop             -> telemetry scan (Codex has no SessionEnd)"
+  echo "  UserPromptSubmit -> promote/demote/stale nudge (Codex has no SessionStart)"
+fi
 echo
 echo "Tune via env: LEARN_SKILL_PROMOTE_MIN=3  LEARN_SKILL_DEMOTE_MIN=3"
 echo "Skill-mutating steps stay manual: learn.py promote|demote|staleness --apply"

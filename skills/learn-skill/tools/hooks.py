@@ -40,6 +40,33 @@ def _skills_dir() -> Path:
     return Path("skills")
 
 
+_TRANSCRIPT_KEYS = ("transcript_path", "rollout_path", "transcript", "session_file", "path")
+
+
+def _transcript_from_payload(payload: dict) -> str:
+    """Resolve a transcript path across hosts. Claude SessionEnd uses transcript_path;
+    Codex's Stop payload field name is not yet confirmed — try the likely keys, and if
+    none resolve, drop a breadcrumb (payload keys) so a real session reveals the field."""
+    for k in _TRANSCRIPT_KEYS:
+        v = payload.get(k)
+        if isinstance(v, str) and v and Path(v).is_file():
+            return v
+    # breadcrumb: record which keys the host actually sent (helps wire Codex)
+    try:
+        dbg = _root() / ".brainer" / "learn-skill" / "hook-debug.log"
+        dbg.parent.mkdir(parents=True, exist_ok=True)
+        with open(dbg, "a", encoding="utf-8") as f:
+            f.write(json.dumps({"event": "session-end", "keys": sorted(payload.keys())}) + "\n")
+    except Exception:
+        pass
+    return ""
+
+
+def _root():
+    import os as _os
+    return Path(_os.environ.get("CLAUDE_PROJECT_DIR") or ".")
+
+
 def cmd_session_end() -> int:
     raw = sys.stdin.read()
     if not raw.strip():
@@ -50,12 +77,12 @@ def cmd_session_end() -> int:
         return 0
     if not isinstance(payload, dict):
         return 0
-    tpath = payload.get("transcript_path") or ""
-    if not tpath or not Path(tpath).is_file():
+    tpath = _transcript_from_payload(payload)
+    if not tpath:
         return 0
     try:
         telemetry.main(["scan", "--transcript", tpath,
-                        "--session", str(payload.get("session_id") or "")])
+                        "--session", str(payload.get("session_id") or payload.get("id") or "")])
     except Exception:
         pass  # never fail the session
     return 0

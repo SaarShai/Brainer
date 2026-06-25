@@ -19,6 +19,15 @@
             "type": "command"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "command": "bash ./.codex/skills/learn-skill/tools/hook_session_end.sh",
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
       }
     ],
     "UserPromptSubmit": [
@@ -29,6 +38,15 @@
             "type": "command"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "command": "bash ./.codex/skills/learn-skill/tools/hook_session_start.sh",
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
       }
     ]
   }
