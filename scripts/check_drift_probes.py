@@ -21,6 +21,7 @@ KNOWN_KINDS = {
     "early_stop",
     "completion_without_closure",
     "ledger_not_materialized",
+    "workflow_nomination",
 }
 
 REQUIRED_BY_KIND = {
@@ -34,6 +35,7 @@ REQUIRED_BY_KIND = {
     "early_stop": [],
     "completion_without_closure": [],
     "ledger_not_materialized": ["min_open"],
+    "workflow_nomination": ["min_tool_calls"],
 }
 
 REGEX_FIELDS = [
@@ -42,6 +44,7 @@ REGEX_FIELDS = [
     "warrant_pattern",
     "unless_pattern",
     "maintenance_path_pattern",
+    "trivial_pattern",
 ]
 
 

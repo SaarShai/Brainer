@@ -1,0 +1,4 @@
+[
+  {"kind": "workflow_nomination", "id": "nominate", "min_tool_calls": 6,
+   "message": "a non-trivial multi-step workflow just completed (>=6 tool calls). If this procedure is REPEATABLE, capture it: `/learn how I just did this`. The /learn flow dedups (patch, don't duplicate) and gates the rationale through write-gate; the result is born `proposed` (slash-only, won't auto-fire) until usage earns promotion. Skip if this was a one-off."}
+]

@@ -37,6 +37,7 @@ notice when context matches one (e.g. `wiki-memory` for "have we done X").
 - `eval-gate` — Score AI output against a written rubric before it ships — an LLM-as-judge quality gate for content output (drafts, posts, answers) and product output (an agent's reply, an extraction, a generated payload)
 - `index-first` — Prefer pre-built indexes over chains of grep/read/scan
 - `lean-execution` — Prune plans, process, context, and delegation to the smallest safe path
+- `learn-skill` — Turn a pointed-at source (local dir, doc URL, a workflow you just did, or pasted notes) into a reusable Brainer skill
 - `loop-engineering` — Use BEFORE building any multi-step agentic loop, generator→verifier pipeline, fan-out/fleet, or iterate-until-correct/retry loop — INCLUDING an automated / unattended / scheduled / nightly process that regenerates, revises, or rebuilds artifacts and keeps retrying each until it passes a check, any self-correcting or "keep going until it's good enough" automation, and any build-and-verify or generate-and-grade pipeline
 - `output-filter` — Use when terminal output is noisy with ANSI / progress bars / duplicate lines and you want to keep the agent's eyes on signal
 - `plan-first-execute` — Plan before executing non-trivial or spec-worthy tasks

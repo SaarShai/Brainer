@@ -325,6 +325,22 @@ def discover_pulse_skills(root: Path, allowlist: set[str]) -> list[tuple[str, st
 
 # -------------------------- transcript reading ------------------------------
 
+def _normalize_events(events: list[dict]) -> list[dict]:
+    """Map a Codex {type,payload} transcript into Claude event shape so every
+    detector (which reads Claude-shaped tool_use/message blocks) works on both
+    hosts. Claude transcripts pass through. Degrades to identity if the shared
+    module is missing — never breaks the always-exit-0 contract."""
+    try:
+        shared = Path(__file__).resolve().parent.parent.parent / "_shared"
+        if str(shared) not in sys.path:
+            sys.path.insert(0, str(shared))
+        import transcript_norm
+        return transcript_norm.normalize(events)
+    except Exception as e:
+        log_err(f"normalize-fail err={e!r}")
+        return events
+
+
 def read_transcript_tail(path: str, cap: int = TRANSCRIPT_LINE_CAP) -> list[dict]:
     """Return up to `cap` most-recent parseable JSONL events from the transcript.
 
@@ -364,7 +380,7 @@ def read_transcript_tail(path: str, cap: int = TRANSCRIPT_LINE_CAP) -> list[dict
         if "message" in obj and not isinstance(obj["message"], dict):
             obj["message"] = {}
         events.append(obj)
-    return events
+    return _normalize_events(events)
 
 
 def recent_assistant_messages(events: list[dict], n: int) -> list[dict]:
@@ -695,6 +711,68 @@ DETECTORS["user_correction"] = detect_user_correction
 # unreliable (blind agents don't auto-load loop-engineering even with a strong
 # description), so a mechanical trigger beats hoping the model remembers.
 DETECTORS["prompt_intent"] = detect_user_correction
+
+
+# ---- workflow_nomination (learn-skill's nominate-not-auto-write trigger) -----
+# Hermes auto-CREATES a skill after a complex (5+ tool-call) task. That is a
+# memory-pollution machine without a reasoning gate. Brainer's port instead
+# NOMINATES: when a non-trivial multi-step workflow completes, nudge the agent to
+# `/learn` it — and let write-gate + dedup (in the /learn flow) decide if it earns
+# a skill. The detector NEVER writes a skill; the system-reminder IS the nomination.
+# Conservative by construction to avoid alert fatigue (GLM review): fires only at a
+# WRAP-UP turn (last message is a completion claim), only past a tool-call floor,
+# and only when the recent work is NON-TRIVIAL (an Edit/Write, or a Bash command
+# that isn't build/test/install/lint/git/ls boilerplate).
+_TRIVIAL_CMD_RE = re.compile(
+    r"(?i)^\s*(?:cd\s+[^\n&|;]+(?:&&|;)\s*)*"
+    r"(?:npm|yarn|pnpm|pip3?|pytest|python3?\s+-m\s+pytest|make|cargo|go|ls|ll|cat|head|"
+    r"tail|echo|pwd|git|grep|rg|find|mkdir|cp|mv|rm|chmod|touch|source|node|"
+    r"\./install|\./check|\./run|bash\s+skills/\S+/tools/install)\b"
+)
+
+
+def detect_workflow_nomination(probe: dict, messages: list[dict], tool_uses: list[dict],
+                               _tool_errors=None, user_prompt: str = "",
+                               traj_stats: dict | None = None) -> dict | None:
+    if not traj_stats or not messages:
+        return None
+    calls = traj_stats.get("tool_calls", 0)
+    if calls < int(probe.get("min_tool_calls", 6)):
+        return None
+    # Wrap-up gate: only nominate when the agent's last turn reads as a completion
+    # claim — so this fires at task boundaries, not on every turn past the floor.
+    last = messages[-1]["text"]
+    try:
+        if not re.search(_COMPLETION_CLAIM_DEFAULT, last):
+            return None
+    except re.error:
+        return None
+    # Triviality filter: needs at least one substantive action this window.
+    try:
+        trivial = re.compile(probe.get("trivial_pattern", "")) if probe.get("trivial_pattern") else _TRIVIAL_CMD_RE
+    except re.error:
+        trivial = _TRIVIAL_CMD_RE
+    substantive = False
+    for tu in (tool_uses or []):
+        name = tu.get("name", "")
+        if name in ("Edit", "Write", "NotebookEdit"):
+            substantive = True
+            break
+        if name == "Bash":
+            cmd = str((tu.get("input") or {}).get("command", ""))
+            # Strip leading env-assignments / sudo so `FOO=1 npm test` or `sudo make`
+            # are still recognised as boilerplate (adversarial-review false-positive).
+            cmd = re.sub(r"^\s*(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:sudo\s+)?", "", cmd)
+            if cmd.strip() and not trivial.search(cmd):
+                substantive = True
+                break
+    if not substantive:
+        return None
+    return {"tool_calls": calls,
+            "recovered_after_errors": traj_stats.get("tool_errors", 0) > 0}
+
+
+DETECTORS["workflow_nomination"] = detect_workflow_nomination
 
 
 # Default patterns for early_stop (each overridable per-probe).

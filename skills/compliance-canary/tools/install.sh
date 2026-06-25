@@ -59,9 +59,48 @@ settings_path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", enco
 PY
 }
 
+# Codex parity: Codex has no SessionStart but fires UserPromptSubmit (with the same
+# stdin payload incl. transcript_path), so the drift watcher + nomination nudge run
+# there too. Codex reads the transcript via the cross-host normalizer (skills/_shared).
+CODEX_HOOKS="$REPO/.codex/hooks.json"
+CODEX_HOOK_CMD="bash ./.codex/skills/compliance-canary/tools/hook.sh"
+
+merge_codex() {
+  python3 - "$CODEX_HOOKS" "$CODEX_HOOK_CMD" <<'PY'
+import json, sys
+from pathlib import Path
+hp = Path(sys.argv[1]); cmd = sys.argv[2]
+if hp.exists():
+    try:
+        data = json.loads(hp.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        sys.stderr.write(f"ABORT: {hp} is not valid JSON ({e}). Fix or remove it.\n"); sys.exit(1)
+else:
+    data = {}
+hooks = data.setdefault("hooks", {})
+rules = hooks.setdefault("UserPromptSubmit", [])
+# Prune any stale compliance-canary command (path change) so re-install converges to
+# one; keep every non-canary hook untouched.
+for rule in rules:
+    rule["hooks"] = [h for h in rule.get("hooks", [])
+                     if not ("compliance-canary" in h.get("command", "") and h.get("command") != cmd)]
+rules[:] = [r for r in rules if r.get("hooks") or r.get("matcher") not in (None, "*")]
+for rule in rules:
+    if rule.get("matcher") not in (None, "*"):
+        continue
+    if any(h.get("type") == "command" and h.get("command") == cmd for h in rule.get("hooks", [])):
+        break
+else:
+    rules.append({"matcher": "*", "hooks": [{"type": "command", "command": cmd}]})
+hp.parent.mkdir(parents=True, exist_ok=True)
+hp.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+PY
+}
+
 if [ "$DRY_RUN" = "1" ]; then
   echo "dry-run: would symlink $SKILL_SRC → $SKILL_DIR/compliance-canary"
   echo "dry-run: would update $SETTINGS with UserPromptSubmit * -> $HOOK_CMD"
+  [ -e "$REPO/.codex/skills/compliance-canary" ] && echo "dry-run: would add Codex UserPromptSubmit -> $CODEX_HOOK_CMD"
   exit 0
 fi
 
@@ -72,6 +111,12 @@ ln -sfn "$REL_SRC" "$SKILL_DIR/compliance-canary"
 merge_settings
 
 echo "Installed compliance-canary into repo-local .claude."
+# Wire Codex too, if this repo has a .codex/skills/compliance-canary symlink (from ./install.sh).
+if [ -e "$REPO/.codex/skills/compliance-canary" ]; then
+  chmod +x "$TOOLS_DIR/hook.sh" 2>/dev/null || true
+  merge_codex
+  echo "Wired Codex hook (.codex/hooks.json): UserPromptSubmit -> compliance-canary (Codex has no SessionStart)"
+fi
 echo
 echo "Tune via env vars:"
 echo "  COMPLIANCE_CANARY_DISABLED=1       # off-switch"

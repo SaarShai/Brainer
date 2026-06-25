@@ -166,27 +166,55 @@ For after-the-fact mode, reconstruct from the visible transcript, git diff, chan
 
 ## Durable write target ladder
 
-Use the narrowest durable target:
+Use the narrowest durable target. There are **four destinations**, each a distinct
+backend — prefer the lightest that fits: **drop > wiki page > skill > always-on rule.**
 
-1. no durable write;
-2. wiki fact or project memory;
-3. wiki pattern or lesson;
-4. SOP;
-5. checklist;
-6. existing project-specific skill;
-7. new project-specific skill;
-8. project-level `AGENTS.md` / `CLAUDE.md` / `GEMINI.md`, only for broad repo-wide rules.
+1. **drop** — no durable write (most lessons end here).
+2. **wiki page** → [`wiki-memory`](../wiki-memory/SKILL.md) — a durable fact, lesson, SOP,
+   or checklist. One destination, several *shapes*: the wiki is internally tiered (L2 facts /
+   L3 SOPs), so pick the lightest shape that captures it — a one-off fact and a multi-step
+   SOP both land here, the wiki's tiers keep them apart.
+3. **skill** → [`learn-skill`](../learn-skill/SKILL.md) (`/learn`) — a reusable *procedure*.
+   Create-vs-update is `/learn`'s dedup decision (PATCH vs CREATE), not a separate target.
+4. **always-on rule** — project `AGENTS.md` / `CLAUDE.md` / `GEMINI.md`, only for broad
+   repo-wide behavior that must always be in context.
 
-A project-specific skill is valid only when all are true:
+A fact or gotcha is a **wiki page**, not a skill; a repo-wide rule is an **always-on rule**,
+not a skill. Most retrospective lessons are facts/gotchas → destination 2 or drop.
+
+A **skill** (destination 3) is valid only when all are true:
 
 - the workflow will recur;
 - the trigger is clear;
 - the procedure is concrete;
-- the lesson is not already covered by an SOP, checklist, memory page, or existing skill;
+- the lesson is not already covered by a wiki page (fact / SOP / checklist) or an existing skill;
 - a future agent would otherwise rediscover the procedure;
 - the user requested it or the evidence strongly supports it.
 
 Canonical Brainer skill updates are not on this ladder.
+
+### Destination 3 (skill) hands off to `/learn`
+
+When — and ONLY when — the chosen destination is a skill, do not hand-write the
+`SKILL.md`. Hand the lesson to [`learn-skill`](../learn-skill/SKILL.md):
+
+```bash
+# new skill: author from the task you just retrospected
+/learn how we just did <task>        # described-workflow source
+
+# possibly-existing: dedup first — it says PATCH if one already covers this (don't duplicate)
+python3 skills/learn-skill/tools/learn.py dedup --desc "<one-line procedure>" --body-file <draft>
+```
+
+Why route through `/learn` instead of writing the file: the skill inherits the full
+governance — dedup-before-write (patch, don't duplicate), the same `write-gate` rationale
+check this ladder already runs, birth as `status: proposed` (slash-only, can't auto-fire),
+and the telemetry-gated `proposed → trusted` lifecycle. A hand-written skill skips all that.
+
+This handoff is **conditional, not automatic** — destinations 1, 2, and 4 (drop, wiki,
+always-on rule) are NOT skills and stay on their own backends. task-retrospective remains
+the router that decides *whether* a lesson is durable and *which* of the four destinations
+it belongs to; `/learn` only owns the skill destination.
 
 ## Write pipeline
 

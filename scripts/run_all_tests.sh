@@ -91,6 +91,12 @@ UNIT_TESTS=(
   skills/wiki-memory/tools/test_sim_eval.py
   skills/wiki-memory/tools/test_config.py
   skills/wiki-refresh/tools/test_staleness.py
+  skills/learn-skill/tools/test_learn.py
+  skills/learn-skill/tools/test_telemetry.py
+  skills/learn-skill/tools/test_nomination.py
+  skills/learn-skill/tools/test_hooks.py
+  skills/learn-skill/tools/test_install_merge.py
+  skills/_shared/test_transcript_norm.py
   scripts/test_gen_hooks_map.py
   scripts/test_mine_transcripts.py
 )

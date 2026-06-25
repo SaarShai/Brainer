@@ -65,12 +65,14 @@ LANE_GLM = "glm"
 class Backend:
     vendor: str          # human label, e.g. "GPT via Codex CLI"
     lane: str            # diversity key, one of the LANE_* constants
-    kind: str            # "cli" | "api" | "local"
+    kind: str            # "cli" | "api" | "http" | "local"
     invocation: str      # the read-only command stem; "{model}" filled if local/tiered
     available: bool      # detected on this host right now
     probe: str           # how availability was decided (for transparency)
     models: list[str] = field(default_factory=list)   # local tags, if enumerable
     notes: str = ""
+    transport: str = ""  # "" = native CLI/local/zai; "openrouter" = dispatched via the OpenRouter proxy
+    slug: str = ""       # provider model id for a proxied lane, e.g. "openai/gpt-5-mini"
 
 
 # --- Detection ------------------------------------------------------------
@@ -157,10 +159,102 @@ def _run_glm(prompt: str, *, timeout: float, model: str = "glm-5.2",
         return False, "", f"z.ai unexpected response shape: {e}"
 
 
-def detect_roster() -> list[Backend]:
+# --- OpenRouter transport -------------------------------------------------
+# OpenRouter is NOT a lane — it is a TRANSPORT that can serve many vendor lanes
+# through one OpenAI-compatible API + one key. It BACKFILLS a lane when no native
+# CLI exists (preserving diversity-by-lane and the free subscription reuse of the
+# native CLIs), and can OPTIONALLY be preferred for every non-orchestrator lane
+# (`prefer_transport`) to consolidate everything behind one provider. The verifier
+# gate logic is unchanged either way — OpenRouter is wire, not judgment.
+
+# Default production slugs per lane (real ids from the live catalog; override with
+# env OPENROUTER_MODEL_<LANE>, e.g. OPENROUTER_MODEL_GPT). Mid-tier, chat-capable,
+# non-image/-codex variants — a panel member, not a flagship spend.
+_OPENROUTER_SLUGS = {
+    LANE_GPT: "openai/gpt-5-mini",
+    LANE_GEMINI: "google/gemini-3-flash-preview",
+    LANE_CLAUDE: "anthropic/claude-haiku-4.5",
+    LANE_GLM: "z-ai/glm-4.6",
+}
+# Lanes OpenRouter is allowed to provide. LOCAL is deliberately excluded: the
+# ollama lane is the on-box SURVIVOR backstop against the proxy being a single
+# point of failure (the documented June-2025 OpenRouter 403 of Claude+Gemini), so
+# it must never be routed THROUGH the proxy.
+_OPENROUTER_LANES = (LANE_GPT, LANE_GEMINI, LANE_CLAUDE, LANE_GLM)
+_OPENROUTER_BASE = "https://openrouter.ai/api/v1"
+
+
+def _openrouter_key() -> str:
+    """The OpenRouter key from the env, else `~/.config/openrouter/key` (mirrors
+    `_zai_key` — same reason: reachable without the var exported into this shell).
+    Never raises."""
+    k = next((os.environ[v] for v in ("OPENROUTER_API_KEY", "OPENROUTER_KEY") if os.environ.get(v)), "")
+    if k:
+        return k
+    try:
+        with open(os.path.expanduser("~/.config/openrouter/key"), encoding="utf-8", errors="ignore") as fh:
+            return fh.read().strip()
+    except OSError:
+        return ""
+
+
+def _openrouter_slug(lane: str) -> str:
+    """The model slug for a lane, env-overridable per lane."""
+    return os.environ.get(f"OPENROUTER_MODEL_{lane.upper()}") or _OPENROUTER_SLUGS.get(lane, "")
+
+
+def _run_openrouter(prompt: str, *, timeout: float, model: str,
+                    base: str = _OPENROUTER_BASE) -> tuple[bool, str, str]:
+    """Dispatch one prompt through OpenRouter's OpenAI-compatible chat/completions
+    (twin of `_run_glm`, different base/key/headers). max_tokens is capped for the
+    same reason — a reasoning model with no cap can run unbounded — and the reply
+    falls back to `reasoning` when `content` lands empty. Returns (ok, text, err);
+    never raises so a failing member is dropped, not fatal."""
+    key = _openrouter_key()
+    if not key:
+        return False, "", "no OpenRouter key (env OPENROUTER_API_KEY/… or ~/.config/openrouter/key)"
+    if not model:
+        return False, "", "no OpenRouter model slug for this lane"
+    import urllib.error
+    import urllib.request
+    body = json.dumps({"model": model, "max_tokens": 2048,
+                       "messages": [{"role": "user", "content": prompt}]}).encode()
+    req = urllib.request.Request(f"{base}/chat/completions", data=body, method="POST",
+                                 headers={"Authorization": f"Bearer {key}",
+                                          "Content-Type": "application/json",
+                                          # OpenRouter attribution headers (optional, recommended).
+                                          "HTTP-Referer": "https://github.com/brainer/loop-engineering",
+                                          "X-Title": "Brainer loop-engineering panel"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read().decode("utf-8", "ignore"))
+    except (urllib.error.URLError, OSError) as e:
+        return False, "", f"OpenRouter dispatch failed: {e}"
+    except ValueError as e:
+        return False, "", f"OpenRouter unparseable response: {e}"
+    # OpenRouter surfaces upstream errors (402 credits, provider overload) in-body.
+    if isinstance(data, dict) and data.get("error"):
+        return False, "", f"OpenRouter: {str(data['error'].get('message', data['error']))[:160]}"
+    try:
+        msg = data["choices"][0]["message"]
+    except (KeyError, IndexError, TypeError) as e:
+        return False, "", f"OpenRouter unexpected response shape: {e}"
+    text = (msg.get("content") or "").strip() or (msg.get("reasoning") or "").strip()
+    if not text:
+        return False, "", "OpenRouter returned empty content + reasoning"
+    return True, text, ""
+
+
+def detect_roster(*, prefer_transport: str = "") -> list[Backend]:
     """Every KNOWN backend, each flagged available or not on this host. The full
     list (not just the available subset) is returned so a caller can show what is
-    missing — `available_only()` filters."""
+    missing — `available_only()` filters.
+
+    `prefer_transport="openrouter"` flips selection to prefer the OpenRouter-backed
+    backend for every eligible lane even when a native CLI exists (one-provider
+    consolidation / the ours-vs-OpenRouter comparison). Default "" keeps native
+    CLIs preferred and only BACKFILLS lanes OpenRouter can reach but the host
+    cannot natively."""
     codex = shutil.which("codex")
     claude = shutil.which("claude")
     gemini = shutil.which("gemini")
@@ -171,8 +265,9 @@ def detect_roster() -> list[Backend]:
     codex_glm = _codex_glm_config()                      # GLM also wired through codex config
     gemini_key = next((k for k in ("GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENAI_API_KEY")
                        if os.environ.get(k)), "")
+    or_key = _openrouter_key()                           # OpenRouter transport, if configured
 
-    return [
+    native = [
         Backend(
             vendor="GPT via Codex CLI", lane=LANE_GPT, kind="cli",
             invocation="codex exec",
@@ -232,6 +327,36 @@ def detect_roster() -> list[Backend]:
                   "not a config bug, a protocol mismatch, so the panel uses the direct z.ai path, not codex.",
         ),
     ]
+
+    # OpenRouter transport: one OpenAI-compatible API + key fronting many lanes.
+    # BACKFILL (default): add an OpenRouter-backed backend for any eligible lane the
+    # host can't reach natively. PREFER (prefer_transport="openrouter"): override the
+    # native backend for every eligible lane, so selection consolidates on the proxy.
+    if or_key:
+        native_avail = {b.lane for b in native if b.available}
+        for lane in _OPENROUTER_LANES:
+            slug = _openrouter_slug(lane)
+            if not slug:
+                continue
+            prefer = prefer_transport == "openrouter"
+            if not prefer and lane in native_avail:
+                continue                                  # native CLI wins unless told to prefer the proxy
+            orb = Backend(
+                vendor=f"{lane.upper()} via OpenRouter ({slug})", lane=lane, kind="http",
+                invocation=f"OpenRouter chat/completions ({slug})",
+                available=True, probe="key: env or ~/.config/openrouter/key",
+                transport="openrouter", slug=slug,
+                notes="OpenRouter proxy — one key, many lanes, provider-level failover. "
+                      "Auto-runnable here over its OpenAI-compatible chat/completions. "
+                      + ("PREFERRED over the native lane (prefer_transport)." if prefer
+                         else "BACKFILL — no native CLI for this lane on this host."),
+            )
+            if prefer:
+                native = [b for b in native if b.lane != lane] + [orb]   # replace the native lane
+            else:
+                native.append(orb)
+
+    return native
 
 
 def available_only(roster: list[Backend]) -> list[Backend]:
@@ -309,8 +434,12 @@ def render_dispatch(b: Backend, role: Role, task: str, brief: str, *, model: str
     no escaping and the shell expands nothing inside it."""
     prompt = render_prompt(role, task, brief)
     if b.kind in ("api", "http"):
-        how = ("auto-runnable with --run (direct z.ai chat/completions)" if b.kind == "http"
-               else "hand the agent this prompt, demand a synchronous final-message result")
+        if b.kind == "http" and b.transport == "openrouter":
+            how = "auto-runnable with --run (OpenRouter chat/completions)"
+        elif b.kind == "http":
+            how = "auto-runnable with --run (direct z.ai chat/completions)"
+        else:
+            how = "hand the agent this prompt, demand a synchronous final-message result"
         return (f"# {b.vendor} — {b.invocation}\n"
                 f"# role={role}; {how}:\n{prompt}")
     inv = b.invocation
@@ -354,6 +483,13 @@ def run_dispatch(b: Backend, role: Role, task: str, brief: str, *,
     import shlex     # stdlib; local so the pure path needs no import
     result = {"vendor": b.vendor, "lane": b.lane, "role": role,
               "ok": False, "findings": "", "raw": "", "error": ""}
+    if b.kind == "http" and b.transport == "openrouter":
+        ok, text, err = _run_openrouter(render_prompt(role, task, brief),
+                                        timeout=timeout, model=model or b.slug)
+        text = _strip_ansi(text)
+        result.update(ok=ok, raw=text,
+                      findings=_extract_findings(text) if ok else "", error=err)
+        return result
     if b.kind == "http" and b.lane == LANE_GLM:
         ok, text, err = _run_glm(render_prompt(role, task, brief),
                                  timeout=timeout, model=model or "glm-5.2")
@@ -404,6 +540,82 @@ def run_panel(roster: list[Backend], n: int, role: Role, task: str, brief: str, 
             "survivors": survivors, "failures": failures}
 
 
+# --- Fusion advisor (OpenRouter) ------------------------------------------
+# Fusion is OpenRouter's productised ADVISOR: fan the prompt to a panel (3–8
+# models in parallel), a judge returns a STRUCTURED synthesis (consensus /
+# contradictions / partial coverage / unique insights / blind spots). It is the
+# diverge-and-synthesise half only — it is CONSENSUS-oriented, not refute-if-you-
+# can, the judge prompt + output schema are FIXED, and it returns analysis not a
+# boolean. So it maps to our ADVISOR, never the VERIFIER gate (that stays ours;
+# wiring Fusion as the gate would re-open the LLM-judge hole loop_lint R1/R3
+# refuse). The judge `model` and the `analysis_models` panel are configurable.
+
+_FUSION_MODEL = "openrouter/fusion"
+
+
+def fusion_request_body(task: str, brief: str, *, analysis_models: list[str] | None = None,
+                        judge_model: str = "", preset: str = "", max_tokens: int = 2048) -> dict:
+    """Pure builder for the Fusion request body (separated so it is testable with
+    no network/credits). The advisor scaffold is reused so Fusion gets the same
+    'propose, do not judge' framing the native advisor panel gets."""
+    plugin: dict = {"id": "fusion"}
+    if preset:
+        plugin["preset"] = preset
+    if analysis_models:
+        plugin["analysis_models"] = list(analysis_models)
+    if judge_model:
+        plugin["model"] = judge_model
+    return {"model": _FUSION_MODEL, "max_tokens": max_tokens,
+            "plugins": [plugin],
+            "messages": [{"role": "user", "content": render_prompt("advisor", task, brief)}]}
+
+
+def run_fusion(task: str, brief: str, *, analysis_models: list[str] | None = None,
+               judge_model: str = "", preset: str = "", timeout: float = 180.0,
+               base: str = _OPENROUTER_BASE) -> dict:
+    """Run OpenRouter Fusion as the advisor. Returns {ok, findings, raw, error}.
+    Never raises — a credit/availability failure is reported, not fatal. NOTE: the
+    exact Fusion plugin wire is confirmed against the live API the first time a
+    credited key runs it; until then treat the request shape as provisional."""
+    result = {"vendor": "Fusion panel (OpenRouter)", "role": "advisor",
+              "ok": False, "findings": "", "raw": "", "error": ""}
+    key = _openrouter_key()
+    if not key:
+        result["error"] = "no OpenRouter key"
+        return result
+    import urllib.error
+    import urllib.request
+    body = json.dumps(fusion_request_body(task, brief, analysis_models=analysis_models,
+                                          judge_model=judge_model, preset=preset)).encode()
+    req = urllib.request.Request(f"{base}/chat/completions", data=body, method="POST",
+                                 headers={"Authorization": f"Bearer {key}",
+                                          "Content-Type": "application/json",
+                                          "HTTP-Referer": "https://github.com/brainer/loop-engineering",
+                                          "X-Title": "Brainer loop-engineering Fusion advisor"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read().decode("utf-8", "ignore"))
+    except (urllib.error.URLError, OSError) as e:
+        result["error"] = f"Fusion dispatch failed: {e}"
+        return result
+    except ValueError as e:
+        result["error"] = f"Fusion unparseable response: {e}"
+        return result
+    if isinstance(data, dict) and data.get("error"):
+        result["error"] = f"Fusion: {str(data['error'].get('message', data['error']))[:160]}"
+        return result
+    try:
+        text = _strip_ansi((data["choices"][0]["message"].get("content") or "").strip())
+    except (KeyError, IndexError, TypeError) as e:
+        result["error"] = f"Fusion unexpected response shape: {e}"
+        return result
+    if not text:
+        result["error"] = "Fusion returned empty content"
+        return result
+    result.update(ok=True, raw=text, findings=_extract_findings(text) or text[:400])
+    return result
+
+
 # --- CLI ------------------------------------------------------------------
 
 def _print_human(roster: list[Backend]) -> None:
@@ -433,9 +645,37 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--run", action="store_true",
                     help="ACTUALLY dispatch the --panel (real spend); drop failed members, print survivors' findings")
     ap.add_argument("--timeout", type=float, default=120.0, help="per-member dispatch timeout in seconds (--run)")
+    ap.add_argument("--via", choices=["openrouter"], default="",
+                    help="prefer this transport for every eligible lane even when a native CLI exists "
+                         "(one-provider consolidation / ours-vs-OpenRouter comparison)")
+    ap.add_argument("--fusion", action="store_true",
+                    help="advisor via OpenRouter Fusion (panel→judge synthesis) instead of the native panel; "
+                         "with --run, dispatches it (needs credits). Advisor only — never the verifier gate.")
+    ap.add_argument("--analysis-models", default="",
+                    help="comma-separated OpenRouter slugs for the Fusion analysis panel (optional)")
+    ap.add_argument("--judge-model", default="", help="OpenRouter slug for the Fusion judge (optional)")
+    ap.add_argument("--preset", default="", help="Fusion preset, e.g. general-high | general-budget (optional)")
     args = ap.parse_args(argv)
 
-    roster = detect_roster()
+    if args.fusion:
+        am = [s.strip() for s in args.analysis_models.split(",") if s.strip()] or None
+        if args.run:
+            res = run_fusion(args.task, args.brief, analysis_models=am,
+                             judge_model=args.judge_model, preset=args.preset, timeout=args.timeout)
+            if args.json:
+                print(json.dumps(res, indent=2))
+            elif res["ok"]:
+                print(f"# Fusion advisor RUN — ok\n  FINDINGS: {res['findings']}")
+            else:
+                print(f"# Fusion advisor — FAILED: {res['error']}", file=sys.stderr)
+            return 0 if res["ok"] else 1
+        body = fusion_request_body(args.task, args.brief, analysis_models=am,
+                                   judge_model=args.judge_model, preset=args.preset)
+        print("# Fusion advisor request body (POST {}/chat/completions); add --run to dispatch:".format(_OPENROUTER_BASE))
+        print(json.dumps(body, indent=2))
+        return 0
+
+    roster = detect_roster(prefer_transport=args.via)
 
     if args.panel is not None:
         # verifier panels want an odd N for a clean majority; advisor panels do not.
