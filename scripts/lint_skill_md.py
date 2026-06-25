@@ -11,6 +11,7 @@ Checks:
 """
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -112,6 +113,13 @@ def lint_one(path: Path) -> list[str]:
 def main(argv: list[str]) -> int:
     if len(argv) < 2:
         print("usage: lint.py <SKILL.md> [...]", file=sys.stderr)
+        return 2
+    # In CI the strict-YAML gate (lines ~76) is the whole point — silently
+    # degrading to the dependency-free path there would let malformed frontmatter
+    # ship. Fail loudly so a missing dep is fixed, not ignored.
+    if os.environ.get("CI") and yaml is None:
+        print("ERROR: PyYAML is required in CI for strict SKILL.md frontmatter "
+              "validation, but it is not installed.", file=sys.stderr)
         return 2
     rc = 0
     for arg in argv[1:]:

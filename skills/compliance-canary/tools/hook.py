@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""compliance-canary UserPromptSubmit hook — the single drift watcher.
+r"""compliance-canary UserPromptSubmit hook — the single drift watcher.
 
 Two ORTHOGONAL anti-drift mechanisms in ONE hook process (skill-pulse was
 folded in here 2026-06-16 — one reactive hook instead of two, the leaner

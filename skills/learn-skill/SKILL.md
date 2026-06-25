@@ -126,8 +126,8 @@ the canary auto-discovers it. Silence per-deployment via `COMPLIANCE_CANARY_PROB
 
 ## Verification
 ```bash
-python3 skills/learn-skill/tools/test_learn.py        # 16: dedup, lint, scaffold, promote, demote, staleness, CRLF, stale-gate
-python3 skills/learn-skill/tools/test_telemetry.py    # 8:  record, scan, stats, flag, collision, chronological-streak, regex
+python3 skills/learn-skill/tools/test_learn.py        # 22: dedup, lint (+YAML gate), scaffold (+YAML-safe), promote, demote, staleness (+disable-on-stale), CRLF, stale-gate
+python3 skills/learn-skill/tools/test_telemetry.py    # 13: record, scan, stats, flag, collision, chronological-streak, regex (+approval-lead/benign-don't)
 python3 skills/learn-skill/tools/test_nomination.py   # 7:  the canary nomination detector + boilerplate filters
 python3 skills/loop-engineering/tools/loop_lint.py skills/learn-skill/LOOPS.md   # 0 fail · 0 warn
 python3 skills/learn-skill/tools/learn.py lint --file skills/<name>/SKILL.md     # exit 0

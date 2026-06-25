@@ -2,7 +2,7 @@ PYTHON ?= python3
 
 .PHONY: check full-check check-tail lint carrier-sync marketplace-sync contracts conflicts drift-probes generated wiki-hygiene test existing-tests existing-tests-core existing-tests-tail py-syntax
 
-check: lint carrier-sync marketplace-sync contracts conflicts drift-probes generated wiki-hygiene test existing-tests-core
+check: lint py-syntax carrier-sync marketplace-sync contracts conflicts drift-probes generated wiki-hygiene test existing-tests-core
 
 full-check: check check-tail
 

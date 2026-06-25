@@ -123,12 +123,64 @@ def test_scaffold_frontmatter():
         assert "status: proposed" in text
         assert "disable-model-invocation: true" in text
         assert "auto-install: false" in text
-        assert "source: https://example.com/doc" in text
+        # source contains '://' so it is now YAML-quoted; assert it round-trips
+        # through the frontmatter reader rather than pinning the raw quoting.
+        assert learn._frontmatter(text)["source"] == "https://example.com/doc"
         assert "learned_at: 2026-06-24" in text
         # scaffolded skill must itself pass lint
         code2, out2 = _run(["lint", "--file", str(out)])
         assert code2 == 0, out2
     print("ok test_scaffold_frontmatter")
+
+
+def test_scaffold_yaml_safe_with_punctuation():
+    """P1-1: a description/source carrying ': ' '#' '[' '\"' must scaffold to VALID
+    YAML and round-trip — not the raw unquoted form that breaks a strict parser."""
+    with tempfile.TemporaryDirectory() as t:
+        out = Path(t) / "out.md"
+        desc = 'Do X: then Y #hash [b] "q"'
+        src = "https://x.com/a?b=1: c"
+        code, _ = _run(["scaffold", "--name", "punct", "--desc", desc, "--source", src,
+                        "--when", "w", "--proc", "p", "--verify", "v", "--out", str(out)])
+        assert code == 0
+        text = out.read_text()
+        # quoted (not raw) so a strict host won't choke
+        assert "description: Do X: then Y" not in text, text
+        fm = learn._frontmatter(text)
+        assert fm["description"] == desc, fm["description"]
+        assert fm["source"] == src, fm["source"]
+        try:
+            import yaml  # type: ignore
+            import re as _re
+            blk = _re.match(r"^---\s*\n(.*?)\n---\s*\n", text, _re.DOTALL)
+            d = yaml.safe_load(blk.group(1))
+            assert d["description"] == desc and d["source"] == src
+        except ImportError:
+            pass
+        # and it must lint clean
+        code2, out2 = _run(["lint", "--file", str(out)])
+        assert code2 == 0, out2
+    print("ok test_scaffold_yaml_safe_with_punctuation")
+
+
+def test_lint_fails_on_invalid_yaml_frontmatter():
+    """The lenient _frontmatter reader tolerates malformed YAML; lint must not —
+    a hand-edited unquoted ': ' has to be caught (requires PyYAML)."""
+    try:
+        import yaml  # noqa: F401
+    except ImportError:
+        print("ok test_lint_fails_on_invalid_yaml_frontmatter (skipped, no PyYAML)")
+        return
+    with tempfile.TemporaryDirectory() as t:
+        out = Path(t) / "out.md"
+        out.write_text(
+            "---\nname: bad\ndescription: Do X: then Y\nstatus: proposed\n---\n"
+            "# bad\n## When to Use\nx\n## Procedure\nx\n## Verification\nx\n",
+            encoding="utf-8")
+        code, msg = _run(["lint", "--file", str(out)])
+        assert code == 1, msg
+        assert "not valid YAML" in msg, msg
+    print("ok test_lint_fails_on_invalid_yaml_frontmatter")
 
 
 import json  # noqa: E402
@@ -235,9 +287,16 @@ def test_staleness_git_path():
         code, out = _run(["staleness", "--skills-dir", str(sd), "--root", t])
         assert "STALE] stale-one" in out, out
         assert "ok ] fresh-one" in out, out
-        # --apply flips the stale one's status
+        # Simulate a previously-promoted (trusted, auto-invocable) skill that has
+        # since gone stale — the dangerous case: marking stale must also re-disable
+        # model invocation, else a drifted skill keeps auto-firing.
+        learn._rewrite_frontmatter(sd / "stale-one" / "SKILL.md",
+                                   {"status": "trusted", "disable-model-invocation": "false"})
+        # --apply flips the stale one's status AND re-disables model invocation
         _run(["staleness", "--skills-dir", str(sd), "--root", t, "--apply"])
-        assert "status: stale" in (sd / "stale-one" / "SKILL.md").read_text()
+        stale_md = (sd / "stale-one" / "SKILL.md").read_text()
+        assert "status: stale" in stale_md
+        assert "disable-model-invocation: true" in stale_md, stale_md
     print("ok test_staleness_git_path")
 
 

@@ -148,12 +148,20 @@ def validate_optional_metadata(skill: str, fm: dict[str, Any], errors: list[str]
     if "risk_level" in fm and fm["risk_level"] not in RISK_LEVELS:
         errors.append(f"{skill}: risk_level must be one of {sorted(RISK_LEVELS)}, got {fm['risk_level']!r}")
 
+    # `requires_tools` is overloaded: canonical skills use the closed capability
+    # vocabulary (read/bash/…), but a LEARNED skill (carries `source:`) uses it for
+    # external CLI executables (gh, jq) validated at runtime by learn.py check-tools
+    # (shutil.which), not against this set. Exempt learned skills from the closed-set
+    # check so the contract gate doesn't reject a legitimately-learned dependency.
+    is_learned = "source" in fm
     for key, allowed in (
         ("host_support", HOST_SUPPORT),
         ("side_effects", SIDE_EFFECTS),
         ("requires_tools", REQUIRES_TOOLS),
     ):
         if key not in fm:
+            continue
+        if key == "requires_tools" and is_learned:
             continue
         values = parse_scalar_list(fm[key])
         unknown = sorted(set(values) - allowed)

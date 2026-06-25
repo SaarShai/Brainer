@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import json
 import re
 import shutil
 import subprocess
@@ -65,6 +66,21 @@ def _overlap_coeff(a: set[str], b: set[str]) -> float:
     return len(a & b) / min(len(a), len(b))
 
 
+def _unquote(v: str) -> str:
+    """Strip a surrounding YAML quote pair so readers get the bare value. Needed
+    now that scaffold quotes scalars carrying ': ' / '#' / brackets (see
+    _yaml_scalar): without this, source/description would be read WITH the quotes
+    and staleness/dedup would compare a quoted string."""
+    if len(v) >= 2 and v[0] == v[-1] == '"':
+        try:
+            return json.loads(v)            # double-quoted: JSON-unescape
+        except ValueError:
+            return v[1:-1]
+    if len(v) >= 2 and v[0] == v[-1] == "'":
+        return v[1:-1].replace("''", "'")   # single-quoted: YAML '' -> '
+    return v
+
+
 def _frontmatter(text: str) -> dict[str, str]:
     m = re.match(r"^---\r?\n(.*?)\r?\n---\r?\n", text, re.DOTALL)
     if not m:
@@ -73,7 +89,7 @@ def _frontmatter(text: str) -> dict[str, str]:
     for line in m.group(1).splitlines():
         if ":" in line and not line.lstrip().startswith("#"):
             k, _, v = line.partition(":")
-            fm[k.strip()] = v.strip()
+            fm[k.strip()] = _unquote(v.strip())
     return fm
 
 
@@ -160,6 +176,21 @@ def cmd_lint(args) -> int:
     fm = _frontmatter(text)
     errors, warnings = [], []
 
+    # Strict YAML gate (when PyYAML is importable): _frontmatter is a lenient
+    # regex reader that tolerates malformed YAML a strict host would reject, so a
+    # scaffold/hand-edit that breaks the frontmatter (e.g. an unquoted ': ') must
+    # be caught here, not silently passed.
+    block = re.match(r"^﻿?---[ \t]*\r?\n(.*?)\r?\n---[ \t]*\r?\n", text, re.DOTALL)
+    try:
+        import yaml  # type: ignore
+        if block is not None:
+            try:
+                yaml.safe_load(block.group(1))
+            except yaml.YAMLError as e:
+                errors.append(f"frontmatter is not valid YAML ({e})")
+    except ImportError:  # pragma: no cover - dependency-free fallback
+        pass
+
     for key in ("name", "description", "status"):
         if not fm.get(key):
             errors.append(f"missing frontmatter key: {key}")
@@ -188,6 +219,28 @@ def _slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
 
+# A frontmatter scalar needs quoting when it carries any YAML-significant char:
+# a colon (mapping ambiguity — the #1 break, e.g. "Do X: then Y"), a leading
+# flow/indicator char ([ { etc.), '#' (comment), quotes, leading/trailing space.
+_YAML_NEEDS_QUOTE = re.compile(r"""[:#\[\]{}&*!|>'"%@`]|^[\s\-?]|\s$""")
+_YAML_RESERVED = {"true", "false", "null", "yes", "no", "on", "off", "~"}
+
+
+def _yaml_scalar(v: str) -> str:
+    """Render a value safe to splice into `key: <here>` frontmatter.
+
+    A description/source containing ': ' (or '#', brackets, quotes …) otherwise
+    produces invalid YAML that the lenient _frontmatter reader silently tolerates
+    but PyYAML / a strict host rejects. json.dumps yields a double-quoted string
+    that is a valid YAML double-quoted scalar (JSON strings ⊂ YAML), with
+    ensure_ascii=False keeping em-dashes etc. literal."""
+    if v == "":
+        return ""
+    if _YAML_NEEDS_QUOTE.search(v) or v.lower() in _YAML_RESERVED:
+        return json.dumps(v, ensure_ascii=False)
+    return v
+
+
 def cmd_scaffold(args) -> int:
     tmpl_path = Path(__file__).resolve().parent.parent / "templates" / "learned-skill.template.md"
     tmpl = tmpl_path.read_text(encoding="utf-8")
@@ -195,15 +248,15 @@ def cmd_scaffold(args) -> int:
     learned_at = args.learned_at or datetime.date.today().isoformat()
     filled = (
         tmpl.replace("{{NAME}}", name)
-        .replace("{{DESCRIPTION}}", args.desc)
-        .replace("{{SOURCE}}", args.source)
+        .replace("{{DESCRIPTION}}", _yaml_scalar(args.desc))
+        .replace("{{SOURCE}}", _yaml_scalar(args.source))
         .replace("{{LEARNED_AT}}", learned_at)
         .replace("{{WHEN_TO_USE}}", args.when or "TODO: trigger conditions.")
         .replace("{{PROCEDURE}}", args.proc or "TODO: literal steps (exact commands).")
         .replace("{{PITFALLS}}", args.pitfalls or "TODO: known failure modes.")
         .replace("{{VERIFICATION}}", args.verify or "TODO: how to confirm it worked.")
         .replace("{{RATIONALE}}", args.rationale or "TODO: why this earns a skill.")
-        .replace("{{REQUIRES_TOOLS}}", getattr(args, "requires_tools", "") or "")
+        .replace("{{REQUIRES_TOOLS}}", _yaml_scalar(getattr(args, "requires_tools", "") or ""))
     )
     out = Path(args.out) if args.out else Path("skills") / name / "SKILL.md"
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -385,8 +438,12 @@ def cmd_staleness(args) -> int:
             mark = {"fresh": "  ok ", "stale": "STALE", "recheck": "CHECK", "unknown": " ??  "}[verdict]
             print(f"[{mark}] {sm.parent.name}: {reason}")
             if args.apply and verdict == "stale" and fm.get("status") != "stale":
-                _rewrite_frontmatter(sm, {"status": "stale"})
-                print(f"         -> marked status: stale")
+                # A stale skill must not keep auto-firing: a promoted (trusted)
+                # skill carries disable-model-invocation:false, so marking it stale
+                # without re-disabling would leave a drifted skill model-invocable.
+                _rewrite_frontmatter(sm, {"status": "stale",
+                                          "disable-model-invocation": "true"})
+                print(f"         -> marked status: stale (model-invocation disabled)")
         except (OSError, ValueError) as e:
             print(f"[ERR ] {sm.parent.name}: could not check ({e})")
     if not rows:

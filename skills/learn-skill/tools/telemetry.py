@@ -46,12 +46,41 @@ _CORRECTION_RE = re.compile(
     r"\bno,\s|\bnope\b|"
     r"that'?s (?:wrong|not right|incorrect|not what)|"
     r"\bnot what i\b|\bi (?:said|meant|asked for)\b|"
-    r"\b(?:do ?n'?t|don'?t)\b|\bundo\b|\brevert\b|\bstop\b|"
+    # bare "don't" is a correction (don't do that) UNLESS it heads a benign
+    # continuation (don't forget/worry/… / "don't change anything else") — those
+    # are encouragement or a scope guard, not a rejection of the just-run skill.
+    r"\b(?:do ?n'?t|don'?t)\b(?!\s+(?:forget|worry|hesitate|bother|sweat|change anything))|"
+    r"\bundo\b|\brevert\b|\bstop\b|"
     r"\b(?:that|it|this) (?:did ?n'?t|does ?n'?t|is ?n'?t) work|"
     r"\b(?:still|not) (?:broken|working)\b|"
     r"\btry again\b|\bwrong\b|you (?:misunderstood|missed)"
     r")"
 )
+
+# A turn that OPENS with approval ("Great, …", "thanks —", "perfect.") is a
+# confirmation even if it later contains a soft "don't" (scope guard) — override
+# to hit, but only when no STRONG correction signal also appears in the message.
+_APPROVAL_LEAD_RE = re.compile(
+    r"(?i)^\W*(?:great|thanks|thank you|perfect|nice|awesome|cool|ok(?:ay)?|"
+    r"lgtm|looks good|love it|excellent|brilliant)\b"
+)
+_STRONG_CORRECTION_RE = re.compile(
+    r"(?i)(\bwrong\b|\bincorrect\b|\bbroken\b|not what i|that'?s not|\bundo\b|"
+    r"\brevert\b|\bredo\b|did ?n'?t work|does ?n'?t work|is ?n'?t work|"
+    r"you (?:misunderstood|missed))"
+)
+
+
+def _is_correction(text: str) -> bool:
+    """True when the next user turn rejects/corrects the just-run skill (=> abort).
+
+    Guards against false aborts: an approval-led turn ('Great, don't change
+    anything else') is a hit unless it carries a strong correction signal too."""
+    if not text:
+        return False
+    if _APPROVAL_LEAD_RE.match(text) and not _STRONG_CORRECTION_RE.search(text):
+        return False
+    return bool(_CORRECTION_RE.search(text))
 
 
 def _now() -> str:
@@ -210,7 +239,7 @@ def cmd_scan(args) -> int:
             deferred += 1
             continue  # no reply yet — can't judge hit/abort; the next scan will catch it
         nxt = _next_user_text(events, inv["idx"])
-        outcome = "abort" if (nxt and _CORRECTION_RE.search(nxt)) else "hit"
+        outcome = "abort" if _is_correction(nxt) else "hit"
         rec = {
             "skill": inv["skill"], "ts": inv["ts"], "dup_ord": inv["dup_ord"],
             "recorded_at": _now(), "outcome": outcome,

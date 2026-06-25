@@ -57,8 +57,12 @@ def test_task_retrospective_body_keeps_project_only_boundary_and_project_skill_t
         "Brainer audit mode improves Brainer.",
         "Do **not** use it to audit Brainer skill obedience",
         "Canonical Brainer skill updates are not on this ladder.",
-        "existing project-specific skill",
-        "new project-specific skill",
+        # Post 8→4 ladder reduction: the explicit "existing/new project-specific
+        # skill" destinations collapsed into destination 3 (skill → /learn), which
+        # owns dedup (patch existing vs create new). Assert that destination + its
+        # one-off guard instead of the retired phrasings.
+        "skill** → [`learn-skill`",
+        "Do not create a project-specific skill for a one-off task.",
         "No agent-only override.",
         "No durable project lesson found.",
     ]

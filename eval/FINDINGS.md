@@ -2,6 +2,15 @@
 
 Aggregating per-skill A/B + session-level replay. Updated as new measurements land.
 
+> **As-of note (catalog drift):** the static-cost and default-install figures below
+> (16-skill default path, ~1080-token tax, the `skill-pulse` hook) were measured for
+> the **v1.6–v1.7-era catalog** and are kept as the **historical measurement record** —
+> the *deltas and mechanisms* (canary +0.44 ×2 families, prompt-triage −20.9%, memory>cold)
+> still hold. The **current catalog is 21 skills (v1.13)**; `skill-pulse` was absorbed into
+> `compliance-canary` at v1.10, and `learn-skill` (v1.13) + `brainer-audit` ship `auto-install: false`.
+> Re-measuring the static cost for the 21-skill catalog is tracked in GOAL.md; until then read
+> the absolute token counts as that era's, not today's.
+
 ## Stacking & anti-patterns (read before tuning install)
 
 Skills compound across axes (output × input × routing × memory) but **diminish within the same axis** — two output-reducers don't sum, they compound on the remainder.

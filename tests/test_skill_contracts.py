@@ -63,6 +63,22 @@ host_support:
     assert "host_support" in "\n".join(errors)
 
 
+def test_learned_skill_requires_tools_allows_external_clis():
+    """P1-5: requires_tools is overloaded — a learned skill (carries source:) may
+    declare external CLI executables (gh, jq) that aren't in the closed capability
+    vocabulary, validated at runtime by check-tools. The contract gate must NOT
+    reject them, while a CANONICAL skill (no source:) is still held to the set."""
+    learned_errors: list[str] = []
+    contracts.validate_optional_metadata(
+        "learned-x", {"source": "https://x/doc", "requires_tools": "gh, jq"}, learned_errors)
+    assert learned_errors == [], learned_errors
+
+    canon_errors: list[str] = []
+    contracts.validate_optional_metadata(
+        "canon-y", {"requires_tools": "gh, jq"}, canon_errors)
+    assert "requires_tools" in "\n".join(canon_errors), canon_errors
+
+
 def test_hooks_map_table_parser_ignores_prose_mentions():
     text = (
         "# Hooks map\n\n"
