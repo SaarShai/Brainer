@@ -186,3 +186,11 @@ mutating steps (`promote` / `demote` / `staleness --apply`) stay agent-run behin
 reading the nudge). Spec #4 in [`LOOPS.md`](LOOPS.md) declares the `output_actions` allowlist
 (scan-append, nudge-print only) and lints clean. Tune: `LEARN_SKILL_PROMOTE_MIN` /
 `LEARN_SKILL_DEMOTE_MIN`.
+
+**Codex** has no SessionStart/SessionEnd, so the installer wires **Stop** → per-turn
+`telemetry scan --defer-trailing` (defers the just-fired invocation until its reply exists,
+so hit/abort isn't judged early) and **UserPromptSubmit** → the same nudge. Codex transcripts
+are a different schema, normalized to Claude shape via [`../_shared/transcript_norm.py`](../_shared/transcript_norm.py).
+Caveat: Codex emits no discrete `Skill` tool_use, so scanning can only auto-capture
+**slash-triggered** skills (`/learn`, `/think`, `/retro` — synthesized from the user turn);
+model-invokable skill use on Codex must be logged with `telemetry.py record`.

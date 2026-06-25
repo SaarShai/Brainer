@@ -325,6 +325,22 @@ def discover_pulse_skills(root: Path, allowlist: set[str]) -> list[tuple[str, st
 
 # -------------------------- transcript reading ------------------------------
 
+def _normalize_events(events: list[dict]) -> list[dict]:
+    """Map a Codex {type,payload} transcript into Claude event shape so every
+    detector (which reads Claude-shaped tool_use/message blocks) works on both
+    hosts. Claude transcripts pass through. Degrades to identity if the shared
+    module is missing — never breaks the always-exit-0 contract."""
+    try:
+        shared = Path(__file__).resolve().parent.parent.parent / "_shared"
+        if str(shared) not in sys.path:
+            sys.path.insert(0, str(shared))
+        import transcript_norm
+        return transcript_norm.normalize(events)
+    except Exception as e:
+        log_err(f"normalize-fail err={e!r}")
+        return events
+
+
 def read_transcript_tail(path: str, cap: int = TRANSCRIPT_LINE_CAP) -> list[dict]:
     """Return up to `cap` most-recent parseable JSONL events from the transcript.
 
@@ -364,7 +380,7 @@ def read_transcript_tail(path: str, cap: int = TRANSCRIPT_LINE_CAP) -> list[dict
         if "message" in obj and not isinstance(obj["message"], dict):
             obj["message"] = {}
         events.append(obj)
-    return events
+    return _normalize_events(events)
 
 
 def recent_assistant_messages(events: list[dict], n: int) -> list[dict]:

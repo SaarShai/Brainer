@@ -47,6 +47,15 @@
           }
         ],
         "matcher": "*"
+      },
+      {
+        "hooks": [
+          {
+            "command": "bash ./.codex/skills/compliance-canary/tools/hook.sh",
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
       }
     ]
   }

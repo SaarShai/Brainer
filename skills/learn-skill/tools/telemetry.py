@@ -110,6 +110,20 @@ def cmd_record(args) -> int:
 
 # -------------------------- scan (transcript mining) ------------------------
 
+def _normalize(events: list[dict]) -> list[dict]:
+    """Map a Codex {type,payload} transcript into Claude event shape so the scanner
+    works on both hosts; Claude transcripts pass through. Degrades to identity if the
+    shared module is missing (then only Claude-shaped transcripts are understood)."""
+    try:
+        shared = Path(__file__).resolve().parent.parent.parent / "_shared"
+        if str(shared) not in sys.path:
+            sys.path.insert(0, str(shared))
+        import transcript_norm
+        return transcript_norm.normalize(events)
+    except Exception:
+        return events
+
+
 def _iter_events(path: Path):
     try:
         raw = path.read_text(encoding="utf-8", errors="replace")
@@ -172,7 +186,7 @@ def cmd_scan(args) -> int:
     if not tpath.is_file():
         print(f"transcript not found: {tpath}", file=sys.stderr)
         return 2
-    events = list(_iter_events(tpath))
+    events = _normalize(list(_iter_events(tpath)))
     invocations = _skill_invocations(events)
     store = _store()
     # Dedup disambiguator: NOT the absolute event index (that shifts when any leading

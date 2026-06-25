@@ -5,5 +5,7 @@
 # APPEND-only; never mutates a skill. Always exit 0.
 set -uo pipefail
 TOOLS_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Codex Stop passes the SessionEnd-style payload on stdin (incl. transcript_path);
+# turn-scan reads it and APPEND-only records telemetry. Never mutates a skill. Exit 0.
 python3 "$TOOLS_DIR/hooks.py" turn-scan || true
 exit 0
