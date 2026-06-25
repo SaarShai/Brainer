@@ -59,7 +59,9 @@ PY
 # Codex parity: Codex has no SessionStart/SessionEnd, but Stop (end of turn) and
 # UserPromptSubmit map cleanly. Stop -> scan (idempotent), UserPromptSubmit -> nudge.
 CODEX_HOOKS="$REPO/.codex/hooks.json"
-CODEX_END_CMD="bash ./.codex/skills/learn-skill/tools/hook_session_end.sh"
+# Codex Stop is per-turn → defer-trailing scan (hook_codex_stop.sh), not the finalize
+# scan Claude SessionEnd uses, so hit/abort isn't judged before the reply lands.
+CODEX_END_CMD="bash ./.codex/skills/learn-skill/tools/hook_codex_stop.sh"
 CODEX_START_CMD="bash ./.codex/skills/learn-skill/tools/hook_session_start.sh"
 
 merge_codex() {
@@ -77,6 +79,12 @@ else:
 hooks = data.setdefault("hooks", {})
 for event, cmd in (("Stop", end_cmd), ("UserPromptSubmit", start_cmd)):
     rules = hooks.setdefault(event, [])
+    # Prune stale learn-skill commands on this event (e.g. an earlier Stop ->
+    # hook_session_end.sh wiring) so we don't double-fire; keep non-learn-skill hooks.
+    for rule in rules:
+        rule["hooks"] = [h for h in rule.get("hooks", [])
+                         if not ("learn-skill" in h.get("command", "") and h.get("command") != cmd)]
+    rules[:] = [r for r in rules if r.get("hooks") or r.get("matcher") not in (None, "*")]
     for rule in rules:
         if rule.get("matcher") not in (None, "*"):
             continue
@@ -109,7 +117,7 @@ echo "  SessionStart -> promote/demote/stale nudge (read-only)"
 
 # Wire Codex too, if this repo has a .codex/skills/learn-skill symlink (from ./install.sh).
 if [ -e "$REPO/.codex/skills/learn-skill" ]; then
-  chmod +x "$TOOLS_DIR"/hook_session_end.sh "$TOOLS_DIR"/hook_session_start.sh 2>/dev/null || true
+  chmod +x "$TOOLS_DIR"/hook_session_end.sh "$TOOLS_DIR"/hook_session_start.sh "$TOOLS_DIR"/hook_codex_stop.sh 2>/dev/null || true
   merge_codex
   echo "Wired Codex hooks (.codex/hooks.json):"
   echo "  Stop             -> telemetry scan (Codex has no SessionEnd)"

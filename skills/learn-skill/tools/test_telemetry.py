@@ -220,6 +220,32 @@ def test_checkpoint_clean_slate():
     print("ok test_checkpoint_clean_slate")
 
 
+def test_defer_trailing():
+    """--defer-trailing skips an invocation with no following user turn (Codex per-turn
+    Stop), then records it once the reply exists on the next scan."""
+    with tempfile.TemporaryDirectory() as t:
+        os.environ["CLAUDE_PROJECT_DIR"] = t
+        inv_a = {"type": "assistant", "timestamp": "2026-06-01T00:00:01", "message": {"content": [
+            {"type": "tool_use", "name": "Skill", "input": {"skill": "aa"}}]}}
+        usr = {"type": "user", "message": {"content": [{"type": "text", "text": "ok"}]}}
+        inv_b = {"type": "assistant", "timestamp": "2026-06-01T00:00:02", "message": {"content": [
+            {"type": "tool_use", "name": "Skill", "input": {"skill": "bb"}}]}}
+        tp = Path(t) / "tx.jsonl"
+        # b is the trailing invocation with NO reply yet
+        tp.write_text("\n".join(json.dumps(e) for e in [inv_a, usr, inv_b]), encoding="utf-8")
+        code, out = _run(["scan", "--transcript", str(tp), "--defer-trailing"])
+        r = json.loads(out)
+        assert r["added"] == 1 and r["deferred"] == 1, out          # a recorded, b deferred
+        assert "aa" in telemetry.compute_stats() and "bb" not in telemetry.compute_stats()
+        # reply to b arrives → next scan records it
+        tp.write_text("\n".join(json.dumps(e) for e in [inv_a, usr, inv_b, usr]), encoding="utf-8")
+        code2, out2 = _run(["scan", "--transcript", str(tp), "--defer-trailing"])
+        assert json.loads(out2)["added"] == 1
+        assert telemetry.compute_stats()["bb"]["hits"] == 1
+    os.environ.pop("CLAUDE_PROJECT_DIR", None)
+    print("ok test_defer_trailing")
+
+
 def test_flag():
     with tempfile.TemporaryDirectory() as t:
         os.environ["CLAUDE_PROJECT_DIR"] = t

@@ -23,7 +23,7 @@
       {
         "hooks": [
           {
-            "command": "bash ./.codex/skills/learn-skill/tools/hook_session_end.sh",
+            "command": "bash ./.codex/skills/learn-skill/tools/hook_codex_stop.sh",
             "type": "command"
           }
         ],

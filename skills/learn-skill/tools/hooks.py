@@ -67,7 +67,10 @@ def _root():
     return Path(_os.environ.get("CLAUDE_PROJECT_DIR") or ".")
 
 
-def cmd_session_end() -> int:
+def cmd_session_end(defer: bool = False) -> int:
+    """Scan the transcript for skill usage. defer=False (Claude SessionEnd) finalizes the
+    whole session; defer=True (Codex Stop, per-turn) skips the trailing invocation whose
+    reply hasn't arrived yet, so hit/abort isn't judged prematurely."""
     raw = sys.stdin.read()
     if not raw.strip():
         return 0
@@ -80,9 +83,12 @@ def cmd_session_end() -> int:
     tpath = _transcript_from_payload(payload)
     if not tpath:
         return 0
+    argv = ["scan", "--transcript", tpath,
+            "--session", str(payload.get("session_id") or payload.get("id") or "")]
+    if defer:
+        argv.append("--defer-trailing")
     try:
-        telemetry.main(["scan", "--transcript", tpath,
-                        "--session", str(payload.get("session_id") or payload.get("id") or "")])
+        telemetry.main(argv)
     except Exception:
         pass  # never fail the session
     return 0
@@ -150,11 +156,13 @@ def cmd_session_start() -> int:
 def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     cmd = argv[0] if argv else ""
-    if cmd == "session-end":
-        return cmd_session_end()
+    if cmd == "session-end":          # Claude SessionEnd — finalize whole session
+        return cmd_session_end(defer=False)
+    if cmd == "turn-scan":            # Codex Stop — per-turn, defer the trailing invocation
+        return cmd_session_end(defer=True)
     if cmd == "session-start":
         return cmd_session_start()
-    sys.stderr.write("usage: hooks.py {session-end|session-start}\n")
+    sys.stderr.write("usage: hooks.py {session-end|turn-scan|session-start}\n")
     return 0  # exit 0 even on misuse — hook safety
 
 

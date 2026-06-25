@@ -510,7 +510,11 @@ install_cursor() {
       echo "DRY: write $mdc"
     else
       local desc
-      desc=$(grep -m1 '^description:' "$skill/SKILL.md" | sed 's/^description: *//')
+      # `|| true`: a skill with no `description:` line must NOT abort the whole
+      # installer under `set -euo pipefail` (grep no-match exits 1 → pipefail). An
+      # empty description is fine; crashing the run (and skipping every later skill +
+      # the gemini pass) is not. This is why product-images' gemini install stalled.
+      desc=$(grep -m1 '^description:' "$skill/SKILL.md" | sed 's/^description: *//' || true)
       cat > "$mdc" <<MDC
 ---
 description: $desc

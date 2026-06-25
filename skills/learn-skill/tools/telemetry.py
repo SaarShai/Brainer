@@ -159,6 +159,14 @@ def _next_user_text(events: list[dict], after_idx: int) -> str:
     return ""
 
 
+def _has_following_user(events: list[dict], after_idx: int) -> bool:
+    """Is there ANY user turn after this invocation? Used by --defer-trailing: until the
+    next user turn exists we can't tell a hit from an abort (a correction lands in that
+    turn), so a per-turn (Codex Stop) scan should DEFER judging it rather than optimistically
+    record a hit. A whole-session (Claude SessionEnd) scan finalizes instead."""
+    return any(e.get("type") == "user" for e in events[after_idx + 1:])
+
+
 def cmd_scan(args) -> int:
     tpath = Path(args.transcript)
     if not tpath.is_file():
@@ -179,11 +187,14 @@ def cmd_scan(args) -> int:
         inv["dup_ord"] = dup_counts.get(k, 0)
         dup_counts[k] = inv["dup_ord"] + 1
     existing = {(r.get("skill"), r.get("ts"), r.get("dup_ord")) for r in _load(store)}
-    added = 0
+    added = deferred = 0
     for inv in invocations:
         key = (inv["skill"], inv["ts"], inv["dup_ord"])
         if key in existing:
             continue  # idempotent re-scan
+        if args.defer_trailing and not _has_following_user(events, inv["idx"]):
+            deferred += 1
+            continue  # no reply yet — can't judge hit/abort; the next scan will catch it
         nxt = _next_user_text(events, inv["idx"])
         outcome = "abort" if (nxt and _CORRECTION_RE.search(nxt)) else "hit"
         rec = {
@@ -196,7 +207,8 @@ def cmd_scan(args) -> int:
         _append(store, rec)
         existing.add(key)
         added += 1
-    print(json.dumps({"scanned": len(invocations), "added": added, "store": str(store)}))
+    print(json.dumps({"scanned": len(invocations), "added": added,
+                      "deferred": deferred, "store": str(store)}))
     return 0
 
 
@@ -329,6 +341,9 @@ def main(argv=None) -> int:
     s = sub.add_parser("scan", help="Mine a transcript for Skill invocations + infer outcome.")
     s.add_argument("--transcript", required=True)
     s.add_argument("--session", default=None)
+    s.add_argument("--defer-trailing", action="store_true",
+                   help="Skip invocations with no following user turn yet (per-turn/Codex Stop "
+                        "scans) so hit/abort isn't judged before the reply exists.")
     s.set_defaults(func=cmd_scan)
 
     st = sub.add_parser("stats", help="Per-skill hit/abort aggregate.")
