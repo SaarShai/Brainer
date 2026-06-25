@@ -182,6 +182,20 @@ backend — prefer the lightest that fits: **drop > wiki page > skill > always-o
 A fact or gotcha is a **wiki page**, not a skill; a repo-wide rule is an **always-on rule**,
 not a skill. Most retrospective lessons are facts/gotchas → destination 2 or drop.
 
+> **Under-reach counterweight (mandatory before filing to destination 2).** This ladder
+> biases *downward* ("prefer the lightest", "most lessons are facts") — which silently
+> files genuine *procedures* as facts, so `/learn` is never reached (the connector-consistency
+> miss). Before writing any lesson to a wiki page, run the mechanical probe:
+> ```bash
+> python3 skills/task-retrospective/tools/task_audit.py route-probe \
+>   --text "<lesson one-liner>" [--body-file <draft>]
+> ```
+> Exit 3 = **PROCEDURE-CANDIDATE** (it cites commands, has ≥2 ordered steps, or chains ≥2
+> imperative verbs — a runbook, not a fact). You may **not** silently file it as a wiki page:
+> run the destination-3 gate below, and if you still choose destination 2, record the
+> *why-not-skill* reason in the report. Exit 0 = fact-shaped, wiki/drop is fine. The probe
+> never auto-creates a skill — it only refuses the silent downgrade.
+
 A **skill** (destination 3) is valid only when all are true:
 
 - the workflow will recur;
@@ -223,6 +237,7 @@ candidate lesson
 → task-retrospective relevance check
 → search existing memory/SOP/project-specific skills
 → choose narrowest project-owned target
+→ route-probe: if procedure-shaped, test the skill (dest-3) gate before allowing a wiki page
 → run write-gate as content-quality filter
 → dedup/overlap check
 → write/update target if accepted

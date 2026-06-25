@@ -406,6 +406,112 @@ def command_finish(args: argparse.Namespace) -> int:
     return 0
 
 
+# --------------------------------------------------------------------------- #
+# route-probe — the fact/procedure under-reach counterweight.
+#
+# The ladder biases DOWNWARD (prefer the lightest target; "most lessons are
+# facts → destination 2"). That systematically files genuine *procedures* as
+# facts (destination 2), so /learn (destination 3) is never reached — the
+# observed connector-consistency miss. This probe is the mechanical counterweight:
+# it does NOT route, it REFUSES to let a procedure-shaped lesson be silently
+# filed as a wiki page. Verdict PROCEDURE (exit 3) => you must run the
+# destination-3 gate and, if you still file it as a wiki page, record why-not-skill.
+# --------------------------------------------------------------------------- #
+
+# Imperative procedure verbs — clause-leading occurrences signal "do X then Y",
+# the shape of a runbook rather than a declarative fact. Deliberately catches the
+# connector case ("close splay gaps, translate-feature…, snap-joins") which has no
+# numbered list or commands, only chained imperative clauses.
+_STEP_VERBS = {
+    "run", "close", "open", "translate", "snap", "move", "set", "add", "remove",
+    "delete", "redraw", "mask", "composite", "compose", "verify", "check",
+    "measure", "route", "crop", "dilate", "bank", "generate", "copy", "edit",
+    "fix", "align", "stretch", "refine", "gate", "build", "install", "configure",
+    "restart", "deploy", "commit", "push", "merge", "rebase", "split", "apply",
+    "extract", "wire", "pin", "cache", "render", "replace", "rotate", "scale",
+    "select", "click", "navigate", "fetch", "parse", "validate", "lint", "test",
+    "watch", "avoid", "prune", "restore", "protect", "blend", "escalate",
+    "disable", "enable", "reshape", "reconstruct",
+}
+# Command / script citation signals.
+_CMD_RE = re.compile(
+    r"```|\bpython3?\b|\b\w[\w-]*\.(?:py|sh|js|ts)\b|(?:^|\s)--[a-z][\w-]+|"
+    r"\bbash\b|\bgit\b|\$\(|\bnpm\b|\bcurl\b|\bmake\b",
+    re.IGNORECASE | re.MULTILINE,
+)
+# Explicit sequencing.
+_ARROW_RE = re.compile(r"→|->|=>")
+_NUMBERED_RE = re.compile(r"(?m)^\s*\d+[.)]\s+\S")
+
+
+def _procedure_signals(text: str) -> Dict[str, Any]:
+    """Return the procedure-shape signals found in a candidate lesson."""
+    # Clause-leading imperative verbs: split on newlines, commas, semicolons,
+    # arrows, and the words then/after/before/next/finally; check each fragment's
+    # first word against the lexicon.
+    frags = re.split(r"[\n,;]|→|->|=>|\b(?:then|after|before|next|finally)\b", text, flags=re.IGNORECASE)
+    verbs: List[str] = []
+    for frag in frags:
+        m = re.match(r"\s*([a-zA-Z]+)", frag)   # leading alpha run only (stop at '-')
+        if m and m.group(1).lower() in _STEP_VERBS:
+            verbs.append(m.group(1).lower())
+    numbered = len(_NUMBERED_RE.findall(text))
+    arrows = len(_ARROW_RE.findall(text))
+    commands = bool(_CMD_RE.search(text))
+    # ordered steps: the larger of numbered-list length or arrow-chain segments.
+    steps = max(numbered, arrows + 1 if arrows else 0)
+    return {
+        "verbs": sorted(set(verbs)),
+        "verb_count": len(set(verbs)),
+        "numbered_steps": numbered,
+        "arrow_segments": arrows + 1 if arrows else 0,
+        "ordered_steps": steps,
+        "commands": commands,
+    }
+
+
+def _is_procedure(sig: Dict[str, Any]) -> bool:
+    # Procedure if it cites commands, OR has an explicit ordered list (>=2 steps),
+    # OR chains >=2 distinct imperative verbs (the prose-runbook case).
+    return bool(sig["commands"]) or sig["ordered_steps"] >= 2 or sig["verb_count"] >= 2
+
+
+def command_route_probe(args: argparse.Namespace) -> int:
+    parts: List[str] = []
+    if getattr(args, "text", ""):
+        parts.append(args.text)
+    if getattr(args, "body_file", ""):
+        bf = Path(args.body_file)
+        if not bf.is_file():
+            print(f"route-probe: --body-file not found: {bf}", file=sys.stderr)
+            return 2
+        parts.append(bf.read_text(encoding="utf-8", errors="replace"))
+    text = "\n".join(parts).strip()
+    if not text:
+        print("route-probe: provide --text and/or --body-file", file=sys.stderr)
+        return 2
+    sig = _procedure_signals(text)
+    if args.json:
+        print(json.dumps({"verdict": "PROCEDURE" if _is_procedure(sig) else "FACT", **sig}))
+    if _is_procedure(sig):
+        why = []
+        if sig["commands"]:
+            why.append("cites commands/scripts")
+        if sig["ordered_steps"] >= 2:
+            why.append(f"{sig['ordered_steps']} ordered steps")
+        if sig["verb_count"] >= 2:
+            why.append(f"chained imperative verbs {sig['verbs']}")
+        if not args.json:
+            print("PROCEDURE-CANDIDATE — do NOT silently file as a wiki page (destination 2).")
+            print(f"  signals: {'; '.join(why)}")
+            print("  Run the destination-3 (skill) gate now. If you still choose a wiki page,")
+            print("  record the why-not-skill reason in the retrospective report.")
+        return 3
+    if not args.json:
+        print("FACT-shaped — wiki page / drop is appropriate (no procedure signals).")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="task_audit.py", description=__doc__)
     ap.add_argument("--root", default=os.getcwd(), help="Project root that owns .brainer/task-retrospective")
@@ -438,6 +544,12 @@ def build_parser() -> argparse.ArgumentParser:
     finish.add_argument("--report", action="store_true", help="Write report.md before closing")
     finish.add_argument("--evidence-quality", choices=["high", "medium", "low"], default="")
     finish.set_defaults(func=command_finish)
+
+    probe = sub.add_parser("route-probe", help="Refuse to file a procedure-shaped lesson as a wiki page without testing the skill gate")
+    probe.add_argument("--text", default="", help="The candidate lesson one-liner")
+    probe.add_argument("--body-file", default="", help="Optional drafted lesson body file")
+    probe.add_argument("--json", action="store_true", help="Emit machine-readable verdict + signals")
+    probe.set_defaults(func=command_route_probe)
     return ap
 
 

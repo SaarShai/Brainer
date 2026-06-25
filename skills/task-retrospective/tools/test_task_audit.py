@@ -161,6 +161,37 @@ def test_after_the_fact_report_marks_reconstruction():
         assert result["evidence_quality"] == "low"
 
 
+def test_route_probe_flags_procedure_lessons():
+    # the connector-consistency miss: prose runbook, no numbered list / commands —
+    # chained imperative verbs must still be caught (exit 3).
+    p = run_cli(["route-probe", "--text",
+                 "close splay gaps, translate-feature-+-snap-joins, watch the measurement trap"],
+                expect=3)
+    assert "PROCEDURE-CANDIDATE" in p.stdout, p.stdout
+    # command-citing lesson is a procedure too.
+    run_cli(["route-probe", "--text", "run scripts/edit.py --op remove then verify with judge.py"], expect=3)
+    # numbered steps.
+    run_cli(["route-probe", "--text", "1. mask the element\n2. composite\n3. gate the diff"], expect=3)
+
+
+def test_route_probe_passes_plain_facts():
+    for fact in [
+        "connectors render with a 2px ink halo on export",
+        "the GLM reviewer cannot run the repo, treat findings as leads",
+        "source art on Drive is read-only",
+    ]:
+        p = run_cli(["route-probe", "--text", fact], expect=0)
+        assert "FACT-shaped" in p.stdout, (fact, p.stdout)
+
+
+def test_route_probe_json_and_usage():
+    p = run_cli(["route-probe", "--json", "--text", "mask then composite then gate"], expect=3)
+    obj = load_json(p.stdout)
+    assert obj["verdict"] == "PROCEDURE" and obj["verb_count"] >= 2, obj
+    # no input is a usage error, not a crash.
+    run_cli(["route-probe"], expect=2)
+
+
 def main() -> int:
     failures = 0
     for name, fn in sorted(globals().items()):
