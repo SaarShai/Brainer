@@ -91,6 +91,7 @@ UNIT_TESTS=(
   skills/wiki-memory/tools/test_sim_eval.py
   skills/wiki-memory/tools/test_config.py
   skills/wiki-refresh/tools/test_staleness.py
+  skills/wiki-refresh/tools/test_artifact_guard.py
   skills/learn-skill/tools/test_learn.py
   skills/learn-skill/tools/test_telemetry.py
   skills/learn-skill/tools/test_nomination.py
