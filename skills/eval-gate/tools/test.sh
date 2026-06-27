@@ -81,6 +81,10 @@ out=$(printf 'cand' | "${EG[@]}" score --criteria-json "$CRIT" --stub-criteria '
 echo "$out" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d["verdict"]=="fail",d;assert d["blocking_criteria"]==["correct"],d;assert any(c["id"]=="correct" and not c["pass"] for c in d["criteria"]),d' >/dev/null 2>&1; chk $? 0 "criteria output names the failed/blocking criterion"
 echo "$CRIT" > "$TMP/crit.json"
 printf 'cand' | "${EG[@]}" score --criteria-file "$TMP/crit.json" --stub-criteria '{"correct":"pass","complete":"pass","concise":"pass"}' >/dev/null 2>&1; chk $? 0 "criteria from --criteria-file"
+# --stub-criteria via bare path and @path (exercise the non-inline branches)
+echo '{"correct":"pass","complete":"pass","concise":"pass"}' > "$TMP/stub.json"
+printf 'cand' | "${EG[@]}" score --criteria-json "$CRIT" --stub-criteria "$TMP/stub.json" >/dev/null 2>&1; chk $? 0 "criteria --stub-criteria from bare path"
+printf 'cand' | "${EG[@]}" score --criteria-json "$CRIT" --stub-criteria "@$TMP/stub.json" >/dev/null 2>&1; chk $? 0 "criteria --stub-criteria from @path"
 printf 'cand' | "${EG[@]}" score --criteria-json "$CRIT" --stub-criteria '{"complete":"pass","concise":"pass"}' >/dev/null 2>&1; chk $? 1 "criteria missing verdict fail-safe -> exit 1"
 printf 'cand' | "${EG[@]}" score --criteria-json '[{"id":"x"}]' --stub-criteria '{"x":"pass"}' >/dev/null 2>&1; chk $? 2 "criteria missing description -> exit 2"
 printf 'cand' | "${EG[@]}" score --criteria-json '[{"id":"a","description":"y"},{"id":"a","description":"z"}]' --stub-criteria '{"a":"pass"}' >/dev/null 2>&1; chk $? 2 "criteria duplicate id -> exit 2"
@@ -117,7 +121,21 @@ pos_ok = pos["correct"][0] is False and pos["complete"][0] is False and pos["con
 # mixed: one id-echoed, one numbered, one id-echoed — all in order
 mix = e._parse_criteria("correct: PASS ok\n2: FAIL nope\nconcise: PASS fine", ["correct", "complete", "concise"])
 mix_ok = mix["correct"][0] is True and mix["complete"][0] is False and mix["concise"][0] is True
-print("PARSE2_OK" if (ok and none_all_missing and fs and pos_ok and mix_ok) else f"PARSE2_FAIL v={v} pos={pos} mix={mix}")
+# cold-review MEDIUM: a prose preamble ('Yes, here goes:') must NOT steal a positional
+# slot — the model's FAIL on the required 'safety' criterion must survive.
+steal = e._parse_criteria("Yes, here goes:\nPASS\nPASS\nPASS\nFAIL unsafe", ["a", "b", "c", "safety"])
+steal_ok = steal["safety"][0] is False
+# count mismatch (a stray leading PASS-word) -> fail-safe, never a fabricated pass
+mism = e._parse_criteria("PASS, details:\n1: FAIL\n2: PASS\n3: FAIL", ["a", "b", "c"])
+mism_ok = all(mism[k][0] is False for k in ("a", "b", "c"))
+# numeric-id cross-map fixed (prefix no longer eats leading digits)
+numid = e._parse_criteria("12: PASS\n2: FAIL", ["2", "12"])
+numid_ok = numid["2"][0] is False and numid["12"][0] is True
+# id-keyed reason opening with a prose word before the real PASS reads PASS (no inversion)
+inv = e._parse_criteria("correct: no major issues, PASS", ["correct"])
+inv_ok = inv["correct"][0] is True
+allok = ok and none_all_missing and fs and pos_ok and mix_ok and steal_ok and mism_ok and numid_ok and inv_ok
+print("PARSE2_OK" if allok else f"PARSE2_FAIL pos={pos} mix={mix} steal={steal} mism={mism} numid={numid} inv={inv}")
 PY
 )
 case "$pres2" in PARSE2_OK*) chk 0 0 "_parse_criteria handles bullets/tokens/fail-safe";; *) echo "  FAIL: $pres2"; fail=1;; esac

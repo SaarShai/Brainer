@@ -138,6 +138,11 @@ def _parse_score(out: str):
 
 
 _CRIT_TOKEN = re.compile(r"(?i)\b(pass|fail|yes|no|true|false)\b|[✓✗]")
+# strict = only the INSTRUCTED verdict words; used on the positional-fallback path
+# where a bare line may be ordinary prose ("Yes, here goes:"), so yes/no/true/false
+# must NOT be mistaken for a verdict (that would steal a slot and shift the mapping).
+_CRIT_STRICT = re.compile(r"(?i)\b(pass|fail)\b|[✓✗]")
+_TRUE_TOKENS = ("pass", "yes", "true", "✓")
 
 
 def _coerce_verdict(v):
@@ -157,14 +162,21 @@ def _coerce_verdict(v):
     return False, "stub"
 
 
-def _verdict_from(text):
-    """Extract (pass:bool, reason:str) from a line/tail, or None if it has no
-    PASS/FAIL token at all."""
+def _verdict_from(text, strict=False):
+    """Extract (pass:bool, reason:str) from a line/tail, or None if no verdict token.
+
+    Prefer an explicit PASS/FAIL/✓/✗ found ANYWHERE in the text, so a reason that
+    opens with a prose 'no …'/'true …' before the real verdict does not invert it
+    ('correct: no major issues, PASS' -> PASS). In `strict` mode — the positional
+    fallback, where a bare line may be ordinary prose — ONLY pass/fail/✓/✗ count;
+    bare yes/no/true/false are NOT verdicts."""
     text = (text or "").strip()
-    tok = _CRIT_TOKEN.search(text)
-    if not tok:
+    tok = _CRIT_STRICT.search(text)
+    if tok is None and not strict:
+        tok = _CRIT_TOKEN.search(text)
+    if tok is None:
         return None
-    passed = tok.group(0).lower() in ("pass", "yes", "true", "✓")
+    passed = tok.group(0).lower() in _TRUE_TOKENS
     reason = (text[:tok.start()] + text[tok.end():]).strip(" -–—:.")
     return passed, (reason or text)
 
@@ -173,14 +185,16 @@ def _parse_criteria(out, ids):
     """Tolerant parse of a per-criterion judge reply -> {id: (pass:bool, reason:str)}.
 
     Real models format these replies inconsistently, so resolution is layered:
-      1. STRICT — a line '<id>: PASS|FAIL …' keyed by the exact criterion id
-         (accepts YES/NO/TRUE/FALSE/✓/✗, leading bullets/numbers, in any order). A
-         line that names the id but carries no token is fail-safe FALSE (addressed
-         but ambiguous), not dropped.
-      2. POSITIONAL fallback — criteria whose id was NOT echoed consume the
-         remaining verdict-bearing lines in order. This is what makes a model that
-         NUMBERS the criteria ('1: FAIL', '2: PASS', …) parse correctly instead of
-         failing as unparseable.
+      1. STRICT — a line '<id>: PASS|FAIL …' keyed by the exact criterion id (accepts
+         YES/NO/TRUE/FALSE/✓/✗ in the tail, a leading '-'/'*' bullet or 'N.'/'N)'
+         list marker, in any order). A line that names the id but carries no token is
+         fail-safe FALSE (addressed but ambiguous), not dropped.
+      2. POSITIONAL fallback — criteria whose id was NOT echoed consume the remaining
+         strict-verdict lines (pass/fail/✓/✗ only) in order, so a model that NUMBERS
+         the criteria ('1: FAIL', '2: PASS', …) parses correctly. Applied ONLY when
+         the count of such lines exactly matches the un-echoed criteria; any mismatch
+         (a stray PASS/FAIL prose line, extra or missing verdicts) is fail-safe FALSE
+         rather than risk a shifted mis-map.
       3. Anything still unresolved is fail-safe FALSE (never a silent pass).
     Returns None only when the reply carries ZERO verdicts — the caller treats that
     as exit 2, the same fail-safe the holistic path uses for an unparseable reply."""
@@ -191,23 +205,27 @@ def _parse_criteria(out, ids):
         for idx, ln in enumerate(lines):
             if idx in consumed:
                 continue
-            m = re.match(rf"^[ \t\-*\d.\)]*{re.escape(cid)}\s*[:\-–]\s*(.*)$", ln, re.I)
+            m = re.match(rf"^[ \t]*(?:[-*]+|\d+[.\)])?\s*{re.escape(cid)}\s*[:\-–]\s*(.*)$", ln, re.I)
             if m:
                 tail = m.group(1).strip()
                 v = _verdict_from(tail)
                 by_id[cid] = v if v is not None else (False, tail or "no PASS/FAIL token")
                 consumed.add(idx)
                 break
-    # verdict-bearing lines not claimed by an id-keyed match, in order
+    # strict-verdict lines (pass/fail/✓/✗ only) not claimed by an id-keyed match, in order
     unnamed = [v for idx, ln in enumerate(lines)
-               if idx not in consumed and (v := _verdict_from(ln)) is not None]
+               if idx not in consumed and (v := _verdict_from(ln, strict=True)) is not None]
     if not by_id and not unnamed:
         return None
     verdicts = dict(by_id)
-    leftover = iter(unnamed)
-    for cid in ids:
-        if cid not in verdicts:
-            verdicts[cid] = next(leftover, (False, "no verdict returned for this criterion"))
+    unfilled = [cid for cid in ids if cid not in verdicts]
+    if len(unnamed) == len(unfilled):
+        for cid, v in zip(unfilled, unnamed):
+            verdicts[cid] = v
+    else:
+        # count mismatch -> a positional zip could shift and fabricate a pass; reject safe
+        for cid in unfilled:
+            verdicts[cid] = (False, "ambiguous positional verdicts — fail-safe reject")
     return verdicts
 
 
