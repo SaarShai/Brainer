@@ -116,6 +116,15 @@ When the task is big enough to split, the orchestrator IS the loop: **write the 
 
 Pick the workflow pattern deliberately: **fan-out-and-synthesize** · **adversarial-verification** (N skeptics each try to refute a finding) · **loop-until-dry** (re-spawn finders until K rounds add nothing new) · **classify-and-act** (route by model tier — [`prompt-triage`](../prompt-triage/SKILL.md)) · **generate-and-filter** (N candidates → rubric → top-K, [`eval-gate`](../eval-gate/SKILL.md)) · **tournament** (pairwise beats absolute scoring for taste/ranking). Effort routing: frontier model orchestrates, opus-class for hard-bounded subtasks, sonnet-class for high-volume reads, haiku-class for graders/classifiers.
 
+## Aggregating perspectives — references → one aggregator (Mixture-of-Agents)
+
+A fleet converges two ways, and the doc above only named one. **SELECT** — a vote/quorum/judge picks the winning result (R5's `quorum`/`aggregate` gate). **SYNTHESIZE** — N *reference* runs propose and one **aggregator** reads them all and writes a new answer (Mixture-of-Agents). In synthesis the references are **read-only advisors and the aggregator is the sole writer** (the same diverge/converge split as the panels above); synthesized output still ships on the **machine gate**, never on "the aggregator combined them." Borrowed from [Hermes MoA](https://hermes-agent.nousresearch.com/docs/user-guide/features/mixture-of-agents), costs kept in view:
+
+- **Cache-preserving fan-in.** Fold reference outputs into the aggregator context at the **tail, below the stable prefix** — never rebuild or reorder the prefix, or you invalidate the whole conversation's prompt cache (cf. [`cache-lint`](../cache-lint/SKILL.md)). Give each reference a **deterministic view** (a stable function of stable history) so its prefix caches across iterations too. You then pay only for the extra reference *completions*, not for broken caches.
+- **Tool-less, bounded references.** A reference asked only for a perspective needs no tool schema and no system prompt — just the task text (cheaper; dodges strict-provider tool-call rejections). **Bound the count to the aggregator's context window**: a small offline aggregator (ollama / glm, 8–32k) truncates on 3–4 reference blocks and the lift goes *negative* — measure before trusting it on small models.
+- **Tolerate partial returns.** A reference that errors is folded in as an explicit `REFERENCE_FAILED` note — never aborted-on, and never silently dropped (a silent drop hides that a perspective is missing). Mirrors fleet writer-isolation: one failed worker never sinks the turn.
+- **Off-switch for ablation.** Make the fan-out one-flag-bypassable (aggregator acts alone) so the lift is measurable — the extra model-call cost is justified only by a measured delta (Hermes reports ~+6 pts, but on **one** config; a weak reference can *drag* a strong aggregator). **Selective, not a default**: reach for it only when a hard task genuinely benefits from multiple perspectives.
+
 ## The loop spec: four required fields
 
 Declare these BEFORE the loop runs — they are `loop_lint.py`'s input contract:
