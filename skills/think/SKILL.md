@@ -38,7 +38,7 @@ You also have standing permission to build ad-hoc tools, skills, references, tem
 
 ## When-relevant (match the trigger to the task)
 
-- **When the solution space is open / you're ideating → diverge before converging** *(Brain Blizzard → Scout Tests → Sieve)*. Generate many candidate approaches — scale to the stakes, up to ~100 for genuinely open problems, a meaningful share of them unconventional and original. Cheaply test the most promising for early signs they'll fail (scout tests). Sieve down to the 2–5 that survive.
+- **When the solution space is open / you're ideating → diverge before converging** *(Brain Blizzard → Scout Tests → Sieve)*. Generate many candidate approaches — scale to the stakes, up to ~100 for genuinely open problems, a meaningful share of them unconventional and original. Cheaply test the most promising for early signs they'll fail (scout tests). Sieve down to the 2–5 that survive. See **Ideation — field rules** below for how to generate non-obvious candidates and a slop filter to sieve with.
 - **When chasing a root cause → ask "why" down to it** *(5 Whys)*. State the specific problem; ask why it's happening (from evidence, not assumption); feed each answer into the next "why"; repeat (~5×) until you reach the underlying cause.
 - **When the plan is risky or hard to reverse → run a pre-mortem** *(Inversion)*. Assume it has already failed; list specific, scenario-level reasons — what went wrong, when, why (not "poor execution") — and turn each into a preventive action you take now. Or invert (Munger): "how would I guarantee failure here?" — then avoid each path.
 - **When learning would help → experiment to falsify.** Try, fail, learn from results. Design tasks that maximise learning; test your assumptions; optimise for verifying and falsifying, not confirming.
@@ -56,6 +56,66 @@ You also have standing permission to build ad-hoc tools, skills, references, tem
 
 - **WIKI:** When in doubt about any fact, rule, or decision, prefer reading the wiki over scrolling conversation history. The wiki is persistent; the context window is ephemeral.
 - **SKILLS:** Once a workflow / method / procedure works, consider saving it as a `SKILL.md` so the next agent loads it and skips the discovery phase entirely.
+
+## Ideation — field rules (adapted from Nous/SHL0MS `creative-ideation`, MIT)
+
+Expands the "diverge before converging" trigger above. Generation is additive by
+nature, so **`/think`'s reduce-before-adding / "best part is no part" rule stays the
+governor**: these make ideas *non-obvious*, not gratuitously strange, and every set
+keeps at least one idea you could build now.
+
+### A. Read the phase before generating — route to the move, don't brainstorm blind
+
+| Phase | Cue | Move |
+|---|---|---|
+| GENERATING | no idea yet | pick a constraint/method, then diverge |
+| EXPANDING | has a base, wants more | SCAMPER the base |
+| SELECTING | "help me pick" | premortem + inversion (above) |
+| UNBLOCKING | "stuck", "in circles" | change one constraint (oblique) |
+| SUBVERTING | "too safe", "weirder" | lateral provocation (PO / random word) |
+| REFINING | "missing something" | defamiliarize — describe as if seeing it new |
+
+### B. Operating rules (every ideation pass)
+
+- **Constraint + direction = creativity.** No constraint → no traction; no direction → no shape. Supply both before generating.
+- **Refuse the first three ideas** (five on slop terrain: "AI/startup ideas", productivity / wellness / fitness / food / travel). The first batch is the distribution average — discard, regenerate.
+- **Specificity = mechanism, not stack.** Every noun answers "which one *specifically*?" A named tech stack is not specificity. "uses an embedding model" = name-drop; "ranks unread tabs by how far they've drifted from anything opened in 30 days" = mechanism.
+- **One grounded idea, always.** A set may run strange, but ≥1 must be buildable *now* with a real first step. Don't trade all usefulness for surprise.
+- **State each idea's failure mode / tradeoff.** No named tradeoff = no one thought hard about it. (Also drop marketing tone — *seamless / leverage / revolutionary*; describe flat, like an engineer to a peer.)
+- **Refuse the round number.** 3 or 7, never 5 of equal shape.
+
+### C. Slop self-check (before showing ideas) — reject + regenerate if an idea fails ≥2
+
+1. Could this be generated for a *different* prompt by swapping one noun? → slop.
+2. Does it name a real person / place / material / mechanism / work? → if no, slop.
+3. Is ≥1 element surprising enough to need explanation? → if no, slop.
+4. Can you say how using / reading it *feels*, concretely? → if no, slop.
+5. Would a sharp friend in the domain be embarrassed to pitch it? → if yes, slop.
+
+### D. Method menu — load the one that fits; don't stack 3+
+
+| Method | Use when | Don't use when |
+|---|---|---|
+| SCAMPER (Eberle) | expand one base into systematic variations | blank page — it amplifies, doesn't generate from nothing |
+| Lateral provocation / PO (de Bono) | too safe; a hidden assumption constrains the search | disciplined dev of a chosen idea; safety / legal / medical |
+| Oblique strategies (Eno/Schmidt) | stuck mid-project, have material to disrupt | blank page — nothing to disrupt yet |
+| Jobs-to-be-done (Christensen) | product/feature — what would anyone "hire" this for? | expression with no job |
+| Analogy & blending (Synectics) | stuck in one frame; import structure from a far domain | the current frame is already right |
+| Compression-progress (Schmidhuber) | choosing which question / project is worth it | execution, not selection |
+
+Already covered above: first-principles, 5 Whys, premortem/inversion, metaphor.
+
+**Random-word tool** (the concrete "how to make it non-obvious"): pick a *real*
+random noun; list 5 tenuous links to the problem; build on the strongest. *CLI hard
+to discover → "lighthouse" → lighthouses signal danger; my CLI never warns before
+irreversible actions* → add an irreversible-op warning. Don't fake the randomness
+("synergy" defeats it); don't stop at the provocation — translate it to a real proposal.
+
+### E. Not ideation methods (don't reach for these)
+
+Mind maps, Six Hats, fishbone — *containers* for ideas, not generators. Hero's
+Journey / Save the Cat — story formulas that flatten work into tired shapes. Generic
+LLM brainstorming — the default this section exists to displace.
 
 ## Writing & building — field rules
 
