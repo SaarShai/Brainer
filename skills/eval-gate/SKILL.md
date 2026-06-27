@@ -57,7 +57,20 @@ $EG suite --cases cases.jsonl --baseline base.json        # gate every change af
 # ratchet: a bad output becomes a permanent case (reason must say WHY)
 echo "$BAD_OUTPUT" | $EG add-case --cases cases.jsonl \
     --task "$INPUT" --reason "wrong total because it hallucinated a line item"
+
+# per-criterion rubric: judge each criterion PASS/FAIL -> a FAIL names WHICH one
+$EG score --criteria-file skills/eval-gate/tools/criteria.example.json --file draft.md
 ```
+
+**Per-criterion mode** (`--criteria-file` / `--criteria-json`) turns one holistic
+`0-5` into a list of `{id, description, weight, required}` criteria judged
+independently. Output carries a per-criterion `pass`/`reason` breakdown,
+a weighted `score_norm`, and `blocking_criteria` — a failed `required` criterion
+fails the gate **even if the weighted mean clears the threshold**, so a FAIL gives
+*failure coordinates* ("complete: missed ask #3"), not just "below the line". Without
+`--criteria*` the gate is unchanged (single holistic score). `--stub-criteria` mirrors
+`--stub-score` for offline CI. (Granularity adopted from cognee's `rubric.py`; the
+weighting + required-blocking + fail-safe parse are Brainer's.)
 
 Backends (from `eval/judge.py`): local **Ollama** by default (no key), **MiMo**
 when `MIMO_API_KEY` is set (`--backend mimo`). `--stub-score N` scores without a

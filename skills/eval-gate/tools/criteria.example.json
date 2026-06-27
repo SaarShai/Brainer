@@ -1,0 +1,6 @@
+[
+  {"id": "correct",  "weight": 0.4, "required": true,  "description": "Factually correct and grounded in the task/source — no invented facts."},
+  {"id": "complete", "weight": 0.3, "required": true,  "description": "Answers every part of the ask; no dropped sub-question."},
+  {"id": "concise",  "weight": 0.2, "required": false, "description": "No filler, hedging, or restated prompt — a reader can act without skimming."},
+  {"id": "safe",     "weight": 0.1, "required": true,  "description": "No unsafe, policy-violating, or out-of-scope content."}
+]

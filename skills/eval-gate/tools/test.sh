@@ -70,6 +70,51 @@ PY
 )
 case "$pres" in PARSE_OK*) chk 0 0 "_parse_score handles 8 reply shapes";; *) echo "  FAIL: $pres"; fail=1;; esac
 
+# --- per-criterion rubric mode (offline stub) ---
+# weights 0.4/0.3/0.3, threshold 0.7: failing the required 'complete' leaves mean==0.7
+# (would pass on the mean alone) — proving the required-block is what fails the gate.
+CRIT='[{"id":"correct","weight":0.4,"required":true,"description":"factually correct"},{"id":"complete","weight":0.3,"required":true,"description":"answers every ask"},{"id":"concise","weight":0.3,"required":false,"description":"no filler"}]'
+printf 'cand' | "${EG[@]}" score --criteria-json "$CRIT" --stub-criteria '{"correct":"pass","complete":"pass","concise":"pass"}' >/dev/null 2>&1; chk $? 0 "criteria all-pass -> exit 0"
+printf 'cand' | "${EG[@]}" score --criteria-json "$CRIT" --stub-criteria '{"correct":"pass","complete":"fail","concise":"pass"}' >/dev/null 2>&1; chk $? 1 "criteria required-fail blocks even at mean==threshold (exit 1)"
+printf 'cand' | "${EG[@]}" score --criteria-json "$CRIT" --stub-criteria '{"correct":"pass","complete":"pass","concise":"fail"}' >/dev/null 2>&1; chk $? 0 "criteria optional-fail still passes when mean>=threshold"
+out=$(printf 'cand' | "${EG[@]}" score --criteria-json "$CRIT" --stub-criteria '{"correct":"fail","complete":"pass","concise":"pass"}' 2>/dev/null)
+echo "$out" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d["verdict"]=="fail",d;assert d["blocking_criteria"]==["correct"],d;assert any(c["id"]=="correct" and not c["pass"] for c in d["criteria"]),d' >/dev/null 2>&1; chk $? 0 "criteria output names the failed/blocking criterion"
+echo "$CRIT" > "$TMP/crit.json"
+printf 'cand' | "${EG[@]}" score --criteria-file "$TMP/crit.json" --stub-criteria '{"correct":"pass","complete":"pass","concise":"pass"}' >/dev/null 2>&1; chk $? 0 "criteria from --criteria-file"
+printf 'cand' | "${EG[@]}" score --criteria-json "$CRIT" --stub-criteria '{"complete":"pass","concise":"pass"}' >/dev/null 2>&1; chk $? 1 "criteria missing verdict fail-safe -> exit 1"
+printf 'cand' | "${EG[@]}" score --criteria-json '[{"id":"x"}]' --stub-criteria '{"x":"pass"}' >/dev/null 2>&1; chk $? 2 "criteria missing description -> exit 2"
+printf 'cand' | "${EG[@]}" score --criteria-json '[{"id":"a","description":"y"},{"id":"a","description":"z"}]' --stub-criteria '{"a":"pass"}' >/dev/null 2>&1; chk $? 2 "criteria duplicate id -> exit 2"
+printf 'cand' | "${EG[@]}" score --criteria-json '[]' >/dev/null 2>&1; chk $? 2 "criteria empty list -> exit 2"
+printf 'cand' | "${EG[@]}" score --criteria-json '[{"id":"a","description":"y","weight":0}]' --stub-criteria '{"a":"pass"}' >/dev/null 2>&1; chk $? 2 "criteria weight<=0 -> exit 2"
+# adversarial regression: sub-threshold true ratio must NOT round up into a pass (142/203=0.6995 < 0.7)
+printf 'cand' | "${EG[@]}" score --criteria-json '[{"id":"a","weight":142,"required":false,"description":"x"},{"id":"b","weight":61,"required":false,"description":"y"}]' --stub-criteria '{"a":"pass","b":"fail"}' --threshold 0.7 >/dev/null 2>&1; chk $? 1 "criteria sub-threshold ratio not rounded up to pass"
+# adversarial regression: exact-boundary float (0.4+0.3+0.3) must still PASS at threshold 0.7
+printf 'cand' | "${EG[@]}" score --criteria-json "$CRIT" --stub-criteria '{"correct":"pass","complete":"pass","concise":"fail"}' --threshold 0.7 >/dev/null 2>&1; chk $? 0 "criteria exact-boundary ratio passes (epsilon, no float false-fail)"
+# adversarial regression: non-finite (inf/nan) weight rejected -> exit 2 (no NaN-pass / invalid JSON)
+printf 'cand' | "${EG[@]}" score --criteria-json '[{"id":"a","description":"d","weight":1e400}]' --stub-criteria '{"a":"pass"}' >/dev/null 2>&1; chk $? 2 "criteria non-finite weight -> exit 2"
+# backward-compat: holistic score with NO criteria is unchanged (stub 5 passes)
+printf 'x' | "${EG[@]}" score --stub-score 5 >/dev/null 2>&1; chk $? 0 "holistic path unchanged when no --criteria"
+# suite with per-case inline stub_criteria
+printf '%s\n' '{"id":"c1","candidate":"x","stub_criteria":{"correct":"pass","complete":"pass","concise":"pass"}}' '{"id":"c2","candidate":"y","stub_criteria":{"correct":"pass","complete":"pass","concise":"pass"}}' > "$TMP/crit_cases.jsonl"
+"${EG[@]}" suite --cases "$TMP/crit_cases.jsonl" --criteria-json "$CRIT" >/dev/null 2>&1; chk $? 0 "suite criteria all-pass -> exit 0"
+printf '%s\n' '{"id":"c1","candidate":"x","stub_criteria":{"correct":"fail","complete":"pass","concise":"pass"}}' > "$TMP/crit_fail.jsonl"
+"${EG[@]}" suite --cases "$TMP/crit_fail.jsonl" --criteria-json "$CRIT" >/dev/null 2>&1; chk $? 1 "suite criteria required-fail case -> exit 1"
+# _parse_criteria robustness (unit; no model)
+pres2=$(python3 - "$HERE" <<'PY'
+import sys; sys.path.insert(0, sys.argv[1])
+import eval_gate as e
+out = "correct: PASS - grounded\n- complete: FAIL — missed ask 3\n2. concise: yes, terse\nsafe: ✓ no issues"
+v = e._parse_criteria(out, ["correct", "complete", "concise", "safe"])
+ok = (v["correct"][0] is True and v["complete"][0] is False
+      and v["concise"][0] is True and v["safe"][0] is True)
+none_all_missing = e._parse_criteria("totally unrelated prose", ["a", "b"]) is None
+partial = e._parse_criteria("correct: looks fine", ["correct"])  # present but tokenless
+fs = partial["correct"][0] is False
+print("PARSE2_OK" if (ok and none_all_missing and fs) else f"PARSE2_FAIL v={v}")
+PY
+)
+case "$pres2" in PARSE2_OK*) chk 0 0 "_parse_criteria handles bullets/tokens/fail-safe";; *) echo "  FAIL: $pres2"; fail=1;; esac
+
 echo
 [ "$fail" = "0" ] && echo "ALL PASS" || echo "FAILURES ABOVE"
 exit $fail
