@@ -30,7 +30,7 @@ Only after the WHAT is stable enough do the HOW work:
 Steps:
 1. Inspect discoverable facts. Read the files you'll touch; reuse existing capabilities/conventions before introducing new surface area.
 2. Identify unknowns. Ask the user only the 1–3 **load-bearing** questions whose answer changes the plan's shape; resolve nice-to-knows during execution.
-3. Draft plan with phases and verification. End it with a `done means:` block — ≤5 verifiable exit criteria derived from the user's ask. Completion is judged against THIS block, re-read at the end, not against your memory of it. For multi-session or multi-agent work the plan lives on disk (PLAN.md / task packet) and outranks any in-context restatement.
+3. Draft plan with phases and verification. End it with a `done means:` block — ≤5 verifiable exit criteria derived from the user's ask. Completion is judged against THIS block, re-read at the end, not against your memory of it. For multi-session or multi-agent work the plan lives on disk (PLAN.md / task packet) and outranks any in-context restatement. Before you trust it, sanity-check the block is **complete and gradeable** — right target, and covers the obvious degenerate/edge inputs; a blind verifier grades *against* this block, so an omitted case silently passes work that misses it.
 4. Simplify (see `lean-execution`): drop ceremony, duplicate checks, speculative docs, any step that doesn't reduce risk or produce evidence.
 5. Get approval if host workflow requires it.
 6. Execute.

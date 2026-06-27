@@ -92,7 +92,10 @@ fails *safe* — it never reports a pass it couldn't compute).
 1. Write the rubric once, **as a file at task start** (`tools/rubric.example.md`
    is a starting point) — checkable criteria committed up front, not reverse-
    engineered after the work to fit what you produced. Encode your actual taste —
-   the criteria a reader would bookmark you for.
+   the criteria a reader would bookmark you for. The grader trusts this rubric
+   blindly: a **missing or wrong-target** criterion passes bad output as surely
+   as a vague one, so make it complete (covers the degenerate/edge cases that
+   matter), not just specific.
 2. `score` at the point of shipping. Exit 1 → rework or kill; do not ship.
    **Two-pass when a maker hands you a result:** score it once from the maker's
    claims, then again from the artifact alone — any criterion that drops on the
