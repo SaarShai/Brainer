@@ -28,6 +28,7 @@ longer be unaware that 8 repos are behind.
 Usage:
   python3 scripts/sibling_sync_audit.py            # summary table
   python3 scripts/sibling_sync_audit.py --files    # list every DIFFERS file
+  python3 scripts/sibling_sync_audit.py --repo X   # only sibling X (post-propagate verify)
   python3 scripts/sibling_sync_audit.py --json
 """
 from __future__ import annotations
@@ -65,10 +66,12 @@ def skill_names(root: Path) -> set[str]:
             if d.is_dir() and d.name != "_shared" and (d / "SKILL.md").is_file()}
 
 
-def audit() -> dict:
+def audit(repo: str | None = None) -> dict:
     canon_files = skill_files(BRAINER)
     canon_skills = skill_names(BRAINER)
     sibs = sorted((d for d in DOCS.iterdir() if is_sibling(d)), key=lambda p: p.name)
+    if repo is not None:
+        sibs = [d for d in sibs if d.name == repo]
     report = {"canonical_files": len(canon_files), "canonical_skills": len(canon_skills),
               "siblings": []}
     for sib in sibs:
@@ -97,9 +100,15 @@ def audit() -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--files", action="store_true", help="list every DIFFERS file")
+    ap.add_argument("--repo", help="audit only this sibling (exact dir name) — "
+                    "post-propagation single-sibling verify")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
-    rep = audit()
+    rep = audit(args.repo)
+    if args.repo and not rep["siblings"]:
+        print(f"no sibling repo named {args.repo!r} found alongside Brainer "
+              f"(must have skills/ + install.sh)", file=sys.stderr)
+        return 2
     if args.json:
         print(json.dumps(rep, indent=2))
         return 0
