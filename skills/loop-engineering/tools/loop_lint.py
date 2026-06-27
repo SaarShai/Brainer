@@ -598,6 +598,43 @@ def _has_human_gate(gate: str) -> bool:
     return bool(_DECISION_VERB.search(gate) and _HUMAN_TOKEN.search(gate))
 
 
+# A gate can be COMMAND-SHAPED (passes the _STRONG_GATE allowlist) yet never return
+# non-zero — so it always "passes" and gates nothing. Two classes the shape check
+# waves through: (a) a help/version/usage flag as the whole check ('./tool --help' —
+# exits 0 by definition); (b) a bare printer/lister with no assertion ('cat f',
+# 'echo ok', 'ls dir'). Fire ONLY when NO real assertion exists anywhere in the gate
+# (no &&/||, no pipe, no test/grep -q/exit-code/comparison) — so 'cmd | grep -q OK'
+# or '... && test -f out' (real checks) are NOT flagged.
+# (Upstreamed from the product-images sibling fork; pairs with R1's shape allowlist.)
+_NOOP_FLAG = re.compile(r"(?:^|[\s=])(?:--help|-h|--usage|--version|-V)\b", re.I)
+_NOOP_ONLY_CMD = re.compile(r"^\s*(?:true|:|echo|printf|cat|ls|pwd)\b", re.I)
+_REAL_CHECK = re.compile(
+    r"&&|\|\||(?:^|\s)\|(?:\s|$)|\bgrep\b[^\n]*\s-\w*q|\btest\b|\[\s|\[\[|"
+    r"\bexit\s+\d|\bassert\b|==|!=|>=|<=|-eq|-ne|-gt|-lt|\$\?", re.I)
+# An unfilled <placeholder> sitting in the gate's PASS/FAIL LOGIC (a ternary
+# condition or an assertion operand) means the CHECK ITSELF is unspecified — the
+# agent could fill it with a tautology ('True'). DATA placeholders that only say
+# WHAT to operate on ('--name-contains "<part>"') are fine and not flagged.
+_LOGIC_PLACEHOLDER = re.compile(
+    r"<[^>]*(?:assert|condition|cond|predicate|expr|metric|check|bool)[^>]*>"
+    r"|\bif\s+<[^>]+>\s+else\b"
+    r"|(?:==|!=|>=|<=)\s*<[^>]+>|<[^>]+>\s*(?:==|!=|>=|<=)", re.I)
+
+
+def _is_noop_gate(gate: str) -> bool:
+    """True if the gate is command-shaped but can't fail (a help/version flag or a
+    bare printer/lister with no real assertion anywhere)."""
+    if _REAL_CHECK.search(gate):
+        return False
+    return bool(_NOOP_FLAG.search(gate) or _NOOP_ONLY_CMD.match(gate))
+
+
+def _has_logic_placeholder(gate: str) -> bool:
+    """True if an unfilled <...> placeholder sits in the gate's pass/fail logic
+    (the check is unspecified), vs a data arg (which is fine)."""
+    return bool(_LOGIC_PLACEHOLDER.search(gate))
+
+
 def _budget_cap_value(budget: str) -> float | None:
     """The numeric cap if the budget names a real cap bound to a unit, else None
     (unbounded / a stray digit in prose / a distributive sub-cap over an unbounded
@@ -763,6 +800,18 @@ def check_spec(report: Report, spec: Spec, rule_filter: int | None, *, strict_me
                                f"gate={gate!r}: no command / test id / assertion / exit-code / path, and no "
                                "explicit human approval (approve / sign-off / escalate). 'looks correct' / "
                                "'the reviewer agrees' do not gate a loop — name the check or the approver."))
+        elif _is_noop_gate(gate):
+            report.add(Finding(1, "FAIL", f"spec '{label}' gate is a no-op that can't fail",
+                               src, spec.line_of("gate"),
+                               f"gate={gate!r}: a --help/--version flag or a bare printer always exits 0 — it can "
+                               "never block the loop. Name a check that returns non-zero on the bad case "
+                               "(an assertion, grep -q, test, a non-zero exit)."))
+        elif _has_logic_placeholder(gate):
+            report.add(Finding(1, "WARN", f"spec '{label}' gate has an unfilled placeholder in its pass/fail logic",
+                               src, spec.line_of("gate"),
+                               f"gate={gate!r}: a <placeholder> in the assertion/condition leaves the check itself "
+                               "unspecified — it could be filled with a tautology (`True`). Substitute the concrete "
+                               "assertion before running; data placeholders (paths/names) are fine."))
 
     # R2 NO-STOP-OR-BUDGET
     if want(2):

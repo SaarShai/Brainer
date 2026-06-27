@@ -1097,6 +1097,43 @@ def test_r13_machine_gate_verifier_named_agent_no_warn():
         assert _rules(spec, rule=13) == [], (v, _rules(spec, rule=13))
 
 
+# --- R1 NO-OP / placeholder gate (upstreamed from the product-images sibling fork) --
+def _json_spec(gate):
+    return json.dumps({"name": "t", "topology": "closed · inner · single",
+                       "generator": "opus", "verifier": "sonnet", "gate": gate,
+                       "stop": "green", "budget": "max_iterations=10"})
+
+
+def test_noop_help_gate_r1_fail():
+    # Command-shaped but can't fail (--help/--version exit 0) — waved through the
+    # ./ allowlist; must FAIL R1.
+    for g in ["./cli/bin/screenery-design --help", "python3 cli.py --version"]:
+        spec = CLEAN.replace("gate: pytest tests/ -q", f"gate: {g}")
+        assert _has(spec, 1, "FAIL"), (g, _rules(spec))
+
+
+def test_noop_flag_with_real_check_passes_r1():
+    # A help flag ALONGSIDE a real assertion (&&, pipe to a checker) is fine.
+    for g in ["./tool build && test -f out.bin", "cmd --help | grep -q Usage"]:
+        spec = CLEAN.replace("gate: pytest tests/ -q", f"gate: {g}")
+        assert not _has(spec, 1, "FAIL"), (g, _rules(spec))
+
+
+def test_logic_placeholder_gate_warns_r1():
+    # An unfilled <placeholder> in the pass/fail LOGIC leaves the check unspecified
+    # (could be filled with `True`). WARN, not FAIL.
+    spec = _json_spec('python3 -c "exit(0 if <metric-assertion> else 1)"')
+    assert _has(spec, 1, "WARN", source="spec.json"), _rules(spec, source="spec.json")
+    assert not _has(spec, 1, "FAIL", source="spec.json"), _rules(spec, source="spec.json")
+
+
+def test_data_placeholder_gate_not_flagged_r1():
+    # A DATA placeholder (WHAT to operate on) with a real check is fine — not flagged.
+    spec = _json_spec('dump-paths --name-contains "<part>" | python3 -c "exit(0 if count>0 else 1)"')
+    assert not _has(spec, 1, "FAIL", source="spec.json"), _rules(spec, source="spec.json")
+    assert not _has(spec, 1, "WARN", source="spec.json"), _rules(spec, source="spec.json")
+
+
 # --- runner ---------------------------------------------------------------
 
 def main() -> int:
