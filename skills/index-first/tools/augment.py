@@ -117,10 +117,13 @@ def _run_query(argv, budget_ms):
         return None
     if p.returncode != 0:
         return None
-    return p.stdout.decode("utf-8", "replace")
+    try:
+        return p.stdout.decode("utf-8")
+    except UnicodeDecodeError:
+        return None  # non-UTF8 output is broken; never emit replacement garbage
 
 
-def _format_context(raw, token):
+def _format_context(raw, token, freetext_ok=False):
     """Format the top RESULT_LIMIT hits as a compact additionalContext string.
 
     Accepts the two index shapes this hook queries:
@@ -166,7 +169,11 @@ def _format_context(raw, token):
             f"unaffected):\n{body}"
         )
 
-    # Non-JSON (e.g. graphify explain free text): pass through, capped.
+    # Non-JSON output. Only the graphify-explain backend legitimately returns
+    # free text; a JSON backend (wiki search / test override) returning non-JSON
+    # is broken output and must NOT be emitted (cardinal rule: noop on bad data).
+    if not freetext_ok:
+        return None
     snippet = text[:3500]
     return (
         f'[index-first] index context for "{token}" (your search results '
@@ -217,7 +224,10 @@ def main():
     # case returns cleanly via subprocess timeout; the SIGALRM deadline is the
     # hard backstop for any other stall (e.g. a hung syscall).
     raw = _run_query(argv, max(DEADLINE_MS - 50, 50))
-    ctx = _format_context(raw, token)
+    # Free text is only trusted from the graphify-explain backend; the JSON
+    # backends (wiki search / test override) must return parseable JSON.
+    freetext_ok = bool(argv) and os.path.basename(str(argv[0])) == "graphify"
+    ctx = _format_context(raw, token, freetext_ok)
     if ctx:
         _emit(ctx)  # the single, final write
     return 0

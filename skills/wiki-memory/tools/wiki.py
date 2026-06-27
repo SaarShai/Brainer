@@ -1031,6 +1031,14 @@ class WikiStore:
         above the floor is itself a degraded signal)."""
         floor = _env_int("WIKI_DEGRADED_FLOOR", 5)
         ratio = _env_float("WIKI_DEGRADED_RATIO", 0.5)
+        # Clamp env knobs to sane ranges so an absurd value (inf / -inf / nan /
+        # >1 / <0) can't silently disable the check (false-ok on data loss) or
+        # force it (false-degraded on a healthy write). Reset garbage to default.
+        import math
+        if not math.isfinite(ratio) or not (0.0 <= ratio <= 1.0):
+            ratio = 0.5
+        if floor < 0:
+            floor = 0
         if persisted is None:
             persisted = 0
             try:
@@ -1089,10 +1097,17 @@ class WikiStore:
         """
         if query is None or not str(query).strip():
             raise WikiUnsupportedQueryError("empty query")
-        raw_tokens = re.findall(r"[A-Za-z0-9_/-]+", str(query))
-        if not raw_tokens:
+        q = str(query)
+        # Unicode-aware: any letter/digit (incl. non-ASCII) is searchable content.
+        # A non-ASCII query (e.g. 'тест', '你好') is a VALID query that may match
+        # zero rows — NOT "unsupported". Only pure punctuation is unsupported.
+        if not any(ch.isalnum() for ch in q):
             raise WikiUnsupportedQueryError("no alphanumeric tokens (punctuation only)")
-        if not query_tokens(query):
+        # The all-stopwords/too-short guard applies only to ASCII word queries; a
+        # query carrying non-ASCII alphanumerics is a valid (possibly zero-match)
+        # query, so it must not be rejected just because the ASCII tokenizer
+        # yields nothing.
+        if q.isascii() and not query_tokens(query):
             raise WikiUnsupportedQueryError("only stopwords/too-short tokens — nothing searchable")
 
     def search(self, query: str, k: int = 10) -> list[dict[str, Any]]:

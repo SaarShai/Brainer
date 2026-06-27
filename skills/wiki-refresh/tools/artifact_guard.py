@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
 """artifact_guard — safe commit helper for regenerated artifacts.
 
+THREAT MODEL (read before relying on verify-import). This gate detects
+*corruption* — truncation, a partial/aborted write, bit-rot, a missing or
+mismatched sidecar — of a regenerated artifact. It is NOT an anti-tamper /
+authenticity gate: an actor who can rewrite BOTH the artifact and its sidecar
+(i.e. re-`seal`) produces a self-consistent pair that verifies clean, by design
+(re-sealing a freshly regenerated artifact is the normal, intended flow). For
+authenticity against a malicious writer you need an out-of-band signature (e.g.
+sigstore/cosign over the artifact), which is out of scope here.
+
 Port of codebase-memory-mcp's src/pipeline/artifact.c:
   - ensure_gitattributes (~line 333): prevents merge conflicts via merge=ours
   - integrity gate (~line 626): requires artifact + sidecar checksum match before import

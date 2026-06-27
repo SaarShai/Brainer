@@ -94,8 +94,8 @@ def _nonzero_exit_lineno(node: ast.AST) -> int | None:
     args: list[ast.expr] = []
     if isinstance(node, ast.Call):
         f = node.func
-        if isinstance(f, ast.Attribute) and f.attr == "exit":
-            target, args = "exit", node.args
+        if isinstance(f, ast.Attribute) and f.attr in ("exit", "_exit"):
+            target, args = "exit", node.args  # sys.exit / os._exit
         elif isinstance(f, ast.Name) and f.id == "exit":
             target, args = "exit", node.args
     elif isinstance(node, ast.Raise) and isinstance(node.exc, ast.Call):
@@ -126,6 +126,21 @@ def _check_python(text: str, rel: str) -> list[tuple[str, int, str]]:
     stdout_writes: list[int] = []
     exit_or_raise: list[int] = []
 
+    # Track subprocess module aliases + bare imported names so a call via an
+    # alias (`import subprocess as sp; sp.run(...)`) or a direct import
+    # (`from subprocess import run`) isn't missed by the timeout check.
+    sub_aliases = {"subprocess"}
+    sub_bare: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for n in node.names:
+                if n.name == "subprocess":
+                    sub_aliases.add(n.asname or "subprocess")
+        elif isinstance(node, ast.ImportFrom) and node.module == "subprocess":
+            for n in node.names:
+                if n.name in _SUBPROCESS_FNS or n.name == "Popen":
+                    sub_bare.add(n.asname or n.name)
+
     for node in ast.walk(tree):
         # (a) non-zero exit on an error path
         ln = _nonzero_exit_lineno(node)
@@ -143,10 +158,10 @@ def _check_python(text: str, rel: str) -> list[tuple[str, int, str]]:
                 isinstance(f, ast.Attribute)
                 and f.attr in _SUBPROCESS_FNS
                 and (
-                    (isinstance(f.value, ast.Name) and f.value.id == "subprocess")
+                    (isinstance(f.value, ast.Name) and f.value.id in sub_aliases)
                     or f.attr == "Popen"
                 )
-            ) or (isinstance(f, ast.Name) and f.id == "Popen")
+            ) or (isinstance(f, ast.Name) and (f.id == "Popen" or f.id in sub_bare))
             if is_sub:
                 has_timeout = any(kw.arg == "timeout" for kw in node.keywords)
                 # Popen has no timeout= kwarg; it needs a later .wait(timeout=)/
@@ -211,11 +226,17 @@ def _check_shell(text: str, rel: str) -> list[tuple[str, int, str]]:
             if re.search(r"\+[A-Za-z]*e", flags):
                 set_plus_e = True
 
+    # Strip comments first: a guard token that appears ONLY in a comment (e.g.
+    # "# falls back to || true") must not be mistaken for a real guard. Naive —
+    # drops from the first '#' at line-start or after whitespace; hook shims
+    # rarely put '#' inside a string.
+    code_lines = [re.sub(r"(^|\s)#.*$", "", ln) for ln in lines]
+    code_text = "\n".join(code_lines)
     has_final_exit0 = any(
-        re.match(r"exit\s+0\b", ln.strip()) for ln in lines
+        re.match(r"exit\s+0\b", ln.strip()) for ln in code_lines
     )
     # Guards that neutralise a failing command: `|| true`, `|| exit 0`.
-    has_or_guard = bool(re.search(r"\|\|\s*(true|exit\s+0)\b", text))
+    has_or_guard = bool(re.search(r"\|\|\s*(true|exit\s+0)\b", code_text))
 
     if set_e_ln and not set_plus_e:
         findings.append(
