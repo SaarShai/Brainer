@@ -397,9 +397,9 @@ _STATE_CONCURRENCY_ALLOWED = {"single_writer", "optimistic_revision", "worktree_
 # duration) — not a stray digit in a prose sentence ("run until inbox has 0 unread").
 _BUDGET_CAP = re.compile(
     r"\b(?:max[_\s-]?)?(?:iterations?|iters?|tokens?|turns?|rounds?|attempts?|steps?|calls?|"
-    r"loops?|passes|retries|tries)\b\s*[:=]?\s*\d+(?:\.\d+)?"                 # unit then number
+    r"loops?|passes|retries|tries|revisions?|revs?)\b\s*[:=]?\s*\d+(?:\.\d+)?"                 # unit then number
     r"|\d+(?:\.\d+)?\s*(?:k\s*)?(?:iterations?|iters?|tokens?|turns?|rounds?|attempts?|steps?|"
-    r"calls?|loops?|passes|retries|tries)\b"                                 # number then unit
+    r"calls?|loops?|passes|retries|tries|revisions?|revs?)\b"                                 # number then unit
     r"|\d+(?:\.\d+)?\s*(?:s|sec|secs|seconds?|m|min|mins|minutes?|h|hr|hrs|hours?)\b",  # a duration
     re.I)
 
