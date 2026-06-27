@@ -132,6 +132,12 @@ def main(argv=None) -> int:
         if args.debug:
             print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True), file=sys.stderr)
         return 0
+    except Exception as exc:  # noqa: BLE001 — an audit/logging hook must NEVER block a tool
+        # Defense-in-depth: even an unexpected error (OSError on write, normalize bug)
+        # exits 0 so a PreToolUse wiring can't turn a logging failure into a tool block.
+        if args.debug:
+            print(json.dumps({"ok": False, "error": f"unexpected: {exc}"}, sort_keys=True), file=sys.stderr)
+        return 0
 
 
 if __name__ == "__main__":

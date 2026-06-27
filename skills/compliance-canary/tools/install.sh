@@ -18,7 +18,8 @@ REPO="$(cd "$TOOLS_DIR/../../.." && pwd)"
 CLAUDE_DIR="$REPO/.claude"
 SKILL_DIR="$CLAUDE_DIR/skills"
 SETTINGS="$CLAUDE_DIR/settings.json"
-HOOK_CMD="bash ./.claude/skills/compliance-canary/tools/hook.sh"
+# Run-time-expanded project root, not cwd-relative './' (which breaks on cwd drift).
+HOOK_CMD='bash "${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/compliance-canary/tools/hook.sh"'
 
 merge_settings() {
   python3 - "$SETTINGS" "$HOOK_CMD" <<'PY'
@@ -63,7 +64,8 @@ PY
 # stdin payload incl. transcript_path), so the drift watcher + nomination nudge run
 # there too. Codex reads the transcript via the cross-host normalizer (skills/_shared).
 CODEX_HOOKS="$REPO/.codex/hooks.json"
-CODEX_HOOK_CMD="bash ./.codex/skills/compliance-canary/tools/hook.sh"
+# Same portable run-time-expanded form (.codex/hooks.json is committed, so no machine path).
+CODEX_HOOK_CMD='bash "${CLAUDE_PROJECT_DIR:-$PWD}/.codex/skills/compliance-canary/tools/hook.sh"'
 
 merge_codex() {
   python3 - "$CODEX_HOOKS" "$CODEX_HOOK_CMD" <<'PY'

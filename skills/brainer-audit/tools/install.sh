@@ -6,8 +6,15 @@ TOOLS_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$TOOLS_DIR/../../.." && pwd)"
 CLAUDE_SETTINGS="$REPO/.claude/settings.json"
 CODEX_HOOKS="$REPO/.codex/hooks.json"
-CLAUDE_CMD="python3 ./.claude/skills/brainer-audit/tools/hook.py --host claude"
-CODEX_CMD="python3 ./.codex/skills/brainer-audit/tools/hook.py --host codex"
+# Run-time-expanded project root (CLAUDE_PROJECT_DIR is injected by Claude Code =
+# repo root), NOT a cwd-relative './'. The latter breaks the moment the shell cwd
+# drifts into a subdir, and for a PreToolUse + matcher:'*' hook that launch failure
+# (python3 can't open the file -> exit 2) BLOCKS every tool. The :-$PWD fallback
+# keeps a host without the var working from the repo root. (Codex doesn't set the
+# var, so it falls back to $PWD; .codex/hooks.json is committed/portable so we keep
+# the same form rather than baking a machine-specific absolute path.)
+CLAUDE_CMD='python3 "${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/brainer-audit/tools/hook.py" --host claude'
+CODEX_CMD='python3 "${CLAUDE_PROJECT_DIR:-$PWD}/.codex/skills/brainer-audit/tools/hook.py" --host codex'
 
 python3 - "$CLAUDE_SETTINGS" "$CODEX_HOOKS" "$CLAUDE_CMD" "$CODEX_CMD" <<'PY'
 import json

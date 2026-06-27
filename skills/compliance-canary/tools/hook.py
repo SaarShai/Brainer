@@ -128,7 +128,12 @@ def skills_root() -> Path:
                 or os.environ.get("SKILL_PULSE_SKILLS_ROOT"))
     if override:
         return Path(override)
-    return Path(".claude/skills")
+    # Anchor to CLAUDE_PROJECT_DIR, exactly like state_dir() above — a cwd-relative
+    # ".claude/skills" silently points at a nonexistent dir once the agent cd's into
+    # a subdir, which made probe/pulse DISCOVERY go dark (the drift watcher itself).
+    project = os.environ.get("CLAUDE_PROJECT_DIR")
+    base = Path(project) if project else Path.cwd()
+    return base / ".claude" / "skills"
 
 
 @contextmanager

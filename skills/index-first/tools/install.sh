@@ -26,8 +26,10 @@ TOOLS_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$TOOLS_DIR/../../.." && pwd)"
 CLAUDE_DIR="$REPO/.claude"
 SETTINGS="$CLAUDE_DIR/settings.json"
-# Relative command so the entry is portable across checkouts.
-HOOK_CMD="python3 ./.claude/skills/index-first/tools/augment.py"
+# Run-time-expanded project root (Claude injects CLAUDE_PROJECT_DIR = repo root).
+# A cwd-relative './' was NOT portable — it breaks the moment the shell cwd drifts
+# into a subdir, since hooks run from the current cwd, not the repo root.
+HOOK_CMD='python3 "${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/index-first/tools/augment.py"'
 
 if [ "$DRY_RUN" = "1" ]; then
   if [ "$UNINSTALL" = "1" ]; then

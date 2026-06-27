@@ -55,7 +55,7 @@ No installer ships yet — wire by hand. Add to `.claude/settings.json`:
         "hooks": [
           {
             "type": "command",
-            "command": "bash ./.claude/skills/output-filter/tools/filter.sh"
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/output-filter/tools/filter.sh\""
           }
         ]
       }

@@ -33,11 +33,14 @@ def _skills_dir() -> Path:
     override = os.environ.get("LEARN_SKILL_SKILLS_DIR")
     if override:
         return Path(override)
-    # The installed skills live under .claude/skills; fall back to ./skills (repo).
-    for cand in (Path(".claude/skills"), Path("skills")):
+    # Anchor to CLAUDE_PROJECT_DIR — process cwd isn't stable across hook invocations,
+    # so a cwd-relative ".claude/skills" silently misses once the agent cd's into a subdir.
+    project = os.environ.get("CLAUDE_PROJECT_DIR")
+    base = Path(project) if project else Path.cwd()
+    for cand in (base / ".claude" / "skills", base / "skills"):
         if cand.is_dir():
             return cand
-    return Path("skills")
+    return base / "skills"
 
 
 _TRANSCRIPT_KEYS = ("transcript_path", "rollout_path", "transcript", "session_file", "path")
@@ -131,7 +134,7 @@ def cmd_session_start() -> int:
         source = fm.get("source", "")
         if source:
             verdict, _ = learn._source_freshness(source, fm.get("learned_at", ""),
-                                                 Path("."), 90)
+                                                 _root(), 90)
             if verdict == "stale":
                 stale.append(name)
     if not (promote_ready or refine_cand or stale or needs_tools):

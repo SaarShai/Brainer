@@ -4,7 +4,7 @@
       {
         "hooks": [
           {
-            "command": "bash ./.claude/skills/context-keeper/tools/hook.sh",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/context-keeper/tools/hook.sh\"",
             "type": "command"
           }
         ],
@@ -15,7 +15,7 @@
       {
         "hooks": [
           {
-            "command": "bash ./.claude/skills/context-keeper/tools/codex_archive.sh",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/context-keeper/tools/codex_archive.sh\"",
             "type": "command"
           }
         ]
@@ -23,7 +23,7 @@
       {
         "hooks": [
           {
-            "command": "bash ./.codex/skills/learn-skill/tools/hook_codex_stop.sh",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.codex/skills/learn-skill/tools/hook_codex_stop.sh\"",
             "type": "command"
           }
         ],
@@ -34,7 +34,7 @@
       {
         "hooks": [
           {
-            "command": "bash ./.claude/skills/prompt-triage/tools/hook.sh",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/prompt-triage/tools/hook.sh\"",
             "type": "command"
           }
         ]
@@ -42,7 +42,7 @@
       {
         "hooks": [
           {
-            "command": "bash ./.codex/skills/learn-skill/tools/hook_session_start.sh",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.codex/skills/learn-skill/tools/hook_session_start.sh\"",
             "type": "command"
           }
         ],
@@ -51,7 +51,7 @@
       {
         "hooks": [
           {
-            "command": "bash ./.codex/skills/compliance-canary/tools/hook.sh",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.codex/skills/compliance-canary/tools/hook.sh\"",
             "type": "command"
           }
         ],

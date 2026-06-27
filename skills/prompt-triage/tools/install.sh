@@ -20,11 +20,11 @@ REPO="$(cd "$TOOLS_DIR/../../.." && pwd)"
 SKILL_DIR="$REPO/.claude/skills"
 AGENT_DIR="$REPO/.claude/agents"
 SETTINGS="$REPO/.claude/settings.json"
-# Repo-relative hook path — matches the convention used by every other
-# hook-shipping skill (compliance-canary, context-keeper,
-# skill-pulse). An absolute machine-local path breaks if the repo moves
-# or if .claude/settings.json is committed and shared across machines.
-HOOK_CMD="bash ./.claude/skills/prompt-triage/tools/hook.sh"
+# Run-time-expanded project root (Claude injects CLAUDE_PROJECT_DIR = repo root),
+# not cwd-relative './' — the latter breaks the moment the shell cwd drifts into a
+# subdir, since hooks run from the current cwd, not the repo root. The :-$PWD
+# fallback keeps it working on hosts that don't set the var.
+HOOK_CMD='bash "${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/prompt-triage/tools/hook.sh"'
 AGENTS=(wiki-note quick-fix local-ollama research-lite kaggle-feeder glm-executor)
 
 merge_settings() {
