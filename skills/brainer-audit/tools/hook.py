@@ -120,17 +120,17 @@ def main(argv=None) -> int:
         event["project_path"] = event.get("project_path") or str(root)
         if not write_allowed(root):
             if args.debug:
-                print(json.dumps({"ok": True, "written": 0, "reason": "no_write"}, sort_keys=True))
+                print(json.dumps({"ok": True, "written": 0, "reason": "no_write"}, sort_keys=True), file=sys.stderr)
             return 0
         written = 0
         written += 1 if maybe_write_brainer_audit(root, event) else 0
         written += 1 if maybe_write_task_retro(root, event) else 0
         if args.debug:
-            print(json.dumps({"ok": True, "written": written, "event": event}, sort_keys=True))
+            print(json.dumps({"ok": True, "written": written, "event": event}, sort_keys=True), file=sys.stderr)
         return 0
     except HookError as exc:
         if args.debug:
-            print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True))
+            print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True), file=sys.stderr)
         return 0
 
 

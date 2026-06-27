@@ -139,6 +139,10 @@ run "ablation-guard" env BRAINER_CHECK_NO_WRITE="$BRAINER_CHECK_NO_WRITE" python
 # -efficacy (#2, eval/inert_probe.py) is model-dependent → NOT gated.
 run "skill-audit" python3 eval/skill_audit.py --check
 
+# 5e. Hook-safety gate — every hook entrypoint must satisfy the cardinal rule
+# (exit 0 on all paths, no partial stdout, subprocess timeouts, stdout=payload).
+run "hook-safety" python3 skills/compliance-canary/tools/hook_validate.py
+
 fi
 
 if [ "$GROUP" = "tail" ] || [ "$GROUP" = "all" ]; then
