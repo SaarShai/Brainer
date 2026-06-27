@@ -1032,10 +1032,13 @@ class WikiStore:
         floor = _env_int("WIKI_DEGRADED_FLOOR", 5)
         ratio = _env_float("WIKI_DEGRADED_RATIO", 0.5)
         # Clamp env knobs to sane ranges so an absurd value (inf / -inf / nan /
-        # >1 / <0) can't silently disable the check (false-ok on data loss) or
+        # >1 / <=0) can't silently disable the check (false-ok on data loss) or
         # force it (false-degraded on a healthy write). Reset garbage to default.
+        # ratio MUST be > 0: ratio=0 makes `persisted < 0*expected` always false,
+        # masking 100% data loss as "ok" — so 0 is reset to the 0.5 default, not
+        # honored as a "disable" knob.
         import math
-        if not math.isfinite(ratio) or not (0.0 <= ratio <= 1.0):
+        if not math.isfinite(ratio) or not (0.0 < ratio <= 1.0):
             ratio = 0.5
         if floor < 0:
             floor = 0
@@ -1103,12 +1106,16 @@ class WikiStore:
         # zero rows — NOT "unsupported". Only pure punctuation is unsupported.
         if not any(ch.isalnum() for ch in q):
             raise WikiUnsupportedQueryError("no alphanumeric tokens (punctuation only)")
-        # The all-stopwords/too-short guard applies only to ASCII word queries; a
-        # query carrying non-ASCII alphanumerics is a valid (possibly zero-match)
-        # query, so it must not be rejected just because the ASCII tokenizer
-        # yields nothing.
-        if q.isascii() and not query_tokens(query):
-            raise WikiUnsupportedQueryError("only stopwords/too-short tokens — nothing searchable")
+        # Reject only when EVERY ASCII alnum token is a stopword (e.g. "the and
+        # for"). A single non-stopword content char like "3" or "k" is a VALID
+        # query — so mirror query_tokens' stopword set but NOT its len>1 ranking
+        # filter (validation ≠ ranking). Non-ASCII queries already passed above.
+        if q.isascii():
+            _stop = {"the", "and", "for", "with", "into", "from", "that", "this",
+                     "when", "what", "need", "needs", "task"}
+            _toks = re.findall(r"[A-Za-z0-9_/-]+", q.lower())
+            if not any(t not in _stop for t in _toks):
+                raise WikiUnsupportedQueryError("only stopwords — nothing searchable")
 
     def search(self, query: str, k: int = 10) -> list[dict[str, Any]]:
         self._validate_query(query)

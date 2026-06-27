@@ -19,6 +19,15 @@ This is a REPORT-ONLY static linter. It scans every Brainer hook entrypoint
 Findings are heuristic and per-file. Exit code: 0 = clean, 1 = findings,
 2 = usage error.
 
+KNOWN LIMITS (this is a heuristic lint, not a sandbox). It detects the literal
+forms — `sys.exit(N)`, `os._exit(N)`, `subprocess.run`/`Popen`/aliased imports,
+`os.system`/`os.popen`, comment-stripped shell guards. It CANNOT see exits or
+subprocess calls reached through arbitrary indirection: a rebound name
+(`e = os._exit; e(1)`), a `getattr(os, "_exit")()`, an `exec`/`eval`, or a call
+through a returned callable. Treat a clean result as "no literal violation
+found", not "proven safe". Author hooks in the direct style so the linter can
+see them.
+
 Usage:
   hook_validate.py                 # sweep skills/<skill>/tools/hook.{py,sh}
   hook_validate.py FILE [FILE...]  # check specific entrypoints
@@ -175,6 +184,16 @@ def _check_python(text: str, rel: str) -> list[tuple[str, int, str]]:
                             f"{_call_text(node)[:80]}",
                         )
                     )
+            # os.system / os.popen — subprocess-equivalent with no timeout knob.
+            if (
+                isinstance(f, ast.Attribute)
+                and f.attr in ("system", "popen")
+                and isinstance(f.value, ast.Name)
+                and f.value.id == "os"
+            ):
+                findings.append(
+                    (SUBPROCESS_NO_TIMEOUT, node.lineno, f"os.{f.attr}() (no timeout)")
+                )
             # (b)/(d) stdout writes
             if _is_stdout_write(node) or _print_to_stdout(node):
                 stdout_writes.append(node.lineno)

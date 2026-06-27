@@ -53,6 +53,11 @@ rc, out = _augment(GREP, [PY, "-c", "import json;print(json.dumps([{'path':'a.py
 check("valid JSON hits -> emits additionalContext", "additionalContext" in out)
 rc, out = _augment({"tool_name": "Read", "tool_input": {"file_path": "x"}}, [PY, "-c", "print('[]')"])
 check("Read tool -> never acts (noop)", out == "" and rc == 0)
+# round 2: an INDEX_FIRST_QUERY_CMD override is NEVER trusted for free text
+# (freetext is gated on the real graphify-out index, not argv[0]'s name), so
+# non-JSON from any override noops even if it looks graphify-ish.
+rc, out = _augment(GREP, [PY, "-c", "print('graphify-ish free text, not json')"])
+check("override backend non-JSON -> noop (no freetext spoof)", out == "", f"emitted {out!r}")
 
 print("== #2 degraded env clamp ==")
 sys.path.insert(0, str(ROOT / "skills/wiki-memory/tools"))
@@ -62,6 +67,8 @@ for ratio, persisted, expected, want in [
     ("-inf", 0, 20, "degraded"),   # data loss must not be hidden by a garbage ratio
     ("inf", 19, 20, "ok"),         # healthy 19/20 must not be forced degraded
     ("2.0", 19, 20, "ok"),         # >1 clamped to default 0.5
+    ("0", 10, 100, "degraded"),    # round 2: ratio=0 must NOT silently disable the check
+    ("nan", 10, 100, "degraded"),  # nan reset to default 0.5
 ]:
     os.environ["WIKI_DEGRADED_RATIO"] = ratio
     w = WikiStore(tempfile.mkdtemp())
@@ -85,6 +92,10 @@ check("unicode-only query 'тест' -> exit 0 (valid zero-match)", _search(wroo
 check("unicode-only query '你好' -> exit 0", _search(wroot, "你好") == 0)
 check("pure punctuation '!!!' -> exit 2 (unsupported)", _search(wroot, "!!!") == 2)
 check("valid english zero-match -> exit 0", _search(wroot, "zzzqqxnomatch") == 0)
+check("all-stopwords 'the and for' -> exit 2 (unsupported)", _search(wroot, "the and for") == 2)
+# round 2: a single non-stopword content char is a VALID query, not "too short"
+check("single content char '3' -> exit 0", _search(wroot, "3") == 0)
+check("single content char 'k' -> exit 0", _search(wroot, "k") == 0)
 
 
 def _validate(fname: str, body: str) -> int:
@@ -107,6 +118,11 @@ check("shell guard only in comment flagged",
       _validate("hook.sh", "#!/usr/bin/env bash\n# fallback uses || true\nsome_cmd\n") == 1)
 check("real shell guard clean",
       _validate("hook.sh", "#!/usr/bin/env bash\nsome_cmd || true\nexit 0\n") == 0)
+# round 2: os.system / os.popen are subprocess-equivalent with no timeout
+check("os.system() flagged",
+      _validate("hook.py", "import os\nos.system('ls')\n") == 1)
+check("os.popen() flagged",
+      _validate("hook.py", "import os\nos.popen('ls').read()\n") == 1)
 
 print()
 if fails:

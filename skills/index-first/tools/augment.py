@@ -174,7 +174,9 @@ def _format_context(raw, token, freetext_ok=False):
     # is broken output and must NOT be emitted (cardinal rule: noop on bad data).
     if not freetext_ok:
         return None
-    snippet = text[:3500]
+    # Strip control chars a backend could emit (NUL, 0x01-0x1f) — keep tab/
+    # newline. graphify output is otherwise trusted; this is belt-and-braces.
+    snippet = "".join(c for c in text[:3500] if c in "\t\n" or ord(c) >= 0x20)
     return (
         f'[index-first] index context for "{token}" (your search results '
         f"below are unaffected):\n{snippet}"
@@ -224,9 +226,14 @@ def main():
     # case returns cleanly via subprocess timeout; the SIGALRM deadline is the
     # hard backstop for any other stall (e.g. a hung syscall).
     raw = _run_query(argv, max(DEADLINE_MS - 50, 50))
-    # Free text is only trusted from the graphify-explain backend; the JSON
-    # backends (wiki search / test override) must return parseable JSON.
-    freetext_ok = bool(argv) and os.path.basename(str(argv[0])) == "graphify"
+    # Free text is trusted ONLY from the real graphify-explain backend, detected
+    # by the graphify-out/graph.json index — NOT by argv[0]'s name, which an
+    # INDEX_FIRST_QUERY_CMD override could spoof with a 'graphify'-named script.
+    # Any override / wiki backend must return parseable JSON or this noops.
+    freetext_ok = (
+        not os.environ.get("INDEX_FIRST_QUERY_CMD")
+        and os.path.exists(os.path.join("graphify-out", "graph.json"))
+    )
     ctx = _format_context(raw, token, freetext_ok)
     if ctx:
         _emit(ctx)  # the single, final write
