@@ -23,10 +23,12 @@ Before any completion/success claim:
 Do not claim:
 - tests pass without a fresh test run
 - lint/build is clean without running it
-- bug is fixed without reproducing the original symptom or a regression test
+- bug is fixed without reproducing the original symptom or a regression test — write the test that FAILS before your change and passes after; test observable behavior that can break, not internal wiring (a field a constructor sets)
 - delegated work is correct without inspecting result/diff
 - ship/merge-ready without Live Proof: exercise the changed path on the real built artifact or service — a mock or simulation does not count
 - a **visual / rendered** output (chart, diagram, UI, PDF, image) is correct without **looking at it** — screenshot or open the rendered artifact and verify it with vision; text-only checking misses occlusion, flattening, overlap, and scale
+
+When fixing a bug, investigate before editing: reproduce it, read the whole error and stack trace, change one thing at a time. Don't add a guard for a failure whose root cause you haven't located — a null-check over an unexplained null just moves the bug somewhere quieter.
 
 When dispatching verification to a subagent: mid-tier model (sonnet-class) with read-only tools is the default — verifying is cheaper than making; escalate only when the artifact demands frontier reasoning.
 

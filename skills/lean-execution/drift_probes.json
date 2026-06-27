@@ -1,0 +1,16 @@
+[
+  {
+    "kind": "tool_path_touch",
+    "id": "dependency-manifest-changed",
+    "path_pattern": "(?i)(?:^|/)(?:package\\.json|package-lock\\.json|yarn\\.lock|pnpm-lock\\.yaml|requirements\\.txt|pyproject\\.toml|poetry\\.lock|Pipfile(?:\\.lock)?|go\\.mod|go\\.sum|Cargo\\.(?:toml|lock)|Gemfile(?:\\.lock)?|pom\\.xml|build\\.gradle(?:\\.kts)?|composer\\.(?:json|lock))$",
+    "message": "dependency manifest/lockfile changed — every dependency is permanent code you don't control. Confirm stdlib/existing can't do it, and state WHY the new dep is needed.",
+    "severity": "warn"
+  },
+  {
+    "kind": "whitespace_only_edit",
+    "id": "reformat-only-hunk",
+    "min_chars": 12,
+    "message": "an Edit changed only whitespace/formatting — don't reformat code you didn't change; a formatter pass buries the real lines. Keep the diff to the task.",
+    "severity": "warn"
+  }
+]

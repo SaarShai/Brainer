@@ -1145,6 +1145,64 @@ def detect_ledger_not_materialized(probe: dict, _messages, tool_uses: list[dict]
 DETECTORS["ledger_not_materialized"] = detect_ledger_not_materialized
 
 
+# Detector for dependency discipline (lean-execution / code-craft directives).
+# Fires when a tool call edits a path matching `path_pattern` — e.g. a dependency
+# manifest/lockfile, where the rule is "every dependency is permanent code you
+# don't control; justify it". A NUDGE (warn): the probe can't know whether a
+# reason was stated, only that the manifest moved.
+_PATH_TOUCH_EDIT_TOOLS_DEFAULT = ("Edit", "Write", "NotebookEdit")
+
+
+def detect_tool_path_touch(probe: dict, _messages, tool_uses: list[dict], _tool_errors=None,
+                           user_prompt: str = "", traj_stats: dict | None = None) -> dict | None:
+    pat = probe.get("path_pattern")
+    if not pat:
+        return None
+    try:
+        rx = re.compile(pat)
+    except re.error as e:
+        log_err(f"bad-regex probe={probe.get('_probe_id')} err={e!r}")
+        return None
+    tools = tuple(probe.get("tools") or _PATH_TOUCH_EDIT_TOOLS_DEFAULT)
+    for tu in (tool_uses or []):
+        if tu.get("name", "") in tools:
+            fp = str((tu.get("input") or {}).get("file_path", ""))
+            if fp and rx.search(fp):
+                return {"path": fp}
+    return None
+
+
+DETECTORS["tool_path_touch"] = detect_tool_path_touch
+
+
+# Detector for the no-reformat rule (lean-execution / surgical changes). Fires
+# when an Edit's old_string and new_string differ ONLY by whitespace — a pure
+# reformat that buries real changes in noise. Whitespace-stripped equality is
+# exact, so low false-positive; `min_chars` skips trivial edits.
+_WS_RE = re.compile(r"\s+")
+
+
+def detect_whitespace_only_edit(probe: dict, _messages, tool_uses: list[dict], _tool_errors=None,
+                                user_prompt: str = "", traj_stats: dict | None = None) -> dict | None:
+    min_chars = _as_int(probe.get("min_chars"), 12)
+    for tu in (tool_uses or []):
+        if tu.get("name", "") != "Edit":
+            continue
+        inp = tu.get("input") or {}
+        old = inp.get("old_string")
+        new = inp.get("new_string")
+        if not isinstance(old, str) or not isinstance(new, str):
+            continue
+        if old == new or len(old) < min_chars:
+            continue
+        if _WS_RE.sub("", old) == _WS_RE.sub("", new):
+            return {"file": str(inp.get("file_path", ""))}
+    return None
+
+
+DETECTORS["whitespace_only_edit"] = detect_whitespace_only_edit
+
+
 class _ProbeBudgetExceeded(BaseException):
     """Raised by the SIGALRM handler to abort a runaway probe phase. Derives
     from BaseException (not Exception) on purpose: run_probes' per-detector

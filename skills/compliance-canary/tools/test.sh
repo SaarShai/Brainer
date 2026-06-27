@@ -927,6 +927,34 @@ SIDH83=$(python3 -c "import hashlib;print(hashlib.sha256(b's83').hexdigest()[:16
 recorded=$(python3 -c "import json;d=json.load(open('$STATE_ROOT/cc83/$SIDH83.json'));print('yes' if any('important feature' in it.get('text','') for it in d.get('request_ledger',[])) else 'no')" 2>/dev/null)
 if [ -z "$out" ] && [ "$recorded" = yes ]; then ok "kill → silent output, request still on the record"; else no "kill must not disable capture" "out=$(echo "$out"|head -c80) recorded=$recorded"; fi
 
+echo "[84] tool_path_touch: editing a dependency manifest fires"
+PROBES='[{"id":"dep","kind":"tool_path_touch","path_pattern":"(?i)(?:^|/)(?:package\\.json|requirements\\.txt)$","message":"manifest changed — justify the dep"}]'
+make_skill_with_probes sk84 le "$PROBES"
+TX="$TRANSCRIPT_DIR/t84.jsonl"
+write_transcript "$TX" "$(assistant_tool_use Edit '{"file_path":"/proj/requirements.txt","old_string":"flask","new_string":"flask\nrequests"}')"
+out=$(call cc84 sk84 "$TX" s84)
+if emitted "$out" && echo "$out" | grep -q 'tool_path_touch'; then ok "manifest edit fires"; else no "manifest edit fires" "got: $(echo "$out"|head -c160)"; fi
+
+echo "[85] tool_path_touch: editing a normal source file stays silent"
+TX="$TRANSCRIPT_DIR/t85.jsonl"
+write_transcript "$TX" "$(assistant_tool_use Edit '{"file_path":"/proj/src/app.py","old_string":"a","new_string":"b"}')"
+out=$(call cc85 sk84 "$TX" s85)
+if [ -z "$out" ]; then ok "non-manifest edit → silent"; else no "non-manifest edit → silent" "got: $(echo "$out"|head -c120)"; fi
+
+echo "[86] whitespace_only_edit: an Edit changing only whitespace fires"
+PROBES='[{"id":"reformat","kind":"whitespace_only_edit","min_chars":4,"message":"whitespace-only reformat — keep the diff to the task"}]'
+make_skill_with_probes sk86 le "$PROBES"
+TX="$TRANSCRIPT_DIR/t86.jsonl"
+write_transcript "$TX" "$(assistant_tool_use Edit '{"file_path":"/proj/src/app.py","old_string":"def f(x):\n  return x","new_string":"def f(x):\n    return x"}')"
+out=$(call cc86 sk86 "$TX" s86)
+if emitted "$out" && echo "$out" | grep -q 'whitespace_only_edit'; then ok "reformat-only edit fires"; else no "reformat-only edit fires" "got: $(echo "$out"|head -c160)"; fi
+
+echo "[87] whitespace_only_edit: a real content change stays silent"
+TX="$TRANSCRIPT_DIR/t87.jsonl"
+write_transcript "$TX" "$(assistant_tool_use Edit '{"file_path":"/proj/src/app.py","old_string":"return x","new_string":"return x + 1"}')"
+out=$(call cc87 sk86 "$TX" s87)
+if [ -z "$out" ]; then ok "real change → silent"; else no "real change → silent" "got: $(echo "$out"|head -c120)"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then
