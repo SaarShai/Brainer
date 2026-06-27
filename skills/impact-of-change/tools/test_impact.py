@@ -222,7 +222,7 @@ def test_e4_structure(root: Path) -> None:
     for a in rep2["affected"]:
         for key in ("symbol", "risk", "caller_count", "max_depth", "callers", "files"):
             assert key in a, f"E4 affected row missing {key}: {a}"
-        assert a["risk"] in ("LOW", "MEDIUM", "HIGH")
+        assert a["risk"] in ("LOW", "UNKNOWN", "MEDIUM", "HIGH")
     md = impact.render_markdown(rep2)
     assert md.startswith("#"), "E4 markdown should start with a heading"
     assert "Summary" in md and "Changed symbols" in md, \
@@ -272,6 +272,46 @@ def test_e5_inheritance(root: Path) -> None:
 
 
 # --------------------------------------------------------------------------
+# E6 — coverage gap: a changed symbol ABSENT from the graph -> UNKNOWN, not LOW
+# --------------------------------------------------------------------------
+def test_e6_coverage_gap(root: Path) -> None:
+    """A changed symbol absent from the graph must score UNKNOWN (+ a COVERAGE
+    warning), NOT a confident LOW. The old code returned LOW for any empty caller
+    set regardless of whether the symbol was even a graph node, so a scoped/stale
+    graph silently under-reported real risk. Also guards that the genuine leaf case
+    (in graph, zero callers) still reads LOW."""
+    # unit: in-graph zero-caller -> LOW ; absent-from-graph -> UNKNOWN
+    assert impact.classify_risk([], in_graph=True)[0] == "LOW", \
+        "E6 in-graph zero-caller symbol must stay LOW"
+    unk_risk, unk_why = impact.classify_risk([], in_graph=False)
+    assert unk_risk == "UNKNOWN", f"E6 absent-from-graph must be UNKNOWN, got {unk_risk}"
+    assert "graph" in unk_why.lower(), f"E6 UNKNOWN reason must mention the graph: {unk_why}"
+    # analyze: a PARTIAL graph (only leaf_fn) must not score the changed, real,
+    # in-code private_helper LOW just because the graph omits it.
+    out_dir = root / "graphify-out"
+    out_dir.mkdir(exist_ok=True)
+    partial = {"directed": True, "multigraph": False, "graph": {},
+               "nodes": [{"id": "core_leaf_fn", "label": "leaf_fn()", "file_type": "code",
+                          "source_file": "core.py", "source_location": "L1"}],
+               "links": []}
+    (out_dir / "graph.json").write_text(json.dumps(partial))
+    (root / "core.py").write_text(
+        "def leaf_fn():\n    return 41 + 1\n\n"
+        "def private_helper():\n    return 99  # changed, but absent from the graph\n"
+    )
+    rep = impact.analyze(repo=str(root), diff_spec="working")
+    assert rep["mode"] == "graph", f"E6 expected graph mode, got {rep['mode']}"
+    ph = next(a for a in rep["affected"] if a["symbol"] == "private_helper")
+    assert ph["risk"] == "UNKNOWN", f"E6 coverage-gap symbol must be UNKNOWN, got {ph['risk']}"
+    assert ph["covered"] is False, f"E6 coverage-gap symbol must be covered=False: {ph}"
+    # regression guard: the OLD code returned a confident LOW here (false-safe under-report)
+    assert ph["risk"] != "LOW", "E6 coverage-gap symbol must not be a confident LOW"
+    assert any("coverage" in w.lower() for w in rep["warnings"]), \
+        f"E6 expected a COVERAGE warning: {rep['warnings']}"
+    print("PASS E6 coverage-gap: absent-from-graph symbol -> UNKNOWN + warning (not false-LOW)")
+
+
+# --------------------------------------------------------------------------
 def main() -> int:
     cases = [
         ("E1", test_e1_precision),
@@ -279,6 +319,7 @@ def main() -> int:
         ("E3", test_e3_risk),
         ("E4", test_e4_structure),
         ("E5", test_e5_inheritance),
+        ("E6", test_e6_coverage_gap),
     ]
     failures = 0
     for name, fn in cases:

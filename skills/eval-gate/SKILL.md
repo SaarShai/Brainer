@@ -72,6 +72,14 @@ fails the gate **even if the weighted mean clears the threshold**, so a FAIL giv
 `--stub-score` for offline CI. (Granularity adopted from cognee's `rubric.py`; the
 weighting + required-blocking + fail-safe parse are Brainer's.)
 
+**Judge strength is load-bearing for grounding-sensitive rubrics.** Live-judge testing
+on real briefings: a **≥32B** judge (`qwen3.6:35b`, `deepseek-r1:32b`) passed a
+well-grounded draft and failed a fabricated one with the *exact* blocking criteria;
+an **8B** judge (`llama3.1:8b`) both **false-failed** the good draft and **false-passed**
+weak criteria — discrimination collapsed. For rubrics that turn on facts/grounding, pin a
+≥32B judge with `--model`; don't let it default to a small fast model. (The per-criterion
+machinery is correct regardless; it's the *judge's* verdicts that degrade on a weak model.)
+
 Backends (from `eval/judge.py`): local **Ollama** by default (no key), **MiMo**
 when `MIMO_API_KEY` is set (`--backend mimo`). `--stub-score N` scores without a
 model — for wiring / CI. Exit `2` = judge unreachable or unparseable (the gate

@@ -267,14 +267,23 @@ def callers_of(node_id: str, idx: dict[str, Any], depth: int) -> list[dict[str, 
 # ==========================================================================
 # risk classification (spec thresholds)
 # ==========================================================================
-def classify_risk(callers: list[dict[str, Any]]) -> tuple[str, str]:
+def classify_risk(callers: list[dict[str, Any]], in_graph: bool = True) -> tuple[str, str]:
     """Score a changed symbol from its caller set. Returns (risk, justification).
 
     LOW    : <=2 direct callers, all in tests/deprecated paths.
     MEDIUM : 3-10 direct callers, or 1+ indirect callers at depth 2.
     HIGH   : >10 direct callers, OR callers in entry/critical paths,
              OR transitive depth >=3.
+    UNKNOWN: the symbol is ABSENT from the graph (in_graph=False). An empty caller
+             set then means "the graph does not cover this symbol", NOT "this symbol
+             has no callers" — so it must NOT be scored a confident LOW. A scoped or
+             stale graph would otherwise silently under-report a real high-fan-in
+             symbol as LOW.
     """
+    if not in_graph:
+        return "UNKNOWN", ("not in the graph — coverage gap; the graph does not span "
+                           "this symbol, so risk is UNVERIFIED (re-extract: "
+                           "`graphify update .`). NOT low.")
     direct = [c for c in callers if c["depth"] == 1]
     n_direct = len(direct)
     max_depth = max((c["depth"] for c in callers), default=0)
@@ -305,7 +314,7 @@ def classify_risk(callers: list[dict[str, Any]]) -> tuple[str, str]:
             and direct:
         return "LOW", f"<=2 callers ({n_direct}), all in tests/deprecated paths"
     if n_direct == 0 and not callers:
-        return "LOW", "no inbound callers in the graph (new or isolated symbol)"
+        return "LOW", "in the graph with no inbound callers (leaf / entry / unused symbol)"
 
     # MEDIUM: 3-10 direct, or any indirect at depth 2
     if 3 <= n_direct <= 10:
@@ -317,7 +326,9 @@ def classify_risk(callers: list[dict[str, Any]]) -> tuple[str, str]:
     return "LOW", f"{n_direct} direct caller(s), shallow chain"
 
 
-_RISK_ORDER = {"LOW": 0, "MEDIUM": 1, "HIGH": 2}
+# UNKNOWN (coverage gap) sorts ABOVE LOW so an uncovered symbol is never masked as a
+# confident LOW in the overall risk, but BELOW MEDIUM/HIGH so a known dependent still wins.
+_RISK_ORDER = {"LOW": 0, "UNKNOWN": 1, "MEDIUM": 2, "HIGH": 3}
 
 
 def _max_risk(risks: list[str]) -> str:
@@ -390,8 +401,10 @@ def analyze(repo: str, diff_spec: str = "working", depth: int = DEFAULT_DEPTH,
             warnings.append(f"graph load failed ({exc}); falling back to grep.")
             use_graph = False
         if use_graph:
+            uncovered: list[str] = []
             for row in changed:
                 ids = idx["name_to_ids"].get(row["symbol"], set())
+                in_graph = bool(ids)
                 callers: list[dict[str, Any]] = []
                 seen_pairs = set()
                 for nid in ids:
@@ -400,8 +413,19 @@ def analyze(repo: str, diff_spec: str = "working", depth: int = DEFAULT_DEPTH,
                         if k not in seen_pairs:
                             seen_pairs.add(k)
                             callers.append(c)
-                risk, why = classify_risk(callers)
-                affected.append(_affected_row(row, callers, risk, why))
+                risk, why = classify_risk(callers, in_graph=in_graph)
+                affected.append(_affected_row(row, callers, risk, why, covered=in_graph))
+                if not in_graph:
+                    uncovered.append(row["symbol"])
+            if uncovered:
+                uniq = sorted(set(uncovered))
+                shown = ", ".join(uniq[:8]) + ("…" if len(uniq) > 8 else "")
+                warnings.append(
+                    f"COVERAGE: {len(uniq)} changed symbol(s) absent from the graph "
+                    f"({shown}) — scored UNKNOWN, not LOW. The graph does not span the "
+                    "diff; run `graphify update .` (or extract over the changed files) "
+                    "and re-run for a real blast radius."
+                )
 
     if not use_graph:
         mode = "degraded"
@@ -434,7 +458,7 @@ def analyze(repo: str, diff_spec: str = "working", depth: int = DEFAULT_DEPTH,
     }
 
 
-def _affected_row(row, callers, risk, why):
+def _affected_row(row, callers, risk, why, covered=True):
     files = sorted({c["file"] for c in callers})
     return {
         "symbol": row["symbol"],
@@ -443,6 +467,7 @@ def _affected_row(row, callers, risk, why):
         "source_file": row["file"],
         "risk": risk,
         "risk_reason": why,
+        "covered": covered,
         "caller_count": len([c for c in callers if c["depth"] == 1]),
         "max_depth": max((c["depth"] for c in callers), default=0),
         "callers": callers,
@@ -475,6 +500,11 @@ def _recommendations(affected, mode) -> list[str]:
         recs.append(
             f"MEDIUM `{a['symbol']}`: run targeted tests on "
             f"{', '.join(a['files'][:3]) or 'its callers'}."
+        )
+    for a in [x for x in affected if x["risk"] == "UNKNOWN"]:
+        recs.append(
+            f"UNKNOWN `{a['symbol']}`: absent from the graph (coverage gap) — re-extract "
+            "(`graphify update .`) and re-run; do NOT treat as low-risk."
         )
     if mode == "degraded":
         recs.append(
