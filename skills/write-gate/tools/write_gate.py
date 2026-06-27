@@ -95,6 +95,19 @@ WHY_CLAUSES = (
 WHY_RE = re.compile(r"\b(?:" + "|".join(re.escape(w) for w in WHY_CLAUSES) + r")\b")
 CODE_FENCE_PAIR_RE = re.compile(r"```.*?```", re.DOTALL)
 
+# Provenance trust tiers — a fact whose importance has been vouched for (checked
+# against code/test/fs = "verified", or a human said keep it = "user_confirmed")
+# bypasses the lexical signal FLOOR. The gate scores token-density, not importance:
+# a genuine atomic fact ("the PROMPTER folder is also called alfred") carries no
+# marker words, scores ~0, and would otherwise be dropped (measured: 82% false-
+# reject on bare keep-worthy facts). Trust vouches IMPORTANCE, not QUALITY — so
+# net-negative content (filler/speculation penalties) is still rejected, and a
+# plain "verified" does NOT waive the why-clause for a decision (only the strongest
+# tier, "user_confirmed", does). Raises recall on vouched content; precision on
+# un-vouched content is unchanged.
+TRUST_BYPASS = {"verified", "user_confirmed"}
+TRUST_RE = re.compile(r"^\s*trust:\s*([a-z_]+)", re.M | re.I)
+
 NUMBER_RE = re.compile(
     r"\b\d+(?:\.\d+)?\s?(?:%|ms|s|x|ops|qps|rps|MB|GB|KB|TB|tokens?|loc|lines?|"
     r"events?/s(?:ec)?|req/s(?:ec)?|/min|/hour|/day|sec|min|hour|day|"
@@ -228,10 +241,28 @@ def score_text(text: str, kind: str, weights: dict[str, float] | None = None) ->
 
 # --- Decision -------------------------------------------------------------
 
-def decide(score: Score, kind: str, threshold: float, require_why: bool) -> tuple[bool, str]:
-    """Return (passed, reason)."""
-    if kind in ("decision", "convention") and require_why and not score.has_why:
+def extract_trust(text: str) -> str | None:
+    """Read the `trust:` tier from a candidate page's YAML frontmatter, if any.
+    Limited to the frontmatter block so a body mention of 'trust:' can't spoof it."""
+    if text.startswith("---"):
+        end = text.find("\n---", 3)
+        head = text[:end] if end != -1 else text[:2000]
+    else:
+        head = text[:2000]
+    m = TRUST_RE.search(head)
+    return m.group(1).lower() if m else None
+
+
+def decide(score: Score, kind: str, threshold: float, require_why: bool,
+           trust: str | None = None) -> tuple[bool, str]:
+    """Return (passed, reason). `trust` (if 'verified'/'user_confirmed') vouches
+    importance and bypasses the signal FLOOR — but never rescues net-negative
+    (filler/speculation) content, and only 'user_confirmed' waives the why-clause."""
+    if kind in ("decision", "convention") and require_why and not score.has_why \
+            and trust != "user_confirmed":
         return False, "REJECTED: decision/convention missing a why-clause (need 'because…', 'so that…', 'to avoid…', etc)"
+    if trust in TRUST_BYPASS and score.total >= 0:
+        return True, f"PASSED: trust '{trust}' vouches importance; bypasses signal floor (score {score.total:.2f} ≥ 0)"
     if score.total < threshold:
         return False, f"REJECTED: signal score {score.total:.2f} < threshold {threshold:.2f}"
     return True, f"PASSED: signal score {score.total:.2f} ≥ threshold {threshold:.2f}"
@@ -328,6 +359,10 @@ def main(argv: list[str]) -> int:
         p = sub.add_parser(name)
         p.add_argument("--kind", default="fact",
                        choices=["fact", "decision", "convention", "error", "sop"])
+        p.add_argument("--trust", default=None,
+                       choices=["asserted", "corroborated", "verified", "user_confirmed"],
+                       help="provenance tier; 'verified'/'user_confirmed' bypass the signal floor. "
+                            "If omitted, read from the candidate's `trust:` frontmatter.")
         p.add_argument("--text")
         p.add_argument("--file")
         p.add_argument("--threshold", type=float)
@@ -343,8 +378,9 @@ def main(argv: list[str]) -> int:
     if args.threshold is not None:
         threshold = args.threshold
 
+    trust = args.trust or extract_trust(text)
     s = score_text(text, args.kind, weights)
-    passed, verdict = decide(s, args.kind, threshold, require_why)
+    passed, verdict = decide(s, args.kind, threshold, require_why, trust=trust)
 
     if args.json:
         out = {
@@ -352,6 +388,7 @@ def main(argv: list[str]) -> int:
             "score": round(s.total, 3),
             "threshold": threshold,
             "kind": args.kind,
+            "trust": trust,
             "has_why": s.has_why,
             "features": {k: round(v, 3) for k, v in s.features.items()},
             "verdict": verdict,

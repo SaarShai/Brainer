@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from write_gate import DEFAULT_THRESHOLD, decide, score_text  # noqa: E402
+from write_gate import DEFAULT_THRESHOLD, decide, extract_trust, score_text  # noqa: E402
 
 
 def assert_passes(text: str, kind: str = "fact", msg: str = "") -> None:
@@ -161,6 +161,55 @@ def test_metrics_only_below_threshold() -> None:
     assert_rejects(txt, "fact", "metric-only is not a durable fact")
 
 
+def test_trust_bypass_rescues_vouched_atomic_fact() -> None:
+    """A genuine atomic fact with no marker words scores ~0 and is rejected by
+    default (the measured 82% false-reject recall gap). A 'verified'/'user_confirmed'
+    trust tier vouches its importance and bypasses the signal floor."""
+    txt = "The PROMPTER project folder is also called alfred."
+    s = score_text(txt, "fact")
+    ok, _ = decide(s, "fact", DEFAULT_THRESHOLD, require_why=True)
+    assert not ok, "neutral atomic fact should reject by default (no trust)"
+    ok_v, _ = decide(s, "fact", DEFAULT_THRESHOLD, require_why=True, trust="verified")
+    assert ok_v, "verified trust must bypass the signal floor"
+    ok_u, _ = decide(s, "fact", DEFAULT_THRESHOLD, require_why=True, trust="user_confirmed")
+    assert ok_u, "user_confirmed trust must bypass the signal floor"
+    # A weak/low tier must NOT bypass.
+    ok_a, _ = decide(s, "fact", DEFAULT_THRESHOLD, require_why=True, trust="asserted")
+    assert not ok_a, "asserted (low tier) must not bypass"
+
+
+def test_trust_does_not_rescue_net_negative_filler() -> None:
+    """Trust vouches importance, not quality: net-negative content (filler /
+    speculation penalties) must still reject even at the highest tier."""
+    txt = "In summary, basically what we did was some stuff. I think it could maybe work, possibly."
+    s = score_text(txt, "fact")
+    assert s.total < 0, "filler+speculation should be net-negative"
+    ok, _ = decide(s, "fact", DEFAULT_THRESHOLD, require_why=True, trust="user_confirmed")
+    assert not ok, "trust must not rescue net-negative (filler/speculation) content"
+
+
+def test_user_confirmed_waives_why_but_verified_does_not() -> None:
+    """A reasonless decision rejects by default. Only the strongest tier
+    (user_confirmed) waives the why-clause; plain 'verified' still demands it."""
+    txt = "We decided to go with the repo-local wiki."
+    s = score_text(txt, "decision")
+    ok, _ = decide(s, "decision", DEFAULT_THRESHOLD, require_why=True)
+    assert not ok, "reasonless decision rejects by default"
+    ok_u, _ = decide(s, "decision", DEFAULT_THRESHOLD, require_why=True, trust="user_confirmed")
+    assert ok_u, "user_confirmed waives the why-clause"
+    ok_v, _ = decide(s, "decision", DEFAULT_THRESHOLD, require_why=True, trust="verified")
+    assert not ok_v, "verified does NOT waive the why-clause for a decision"
+
+
+def test_extract_trust_reads_only_frontmatter() -> None:
+    """trust must be read from YAML frontmatter, not spoofable from the body."""
+    page = "---\nschema_version: 2\ntrust: verified\ntype: fact\n---\n# x\nbody text\n"
+    assert extract_trust(page) == "verified"
+    body_only = "no frontmatter here. trust: user_confirmed mentioned in prose.\n"
+    assert extract_trust(body_only) is None, "body mention of trust: must not count"
+    assert extract_trust("plain text, no trust at all") is None
+
+
 def main() -> int:
     tests = [
         test_decisions_need_why,
@@ -175,6 +224,10 @@ def main() -> int:
         test_since_no_longer_satisfies_why_clause,
         test_why_clauses_need_word_boundaries,
         test_entity_overlap_is_fast_on_large_input,
+        test_trust_bypass_rescues_vouched_atomic_fact,
+        test_trust_does_not_rescue_net_negative_filler,
+        test_user_confirmed_waives_why_but_verified_does_not,
+        test_extract_trust_reads_only_frontmatter,
     ]
     failed = 0
     for t in tests:

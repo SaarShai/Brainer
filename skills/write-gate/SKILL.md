@@ -61,6 +61,8 @@ Note: `since` is intentionally absent — it's overwhelmingly temporal in practi
 
 Decisions without why-clauses are rejected outright, regardless of signal score.
 
+**Trust bypass (recall).** The score measures lexical *signal density*, not *importance* — a genuine atomic fact with no marker words (e.g. "the PROMPTER folder is also called alfred") scores ~0 and is dropped (measured: ~82% false-reject on bare keep-worthy facts). So a candidate whose provenance is vouched-for bypasses the signal **floor**: `trust: verified` or `user_confirmed` (read from the candidate's frontmatter, or passed via `--trust`) passes even at score 0. Trust vouches importance, **not quality** — net-negative content (filler/speculation penalties) is still rejected, and only `user_confirmed` (a human said keep it) waives the why-clause for a decision; plain `verified` still demands it. This raises recall on vouched content while leaving precision on un-vouched content unchanged. It is the principled form of the manual override below.
+
 Source for the formula: [ogham-mcp/ogham-mcp](https://github.com/ogham-mcp/ogham-mcp) (signal-score lifecycle, 91.8% QA / 97.2% R@10 on LongMemEval). Source for the why-clause requirement: [codenamev/claude_memory](https://github.com/codenamev/claude_memory) (100% on 100-case FEVER-derived test).
 
 ## CLI
@@ -75,6 +77,9 @@ python skills/write-gate/tools/write_gate.py explain --text "Basically we did so
 
 # integrate as a precheck in another script
 python skills/write-gate/tools/write_gate.py gate --kind decision --file ./candidate.md && echo "write it" || echo "rejected"
+
+# a vouched-for atomic fact bypasses the signal floor (--trust, else read from frontmatter)
+python skills/write-gate/tools/write_gate.py gate --kind fact --trust verified --text "The PROMPTER folder is also called alfred."
 ```
 
 Exit codes:
