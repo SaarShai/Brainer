@@ -525,7 +525,8 @@ def test_strict_memory_valid_contract_and_concurrency_pass():
     spec = (CLEAN.replace("topology: closed · inner · single", "topology: closed · outer · fleet")
             .replace("gate: pytest tests/ -q", "gate: pytest -q then reviewer quorum >=2/3")
             + MEMORY_FIELDS
-            + "state_concurrency: worktree_isolated\n")
+            + "state_concurrency: worktree_isolated\n"
+            + "verifier_blind: true\n")   # outer/fleet LLM verifier ⇒ R13 wants blindness declared
     assert _rules(spec, strict_memory=True) == [], _rules(spec, strict_memory=True)
     assert _exit_for(spec, args=["--strict-memory"]) == 0
 
@@ -942,6 +943,158 @@ def test_r12b_inner_egress_no_consent_needed():
     # inner (attended) loop with redaction declared: R12a satisfied, R12b not required.
     spec = _R12_EGRESS + "redaction: secrets scrubbed\n"
     assert _rules(spec, rule=12) == [], _rules(spec, rule=12)
+
+
+# --- R3 natural-language self-grade: false-negative + false-positive ------
+# Surfaced by the robustness audit + GLM-5.2 cross-review: R3 caught named-actor
+# and named-model self-grades but (FN) missed the same GENERIC actor with action
+# verbs appended, and (FP) flagged DISTINCT models that share a Capitalized infra
+# word ("claude on Bedrock" / "gpt on Bedrock").
+
+def _ab(generator, verifier):
+    return (CLEAN.replace("generator: opus coder agent", f"generator: {generator}")
+            .replace("verifier: sonnet read-only reviewer", f"verifier: {verifier}"))
+
+
+def test_generic_actor_self_grade_r3_fail():
+    # FN fix: same generic actor, only the verb differs — must FAIL R3.
+    for g, v in [("our model produces the draft", "our model checks the draft"),
+                 ("the writer agent", "the same writer agent on a second pass"),
+                 ("the coding agent writes it", "the coding agent reviews it"),
+                 ("it drafts the answer", "it grades its own answer"),
+                 ("the writer drafts it", "the writer reviews it")]:
+        assert _has(_ab(g, v), 3, "FAIL"), (g, v, _rules(_ab(g, v)))
+
+
+def test_shared_infra_token_distinct_models_no_r3():
+    # FP fix: distinct models sharing a Capitalized platform word are NOT self-grading.
+    for g, v in [("claude on Bedrock", "gpt on Bedrock"),
+                 ("opus via Acme", "sonnet via Acme"),
+                 ("gpt through Portkey", "gemini through Portkey")]:
+        assert not _has(_ab(g, v), 3, "FAIL"), (g, v, _rules(_ab(g, v)))
+
+
+def test_distinct_generic_roles_same_head_no_r3():
+    # precision guard: same head noun, different modifier ⇒ different actor, no R3.
+    for g, v in [("the planning agent", "the execution agent"),
+                 ("the spec writer", "the spec reviewer")]:
+        assert not _has(_ab(g, v), 3, "FAIL"), (g, v, _rules(_ab(g, v)))
+
+
+def test_reordered_subject_words_no_r3():
+    # white-box audit hole: "model agent" vs "agent model" share a word SET but name
+    # different head roles — ordered (not set) comparison keeps them distinct.
+    for g, v in [("model agent", "agent model"), ("writer agent", "agent writer")]:
+        assert not _has(_ab(g, v), 3, "FAIL"), (g, v, _rules(_ab(g, v)))
+
+
+def test_generic_human_both_sides_still_no_r3():
+    # human-in-the-loop is the endorsed review gate, never self-grading (unchanged).
+    assert not _has(_ab("a human writes it", "a human checks it"), 3, "FAIL")
+
+
+def test_roster_lane_self_grades_caught_r3():
+    # item-5: GLM/Codex are real model_roster lanes; a same-lane self-grade must FAIL
+    # R3 just like opus/gpt. (These slipped before glm/codex joined _MODEL_SLUGS.)
+    for slug in ("glm", "codex"):
+        assert _has(_ab(f"{slug} drafts the plan", f"{slug} reviews the plan"), 3, "FAIL"), slug
+
+
+def test_loop_lint_vocab_covers_roster_lanes():
+    # DRIFT GUARD: every vendor lane model_roster can dispatch to must be recognized
+    # by loop_lint — as a self-grading slug (_MODEL_SLUGS) and/or an egress vendor
+    # (_EGRESS) — so adding a lane there can't silently desync R3/R12 here. If this
+    # fails, add the new lane's vendor word to _MODEL_SLUGS / _EGRESS.
+    shared = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "_shared")
+    sys.path.insert(0, os.path.abspath(shared))
+    try:
+        import model_roster as MR  # noqa: E402
+    except Exception:  # noqa: BLE001
+        return  # roster unavailable in this host — nothing to reconcile
+    lanes = {v for k, v in vars(MR).items() if k.startswith("LANE_") and isinstance(v, str)}
+    for lane in lanes:
+        if lane == "local":
+            recognized = "ollama" in loop_lint._MODEL_SLUGS  # the local lane is ollama-backed
+        else:
+            recognized = (lane in loop_lint._MODEL_SLUGS
+                          or bool(loop_lint._EGRESS.search(lane)))
+        assert recognized, f"model_roster lane {lane!r} not recognized by loop_lint vocab"
+
+
+# --- R13 VERIFIER-BLINDNESS -----------------------------------------------
+# The declare-to-audit field for the blind-verifier doctrine (SKILL.md line 80),
+# scoped like R12: only an LLM verifier on an unattended / cross-vendor loop.
+
+_R13_OUTER = (CLEAN.replace("topology: closed · inner · single", "topology: closed · outer · single")
+              .replace("verifier: sonnet read-only reviewer", "verifier: sonnet reviewer agent")
+              + MEMORY_FIELDS)
+
+
+def test_r13_inner_machine_gate_verifier_no_warn():
+    # a plain inner loop with a machine-gate verifier is blind by construction — silent.
+    spec = CLEAN.replace("verifier: sonnet read-only reviewer", "verifier: pytest tests/ -q")
+    assert _rules(spec, rule=13) == [], _rules(spec, rule=13)
+
+
+def test_r13_unattended_llm_verifier_undeclared_warns():
+    assert _has(_R13_OUTER, 13, "WARN"), _rules(_R13_OUTER, rule=13)
+
+
+def test_r13_verifier_blind_true_silences():
+    spec = _R13_OUTER + "verifier_blind: true\n"
+    assert _rules(spec, rule=13) == [], _rules(spec, rule=13)
+
+
+def test_r13_fresh_context_prose_silences():
+    # blindness asserted in the verifier string itself satisfies R13.
+    spec = _R13_OUTER.replace("verifier: sonnet reviewer agent",
+                              "verifier: sonnet reviewer agent (fresh context)")
+    assert _rules(spec, rule=13) == [], _rules(spec, rule=13)
+
+
+def test_r13_verifier_fed_reasoning_warns():
+    spec = _R13_OUTER + "verifier_inputs: task, outputs, generator reasoning\n"
+    assert _has(spec, 13, "WARN"), _rules(spec, rule=13)
+
+
+def test_r13_verifier_blind_false_warns():
+    spec = _R13_OUTER + "verifier_blind: false\n"
+    assert _has(spec, 13, "WARN"), _rules(spec, rule=13)
+
+
+def test_r13_inner_attended_llm_verifier_no_warn():
+    # blindness "matters" only on unattended / cross-vendor loops; a watched inner
+    # loop with an LLM reviewer is not nagged (human is present).
+    spec = CLEAN.replace("verifier: sonnet read-only reviewer", "verifier: sonnet reviewer agent")
+    assert _rules(spec, rule=13) == [], _rules(spec, rule=13)
+
+
+def test_r13_blind_declared_bypass_warns():
+    # round-2: a verifier that claims "fresh context" but ALSO reads the reasoning
+    # is NOT blind — _leaks_reasoning must override the blindness phrase and warn.
+    for v in ["sonnet with fresh context reading generator reasoning",
+              "sonnet reviewer, fresh context, also reads the rationale",
+              "gpt reviewer with full chain-of-thought but a clean context"]:
+        spec = _R13_OUTER.replace("verifier: sonnet reviewer agent", f"verifier: {v}")
+        assert _has(spec, 13, "WARN"), (v, _rules(spec, rule=13))
+
+
+def test_r13_negation_safe_blind_no_warn():
+    # the leak detector is negation-safe: "sees only outputs, not the reasoning" and
+    # "blind to the reasoning" are blind, not leaks — must stay silent.
+    for v in ["sonnet reviewer sees only the outputs, not the reasoning",
+              "sonnet reviewer, blind to the reasoning",
+              "claude reviewer with no access to the reasoning"]:
+        spec = _R13_OUTER.replace("verifier: sonnet reviewer agent", f"verifier: {v}")
+        assert _rules(spec, rule=13) == [], (v, _rules(spec, rule=13))
+
+
+def test_r13_machine_gate_verifier_named_agent_no_warn():
+    # round-2: a "pytest agent" verifier is the machine gate — blind by construction,
+    # so the agent-token must not drag it into R13.
+    for v in ["pytest agent", "the pytest agent validates tests", "cargo test runner agent"]:
+        spec = _R13_OUTER.replace("verifier: sonnet reviewer agent", f"verifier: {v}")
+        assert _rules(spec, rule=13) == [], (v, _rules(spec, rule=13))
 
 
 # --- runner ---------------------------------------------------------------

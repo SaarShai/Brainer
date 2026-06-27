@@ -15,7 +15,7 @@ generator != verifier} is not a loop — it is an open-ended spin. This linter
 refuses such specs BEFORE the loop runs, turning the doctrine into a mechanical
 gate (per Brainer's "no prose rule where a mechanical gate can stand").
 
-It validates a loop spec against three FAIL rules and seven WARN rules:
+It validates a loop spec against three FAIL rules and ten WARN rules:
 
   R1 NO-GATE          (FAIL) — gate absent, or prose with no machine-checkable
                                pass/fail signal (allowlist: a command / test id /
@@ -56,6 +56,15 @@ It validates a loop spec against three FAIL rules and seven WARN rules:
                                scrub + consent live in model_roster.py; this makes
                                the data surface declarable + auditable in the spec.
                                (Borrowed from ksimback/looper's privacy layer.)
+  R13 VERIFIER-BLINDNESS (WARN) — an LLM/agent verifier on a loop where blindness
+                               matters (unattended, or a cross-vendor panel) does not
+                               declare it is BLIND to the generator's reasoning
+                               (`verifier_blind` / `verifier_inputs`, or a "fresh
+                               context"/"blind" verifier string), or declares it is
+                               NOT. A separate actor that reads the generator's self-
+                               justification inherits the same bias. Closes the
+                               declare-to-audit asymmetry (egress/concurrency/memory
+                               all had a field; the deepest rule did not).
 
 Use --strict-memory to promote R8/R9 findings to FAIL for loops where durable
 state matters: scheduled, fleet, outer, or long-running loops.
@@ -92,6 +101,55 @@ FAIL_RULES = {1, 2, 3}
 _EGRESS = re.compile(
     r"\b(cross[\s-]?vendor|model[\s_-]?roster|openrouter|fusion|codex|gemini|"
     r"glm|z\.?ai|external\s+(?:model|panel|vendor|llm)|other\s+vendors?)\b", re.I)
+
+# R13 VERIFIER-BLINDNESS — `verifier_inputs` content that means the verifier is
+# fed the GENERATOR's self-justification (reasoning / chain-of-thought / rationale).
+# A verifier that reads that chain inherits the same bias even though it is a
+# separate actor — the doctrine's "blind verifier" rule (SKILL.md line 80). This
+# detects a declared NON-blind input surface; absence is handled in the R13 check.
+_NONBLIND_INPUT = re.compile(
+    r"\b(reasoning|rationale|justification|chain[\s-]?of[\s-]?thought|\bcot\b|"
+    r"scratchpad|thought\s+process|self[\s-]?critique|deliberation|"
+    r"inner\s+monologue|self[\s-]?justification|the\s+why)\b", re.I)
+
+# A verifier string that asserts input ISOLATION in prose ("fresh context", "blind",
+# "sees only the outputs") already declares blindness — R13 is satisfied without a
+# separate field, the same way R1 reads a machine gate out of the gate string and R5
+# reads a quorum word out of the gate. NOT "read-only" — that bounds WRITE access,
+# not what the verifier READS, so it does not establish blindness.
+_BLIND_DECLARED = re.compile(
+    r"\b(blind|fresh[\s-]?context|clean[\s-]?context|separate[\s-]?context|"
+    r"isolated[\s-]?context|sees?\s+only\s+(?:the\s+)?(?:task|output|outputs|artifact)|"
+    r"outputs?[\s-]only|without\s+(?:the\s+)?(?:generator'?s?\s+)?reasoning|"
+    r"no\s+access\s+to\s+(?:the\s+)?(?:generator'?s?\s+)?reasoning)\b", re.I)
+
+# A verifier STRING that ACTIVELY pulls in the generator's reasoning leaks it even
+# if the same string also claims "fresh context", so it must NOT be read as blind
+# (the _BLIND_DECLARED bypass round-2 surfaced). A leak = an inclusion verb
+# (reads/with/plus/fed/…) followed within a short span by a reasoning token, with NO
+# negator between them — so "sees only the outputs, not the reasoning" and "without
+# the reasoning" stay blind (negation-safe, the FP a bare regex would introduce).
+_REASONING_TOKEN = re.compile(
+    r"\b(reasoning|rationale|chain[\s-]?of[\s-]?thought|\bcot\b|self[\s-]?justification|"
+    r"scratchpad|thought\s+process|deliberation)\b", re.I)
+_INCLUSION_VERB = re.compile(
+    r"\b(read(?:s|ing)?|see(?:s|ing)?|with|plus|including|includes|incorporat\w+|"
+    r"consum\w+|fed|feeding|given|giving|receiv\w+|gets?|getting|along\s+with)\b", re.I)
+_NEGATOR = re.compile(r"\b(not|no|without|never|excluding|sans|minus|except)\b", re.I)
+
+
+def _leaks_reasoning(verifier: str) -> bool:
+    """True if the verifier string ACTIVELY includes the generator's reasoning — an
+    inclusion verb then a reasoning token (≤30 chars apart) with no negator between.
+    Negated forms ('…not the reasoning', 'without the reasoning') return False."""
+    for m in _REASONING_TOKEN.finditer(verifier):
+        verbs = list(_INCLUSION_VERB.finditer(verifier[:m.start()]))
+        if not verbs:
+            continue
+        span = verifier[verbs[-1].end():m.start()]
+        if len(span) <= 30 and not _NEGATOR.search(span):
+            return True
+    return False
 
 
 @dataclass
@@ -144,7 +202,7 @@ KNOWN_KEYS = {
     "name", "topology", "generator", "verifier", "gate", "stop", "budget",
     "accepted_open_loop", "quorum", "aggregate", "anchor_files", "state_store",
     "recall", "writeback", "state_concurrency", "stuck", "advisor",
-    "redaction", "consent", "egress",
+    "redaction", "consent", "egress", "verifier_inputs", "verifier_blind",
 }
 
 _KV_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*(.*)$")
@@ -363,8 +421,13 @@ _TOTAL = re.compile(r"\b(total|overall|across|aggregate|combined|cumulative|in a
 # drafts" / "Alfred reviews"). A capitalized QUALIFIER before a noun ("Payments
 # service", "Senior Marketing") or a shared domain word ("Keep/Update/Replace")
 # is NOT an actor name, so distinct teams/roles that share vocabulary stay distinct.
-_MODEL_SLUGS = frozenset("""opus sonnet haiku claude gpt fable gemini llama mistral mixtral
-qwen deepseek grok o1 o3 o4 mimo ollama""".split())
+# Keep in sync with the vendor lanes in skills/_shared/model_roster.py (LANE_*:
+# gpt/claude/gemini/glm/local) + their model families — a panel sourced from the
+# roster can name any of them, and R3 must catch the same vendor on both sides.
+# `glm` and `codex` were missing, so GLM/Codex self-grades slipped R3 while
+# opus/gpt/gemini were caught; test_loop_lint guards this set against roster drift.
+_MODEL_SLUGS = frozenset("""opus sonnet haiku claude gpt codex fable gemini gemma llama mistral mixtral
+qwen deepseek grok glm o1 o3 o4 mimo ollama""".split())
 # Generic / role / common-domain words that, even when Capitalized in a role
 # phrase, are NOT a person's name — so they must not trigger a self-grading match.
 _GENERIC_ACTORS = frozenset("""human agent agents model models llm ai bot worker person people someone
@@ -385,6 +448,24 @@ tests test grades grade judges judge evaluates evaluate inspects inspect approve
 critiques critique refutes refute reads read reconciles reconcile recomputes recompute applies apply
 runs run ships ship owns own maintains maintain signs sign leads lead handles handle manages manage
 oversees oversee curates curate delivers deliver edits edit fixes fix merges merge""".split())
+# Generic AUTONOMOUS-actor head nouns. When the SAME such noun heads an identical
+# subject phrase on both sides ("the writer agent" / "the same writer agent …",
+# "our model produces" / "our model checks") with NO distinguishing model-slug or
+# proper name and NO human in the loop, the two roles are one autonomous actor —
+# self-grading (the natural-language false negative the audit surfaced). Human
+# tokens are deliberately ABSENT: "a human writes" / "a human checks" is the
+# endorsed human-review gate, never self-grading (R1/R7), and is exempted below.
+_FLAGGABLE_GENERIC = frozenset("""agent agents subagent subagents model models llm llms ai bot bots
+automation pipeline writer drafter author coder builder generator producer reviewer checker verifier
+validator auditor judge critic grader evaluator tester worker assistant it they""".split())
+# Subject-phrase determiners/ordinals dropped before comparing the two subjects,
+# so "the same writer agent" and "the writer agent" compare equal.
+_SUBJ_DROP = frozenset("""the a an our its their your my his her this that these those said same other
+another single one first second third next previous own""".split())
+# A preposition (like a role-verb) ends the SUBJECT phrase, so a trailing
+# qualifier ("… on a second pass", "… in staging") is not read as the head noun.
+_SUBJ_PREP = frozenset("on in at of for to via with by from through over after before during per across "
+                       "into onto under within against around about".split())
 
 
 def _norm(s: str) -> str:
@@ -415,6 +496,15 @@ def _slugs(s: str) -> frozenset[str]:
 # service") is a qualifier, not an actor.
 _NAME_BOUNDARY = re.compile(r"\s*(?:[,(;:]|and\b|or\b|'s\b|$)", re.I)
 
+# A Capitalized token that is the OBJECT of a transport/infra preposition
+# ("claude on Bedrock", "opus via Acme", "gpt through Portkey") names the
+# infrastructure the actor runs on, NOT the actor. It must not be read as a
+# shared proper name, or two DISTINCT models on the same platform collide on the
+# platform word and trip R3 (the false positive GLM-5.2's review surfaced).
+_INFRA_PREP = re.compile(
+    r"(?:^|\b)(on|via|through|thru|using|with|over|atop|behind|across|"
+    r"by\s+way\s+of|hosted\s+on|served\s+by|routed\s+through)\s*$", re.I)
+
 
 def _subject_names(s: str) -> frozenset[str]:
     """Proper names that ACT — a Capitalized, non-common token that is the subject
@@ -429,6 +519,8 @@ def _subject_names(s: str) -> frozenset[str]:
             continue
         if m.start() > 0 and s[m.start() - 1] == "/":
             continue                              # part of a slash enum (Keep/Update/Replace), not a name
+        if _INFRA_PREP.search(s[:m.start()]):
+            continue                              # object of "on/via/through" — infra, not an actor
         rest = s[m.end():]
         if _NAME_BOUNDARY.match(rest):            # name then a clause boundary
             names.add(low)
@@ -447,6 +539,47 @@ def _same_actor(generator: str, verifier: str) -> bool:
     if _subject_names(generator) & _subject_names(verifier):
         return True                               # same human/agent name acts on both sides
     return bool(_slugs(generator) & _slugs(verifier))   # same model named on both sides
+
+
+def _subject_words(s: str) -> list[str]:
+    """The actor's SUBJECT phrase as lowercased content words: everything up to
+    the first role-verb or preposition, with determiners/ordinals dropped. So
+    "the same writer agent on a second pass" → ['writer', 'agent'] and
+    "our model produces the draft" → ['model']."""
+    toks = re.findall(r"[A-Za-z][A-Za-z0-9'-]*", _strip_quotes(s))
+    subj: list[str] = []
+    for t in toks:
+        tl = t.lower()
+        if tl in _NAME_VERBS or tl in _SUBJ_PREP:
+            break                                 # subject ends at the first verb/preposition
+        subj.append(tl)
+    if not subj:
+        subj = [t.lower() for t in toks]          # no verb/prep: the whole phrase is the subject
+    return [t for t in subj if t not in _SUBJ_DROP]
+
+
+def _generic_self_grade(generator: str, verifier: str) -> bool:
+    """True when both actors are the SAME generic autonomous actor described
+    without a distinguishing model-slug or proper name — the natural-language
+    self-grade ("the writer agent"/"the same writer agent", "our model
+    produces"/"our model checks") that exact-string and slug/name matching miss.
+    Guards keep it precise: a distinct slug (opus vs sonnet) or proper name means
+    two actors; a human in either role is the endorsed review gate, not self-
+    grading; and the full subject phrase must match (so "planning agent" vs
+    "execution agent" — same head, different work — stays distinct)."""
+    if _slugs(generator) or _slugs(verifier):
+        return False                              # a named model distinguishes the actors
+    if _subject_names(generator) or _subject_names(verifier):
+        return False                              # a proper name is handled by _same_actor
+    if _HUMAN_TOKEN.search(generator) or _HUMAN_TOKEN.search(verifier):
+        return False                              # human-in-the-loop is a valid separate gate
+    wg, wv = _subject_words(generator), _subject_words(verifier)
+    if not wg or wg != wv:
+        return False                              # different subject phrase ⇒ different actor.
+        # ORDERED equality, not set: "model agent" vs "agent model" share a word set
+        # but name different head roles — a set match there is a false positive
+        # (the reorder hole the white-box audit surfaced).
+    return wg[-1] in _FLAGGABLE_GENERIC           # head is an autonomous-actor noun
 
 
 def _has_machine_gate(gate: str) -> bool:
@@ -651,7 +784,9 @@ def check_spec(report: Report, spec: Spec, rule_filter: int | None, *, strict_me
 
     # R3 SELF-GRADING
     if want(3):
-        if generator and verifier and (_norm(generator) == _norm(verifier) or _same_actor(generator, verifier)):
+        if generator and verifier and (_norm(generator) == _norm(verifier)
+                                        or _same_actor(generator, verifier)
+                                        or _generic_self_grade(generator, verifier)):
             report.add(Finding(3, "FAIL", f"spec '{label}' generator and verifier are the same actor (self-grading)",
                                src, spec.line_of("verifier"),
                                f"generator={generator!r}, verifier={verifier!r} resolve to the same actor. An "
@@ -803,6 +938,49 @@ def check_spec(report: Report, spec: Spec, rule_filter: int | None, *, strict_me
                                    "first egress. Declare a `consent` gate (model_roster --run requires "
                                    "--consent / MODEL_ROSTER_EGRESS_CONSENT=1) so cross-vendor send is authorized, "
                                    "not a silent default."))
+
+    # R13 VERIFIER-BLINDNESS — a SEPARATE verifier is necessary but not sufficient:
+    # it must also be BLIND to the generator's reasoning/self-justification, or it
+    # inherits the same bias (SKILL.md line 80). This is the skill's deepest rule
+    # and — until now — the only major doctrine with no declarable spec field, while
+    # egress/concurrency/memory all have one. R13 closes that declare-to-audit
+    # asymmetry. Static lint cannot PROVE information isolation, so (like R12's
+    # redaction) it makes the surface DECLARABLE: an LLM/agent verifier on a loop
+    # where blindness matters (unattended, or a cross-vendor panel) must say what it
+    # sees. A machine-gate verifier (pytest) is blind by construction and never trips
+    # it; a self-grading verifier is R3's job, not R13's. Opt-in scope mirrors R8/
+    # R10/R12 so plain inner fix loops are never nagged.
+    if want(13) and generator and verifier and _AGENT_TOKEN.search(verifier) \
+            and not _has_machine_gate(verifier):   # a "pytest agent" verifier is the machine gate — blind by construction
+        same_actor = (_norm(generator) == _norm(verifier)
+                      or _same_actor(generator, verifier)
+                      or _generic_self_grade(generator, verifier))
+        blindness_matters = needs_memory_contract or bool(_EGRESS.search(verifier))
+        if not same_actor and blindness_matters:
+            vblind = spec.get("verifier_blind")
+            vinputs = spec.get("verifier_inputs")
+            declares_nonblind = (bool(vblind) and not _is_true(vblind)) \
+                or (bool(vinputs) and bool(_NONBLIND_INPUT.search(vinputs))) \
+                or _leaks_reasoning(verifier)   # verifier string itself pulls in the reasoning
+            declares_blind = (bool(vblind) and _is_true(vblind)) \
+                or (bool(vinputs) and not _NONBLIND_INPUT.search(vinputs)) \
+                or bool(_BLIND_DECLARED.search(verifier))
+            if declares_nonblind:
+                report.add(Finding(13, "WARN", f"spec '{label}' verifier is NOT blind to the generator's reasoning",
+                                   src, spec.line_of("verifier_blind") or spec.line_of("verifier_inputs"),
+                                   "the verifier reads the generator's reasoning/self-justification and inherits the "
+                                   "same bias. A separate actor is necessary but not sufficient — the verifier must "
+                                   "see only the task + the outputs (SKILL.md: design the verifier). Set "
+                                   "verifier_blind: true and restrict verifier_inputs to task, outputs."))
+            elif not declares_blind:
+                report.add(Finding(13, "WARN", f"spec '{label}' does not declare verifier blindness",
+                                   src, spec.line_of("verifier") or spec.start_line,
+                                   "an LLM verifier on an unattended/cross-vendor loop must be BLIND to the "
+                                   "generator's reasoning, or it inherits the same bias even as a separate actor. "
+                                   "Declare the surface so it is auditable: verifier_blind: true, or "
+                                   "verifier_inputs: task, outputs — the declare-to-audit field egress/"
+                                   "concurrency/memory already have. (A 'fresh context' / 'blind' verifier "
+                                   "satisfies this in prose.)"))
 
 
 def lint(text: str, source: str, rule_filter: int | None = None, *, strict_memory: bool = False) -> Report:
@@ -979,7 +1157,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--diagram", action="store_true",
                     help="emit a Mermaid diagram of each spec with lint findings overlaid "
                          "(grounded in the parsed spec; wrap in a ```mermaid fence to render)")
-    ap.add_argument("--rule", type=int, choices=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    ap.add_argument("--rule", type=int, choices=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
                     help="restrict to one rule")
     ap.add_argument("--strict-memory", action="store_true",
                     help="promote R8/R9 loop-memory findings to FAIL for scheduled/fleet/outer/long-running loops")

@@ -6,8 +6,8 @@
 |---|---|
 | description (frontmatter) | **288 tokens** (1,224 chars; budget ≤ 1,536) |
 | resident catalog line (first sentence only) | **~32 tokens** — what `install.sh` injects into CLAUDE.md/AGENTS.md/GEMINI.md (unchanged by the pipeline clause, which lands later in the description) |
-| body (loaded on trigger) | **4,825 tokens** (20,381 chars) |
-| tools/ payload | **145.1 KB** (`loop_lint.py` · `loop_run_monitor.py` · tests · `schema.md`) |
+| body (loaded on trigger) | **7,027 tokens** (re-measured 2026-06-27, final) |
+| tools/ payload | **204.1 KB** (`loop_lint.py` · `loop_run_monitor.py` · tests · `schema.md`) |
 | model pin | `any` (none) |
 | effort pin | `medium` |
 
@@ -24,6 +24,20 @@ trigger.
 > in this skill's `tools/`, so the per-skill payload grew only by the R11 code +
 > schema prose. The description frontmatter is unchanged, so the resident catalog
 > line is unaffected. Body/tools token figures above need re-measurement.
+
+> **2026-06-26 — re-measured + R3/R13 hardening.** Token table above re-measured
+> via `eval/static_cost.py` (body 4,825 → 7,027; tools 145.1 → 204.1 KB; description
+> 288 unchanged). Added: R3 natural-language self-grade detection (generic-actor
+> FN + shared-infra-token FP + reorder FP), R13 verifier-blindness declare-to-audit
+> field, and a model_roster lane-vocab drift guard. Test count 75 → 111. Adversarially
+> verified in TWO independent rounds (GLM-5.2 evasion battery + white-box code audit
+> each round). Round 1 surfaced a set-vs-ordered subject-comparison false positive;
+> round 2 (attacking the round-1 fixes) surfaced an R13 `_BLIND_DECLARED` bypass (a
+> verifier claiming "fresh context" while reading the reasoning) and a pytest-agent
+> R13 false positive. All fixed + regression-tested; agents confirmed the slug/
+> ordered-equality/R13-precedence changes solid. Declined (documented limits):
+> same-family version-slug collision (glm-4.6 vs glm-4.5) and synonym/anaphora self-
+> grades — beyond a regex tripwire without adding false positives.
 
 ## A/B savings
 
@@ -62,11 +76,14 @@ the promotion bar above (ship a gate only for a failure that actually occurs).
 
 ## Functional checks (deterministic — in `scripts/run_all_tests.sh`)
 
-- `python3 skills/loop-engineering/tools/test_loop_lint.py` → 75/75 pass (clean
+- `python3 skills/loop-engineering/tools/test_loop_lint.py` → 111/111 pass (clean
   spec exit 0; gateless R1 exit 2; unbounded/no-stop R2 exit 2; generator==verifier
   R3 exit 2; open-no-ack R4 / fleet-no-quorum R5 / no-topology R6 each WARN exit 1;
   a non-iterating pipeline modeled as a budget=1 loop lints clean exit 0, and a
-  naive pipeline written without it FAILs R1/R2/R3).
+  naive pipeline written without it FAILs R1/R2/R3). Includes the natural-language
+  R3 self-grade cases (generic-actor false-negative + shared-infra-token false-
+  positive + reorder false-positive), R13 verifier-blindness, and a model_roster
+  lane-vocab drift guard — all added after an adversarial GLM-5.2 + white-box review.
 - `python3 skills/loop-engineering/tools/test_loop_run_monitor.py` → runtime trace
   gate tests pass (same-command / repeated-error / flat-metric STUCK triggers,
   cost-per-accepted-change WARNs, JSON output, bad-input exits).
