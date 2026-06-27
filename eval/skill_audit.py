@@ -43,8 +43,11 @@ AXES = {
     "verbosity": {
         "pos": [r"\bterse\b", r"\bbe brief\b", r"\bconcise\b", r"prefer fragment", r"drop filler",
                 r"keep (replies|it) short", r"fewer words"],
-        "neg": [r"\bbe thorough\b", r"\bcomprehensive\b", r"\belaborate\b", r"in[- ]depth",
-                r"explain (fully|in detail)"],
+        # "elaborate" only in its VERB/output sense ("elaborate on X"); bare
+        # "elaborate" is over-broad — it false-matched the ADJECTIVE ("elaborate
+        # frontmatter / schema", i.e. config-complexity, not output verbosity).
+        "neg": [r"\bbe thorough\b", r"\bcomprehensive\b", r"\belaborate (on|upon|further)\b",
+                r"in[- ]depth", r"explain (fully|in detail)"],
     },
     "planning": {
         "pos": [r"plan first", r"plan before", r"design before (you )?(execut|implement|cod)",
