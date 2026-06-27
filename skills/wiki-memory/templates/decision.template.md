@@ -16,13 +16,23 @@ tags: [decision]
 
 # {{title}}
 
+## Status
+
+Proposed | Accepted | Deprecated | Superseded by [[…]]
+
+## Context
+
+The forces at play — the problem, constraints, and pressures that make this
+decision necessary.
+
 ## Decision
 
-State chosen path.
+State the chosen path. Embed the why-clause (because… / so that… / to avoid…).
 
-## Rationale
+## Consequences
 
-Why this was chosen.
+What becomes easier and what becomes harder as a result — the trade-offs
+accepted, follow-on work, and risks.
 
 ## Alternatives
 

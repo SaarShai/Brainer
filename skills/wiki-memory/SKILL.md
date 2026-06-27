@@ -19,6 +19,16 @@ python3 skills/wiki-memory/tools/wiki.py init
 
 Creates the `wiki/` tree (`L0_rules.md`, `L1_index.md`, `schema.md`, `L2_facts/`, `L3_sops/`, `L4_archive/`, `raw/`, `concepts/`, `patterns/`, `projects/`, `people/`, `queries/`, `templates/`) seeded from the skill's bundled defaults. Idempotent — re-running after content lands is safe and writes nothing. Default target is `./wiki` in cwd; override with `--root <path>` or `WIKI_ROOT=<path>`.
 
+**Degraded-write detection (cbm `dump_verify.h` lineage):** after `index` (and any write that re-indexes), the result carries `status` + `persisted`. The index re-counts rows actually written to the `docs` table vs the expected page count; if `persisted < ratio × expected` it reports `status: "degraded"` instead of a silent ok — surfacing a write that only half-landed. Pages-only; a floor skips tiny stores (default 5 — below it `status` stays `ok`). Tunable: `WIKI_DEGRADED_RATIO` (default `0.5`), `WIKI_DEGRADED_FLOOR` (default `5`). On `status: "degraded"`, re-run `index` and investigate before trusting retrieval.
+
+**Ingest decisions / ADRs (cbm `manage_adr` lineage):**
+
+```bash
+python3 skills/wiki-memory/tools/wiki.py ingest-decisions [--repo-root <path>]
+```
+
+Scans the repo (`--repo-root`, default the wiki root's parent) for `DECISIONS.md`, `DECISIONS/*.md`, and `docs/adr/*.md`, and creates one `type: decision` page per source via the normal `new`/decision-template path. The source's H1 is the page title and the dedup key, so a re-run skips already-ingested decisions rather than duplicating them. The full ADR body (Status / Context / Decision / Consequences) is preserved with a source-provenance line.
+
 ## Retrieve
 
 Use when the task references past work, decisions, docs, memory, project facts, or "have we done X".
@@ -31,6 +41,8 @@ Use when the task references past work, decisions, docs, memory, project facts, 
 4. Fetch ≤3 pages first with `python ... fetch "<id>"`.
 5. If insufficient, fetch ≤2 more pages.
 6. Cite page paths/IDs in your response.
+
+**Loud query errors (cbm cypher.c lineage):** `search` distinguishes an *unsupported/malformed* query (empty · whitespace · punctuation-only · all-stopwords — nothing searchable) from a *valid* query that simply matched nothing. The former returns `{"error": "unsupported query: <reason>"}` and exits non-zero (`2`); the latter returns a normal empty `[]` (exit 0). Don't read an `error` payload as "no matches" — reword the query.
 
 Never:
 - load the whole wiki
