@@ -22,6 +22,8 @@ KNOWN_KINDS = {
     "completion_without_closure",
     "ledger_not_materialized",
     "workflow_nomination",
+    "tool_path_touch",
+    "whitespace_only_edit",
 }
 
 REQUIRED_BY_KIND = {
@@ -36,6 +38,8 @@ REQUIRED_BY_KIND = {
     "completion_without_closure": [],
     "ledger_not_materialized": ["min_open"],
     "workflow_nomination": ["min_tool_calls"],
+    "tool_path_touch": ["path_pattern"],
+    "whitespace_only_edit": ["min_chars"],
 }
 
 REGEX_FIELDS = [

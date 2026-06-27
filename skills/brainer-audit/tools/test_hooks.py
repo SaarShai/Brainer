@@ -37,7 +37,7 @@ def test_inactive_hook_writes_nothing():
         proc = run_cmd([
             sys.executable, str(HOOK), "--root", str(root), "--host", "claude", "--event", "UserPromptSubmit", "--debug"
         ], input_obj={"session_id": "s1", "prompt": "hello", "cwd": str(root)})
-        payload = json.loads(proc.stdout)
+        payload = json.loads(proc.stderr)
         assert payload["written"] == 0
         assert not (root / ".brainer").exists()
 
@@ -49,7 +49,7 @@ def test_brainer_audit_marker_records_claude_event():
         proc = run_cmd([
             sys.executable, str(HOOK), "--root", str(root), "--host", "claude", "--event", "UserPromptSubmit", "--debug"
         ], input_obj={"session_id": "s1", "prompt": "please audit", "cwd": str(root)})
-        assert json.loads(proc.stdout)["written"] == 1
+        assert json.loads(proc.stderr)["written"] == 1
         events_path = root / ".brainer" / "brainer-audit" / "sessions" / "demo" / "events.jsonl"
         events = read_jsonl(events_path)
         assert len(events) == 1
@@ -93,7 +93,7 @@ def test_no_write_mode_silences_canonical_write():
     proc = run_cmd([
         sys.executable, str(HOOK), "--root", str(REPO_ROOT), "--host", "claude", "--event", "UserPromptSubmit", "--debug"
     ], input_obj={"session_id": "s4", "prompt": "hello", "cwd": str(REPO_ROOT)}, env={"BRAINER_CHECK_NO_WRITE": "1"})
-    assert json.loads(proc.stdout)["reason"] == "no_write"
+    assert json.loads(proc.stderr)["reason"] == "no_write"
 
 
 def test_malformed_payload_exits_zero_for_host_safety():
@@ -104,7 +104,7 @@ def test_malformed_payload_exits_zero_for_host_safety():
         capture_output=True,
     )
     assert proc.returncode == 0
-    assert "error" in proc.stdout
+    assert "error" in proc.stderr  # --debug diagnostics go to stderr (stdout is the host channel)
 
 
 def main() -> int:

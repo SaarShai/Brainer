@@ -231,6 +231,24 @@ def confidence_value(value: str) -> float | None:
         return legacy.get(str(value).strip().lower())
 
 
+def _env_float(name: str, default: float) -> float:
+    """Read a float-valued env knob, falling back to default on absent/garbage."""
+    import os
+    try:
+        return float(os.environ[name])
+    except (KeyError, ValueError, TypeError):
+        return default
+
+
+def _env_int(name: str, default: int) -> int:
+    """Read an int-valued env knob, falling back to default on absent/garbage."""
+    import os
+    try:
+        return int(os.environ[name])
+    except (KeyError, ValueError, TypeError):
+        return default
+
+
 def estimate_tokens(text: str) -> int:
     if not text:
         return 0
@@ -657,6 +675,21 @@ class WikiReadOnEmptyError(RuntimeError):
     """Read op against a repo with no wiki root — graceful empty, never scaffold."""
 
 
+class WikiUnsupportedQueryError(ValueError):
+    """A `search` query is malformed / unsupported — NOT a valid zero-match.
+
+    Lineage: codebase-memory-mcp `cypher.c` unsupported-feature errors. A query
+    that reduces to zero usable tokens (empty / whitespace / pure punctuation /
+    all-stopwords) cannot be served and would otherwise return an empty list
+    indistinguishable from a valid query that simply matched nothing. Raise this
+    so the caller/CLI emits an explicit `unsupported query: <reason>` (nonzero
+    exit) instead of a silent empty result. Carries `.reason` for the CLI."""
+
+    def __init__(self, reason: str):
+        super().__init__(f"unsupported query: {reason}")
+        self.reason = reason
+
+
 class WikiWriteRejected(RuntimeError):
     """A `new`/write was refused by the memory-file contract (low signal or
     near-duplicate). Carries a structured `.report` so the caller/CLI can
@@ -974,7 +1007,57 @@ class WikiStore:
             os.utime(self.db_path, (now, now))
         except OSError:
             pass
-        return {"indexed": len(pages), "db": str(self.db_path), "fts5": fts_enabled}
+        # #2 DEGRADED-WRITE (cbm dump_verify.h #334): after the write, re-count
+        # rows actually persisted to the docs table and compare against the
+        # expected page count. A silent shortfall (a write that half-landed)
+        # surfaces as status:"degraded" instead of a clean ok.
+        verdict = self.verify_persistence(expected=len(pages))
+        return {"indexed": len(pages), "db": str(self.db_path), "fts5": fts_enabled,
+                "persisted": verdict["persisted"], "status": verdict["status"]}
+
+    def verify_persistence(self, expected: int, persisted: int | None = None) -> dict[str, Any]:
+        """Re-count persisted docs rows vs expected; flag a degraded write.
+
+        Lineage: codebase-memory-mcp `dump_verify.h` #334 — never report a clean
+        ok when fewer rows landed than were handed in. Pages-only (the docs
+        table is the unit of memory). A `floor` skips tiny stores where a small
+        absolute miss is noise, not corruption. The ratio is env-tunable via
+        `WIKI_DEGRADED_RATIO` (default 0.5): persisted < ratio*expected (and
+        expected >= floor) => degraded.
+
+        `persisted` may be passed in (tests / callers that already counted);
+        otherwise it is read live from the docs table. Never raises on a DB read
+        error — a missing/locked DB reports persisted=0 (which on a real store
+        above the floor is itself a degraded signal)."""
+        floor = _env_int("WIKI_DEGRADED_FLOOR", 5)
+        ratio = _env_float("WIKI_DEGRADED_RATIO", 0.5)
+        # Clamp env knobs to sane ranges so an absurd value (inf / -inf / nan /
+        # >1 / <=0) can't silently disable the check (false-ok on data loss) or
+        # force it (false-degraded on a healthy write). Reset garbage to default.
+        # ratio MUST be > 0: ratio=0 makes `persisted < 0*expected` always false,
+        # masking 100% data loss as "ok" — so 0 is reset to the 0.5 default, not
+        # honored as a "disable" knob.
+        import math
+        if not math.isfinite(ratio) or not (0.0 < ratio <= 1.0):
+            ratio = 0.5
+        if floor < 0:
+            floor = 0
+        if persisted is None:
+            persisted = 0
+            try:
+                with sqlite3.connect(self.db_path, timeout=10) as conn:
+                    row = conn.execute("SELECT COUNT(*) FROM docs").fetchone()
+                    persisted = int(row[0]) if row else 0
+            except sqlite3.Error:
+                persisted = 0
+        degraded = expected >= floor and persisted < ratio * expected
+        return {
+            "status": "degraded" if degraded else "ok",
+            "expected": expected,
+            "persisted": persisted,
+            "ratio": ratio,
+            "floor": floor,
+        }
 
     def _ensure_db(self) -> None:
         # Read paths (search/fetch/timeline/context) must NOT scaffold a wiki
@@ -1005,7 +1088,37 @@ class WikiStore:
         if newest_md > db_mtime:
             self.index()
 
+    @staticmethod
+    def _validate_query(query: str) -> None:
+        """Reject a malformed/unsupported query LOUDLY (cbm cypher.c lineage).
+
+        A query that carries no searchable token — empty, whitespace-only, pure
+        punctuation, or entirely stopwords — cannot be served. Without this it
+        would silently fall through `_rank_pages` (zero tokens => zero hits) and
+        return `[]`, indistinguishable from a valid query that matched nothing.
+        Distinguish the two: unsupported => raise; valid-but-zero-match => [].
+        """
+        if query is None or not str(query).strip():
+            raise WikiUnsupportedQueryError("empty query")
+        q = str(query)
+        # Unicode-aware: any letter/digit (incl. non-ASCII) is searchable content.
+        # A non-ASCII query (e.g. 'тест', '你好') is a VALID query that may match
+        # zero rows — NOT "unsupported". Only pure punctuation is unsupported.
+        if not any(ch.isalnum() for ch in q):
+            raise WikiUnsupportedQueryError("no alphanumeric tokens (punctuation only)")
+        # Reject only when EVERY ASCII alnum token is a stopword (e.g. "the and
+        # for"). A single non-stopword content char like "3" or "k" is a VALID
+        # query — so mirror query_tokens' stopword set but NOT its len>1 ranking
+        # filter (validation ≠ ranking). Non-ASCII queries already passed above.
+        if q.isascii():
+            _stop = {"the", "and", "for", "with", "into", "from", "that", "this",
+                     "when", "what", "need", "needs", "task"}
+            _toks = re.findall(r"[A-Za-z0-9_/-]+", q.lower())
+            if not any(t not in _stop for t in _toks):
+                raise WikiUnsupportedQueryError("only stopwords — nothing searchable")
+
     def search(self, query: str, k: int = 10) -> list[dict[str, Any]]:
+        self._validate_query(query)
         self._ensure_db()
         return [self._search_hit(page, score, reasons) for page, score, reasons in self._rank_pages(query)[:k]]
 
@@ -2842,6 +2955,113 @@ class WikiStore:
         index_result = self.index()
         return {"created": target.relative_to(self.root).as_posix(), "indexed": index_result["indexed"]}
 
+    def _adr_sources(self, repo_root: Path) -> list[Path]:
+        """Locate ADR/decision source files under a repo root.
+
+        Recognised: `DECISIONS.md` (and `DECISIONS/*.md`) at the repo root, and
+        every `*.md` under `docs/adr/` (the conventional ADR home, cf. cbm
+        `manage_adr`). README/index files inside docs/adr/ are skipped — they
+        are tooling indexes, not individual decisions."""
+        found: list[Path] = []
+        for name in ("DECISIONS.md", "decisions.md"):
+            p = repo_root / name
+            if p.is_file():
+                found.append(p)
+        decisions_dir = repo_root / "DECISIONS"
+        if decisions_dir.is_dir():
+            found.extend(sorted(p for p in decisions_dir.glob("*.md") if p.is_file()))
+        adr_dir = repo_root / "docs" / "adr"
+        if adr_dir.is_dir():
+            for p in sorted(adr_dir.glob("*.md")):
+                if p.is_file() and p.stem.lower() not in ("readme", "index", "template"):
+                    found.append(p)
+        return found
+
+    def ingest_decisions(self, repo_root: str | Path | None = None) -> dict[str, Any]:
+        """Ingest `DECISIONS.md` + `docs/adr/*` as wiki decision pages.
+
+        Lineage: codebase-memory-mcp `manage_adr` / `store.c:5869`. Reuses the
+        existing `new`/`new_page` machinery (the `decision` template + write
+        path), then replaces the templated body with the source ADR content so
+        the page carries the real Status/Context/Decision/Consequences. Each
+        source's H1 (or stem) becomes the page title; the title is the dedup key
+        — a re-ingest of an already-present decision is skipped, not duplicated.
+
+        `repo_root` defaults to the wiki root's parent (the project repo)."""
+        repo = Path(repo_root).expanduser().resolve() if repo_root else self.root.parent
+        self.init()
+        sources = self._adr_sources(repo)
+        created: list[str] = []
+        skipped: list[str] = []
+        existing_titles = {p.title for p in self.pages()}
+        for src in sources:
+            text = src.read_text(encoding="utf-8", errors="replace")
+            title = ""
+            for line in text.splitlines():
+                if line.startswith("# "):
+                    title = line[2:].strip()
+                    break
+            title = title or src.stem.replace("-", " ").replace("_", " ").strip()
+            if title in existing_titles:
+                skipped.append(src.as_posix())
+                continue
+            try:
+                # force=True: a curated ADR file is a deliberate ingest, not a
+                # speculative write — bypass the signal/overlap write-gate (the
+                # source already carries its own structure and provenance).
+                res = self.new_page("decision", title, domain="decisions",
+                                    body=text, force=True,
+                                    tags=["decision", "adr"])
+            except FileExistsError:
+                skipped.append(src.as_posix())
+                continue
+            rel = res["created"]
+            page_path = self.root / rel
+            self._replace_decision_body(page_path, text, src, repo)
+            created.append(rel)
+            existing_titles.add(title)
+        if created:
+            self._invalidate_caches()
+            self.index()
+        return {"created": created, "skipped": skipped, "scanned": [s.as_posix() for s in sources]}
+
+    def _replace_decision_body(self, page_path: Path, source_text: str,
+                               src: Path, repo: Path) -> None:
+        """Swap a freshly-templated decision page's body for the source ADR body.
+
+        Keeps the v2 frontmatter the template produced (so the page lints/indexes
+        like any decision page); replaces everything after it with the source
+        markdown (its H1 + Status/Context/Decision/Consequences) plus a source
+        provenance line. The source's H1 is dropped from the body since the
+        template/frontmatter already carry the title."""
+        page_text = page_path.read_text(encoding="utf-8")
+        fm_match = _FRONTMATTER_OPEN_RE.match(page_text)
+        if fm_match:
+            close = _FRONTMATTER_CLOSE_RE.search(page_text, fm_match.end())
+            frontmatter = page_text[:close.end()] if close else ""
+        else:
+            frontmatter = ""
+        # Strip a leading H1 from the source body (title is in frontmatter/H1 we re-add).
+        body_lines = source_text.splitlines()
+        title = ""
+        for i, line in enumerate(body_lines):
+            if line.startswith("# "):
+                title = line[2:].strip()
+                body_lines = body_lines[i + 1:]
+                break
+        body = "\n".join(body_lines).strip()
+        try:
+            src_ref = src.relative_to(repo).as_posix()
+        except ValueError:
+            src_ref = src.as_posix()
+        new_text = (
+            frontmatter
+            + f"\n# {title}\n\n"
+            + body
+            + f"\n\n## Related\n\n- Source: `{src_ref}`\n- [[index]]\n- [[schema]]\n"
+        )
+        page_path.write_text(new_text, encoding="utf-8")
+
     def append_log(self, op: str, title: str, body: str) -> None:
         log_path = self.root / "log.md"
         if not log_path.exists():
@@ -2930,6 +3150,11 @@ def _cli_main(argv: list[str] | None = None) -> int:
     sp = sub.add_parser("ingest", help="Add a source (file path or URL) to raw/.")
     sp.add_argument("source")
     sp.add_argument("--title", default=None)
+
+    sp = sub.add_parser("ingest-decisions",
+                        help="Ingest DECISIONS.md + docs/adr/* as decision pages (cbm manage_adr).")
+    sp.add_argument("--repo-root", default=None,
+                    help="Project repo root to scan (default: the wiki root's parent).")
 
     sub.add_parser("index", help="Rebuild the SQLite search index.")
 
@@ -3037,7 +3262,14 @@ def _cli_dispatch(args, store, root) -> int:
     if args.cmd == "init":
         _cli_print(store.init())
     elif args.cmd == "search":
-        _cli_print(store.search(args.query, k=args.k))
+        try:
+            _cli_print(store.search(args.query, k=args.k))
+        except WikiUnsupportedQueryError as e:
+            # LOUD failure (cbm cypher.c): an unsupported/malformed query is an
+            # explicit error, NOT an empty result. Nonzero exit so a caller can
+            # distinguish it from a valid query that matched nothing.
+            _cli_print({"error": str(e), "reason": e.reason})
+            return 2
     elif args.cmd == "timeline":
         _cli_print(store.timeline(args.item_id, window=args.window))
     elif args.cmd == "fetch":
@@ -3058,6 +3290,8 @@ def _cli_dispatch(args, store, root) -> int:
             return 1
     elif args.cmd == "ingest":
         _cli_print(store.ingest(args.source, title=args.title))
+    elif args.cmd == "ingest-decisions":
+        _cli_print(store.ingest_decisions(repo_root=args.repo_root))
     elif args.cmd == "index":
         _cli_print(store.index())
     elif args.cmd == "consolidate":

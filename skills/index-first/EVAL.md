@@ -151,6 +151,40 @@ Per the integration plan's decision gates:
 
 **Decision: ship as default integration in `index-first` / `wiki-memory` skill text** (already applied to those skills). No new skill folder. Reassess if upstream graphify releases fix the additive-update behavior — would let us simplify the refresh recipe.
 
+## Opt-in grep-augment hook (`tools/augment.py`) — UNMEASURED
+
+Ported from codebase-memory-mcp's `src/cli/hook_augment.c`. A PreToolUse hook
+that, on `Grep`/`Glob`, queries an available index (graphify `explain` or
+`wiki.py search`) for the longest identifier in the pattern and injects the top
+~3 hits as `additionalContext`.
+
+**Status: opt-in (auto-install:false), NOT wired into the root `./install.sh`,
+and NOT A/B measured.** No token/evidence numbers exist for it yet — the
+graphify A/B above measures the *manual* `explain` recipe an agent runs itself,
+not this automatic per-search augmentation. A true measurement needs an index
+installed in both arms plus a grep-heavy prompt corpus with the hook on vs off;
+until then treat the hook as a convenience that surfaces structured context
+opportunistically, with **no efficiency claim**.
+
+What *is* verified is the cardinal-rule safety contract, by the standalone
+self-test [`tools/test_augment.py`](tools/test_augment.py) (assert+exit-1, no
+pytest dep; run directly — not yet in `scripts/run_all_tests.sh`):
+
+| Case | Expected | Verified |
+|---|---|---|
+| valid token + index hit | `additionalContext` JSON on stdout, exit 0 | ✅ |
+| `Read` tool (never gate read-before-edit) | no stdout, exit 0 | ✅ |
+| pattern <4 chars / glob-only / regex-only | no stdout, exit 0 | ✅ |
+| index command fails / missing binary | no stdout, exit 0 (clean pass-through) | ✅ |
+| slow query exceeding the deadline | exit 0, no partial stdout | ✅ |
+| malformed stdin | no stdout, exit 0 | ✅ |
+
+End-to-end smoke (from the real repo root, wiki present): token `testing` →
+3 wiki hits emitted as valid PreToolUse JSON within the 250ms query budget.
+`install.sh` verified for clean install, idempotent re-run, corrupt-`settings.json`
+abort (rc=1, file untouched — guard copied from `context-keeper`), and uninstall
+preserving sibling keys.
+
 ## Moved from SKILL.md (2026-06-12 SkillReducer-criteria audit)
 
 _Provenance/rationale below is maintainer context, not runtime instruction — relocated so the lazy-loaded body stays actionable._

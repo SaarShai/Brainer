@@ -91,6 +91,13 @@ UNIT_TESTS=(
   skills/wiki-memory/tools/test_sim_eval.py
   skills/wiki-memory/tools/test_config.py
   skills/wiki-refresh/tools/test_staleness.py
+  skills/wiki-refresh/tools/test_artifact_guard.py
+  skills/wiki-memory/tools/test_wiki_adoption.py
+  skills/index-first/tools/test_augment.py
+  skills/compliance-canary/tools/test_hook_safety.py
+  skills/_shared/test_adversarial_regression.py
+  skills/eval-gate/tools/test_validate_case.py
+  skills/impact-of-change/tools/test_impact.py
   skills/learn-skill/tools/test_learn.py
   skills/learn-skill/tools/test_telemetry.py
   skills/learn-skill/tools/test_nomination.py
@@ -133,6 +140,10 @@ run "ablation-guard" env BRAINER_CHECK_NO_WRITE="$BRAINER_CHECK_NO_WRITE" python
 # mutation-validated so the clean verdict is non-vacuous). Behavioral instruction
 # -efficacy (#2, eval/inert_probe.py) is model-dependent → NOT gated.
 run "skill-audit" python3 eval/skill_audit.py --check
+
+# 5e. Hook-safety gate — every hook entrypoint must satisfy the cardinal rule
+# (exit 0 on all paths, no partial stdout, subprocess timeouts, stdout=payload).
+run "hook-safety" python3 skills/compliance-canary/tools/hook_validate.py
 
 fi
 

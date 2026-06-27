@@ -465,6 +465,22 @@ def main():
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(md, encoding="utf-8")
 
+    # DEGRADED manifest (mirrors cbm `dump_verify`): how many extracted items
+    # actually landed in the persisted page. render_markdown caps some sections
+    # (e.g. files_touched[:40]) and per-key extraction limits apply, so
+    # persisted < expected is normal under load — we REPORT it (don't fix it) so
+    # a post-compaction reader knows the snapshot is lossy. Schema keys only; the
+    # `_`-prefixed meta keys (e.g. _confidence) are skipped.
+    expected = sum(
+        len(v) for k, v in regex_out.items()
+        if not k.startswith("_") and isinstance(v, list)
+    )
+    persisted = sum(
+        1 for k, v in regex_out.items()
+        if not k.startswith("_") and isinstance(v, list)
+        for item in v if str(item) in md
+    )
+
     # Terse pointer for PreCompact hook: gets injected into compaction context
     n_files = len(regex_out.get("files_touched", []))
     n_cmds = len(regex_out.get("commands_run", []))
@@ -481,10 +497,16 @@ def main():
             sl.append(f"  • {name}: {rule}")
         style_block = "\n".join(sl) + "\n"
 
+    degraded_line = (
+        f"  ⚠ DEGRADED: {persisted}/{expected} extracted items persisted "
+        f"(snapshot is lossy — some sections were capped/truncated)\n"
+        if persisted < expected else ""
+    )
     pointer = (
         style_block
         + f"[context-keeper] structured memory saved → {out_path}\n"
         f"  {n_files} files touched, {n_cmds} commands run, {n_errs} errors logged\n"
+        + degraded_line
         + (f"  goals: {'; '.join(goals)}\n" if goals else "")
         + f"  READ this file post-compact if prior context needed."
     )
