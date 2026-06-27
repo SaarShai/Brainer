@@ -97,6 +97,7 @@ UNIT_TESTS=(
   skills/compliance-canary/tools/test_hook_safety.py
   skills/_shared/test_adversarial_regression.py
   skills/eval-gate/tools/test_validate_case.py
+  skills/impact-of-change/tools/test_impact.py
   skills/learn-skill/tools/test_learn.py
   skills/learn-skill/tools/test_telemetry.py
   skills/learn-skill/tools/test_nomination.py
