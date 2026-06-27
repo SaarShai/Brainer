@@ -468,6 +468,22 @@ _SUBJ_PREP = frozenset("on in at of for to via with by from through over after b
                        "into onto under within against around about".split())
 
 
+# A verifier that ADMITS self-grading in prose — "the same agent/model", "grades
+# its own", "judges itself", "its own patch/output", "self-review". The actor-
+# identity checks (_norm / _same_actor / _generic_self_grade) miss this when the
+# two actor STRINGS differ token-wise ("the coding agent writes the patch" vs "the
+# same agent then grades its own patch") even though the verifier explicitly says
+# it is the generator grading its own work (adversarial finding 2026-06-27).
+# Scoped to self-grading verbs + own-output so a legit separate reviewer
+# ("sonnet read-only reviewer") does not trip it.
+_SELF_GRADE_RE = re.compile(
+    r"\bthe same (?:agent|model|actor|llm|coder|writer|drafter|author|generator|producer|bot|ai|one)\b"
+    r"|\b(?:grad|judg|review|verif|check|assess|scor|critiqu)\w*\s+(?:its|their|it)\s+own\b"
+    r"|\b(?:grad|judg|review|verif|check|assess|scor|critiqu)\w*\s+itself\b"
+    r"|\bits own (?:patch|work|output|code|homework|draft|answer|result|review)\b"
+    r"|\bself[\s-]?(?:grad|review|verif|assess|judg|critiqu)\w*", re.I)
+
+
 def _norm(s: str) -> str:
     """Normalize an actor string for exact self-grading comparison."""
     s = _strip_quotes(s).casefold().strip()
@@ -835,7 +851,8 @@ def check_spec(report: Report, spec: Spec, rule_filter: int | None, *, strict_me
     if want(3):
         if generator and verifier and (_norm(generator) == _norm(verifier)
                                         or _same_actor(generator, verifier)
-                                        or _generic_self_grade(generator, verifier)):
+                                        or _generic_self_grade(generator, verifier)
+                                        or _SELF_GRADE_RE.search(verifier)):
             report.add(Finding(3, "FAIL", f"spec '{label}' generator and verifier are the same actor (self-grading)",
                                src, spec.line_of("verifier"),
                                f"generator={generator!r}, verifier={verifier!r} resolve to the same actor. An "

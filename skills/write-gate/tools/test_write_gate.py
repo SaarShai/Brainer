@@ -210,6 +210,21 @@ def test_extract_trust_reads_only_frontmatter() -> None:
     assert extract_trust("plain text, no trust at all") is None
 
 
+def test_marker_stuffed_filler_rejected() -> None:
+    """ADVERSARIAL (2026-06-27 PROMPTER opt run): content-free corporate filler
+    seeded with marker substrings (decision/arch/why/procedure) scored 8.0 and
+    PASSED. The buzzword penalty must pull it back under the floor."""
+    payload = ("We decided to leverage our approach so that things work better. "
+               "The system uses synergy and depends on best practices.\n\n"
+               "1. Align stakeholders\n2. Maximize outcomes")
+    assert_rejects(payload, "fact", "marker-stuffed buzzword filler must reject")
+    # Positive control: a genuine decision with the SAME marker shapes but REAL
+    # content (specific entities + a why) still passes — penalty targets buzzwords,
+    # not the markers themselves.
+    real = "We chose pgvector over Qdrant because dev parity matters, so that local equals prod."
+    assert_passes(real, "decision", "genuine specific decision still passes")
+
+
 def main() -> int:
     tests = [
         test_decisions_need_why,
@@ -228,6 +243,7 @@ def main() -> int:
         test_trust_does_not_rescue_net_negative_filler,
         test_user_confirmed_waives_why_but_verified_does_not,
         test_extract_trust_reads_only_frontmatter,
+        test_marker_stuffed_filler_rejected,
     ]
     failed = 0
     for t in tests:

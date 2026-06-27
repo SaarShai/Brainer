@@ -40,6 +40,7 @@ DEFAULT_WEIGHTS = {
     "entity_overlap": 0.5,      # per repeated capitalized identifier, capped at 1.5
     "filler": -1.5,
     "speculation": -1.5,
+    "vague": -1.5,            # content-free corporate buzzwords (anti-gaming)
 }
 ENTITY_CAP = 1.5
 
@@ -80,6 +81,21 @@ FILLER_PHRASES = (
 SPECULATION_PHRASES = (
     " might ", " maybe ", " probably ", "i think ", "seems like",
     " could maybe", " perhaps ", " possibly ",
+)
+# Content-free corporate filler. Adversarial finding (2026-06-27 PROMPTER opt run):
+# pure filler stuffed with marker substrings ("we decided to leverage our approach
+# so that things work better; uses synergy, depends on best practices; 1. align
+# stakeholders 2. maximize outcomes") scored 8.0 and PASSED — the lexical markers
+# fire on generic words. This penalty offsets that: buzzwords are negative signal,
+# like filler/speculation. Genuine facts carry concrete signal (numbers, code,
+# specific entities) that easily outweighs an incidental buzzword, and the
+# trust-bypass rescues vouched-but-terse facts — so this raises the bar against
+# gaming without re-introducing the false-reject problem.
+VAGUE_PHRASES = (
+    "synergy", "synergies", "best practices", "stakeholder", "move the needle",
+    "value-add", "going forward", "circle back", "low-hanging fruit", "holistic",
+    "leverage our", "leverage the", "things work better", "maximize outcomes",
+    "drive value", "our approach so", "streamline", "paradigm",
 )
 # NB: "since" is intentionally absent — it's overwhelmingly temporal in
 # practice ("tracked since yesterday") and was bypassing the gate as a
@@ -215,6 +231,16 @@ def score_text(text: str, kind: str, weights: dict[str, float] | None = None) ->
         s.features["speculation"] = v
         s.total += v
         s.reasons.append(f"speculation phrases ×{n_spec}")
+
+    # Vague corporate filler (negative, anti-gaming). Uncapped like filler —
+    # marker-stuffed content-free text accrues enough buzzwords to fall back
+    # under the floor; genuine concrete facts rarely use more than one.
+    n_vague = _count_any(text_lc, VAGUE_PHRASES)
+    if n_vague:
+        v = weights["vague"] * n_vague
+        s.features["vague"] = v
+        s.total += v
+        s.reasons.append(f"vague buzzwords ×{n_vague}")
 
     # Numbered / bulleted procedure (SOP signature: "1. ... 2. ... 3. ...")
     # Requires at least 2 ordered steps on their own lines.

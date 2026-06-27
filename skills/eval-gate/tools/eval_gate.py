@@ -380,6 +380,22 @@ def _rubric(args):
     return DEFAULT_RUBRIC
 
 
+_GROUNDING_RE = re.compile(
+    r"\b(the input|the task|the source|the prompt|the brief\b|the original|"
+    r"provided\b|given (?:input|data|source)|fabricat|hallucinat|grounded\b|"
+    r"not (?:present |found |stated )?in the (?:input|source|task|prompt)|"
+    r"against the (?:input|source|task|prompt)|present in the (?:input|source))",
+    re.I)
+
+
+def _rubric_needs_task(rubric_text: str) -> bool:
+    """True if the rubric GROUNDS the candidate against its input (checks for
+    fabrication / facts not in the source). Such a rubric is meaningless without
+    --task: the judge has nothing to ground against and silently passes a fully
+    fabricated candidate. ADVERSARIAL finding 2026-06-27 (PROMPTER opt run)."""
+    return bool(_GROUNDING_RE.search(rubric_text or ""))
+
+
 def _load_criteria(args):
     """Return a normalized criteria list, or None for holistic mode. Raises
     ValueError on a malformed criteria spec (caller maps that to exit 2)."""
@@ -445,8 +461,22 @@ def cmd_score(args):
     except (ValueError, OSError, json.JSONDecodeError) as e:
         print(f"eval-gate: bad criteria ({e})", file=sys.stderr)
         return 2
+    rubric_txt = _rubric(args)
+    # Fail-safe: a grounding rubric (one that checks the candidate against its
+    # input for fabrication) is meaningless with an empty --task — the judge has
+    # nothing to ground against and silently PASSES a fabricated candidate
+    # (adversarial finding 2026-06-27). Refuse rather than wave it through. This
+    # RAISES the bar; it never converts a fail into a pass.
+    explicit_rubric = bool(getattr(args, "rubric", None) or getattr(args, "rubric_text", None))
+    if (not criteria and explicit_rubric and not (getattr(args, "task", "") or "").strip()
+            and _rubric_needs_task(rubric_txt)):
+        print("eval-gate: REFUSED — this rubric grounds the candidate against its input "
+              "(checks for fabrication / facts not in the source), but --task is empty, so "
+              "nothing can be grounded and a fabricated candidate would pass silently. "
+              "Pass --task with the input, or use a non-grounding rubric.", file=sys.stderr)
+        return 2
     try:
-        res = run_judge(args.task, candidate, _rubric(args), args.backend, args.model,
+        res = run_judge(args.task, candidate, rubric_txt, args.backend, args.model,
                         args.stub_score, criteria=criteria, stub_criteria=stub_crit)
     except Exception as e:
         print(f"eval-gate: judge unreachable ({args.backend}): {e}", file=sys.stderr)

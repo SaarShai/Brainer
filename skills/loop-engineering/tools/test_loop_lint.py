@@ -60,6 +60,18 @@ def test_clean_spec_passes():
     assert _exit_for(CLEAN) == 0
 
 
+def test_prose_self_grading_r3_fail():
+    """ADVERSARIAL (2026-06-27 PROMPTER opt run): a verifier that ADMITS self-
+    grading in prose ('the same agent then grades its own patch') slipped R3 —
+    the actor-identity checks compare strings, which differ token-wise here. The
+    self-grade-admission detector must catch it."""
+    spec = CLEAN.replace("generator: opus coder agent", "generator: the coding agent writes the patch")\
+                .replace("verifier: sonnet read-only reviewer", "verifier: the same agent then grades its own patch")
+    assert _has(spec, 3, "FAIL"), _rules(spec)
+    # No false positive: the genuine separate reviewer in CLEAN must still pass clean.
+    assert _rules(CLEAN) == [], _rules(CLEAN)
+
+
 def test_gateless_spec_r1_fail():
     spec = CLEAN.replace("gate: pytest tests/ -q\n", "")
     assert _has(spec, 1, "FAIL"), _rules(spec)
