@@ -93,3 +93,4 @@ Cross-cutting lessons from the eval harnesses (`eval/exp*`, `eval/kaggle_ollama`
 - [[concepts/optimization-axes]]
 - [[raw/2026-04-25-agent-memory-framework-research-rerun]]
 - [[queries/memory-as-a-tool-validation]] — external peer-reviewed paper reaffirms the file-based / no-vector-DB bet
+- [[queries/understand-anything-adoption-kept-2-3-4-dropped-1-5]] — which Understand-Anything ideas were adopted vs dropped, and why

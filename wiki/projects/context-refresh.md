@@ -43,3 +43,4 @@ Fresh packets are written to `.brainer/checkpoints/` and kept under 2000 estimat
 ## Provenance
 
 - [[L4_archive/2026-04-24-summ-codex-manual]] — archived Codex `summ` launcher used by older installs of this workflow.
+- [[L4_archive/2026-04-24-handoff-codex-context-refresh]] — archived Codex context-refresh handoff snapshot.

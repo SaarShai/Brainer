@@ -65,5 +65,6 @@ Question: does Brainer's write-gate add value ON TOP of the paper's method?
 
 ## Related
 
+- [[queries/external-validation]] — companion external-review corroboration record
 - [[index]]
 - [[schema]]

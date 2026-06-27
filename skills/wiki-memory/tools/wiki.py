@@ -208,6 +208,22 @@ def strip_fenced_code(text: str) -> str:
     return "".join(out)
 
 
+INLINE_CODE_RE = re.compile(r"`+[^`\n]*`+")
+
+
+def strip_inline_code(text: str) -> str:
+    """Remove `inline code` spans before wikilink extraction.
+
+    strip_fenced_code handles ```fenced``` blocks; this handles single-backtick
+    spans. A `[[link]]` written inside inline code (e.g. documenting a malformed
+    `related: [[x]], [[y]]` frontmatter example, or a `[[wiki-refresh]]` code
+    reference) is NOT a real link — Obsidian does not render wikilinks inside
+    code spans — so it must not leak into the link graph as a broken_link
+    false positive.
+    """
+    return INLINE_CODE_RE.sub(" ", text)
+
+
 def normalize_wikilink(inner: str) -> str:
     target = inner.strip().split("|", 1)[0].split("#", 1)[0].strip()
     return target.rstrip("\\").removesuffix(".md")
@@ -853,7 +869,7 @@ class WikiStore:
             if clean and not clean.startswith("#"):
                 preview = clean[:240]
                 break
-        links = [normalize_wikilink(x) for x in WIKILINK_RE.findall(strip_fenced_code(body))]
+        links = [normalize_wikilink(x) for x in WIKILINK_RE.findall(strip_inline_code(strip_fenced_code(body)))]
         page = Page(
             id=page_id(self.root, path),
             path=path,
@@ -1389,7 +1405,7 @@ class WikiStore:
             if clean and not clean.startswith("#"):
                 preview = clean[:240]
                 break
-        links = [normalize_wikilink(x) for x in WIKILINK_RE.findall(strip_fenced_code(body))]
+        links = [normalize_wikilink(x) for x in WIKILINK_RE.findall(strip_inline_code(strip_fenced_code(body)))]
         try:
             rel = path.resolve().relative_to(scope_root).with_suffix("").as_posix()
         except ValueError:
@@ -1495,7 +1511,12 @@ class WikiStore:
                 missing_frontmatter.append(p.id)
                 if strict:
                     warn.append({"code": "legacy_missing_frontmatter", "page": p.id})
-            if "supersedes" in p.frontmatter or "superseded-by" in p.frontmatter:
+            # Count only pages with an ACTUAL supersession relationship (a
+            # non-empty value), not every v2 page: the v2 schema REQUIRES the
+            # `supersedes`/`superseded-by` keys, so a key-presence test flagged
+            # every compliant page (32 live) and made the metric meaningless.
+            if listish_has_value(p.frontmatter.get("supersedes", "")) or \
+               listish_has_value(p.frontmatter.get("superseded-by", "")):
                 supersession.append(p.id)
             if strict:
                 contradicts_value = p.frontmatter.get("contradicts", "")
@@ -1842,7 +1863,7 @@ class WikiStore:
         cand_title_toks = {t for t in query_tokens(title)}
         cand_content = content_tokens(f"{title}\n{body}")
         cand_refs = extract_refs(body)
-        cand_links = {normalize_wikilink(x).lower() for x in WIKILINK_RE.findall(strip_fenced_code(body))}
+        cand_links = {normalize_wikilink(x).lower() for x in WIKILINK_RE.findall(strip_inline_code(strip_fenced_code(body)))}
 
         # Pre-filter with the existing ranker so we only dim-score plausible
         # neighbours, not the whole wiki.
