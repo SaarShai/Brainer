@@ -52,6 +52,78 @@ Skills compound across axes (output × input × routing × memory) but **diminis
 | End-to-end routing savings (prompt-triage, N=13 mixed prompts) | **−20.9%** total tokens, 100% classification accuracy | `eval/results/prompt-triage.json` |
 | Memory compression (context-keeper, real 970-event transcript) | sidecar = **2.3% of raw transcript** (44× smaller), 100% URL recall, 67% numbers recall | `eval/results/context-keeper.json` |
 
+## Evaluation Methodology — External Validity
+
+This is the methodology *framework* added by the eval-methodology upgrade
+(`specs/eval-methodology.md`). It governs **how cases are authored going
+forward**; it does not re-measure any existing skill. The historical per-skill
+numbers above and below remain valid where they cleared the N≥50 gate.
+
+### Question provenance — Sillito anchor
+
+Skill A/B cases authored under the upgrade are anchored to a **citable question
+taxonomy** rather than authored ad-hoc: the Sillito/Murphy/De Volder *"Questions
+Programmers Ask During Software Evolution Tasks"* (IEEE TSE 2008, 44 types in 4
+groups). Each case declares a `sillito_dim` (D1 definition/discovery · D2
+relationship/call-graph · D3 targeted retrieval · D4 architecture/structure · D5
+cross-cutting/semantic). This removes author bias on "is this a typical
+question?" — the dimension is a property of the case, not a post-hoc label.
+
+### Ground-truth audit policy
+
+Before a case-set clears the N≥50 gate, `skills/eval-gate/tools/validate_case.py`
+confirms that every case target (the fact the question asks about) originates from
+an **independently-verifiable source** — `file` / `git` / `lsp_symbol` / `config`
+/ `api_contract` — and **never** from a model-generated answer. This breaks the
+"author writes both the question and the grading key" circularity. The validator
+is static-only: it runs no skill and no model.
+
+**eval-gate is exempt (design-by-intent).** A rubric-grading gate encodes human
+taste, not a fact recoverable from git/file/LSP, so there is no verifiable target
+for the audit to check and N≥50 is not a meaningful bar for it. eval-gate is
+scoped as load-bearing-by-design, not empirically measured. (Decision Q1.)
+
+### Benchmark cross-check policy (opportunistic)
+
+For skills that touch code/repository understanding (retrieval, comprehension,
+recall): **if** a published set (SWE-QA arXiv 2509.14635, CoReQA 2501.03447) has
+an overlapping question on the same repo, Brainer's A/B is reported alongside the
+published baseline. Matching is **opportunistic, not systematic** (decision Q2,
+option A): Brainer keeps its own full case-set; the benchmark is a cross-check,
+not a replacement, and is noted in the case's provenance when it applies.
+
+> **Deferred — incremental re-measurement manifest.** The CBM `manifest.json`
+> checkpoint/resume pattern (per-unit done/sha/started/finished, skip
+> already-measured units) is documented but **not implemented** (decision Q3).
+> Revisit if a re-measurement campaign grows past ~20 skills; until then each
+> N≥50 re-run is full.
+
+### Same-family judge self-preference
+
+Brainer's judge (`eval/judge.py`) defaults to a **different model family** from
+the answer-writer, which removes documented self-preference inflation. If a future
+re-measurement uses a same-family judge (e.g. a Claude judge on Claude-generated
+answers) as a cost measure, that run must carry an explicit caveat.
+
+### Aggregation by Sillito dimension — template (no data yet)
+
+The dimensional rollup below is the **proposed reporting format**; there is no
+dimensional aggregation measured yet, so every data cell is a TODO. Populate it
+from real per-skill case results once skills are re-measured under the upgrade —
+do **not** fill it with illustrative numbers.
+
+| Dimension | Type | Skills tested | Avg judge score | N cases | Notes |
+|---|---|---|---|---|---|
+| D1 | Definition / API discovery | _TODO_ | _TODO_ | _TODO_ | _TODO_ |
+| D2 | Relationship / call graph | _TODO_ | _TODO_ | _TODO_ | _TODO_ |
+| D3 | Targeted retrieval | _TODO_ | _TODO_ | _TODO_ | _TODO_ |
+| D4 | Architecture / structure | _TODO_ | _TODO_ | _TODO_ | _TODO_ |
+| D5 | Cross-cutting / semantic | _TODO_ | _TODO_ | _TODO_ | _TODO_ |
+
+When populated: small N per dimension means no CIs, and cross-dimension
+differences reflect both skill design and question difficulty — not skill merit
+alone. Read as direction, not magnitude.
+
 ## Catalog cuts (v1.6.0–1.6.1 — 19 → 15 skills)
 
 Trimmed the unproven-gain tail. Principle: a skill stays only if it's either **measured-positive** or **cheap + load-bearing-by-design** (operational utility, no gain claim). A skill that is *both* ❌/🟡 on measured benefit *and* redundant with a kept skill is dead weight — cut it.
