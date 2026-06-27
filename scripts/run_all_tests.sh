@@ -98,6 +98,7 @@ UNIT_TESTS=(
   skills/_shared/test_adversarial_regression.py
   skills/eval-gate/tools/test_validate_case.py
   skills/impact-of-change/tools/test_impact.py
+  skills/compliance-canary/tools/test_coherence_drift_meter.py
   skills/learn-skill/tools/test_learn.py
   skills/learn-skill/tools/test_telemetry.py
   skills/learn-skill/tools/test_nomination.py
