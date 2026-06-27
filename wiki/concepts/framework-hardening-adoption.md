@@ -6,8 +6,8 @@ domain: framework
 tier: semantic
 confidence: med
 created: 2026-04-25
-updated: 2026-06-06
-verified: 2026-06-06
+updated: 2026-06-27
+verified: 2026-06-27
 sources: [raw/2026-04-25-agent-memory-framework-research-rerun.md, raw/2026-04-25-turboquant-adoption-review.md, raw/2026-04-17-research-brief.md, raw/m5-outputs-2026-04-17/prose_prefix_caching_providers.md, raw/2026-04-20-machine-baselines.md, raw/2026-04-20-machine-optimization-round2.md, projects/wiki-search.md, projects/context-refresh.md, projects/context-keeper.md, projects/context-keeper-v2.md, L4_archive/2026-05-22-skill-crystallizer/README.md, skills/write-gate/SKILL.md, concepts/optimization-axes.md]
 evidence_count: 8
 supersedes: []
@@ -45,7 +45,7 @@ Rank order is impact first, then fit, then implementation cost.
 | 7 | optional graph / temporal memory | defer | not implemented | no measured win yet; risk of rebuild complexity is high. |
 | 8 | Basic Memory-style aliases | defer | not implemented | alias layer would add schema work before benefit is proven. |
 | 9 | lifecycle statuses | defer | not implemented | useful for state routing, but not yet grounded in live flows. |
-| 10 | deeper Codebase-Memory inspection | defer | not implemented | likely needs more inspection and a clearer comparison target. |
+| 10 | deeper Codebase-Memory inspection + pattern adoption | adopt | implemented | Deep-reviewed [DeusData/codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp) (a pure-C code-graph MCP — graphify's cousin). Adopted **patterns, not the engine**: grep-augment PreToolUse hook (index-first), degraded-write + loud unsupported-query + ADR (wiki-memory), hook-safety validator+CI-gate + SIGALRM deadline (compliance-canary), artifact `merge=ours`+integrity (wiki-refresh), new `impact-of-change` skill, eval ground-truth gate `validate_case.py` (eval-gate). Merged `6dc765c`. |
 | 11 | host `SessionEnd` hook wiring | defer | not implemented | blocked on host-specific wiring and a reliable event source. |
 
 ## Implemented learnings
@@ -55,6 +55,7 @@ Rank order is impact first, then fit, then implementation cost.
 - The skill-crystallizer detector (archived at [[L4_archive/2026-05-22-skill-crystallizer/README]]) captured the v1 rule: only verified completed work becomes an L3 SOP candidate.
 - `skills/write-gate/SKILL.md` is the policy backstop: no execution, no memory.
 - `skills/wiki-memory/tools/code_map.py` provides the repo-map style layer: compact structural summaries before full file reads.
+- **Cross-model adversarial verification of adopted code is worth the cost.** When the codebase-memory-mcp patterns were ported, two rounds of GLM-5.2 adversaries (generator ≠ verifier; each adversary told to *break* the code, default-to-fail) caught **14 real bugs the builder agents' own passing tests missed** — e.g. `ratio=0` silently disabling a degraded-write check (90% data loss reported "ok"), non-ASCII queries falsely rejected as "unsupported", a hook emitting garbage/non-UTF8 backend output as context. Method that converged: adversary finds break → orchestrator reproduces it independently (don't trust the adversary either) → fix → lock with a regression case → re-attack → **stop when a round surfaces only fundamental limits** (static-linter indirection, trust-the-backend, by-design corruption-gate), not bugs. A builder grading its own tests is structurally blind to these; a separate skeptic on a different model is not.
 - `raw/2026-04-25-agent-memory-framework-research-rerun.md` records the two research outputs that drove the adoption matrix.
 
 ## Not yet implemented
