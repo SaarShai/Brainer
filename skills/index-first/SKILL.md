@@ -46,6 +46,34 @@ If a structured index already answers the question, scanning raw text repeats wo
 - Confidence matters: a top-result confidence of ~0.4 means "I don't know" — treat as ambiguous, do not silently pick.
 - Don't push agents toward an index that isn't installed. Check first, fall back to grep+read if absent.
 
+## Opt-in hook: grep-augment (`tools/augment.py`)
+
+An **opt-in** PreToolUse hook that auto-injects index hits alongside your normal
+search results. It is **off by default** (auto-install:false) and is NOT wired
+into the repo's root `./install.sh`. Turn it on per-project:
+
+```
+bash skills/index-first/tools/install.sh              # merge the hook into .claude/settings.json
+bash skills/index-first/tools/install.sh --uninstall  # remove it
+```
+
+What it does, on every `Grep`/`Glob` call: extracts the longest identifier-like
+token (`[A-Za-z_][A-Za-z0-9_]*`, length ≥4) from the search pattern, queries an
+available index (graphify `explain` if `graphify-out/graph.json` exists, else
+`wiki.py search`), and feeds the top ~3 hits back as PreToolUse
+`additionalContext`. Your raw search results are unaffected — the index hits are
+purely additive context.
+
+**CARDINAL RULE (ported verbatim-in-intent from codebase-memory-mcp's
+`hook_augment.c`): the hook NEVER blocks a tool.** Every error, timeout, missing
+index, parse failure, or short/glob-only/regex-only pattern → `exit 0` with **no
+stdout** (clean pass-through). Output is written exactly once at the very end, so
+a mid-work failure yields a clean no-op, never partial JSON. It **never acts on
+`Read`** — gating Read would break read-before-edit — nor on any tool other than
+Grep/Glob. A `signal.alarm` (~300ms; `threading.Timer` fallback where SIGALRM is
+absent) is the hard deadline: a slow index query `os._exit(0)`s rather than
+stalling the agent. Self-test: `python3 skills/index-first/tools/test_augment.py`.
+
 ## Recipe: graphify (external)
 
 If the project has `graphify-out/graph.json` (built via [graphify](https://github.com/safishamsi/graphify)), prefer these one-shot verbs over grep+read. Pick the verb that matches the question shape:
