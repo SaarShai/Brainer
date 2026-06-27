@@ -5,5 +5,12 @@
     "min_tool_calls": 8,
     "max_error_rate": 0.25,
     "message": "tool-error rate over the recent window crossed 25% — stop retrying variations; re-read the failing tool's contract (params, required prior calls like Read-before-Edit, cwd state) before the next attempt"
+  },
+  {
+    "id": "hook-output-anomaly",
+    "kind": "forbidden_regex",
+    "pattern": "(?:hook[^\\n]{0,40}(?:exit(?:ed|ing)?\\s+(?:code\\s+)?[1-9]|non-?zero\\s+exit|traceback)|(?:PreToolUse|UserPromptSubmit|PreCompact|SessionEnd)\\s+hook[^\\n]{0,60}(?:fail|error|block|denied))",
+    "severity": "warn",
+    "message": "a hook appears to have exited non-zero, blocked a call, or leaked a traceback — hooks MUST exit 0 on every path and emit their stdout payload exactly once at the end. Run `python3 skills/compliance-canary/tools/hook_validate.py` to find the offending entrypoint; wrap slow work in skills/compliance-canary/tools/deadline.py (hard_deadline / run_or_exit0)."
   }
 ]
