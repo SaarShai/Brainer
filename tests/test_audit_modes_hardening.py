@@ -156,7 +156,7 @@ def test_no_write_regression_across_collectors():
     proc = run([
         sys.executable, str(BRAUDIT / "hook.py"), "--root", str(ROOT), "--host", "claude", "--event", "UserPromptSubmit", "--debug"
     ], input_text=hook_payload, env=env)
-    assert json.loads(proc.stdout)["reason"] == "no_write"
+    assert json.loads(proc.stderr)["reason"] == "no_write"
 
     proc = run([
         sys.executable, str(BRAUDIT / "antigravity_sidecar.py"), "--root", str(ROOT), "snapshot", "--events", str(blocked_event_path)
