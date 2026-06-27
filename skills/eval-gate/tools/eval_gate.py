@@ -157,33 +157,58 @@ def _coerce_verdict(v):
     return False, "stub"
 
 
+def _verdict_from(text):
+    """Extract (pass:bool, reason:str) from a line/tail, or None if it has no
+    PASS/FAIL token at all."""
+    text = (text or "").strip()
+    tok = _CRIT_TOKEN.search(text)
+    if not tok:
+        return None
+    passed = tok.group(0).lower() in ("pass", "yes", "true", "✓")
+    reason = (text[:tok.start()] + text[tok.end():]).strip(" -–—:.")
+    return passed, (reason or text)
+
+
 def _parse_criteria(out, ids):
     """Tolerant parse of a per-criterion judge reply -> {id: (pass:bool, reason:str)}.
 
-    Looks for one line per criterion id of the form '<id>: PASS|FAIL — reason'
-    (accepts YES/NO/TRUE/FALSE/checkmarks, and leading bullets/numbers). A criterion
-    with no matched line OR no PASS/FAIL token is fail-safe FALSE (never a silent pass).
-    Returns None only when ZERO ids matched a line — the caller treats that as exit 2,
-    the same fail-safe the holistic path uses for an unparseable reply."""
-    out = out or ""
-    verdicts = {}
-    matched = 0
+    Real models format these replies inconsistently, so resolution is layered:
+      1. STRICT — a line '<id>: PASS|FAIL …' keyed by the exact criterion id
+         (accepts YES/NO/TRUE/FALSE/✓/✗, leading bullets/numbers, in any order). A
+         line that names the id but carries no token is fail-safe FALSE (addressed
+         but ambiguous), not dropped.
+      2. POSITIONAL fallback — criteria whose id was NOT echoed consume the
+         remaining verdict-bearing lines in order. This is what makes a model that
+         NUMBERS the criteria ('1: FAIL', '2: PASS', …) parse correctly instead of
+         failing as unparseable.
+      3. Anything still unresolved is fail-safe FALSE (never a silent pass).
+    Returns None only when the reply carries ZERO verdicts — the caller treats that
+    as exit 2, the same fail-safe the holistic path uses for an unparseable reply."""
+    lines = (out or "").splitlines()
+    by_id = {}
+    consumed = set()
     for cid in ids:
-        m = re.search(rf"^[ \t\-*\d.\)]*{re.escape(cid)}\s*[:\-–]\s*(.*)$", out, re.I | re.M)
-        if not m:
-            verdicts[cid] = (False, "no verdict returned for this criterion")
-            continue
-        matched += 1
-        tail = m.group(1).strip()
-        tok = _CRIT_TOKEN.search(tail)
-        if not tok:
-            verdicts[cid] = (False, tail or "no PASS/FAIL token")
-            continue
-        t = tok.group(0).lower()
-        passed = t in ("pass", "yes", "true", "✓")
-        reason = (tail[:tok.start()] + tail[tok.end():]).strip(" -–—:.")
-        verdicts[cid] = (passed, reason or tail)
-    return verdicts if matched else None
+        for idx, ln in enumerate(lines):
+            if idx in consumed:
+                continue
+            m = re.match(rf"^[ \t\-*\d.\)]*{re.escape(cid)}\s*[:\-–]\s*(.*)$", ln, re.I)
+            if m:
+                tail = m.group(1).strip()
+                v = _verdict_from(tail)
+                by_id[cid] = v if v is not None else (False, tail or "no PASS/FAIL token")
+                consumed.add(idx)
+                break
+    # verdict-bearing lines not claimed by an id-keyed match, in order
+    unnamed = [v for idx, ln in enumerate(lines)
+               if idx not in consumed and (v := _verdict_from(ln)) is not None]
+    if not by_id and not unnamed:
+        return None
+    verdicts = dict(by_id)
+    leftover = iter(unnamed)
+    for cid in ids:
+        if cid not in verdicts:
+            verdicts[cid] = next(leftover, (False, "no verdict returned for this criterion"))
+    return verdicts
 
 
 def judge_ollama(model, task, candidate, rubric, timeout=300):
@@ -234,7 +259,9 @@ def _criteria_prompt(task, candidate, criteria):
     return (
         f"TASK:\n{task}\n\nCANDIDATE:\n{candidate}\n\n"
         "Judge the candidate against EACH criterion INDEPENDENTLY. For every criterion, "
-        "output exactly one line in this form:\n<id>: PASS or FAIL — <one-line reason>\n\n"
+        "output exactly one line that BEGINS WITH the criterion's id token exactly as "
+        "shown below (e.g. `correct:`), not a number, in this form:\n"
+        "<id>: PASS or FAIL — <one-line reason>\n\n"
         f"CRITERIA:\n{lines}\n\nOutput one line per criterion id, nothing else.")
 
 

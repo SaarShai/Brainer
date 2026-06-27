@@ -110,7 +110,14 @@ ok = (v["correct"][0] is True and v["complete"][0] is False
 none_all_missing = e._parse_criteria("totally unrelated prose", ["a", "b"]) is None
 partial = e._parse_criteria("correct: looks fine", ["correct"])  # present but tokenless
 fs = partial["correct"][0] is False
-print("PARSE2_OK" if (ok and none_all_missing and fs) else f"PARSE2_FAIL v={v}")
+# real-model regression: llama3.1 NUMBERS criteria instead of echoing ids -> must
+# still parse positionally (this exact shape returned None before the fix).
+pos = e._parse_criteria("1: FAIL — only two\n2: FAIL — no third\n3: PASS — terse", ["correct", "complete", "concise"])
+pos_ok = pos["correct"][0] is False and pos["complete"][0] is False and pos["concise"][0] is True
+# mixed: one id-echoed, one numbered, one id-echoed — all in order
+mix = e._parse_criteria("correct: PASS ok\n2: FAIL nope\nconcise: PASS fine", ["correct", "complete", "concise"])
+mix_ok = mix["correct"][0] is True and mix["complete"][0] is False and mix["concise"][0] is True
+print("PARSE2_OK" if (ok and none_all_missing and fs and pos_ok and mix_ok) else f"PARSE2_FAIL v={v} pos={pos} mix={mix}")
 PY
 )
 case "$pres2" in PARSE2_OK*) chk 0 0 "_parse_criteria handles bullets/tokens/fail-safe";; *) echo "  FAIL: $pres2"; fail=1;; esac
