@@ -2,8 +2,9 @@
 """impact-of-change — map a git diff to its blast radius (forward impact only).
 
 Given uncommitted edits (or a commit range), extract the changed symbols, then
-query graphify's call graph (`graphify-out/graph.json`) for inbound dependents
-(who CALLS the changed symbols), bounded to depth<=3. Score each changed symbol
+query graphify's code graph (`graphify-out/graph.json`) for inbound dependents —
+who CALLS a changed symbol, plus who SUBCLASSES a changed class (reverse
+`inherits` edges) — bounded to depth<=3. Score each changed symbol
 LOW/MEDIUM/HIGH by caller breadth + chain depth, and emit a structured,
 parseable report (dict -> JSON or markdown).
 
@@ -35,6 +36,13 @@ from typing import Any
 
 DEFAULT_DEPTH = 3
 CALL_RELATIONS = {"calls"}  # graphify relation labels are lowercase
+# A changed CLASS also impacts its subclasses: graphify emits `child -inherits->
+# base`, so reverse-traversing `inherits` from a base yields its subclass blast
+# radius. (A relation already in the graph that the consumer previously dropped.)
+INHERIT_RELATIONS = {"inherits"}
+# Edges that make a source node depend on its target (source breaks if target
+# changes). Reverse-traversed from each changed symbol to find its dependents.
+DEP_RELATIONS = CALL_RELATIONS | INHERIT_RELATIONS
 # Heuristic: a caller file is "entry/critical" if its basename looks like a
 # surface (CLI/main/app/api/server/handler/route/__main__). Used by risk scoring.
 ENTRY_HINTS = ("main", "__main__", "cli", "app", "api", "server",
@@ -211,24 +219,33 @@ def build_indexes(graph: dict[str, Any]) -> dict[str, Any]:
         sym = _node_symbol(n.get("label", ""))
         if sym:
             name_to_ids.setdefault(sym, set()).add(n["id"])
-    # inbound CALLS adjacency: target_id -> [source_id, ...]
-    inbound: dict[str, list[str]] = {}
+    # inbound dependency adjacency: target_id -> [(source_id, relation), ...]
+    # Reversed CALLS = callers; reversed INHERITS = subclasses of the target.
+    inbound: dict[str, list[tuple[str, str]]] = {}
     for link in graph["links"]:
-        if link.get("relation") in CALL_RELATIONS:
-            inbound.setdefault(link["target"], []).append(link["source"])
+        rel = link.get("relation")
+        if rel in DEP_RELATIONS:
+            inbound.setdefault(link["target"], []).append((link["source"], rel))
     return {"nodes_by_id": nodes_by_id, "name_to_ids": name_to_ids,
             "inbound": inbound}
 
 
 def callers_of(node_id: str, idx: dict[str, Any], depth: int) -> list[dict[str, Any]]:
-    """BFS inbound CALLS edges from node_id up to `depth`. Direct callers = depth 1."""
+    """BFS inbound dependency edges (CALLS + INHERITS) from node_id up to `depth`.
+
+    Direct dependents = depth 1. A dependent reached over an `inherits` edge is a
+    SUBCLASS of the changed symbol (base-class blast radius); over `calls` it is a
+    caller. Each row carries `via` ("subclass"|"caller") so the report — and a
+    human — can tell a structural subclass impact from a call-site one.
+    """
     nodes_by_id = idx["nodes_by_id"]
     inbound = idx["inbound"]
     seen = {node_id}
     out: list[dict[str, Any]] = []
-    q: deque[tuple[str, int]] = deque((src, 1) for src in inbound.get(node_id, []))
+    q: deque[tuple[str, int, str]] = deque(
+        (src, 1, rel) for src, rel in inbound.get(node_id, []))
     while q:
-        cid, d = q.popleft()
+        cid, d, rel = q.popleft()
         if cid in seen or d > depth:
             continue
         seen.add(cid)
@@ -238,11 +255,12 @@ def callers_of(node_id: str, idx: dict[str, Any], depth: int) -> list[dict[str, 
             "file": node.get("source_file", "?"),
             "depth": d,
             "verified": True,
+            "via": "subclass" if rel in INHERIT_RELATIONS else "caller",
         })
         if d < depth:
-            for nxt in inbound.get(cid, []):
+            for nxt, nrel in inbound.get(cid, []):
                 if nxt not in seen:
-                    q.append((nxt, d + 1))
+                    q.append((nxt, d + 1, nrel))
     return out
 
 

@@ -231,12 +231,54 @@ def test_e4_structure(root: Path) -> None:
 
 
 # --------------------------------------------------------------------------
+# E5 — inheritance: a changed base class reaches its subclasses (blast radius)
+# --------------------------------------------------------------------------
+def test_e5_inheritance(root: Path) -> None:
+    """graphify emits `child -inherits-> base`; impact must reverse it so a
+    base-class change names its subclasses as dependents. This was the missed
+    delta — the consumer previously indexed only `calls`. Drives build_indexes +
+    callers_of directly (deterministic; no git-diff attribution needed)."""
+    # Base <- Child (inherits);  use() CALLS Child  (transitive dependent)
+    nodes = [
+        {"id": "m_Base", "label": "Base", "file_type": "code",
+         "source_file": "models.py", "source_location": "L1"},
+        {"id": "v_Child", "label": "Child", "file_type": "code",
+         "source_file": "views.py", "source_location": "L1"},
+        {"id": "v_use", "label": "use()", "file_type": "code",
+         "source_file": "views.py", "source_location": "L5"},
+    ]
+    links = [
+        {"relation": "inherits", "source": "v_Child", "target": "m_Base"},
+        {"relation": "calls", "source": "v_use", "target": "v_Child"},
+    ]
+    graph = {"directed": True, "multigraph": False, "graph": {},
+             "nodes": nodes, "links": links}
+    idx = impact.build_indexes(graph)
+    deps = impact.callers_of("m_Base", idx, depth=impact.DEFAULT_DEPTH)
+    by_name = {d["caller"]: d for d in deps}
+    # the subclass is a direct (depth-1) dependent reached via the inherits edge
+    assert "Child" in by_name, f"E5 subclass Child not in base-class dependents: {by_name}"
+    assert by_name["Child"]["via"] == "subclass", \
+        f"E5 Child must be labelled via=subclass, got {by_name['Child'].get('via')}"
+    assert by_name["Child"]["depth"] == 1, "E5 direct subclass is depth 1"
+    # transitive: a caller of the subclass is also in the base's blast radius
+    assert "use" in by_name, f"E5 transitive caller of subclass missing: {by_name}"
+    assert by_name["use"]["via"] == "caller" and by_name["use"]["depth"] == 2, \
+        f"E5 use() should be a depth-2 caller: {by_name.get('use')}"
+    # regression guard: the OLD code consumed only `calls`, so Base (no inbound
+    # `calls`) would have had ZERO dependents. The fix must surface the subclass.
+    assert deps, "E5 base class must have dependents now that inherits is consumed"
+    print("PASS E5 inheritance: Base -> Child (via=subclass, d1) + use() (via=caller, d2)")
+
+
+# --------------------------------------------------------------------------
 def main() -> int:
     cases = [
         ("E1", test_e1_precision),
         ("E2", test_e2_degraded),
         ("E3", test_e3_risk),
         ("E4", test_e4_structure),
+        ("E5", test_e5_inheritance),
     ]
     failures = 0
     for name, fn in cases:
