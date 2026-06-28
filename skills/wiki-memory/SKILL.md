@@ -35,11 +35,22 @@ Use when the task references past work, decisions, docs, memory, project facts, 
 
 **Wiki-first:** when in doubt about any fact, rule, or decision, prefer reading the wiki over scrolling back through conversation history. The wiki is persistent and indexed; the context window is ephemeral and lossy (compaction silently drops detail). Retrieve before re-deriving.
 
-1. Read `wiki/L1_index.md` first.
+1. Read `wiki/L1_index.md` first — it catalogs `concepts/` + `patterns/` +
+   `projects/` + `queries/`, so it shows the knowledge that exists, not just
+   project pages.
 2. Run `python skills/wiki-memory/tools/wiki.py search "<query>"`.
-3. For relevant hits, `python ... timeline "<id>"`.
+3. For relevant hits, `python ... timeline "<id>"`. Timeline returns the page's
+   **link graph**: `backlinks` (pages that cite this one), `outbound` (pages this
+   one points to), and `neighbors` (same-dir). This graph *is* the retrieval
+   index — read it, don't ignore it.
 4. Fetch ≤3 pages first with `python ... fetch "<id>"`.
-5. If insufficient, fetch ≤2 more pages.
+5. If insufficient, **follow the link graph before re-searching**: pick the next
+   ≤2 pages from the prior page's edges (a typed edge to a related page beats a
+   fresh keyword guess). Which edge: **`outbound`** = what this page depends on /
+   points to (follow to go *deeper*); **`backlinks`** = what builds on or cites
+   this (follow to go *broader*); **`neighbors`** = same-folder siblings (fallback
+   when the typed edges miss). Judge by topical relevance to the task. Broaden to a
+   new `search` only when the graph runs dry.
 6. Cite page paths/IDs in your response.
 
 **Loud query errors (cbm cypher.c lineage):** `search` distinguishes an *unsupported/malformed* query (empty · whitespace · punctuation-only · all-stopwords — nothing searchable) from a *valid* query that simply matched nothing. The former returns `{"error": "unsupported query: <reason>"}` and exits non-zero (`2`); the latter returns a normal empty `[]` (exit 0). Don't read an `error` payload as "no matches" — reword the query.
@@ -141,20 +152,27 @@ Once a page is in the wiki, two companions maintain it:
 ```
 wiki/
 ├── L0_rules.md        # stable behavior rules
-├── L1_index.md        # compact pointer catalog
-├── L2_facts/          # durable facts
-├── L3_sops/           # solved-task playbooks
-├── L4_archive/        # cold session archives
-├── concepts/          # atomic technique pages
-├── patterns/          # reusable workflows
+├── L1_index.md        # compact pointer catalog (lists concepts/patterns/projects/queries)
+├── concepts/          # atomic technique pages  ← durable facts land here in practice
+├── patterns/          # reusable workflows/runbooks  ← SOPs land here in practice
 ├── projects/          # target-project pages
 ├── people/            # referenced humans
 ├── queries/           # durable Q&A
 ├── raw/               # immutable sources
+├── L2_facts/          # available fact tier (often empty — see note)
+├── L3_sops/           # available SOP tier (often empty — see note)
+├── L4_archive/        # cold session archives
 ├── index.md           # rich catalog
 ├── log.md             # append-only timeline
 └── schema.md          # contract for page types
 ```
+
+**Pick the folder by *kind of knowledge*, not by L-tier number.** In practice
+durable facts are filed under `concepts/`/`queries/` and reusable playbooks under
+`patterns/`; `L2_facts/`/`L3_sops/` are available L-tier buckets that are usually
+empty and are **not** the primary store. Don't send an agent to look in an empty
+`L2_facts/` for a fact that lives in `concepts/`. `L1_index` catalogs the topical
+folders so the knowledge is discoverable at startup.
 
 ## Boundary with graphify
 

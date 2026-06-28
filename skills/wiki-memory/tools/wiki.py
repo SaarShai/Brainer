@@ -28,8 +28,23 @@ WIKILINK_RE = re.compile(r"\[\[([^\]]+)\]\]")
 TRUST_TIERS = {"asserted": 1.0, "corroborated": 2.0, "verified": 3.0, "user_confirmed": 4.0}
 DEFAULT_TRUST = "asserted"
 V2_REQUIRED = ("title", "type", "domain", "tier", "confidence", "created", "updated", "verified", "sources", "supersedes", "superseded-by", "tags")
-V2_TYPES = {"entity", "summary", "decision", "source-summary", "procedure", "concept", "pattern", "project", "query", "fact", "sop", "raw", "person", "handoff"}
+# `error` + `lesson` are first-class failure-page types across the codebase
+# (decay.PROTECTED_TYPES, maturity ladder, SKILL.md write doctrine "error/lesson
+# page; decay-protected") but were missing here — a correctly-authored
+# `type: error`/`lesson` page used to fail strict lint with `invalid_type`. Keep
+# this set the single source of truth for the type vocabulary.
+V2_TYPES = {"entity", "summary", "decision", "source-summary", "procedure", "concept", "pattern", "project", "query", "fact", "sop", "raw", "person", "handoff", "error", "lesson"}
 V2_TIERS = {"working", "episodic", "semantic", "procedural"}
+# Retrieval-cue (SKILL.md step 8b): error/lesson/sop pages must name the
+# observable symptom in the BODY so a future agent finds them by symptom via
+# search (which ranks body, NOT arbitrary frontmatter keys). Accept the cue in
+# any label form — heading (`## Symptom`), bullet (`- Symptom:`), numbered
+# (`1. Trigger`), bold (`**Trigger / symptom:**`), blockquote, or a plain line —
+# and allow the plural; `Triggering`/`symptomatic` are excluded by the trailing
+# \b. Scanned over a fenced-code-stripped body (the has_falsifier/content_tokens
+# convention) so a trigger:/symptom: line inside a ``` example does NOT satisfy it.
+_TRIGGER_CUE_RE = re.compile(r"(?im)^[\s#>*_.\d)\-`]*(trigger|symptom)s?\b")
+_TRIGGER_CUE_TYPES = {"error", "lesson", "sop"}
 
 
 DEFAULT_SCHEMA = """# Brainer Wiki Schema
@@ -37,14 +52,20 @@ DEFAULT_SCHEMA = """# Brainer Wiki Schema
 Purpose: a repo-local markdown LLM wiki for durable agent memory in the current target project.
 
 ## Layers
-- `raw/`: immutable sources. Never rewrite.
-- `concepts/`, `patterns/`, `projects/`, `people/`, `queries/`: synthesized target-project pages.
+Primary knowledge folders — new pages go here, chosen by *kind of knowledge*:
+- `concepts/`: atomic technique/idea pages (the bulk of curated knowledge; durable facts land here).
+- `patterns/`: reusable workflows and runbooks (playbooks/SOPs land here).
+- `projects/`: active target-project state.
+- `queries/`: durable Q&A.
+- `people/`: referenced humans.
+- `raw/`: immutable sources. Never rewrite. Search-visible, not auto-loaded.
+
+Index + scaffolding:
 - `index.md`: compact catalog. Read first.
 - `log.md`: append-only operation timeline.
 - `L0_rules.md`: stable rules loaded at startup.
-- `L1_index.md`: compact pointer index loaded at startup.
-- `L2_facts/`: verified durable facts.
-- `L3_sops/`: solved-task playbooks.
+- `L1_index.md`: compact pointer index loaded at startup (catalogs concepts/patterns/projects/queries).
+- `L2_facts/`, `L3_sops/`: available L-tier buckets, **often empty** — not the primary store; facts file under `concepts/`/`queries/` and SOPs under `patterns/`. Pick the folder by kind, not by L-tier number.
 - `L4_archive/`: cold session archives.
 
 ## Frontmatter v2 for new pages
@@ -52,7 +73,7 @@ Purpose: a repo-local markdown LLM wiki for durable agent memory in the current 
 ---
 schema_version: 2
 title: Example
-type: entity|summary|decision|source-summary|procedure|concept|pattern|project|query|fact|sop|raw|person|handoff
+type: entity|summary|decision|source-summary|procedure|concept|pattern|project|query|fact|sop|raw|person|handoff|error|lesson
 domain: framework|tools|patterns|experiments|project
 tier: working|episodic|semantic|procedural
 confidence: 0.0
@@ -76,16 +97,16 @@ Legacy v1 pages remain readable. Strict lint emits migration warnings for v1 pag
 
 ## Workflows
 - Ingest: source -> `raw/` note -> update synthesized pages -> backlinks -> `index.md`/`log.md`.
-- Query: search -> timeline -> fetch only relevant pages -> cite paths -> file answer in `queries/` when it will be reused.
+- Query: search -> timeline -> fetch only relevant pages -> cite paths -> file answer in `queries/` when it will be reused. `timeline` returns the page's link graph (`backlinks`/`outbound`/`neighbors`) — follow those edges as next-hops before broadening to a fresh search.
 - Lint: stale claims, orphan pages, broken links, contradictions, supersession candidates.
-- Crystallize: successful verified work -> `L3_sops/` and durable lessons.
+- Crystallize: successful verified work -> a `patterns/` playbook (or `L3_sops/` for a runbook) plus durable lessons.
 
 ## Imported Wiki Completeness
 - Imported projects must be self-contained in this working folder.
 - Treat any previous project wiki as source evidence only; adapt its useful information into repo-local pages.
 - `index.md` and `L1_index.md` must point to local wiki pages and local commands only.
 - After import, agents must not use home-directory rules, external wikis, or source-wiki paths for project facts.
-- Validate imported projects with `./te wiki import-audit --manifest raw/<date>-import-manifest.md`.
+- Validate imported projects with `python3 skills/wiki-memory/tools/wiki.py import-audit --manifest raw/<date>-import-manifest.md`.
 """
 
 
@@ -958,21 +979,31 @@ class WikiStore:
             "stable/AGENT_PROMPT",
             "stable/README",
         }
+        # Scaffolding/support trees kept OUT of the startup index. `concepts` and
+        # `patterns` were here too — that silently dropped the bulk of curated
+        # knowledge (the 27 concept pages) from L1, so an agent reading L1 first
+        # had no signal they existed. They are knowledge, not scaffolding: list
+        # them. `people` stays excluded (entities, low retrieval value).
         l1_support_dirs = {
             "adapters",
             "bench",
-            "concepts",
             "configs",
             "extensions",
             "hooks",
-            "patterns",
             "people",
             "prompts",
             "skills",
             "stable",
             "templates",
         }
-        ordered = sorted(pages, key=lambda p: (0 if p.id in priority else 1, p.id))
+        def _l1_tier_rank(pid: str) -> int:
+            # Emit small high-value tiers BEFORE the high-volume concepts/ tier:
+            # a plain alphabetical sort put `concepts/*` ahead of `projects/*` /
+            # `queries/*`, so a cap would drop those first. Lower rank = first.
+            top = Path(pid).parts[0] if "/" in pid else ""
+            return {"projects": 0, "queries": 1, "patterns": 2, "L4_archive": 3, "concepts": 4}.get(top, 5)
+
+        ordered = sorted(pages, key=lambda p: (0 if p.id in priority else 1, _l1_tier_rank(p.id), p.id))
         seen_l1 = {
             "start",
             "config",
@@ -989,17 +1020,19 @@ class WikiStore:
             "CLAUDE",
             "GEMINI",
         }
+        eligible = []
         for page in ordered:
-            if len(l1_lines) >= 45:
-                break
             if page.id in seen_l1:
                 continue
             if page.id == "INSTALL":
                 continue
             if page.id in bundled_framework_pages:
                 continue
-            parts = set(Path(page.id).parts)
-            if parts & l1_support_dirs:
+            # Anchor the support-dir exclusion to the TOP-LEVEL component, not a
+            # set-intersection over every path part — else a future nested
+            # knowledge page like `concepts/skills/x` would be wrongly dropped
+            # because "skills" appears somewhere in its path.
+            if (Path(page.id).parts[0] if "/" in page.id else page.id) in l1_support_dirs:
                 continue
             if page.id.startswith("extensions/") and page.id != "extensions/README":
                 continue
@@ -1009,9 +1042,18 @@ class WikiStore:
                 continue
             if page.id.endswith("/INSTALL") or "/agents/" in page.id or "/kaggle_results/" in page.id:
                 continue
+            eligible.append(page)
+            seen_l1.add(page.id)
+        # Cap raised 45→120 (compact; loaded once). If the wiki ever outgrows it,
+        # truncation is SURFACED, not silent — drop the tail and say how many,
+        # tier-ordered so projects/queries survive ahead of bulky concepts/.
+        L1_CAP = 120
+        slots = max(0, L1_CAP - len(l1_lines))
+        for page in eligible[:slots]:
             tags = f" tags={','.join(page.tags)}" if page.tags else ""
             l1_lines.append(f"- {page.id} ({page.type or 'page'}{tags}) -> `{page.path.relative_to(self.root).as_posix()}`")
-            seen_l1.add(page.id)
+        if len(eligible) > slots:
+            l1_lines.append(f"- … +{len(eligible) - slots} more page(s) not listed (L1 cap {L1_CAP}) — use `search` to reach them")
         (self.root / "L1_index.md").write_text("\n".join(l1_lines) + "\n", encoding="utf-8")
         # H2 fix: bump db mtime to be strictly newer than any .md we just
         # touched. Without this, L1_index.md (written above) shows up newer
@@ -1337,12 +1379,41 @@ class WikiStore:
         pages = self.pages()
         target_id = page["id"]
         target_title = page["title"]
+        id_set = {p.id for p in pages}
+        stem_to_id: dict[str, str] = {}
+        for p in pages:
+            stem_to_id.setdefault(Path(p.id).name, p.id)
+        page_by_id = {p.id: p for p in pages}
+
+        def resolve(raw_link: str) -> str | None:
+            # Resolve a wikilink to a canonical page id, or None. A FULL-PATH link
+            # (contains '/') must match an id exactly — a full-path MISS is a
+            # dangler, never silently rerouted onto an unrelated same-basename page
+            # in another dir. Bare names fall back to stem resolution (the
+            # wiki-wide convention; cf. incoming-count + gaps). `?`-stubs strip to
+            # the bare target and resolve only if a real page now exists.
+            link = normalize_wikilink(raw_link).lstrip("?")
+            if not link:
+                return None
+            if link in id_set:
+                return link
+            if "/" in link:
+                return None
+            return stem_to_id.get(Path(link).name)
+
         backlinks = []
         neighbors = []
         same_dir = []
         for p in pages:
-            if target_id in p.links or target_title in p.links:
-                backlinks.append({"id": p.id, "title": p.title, "path": p.path.relative_to(self.root).as_posix()})
+            # backlinks: resolve the CITING page's links the same way outbound
+            # does, so a bare-stem citation [[a]] counts as a backlink of
+            # concepts/a — symmetric with outbound and with lint's inbound/orphan
+            # counting (which already stem-resolves). Exclude self-links.
+            if p.id != target_id:
+                p_targets = {resolve(x) for x in p.links}
+                p_targets.discard(None)
+                if target_id in p_targets or target_title in p.links:
+                    backlinks.append({"id": p.id, "title": p.title, "path": p.path.relative_to(self.root).as_posix()})
             if str(p.path.parent) == str((self.root / page["path"]).parent):
                 same_dir.append(p)
         same_dir = sorted(same_dir, key=lambda p: p.path.as_posix())
@@ -1352,6 +1423,20 @@ class WikiStore:
             for p in same_dir[max(0, idx - window) : idx + window + 1]:
                 if p.id != target_id:
                     neighbors.append({"id": p.id, "title": p.title, "path": p.path.relative_to(self.root).as_posix()})
+        # Outbound: the target page's OWN [[links]], resolved to real pages — the
+        # most direct "this page points you to X" navigation hop, which backlinks
+        # (who points HERE) and same-dir neighbors both miss. `?`-stubs and
+        # danglers resolve to None and are skipped.
+        outbound: list[dict[str, str]] = []
+        seen_out: set[str] = set()
+        target_page = page_by_id.get(target_id)
+        if target_page:
+            for raw_link in target_page.links:
+                resolved = resolve(raw_link)
+                if resolved and resolved != target_id and resolved not in seen_out:
+                    seen_out.add(resolved)
+                    rp = page_by_id[resolved]
+                    outbound.append({"id": rp.id, "title": rp.title, "path": rp.path.relative_to(self.root).as_posix()})
         log_hits = []
         log_path = self.root / "log.md"
         if log_path.exists():
@@ -1379,7 +1464,7 @@ class WikiStore:
             for line in stream:
                 if target_id in line or target_title in line:
                     log_hits.append(line[:240])
-        return {"id": target_id, "backlinks": backlinks[:20], "neighbors": neighbors[:20], "log": log_hits[-10:]}
+        return {"id": target_id, "backlinks": backlinks[:20], "outbound": outbound[:20], "neighbors": neighbors[:20], "log": log_hits[-10:]}
 
     def lint(self) -> dict[str, Any]:
         return self.lint_pages(strict=False)
@@ -1677,6 +1762,16 @@ class WikiStore:
         if resource and not resource.startswith(("http://", "https://", "~", "/")) and "/" in resource:
             if not ((self.root.parent / resource).exists() or (self.root / resource).exists()):
                 errors.append({"code": "broken_resource", "page": page.id, "target": resource})
+        # Retrieval-cue enforcement (SKILL.md step 8b). A failure/lesson/sop page
+        # whose symptom lives only in a `trigger:`/`symptom:` frontmatter key is a
+        # silent search no-op (search ranks body, not frontmatter). Flag the
+        # frontmatter-only footgun specifically; otherwise flag the missing cue.
+        if fm.get("type") in _TRIGGER_CUE_TYPES:
+            if not _TRIGGER_CUE_RE.search(strip_fenced_code(page.body)):
+                if "trigger" in fm or "symptom" in fm:
+                    warnings.append({"code": "trigger_in_frontmatter_only", "page": page.id})
+                else:
+                    warnings.append({"code": "missing_trigger_cue", "page": page.id})
 
     def import_audit(self, manifest: str | Path) -> dict[str, Any]:
         manifest_path = Path(manifest).expanduser()
@@ -3101,7 +3196,7 @@ class WikiStore:
 #   python3 wiki.py init                          # bootstrap ./wiki in cwd
 #   python3 wiki.py init --root /path/to/wiki     # explicit target
 #   python3 wiki.py search "auth race"            # progressive retrieval, tier 1
-#   python3 wiki.py timeline <page-id>            # tier 2: backlinks + neighbors
+#   python3 wiki.py timeline <page-id>            # tier 2: backlinks + outbound + neighbors
 #   python3 wiki.py fetch <page-id>               # tier 3: full page
 #   python3 wiki.py new --template page --title "X" --domain framework
 #   python3 wiki.py ingest <source-or-url> [--title T]
@@ -3146,7 +3241,7 @@ def _cli_main(argv: list[str] | None = None) -> int:
     sp.add_argument("query")
     sp.add_argument("-k", type=int, default=10)
 
-    sp = sub.add_parser("timeline", help="Tier 2: backlinks, neighbors, log slice.")
+    sp = sub.add_parser("timeline", help="Tier 2: backlinks, outbound, neighbors, log slice — the page's link graph for next-hop navigation.")
     sp.add_argument("item_id")
     sp.add_argument("--window", type=int, default=3)
 

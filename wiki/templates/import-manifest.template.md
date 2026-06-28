@@ -39,6 +39,6 @@ Coverage manifest for recreating the source project wiki inside this repo-local 
 Run after import:
 
 ```bash
-./te wiki lint --strict --fail-on-error
-./te wiki import-audit --manifest raw/{{date}}-import-manifest.md
+python3 skills/wiki-memory/tools/wiki.py lint --strict --fail-on-error
+python3 skills/wiki-memory/tools/wiki.py import-audit --manifest raw/{{date}}-import-manifest.md
 ```

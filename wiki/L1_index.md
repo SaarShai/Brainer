@@ -10,10 +10,6 @@ Compact pointers. Fetch details on demand.
 - wiki catalog -> `index.md`
 - log -> `log.md`
 - raw sources -> `raw/` (search only; fetch after relevance)
-- L4_archive/2026-04-24-handoff-codex-context-refresh (handoff) -> `L4_archive/2026-04-24-handoff-codex-context-refresh.md`
-- L4_archive/2026-04-24-summ-codex-manual (source-summary tags=archive,codex,summ,provenance) -> `L4_archive/2026-04-24-summ-codex-manual.md`
-- L4_archive/2026-05-22-skill-crystallizer/README (project tags=skill,L3-sop,automation) -> `L4_archive/2026-05-22-skill-crystallizer/README.md`
-- L4_archive/2026-05-31-auto-handoff-dropped (decision tags=auto-handoff,dropped,session-launch,context-refresh) -> `L4_archive/2026-05-31-auto-handoff-dropped.md`
 - projects/context-keeper (project tags=compaction,context-management,memory,hooks) -> `projects/context-keeper.md`
 - projects/context-keeper-v2 (project tags=context-keeper,v2,L0-L4,spec) -> `projects/context-keeper-v2.md`
 - projects/context-refresh (project tags=context-refresh,checkpoint,compaction) -> `projects/context-refresh.md`
@@ -24,3 +20,38 @@ Compact pointers. Fetch details on demand.
 - queries/external-validation (decision tags=decision,validation,loop-engineering,external-review) -> `queries/external-validation.md`
 - queries/memory-as-a-tool-validation (decision tags=decision,eval,memory,negative-result) -> `queries/memory-as-a-tool-validation.md`
 - queries/understand-anything-adoption-kept-2-3-4-dropped-1-5 (decision tags=decision,adoption,understand-anything,framework-hardening) -> `queries/understand-anything-adoption-kept-2-3-4-dropped-1-5.md`
+- patterns/blind-validation-for-classifiers (pattern tags=validation,eval,classifier,claim-grade,methodology,falsification) -> `patterns/blind-validation-for-classifiers.md`
+- patterns/compound-compression-pipeline (pattern tags=compression,comcom,pattern) -> `patterns/compound-compression-pipeline.md`
+- patterns/tiny-model-router (pattern tags=routing,delegation,models) -> `patterns/tiny-model-router.md`
+- patterns/wiki-query-shortcircuit (pattern tags=wiki,retrieval,context) -> `patterns/wiki-query-shortcircuit.md`
+- L4_archive/2026-04-24-handoff-codex-context-refresh (handoff) -> `L4_archive/2026-04-24-handoff-codex-context-refresh.md`
+- L4_archive/2026-04-24-summ-codex-manual (source-summary tags=archive,codex,summ,provenance) -> `L4_archive/2026-04-24-summ-codex-manual.md`
+- L4_archive/2026-05-22-skill-crystallizer/README (project tags=skill,L3-sop,automation) -> `L4_archive/2026-05-22-skill-crystallizer/README.md`
+- L4_archive/2026-05-31-auto-handoff-dropped (decision tags=auto-handoff,dropped,session-launch,context-refresh) -> `L4_archive/2026-05-31-auto-handoff-dropped.md`
+- concepts/adoption-covered-needs-merits-citation (concept tags=adoption,review,method,verification,code-graph) -> `concepts/adoption-covered-needs-merits-citation.md`
+- concepts/brainer-multi-repo-topology (concept tags=sibling-sync,propagation,multi-repo,topology,install,hard-rule) -> `concepts/brainer-multi-repo-topology.md`
+- concepts/caveman-compress-session-files (concept tags=caveman,startup,compression) -> `concepts/caveman-compress-session-files.md`
+- concepts/caveman-output-compression (concept tags=caveman,output-compression,style) -> `concepts/caveman-output-compression.md`
+- concepts/cross-model-ollama-eval-gotchas (concept tags=eval-methodology,ollama,local-models,cross-model) -> `concepts/cross-model-ollama-eval-gotchas.md`
+- concepts/demote-vs-description-tax (concept tags=eval-methodology,skills,description-tax,cost) -> `concepts/demote-vs-description-tax.md`
+- concepts/devices-inventory (concept tags=infra,devices,inventory,compute) -> `concepts/devices-inventory.md`
+- concepts/framework-hardening-adoption (concept tags=framework,adoption,retrieval,memory,routing,skills) -> `concepts/framework-hardening-adoption.md`
+- concepts/hook-path-fragility (concept tags=hooks,install,cwd-drift,lockout,pretooluse,claude-project-dir,fail-open,hard-rule) -> `concepts/hook-path-fragility.md`
+- concepts/karpathy-wiki (concept tags=wiki,memory,retrieval) -> `concepts/karpathy-wiki.md`
+- concepts/kv-cache-eviction (concept tags=kv-cache,long-context) -> `concepts/kv-cache-eviction.md`
+- concepts/lean-execution (concept tags=lean,planning,delegation,context,process-rot) -> `concepts/lean-execution.md`
+- concepts/llmlingua (concept tags=compression,llmlingua) -> `concepts/llmlingua.md`
+- concepts/local-model-setup (concept tags=infra,devices,models,routing,harnesses) -> `concepts/local-model-setup.md`
+- concepts/measure-triggers-by-decision-marker (concept tags=eval-methodology,triggers,measurement) -> `concepts/measure-triggers-by-decision-marker.md`
+- concepts/optimization-axes (concept tags=framework,categorization,meta) -> `concepts/optimization-axes.md`
+- concepts/prefix-caching (concept tags=prompt-caching,cost) -> `concepts/prefix-caching.md`
+- concepts/progressive-retrieval (concept tags=retrieval,progressive-disclosure,wiki,memory,synthesis) -> `concepts/progressive-retrieval.md`
+- concepts/recurring-defect-classes (concept tags=bugs,regex,frontmatter,installer,tests,perf,hardening) -> `concepts/recurring-defect-classes.md`
+- concepts/semantic-diff-edits (concept tags=semantic-diff,ast,context-compression,code-editing) -> `concepts/semantic-diff-edits.md`
+- concepts/speculative-decoding (concept tags=decoding,throughput) -> `concepts/speculative-decoding.md`
+- concepts/structured-outputs (concept tags=structured-outputs,tokens) -> `concepts/structured-outputs.md`
+- concepts/superpowers-skills (concept tags=skills,superpowers,agents,workflow) -> `concepts/superpowers-skills.md`
+- concepts/turboquant-kv-cache (concept tags=turboquant,kv-cache,llama-cpp,apple-silicon,gguf-stack) -> `concepts/turboquant-kv-cache.md`
+- concepts/unsloth-distill (concept tags=distillation,local-models) -> `concepts/unsloth-distill.md`
+- concepts/wiki-governance (concept tags=wiki,governance,schema) -> `concepts/wiki-governance.md`
+- concepts/write-gate-not-truth-filter (concept tags=eval-methodology,write-gate,provenance,memory-poisoning) -> `concepts/write-gate-not-truth-filter.md`

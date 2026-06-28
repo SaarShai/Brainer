@@ -8,28 +8,41 @@ Catalog for a target project that uses Brainer locally. Load only matched pages.
 - `brainer.yaml` — local framework config
 
 ## Commands
-- `./te doctor` — verify local framework health
-- `./te wiki search "topic"` — find relevant wiki pointers
-- `./te wiki timeline "<id>"` — inspect nearby context
-- `./te wiki fetch "<id>"` — load a relevant page
-- `./te wiki context "task"` — build an audited bounded context packet
-- `./te code map "symbol or path"` — inspect compact code structure before file reads
-- `./te wiki lint --strict` — validate wiki pages
-- `./te context status` — inspect context budget
-- `./te context checkpoint --handoff-template` — create a lean continuation packet
-- `./te cost preflight "task"` — emit provider-free context/tool/session guidance before broad work
-- `./te cost profile --transcript <path>` — flag repeated reads, oversized outputs, search-order leaks, refresh pressure
-- `./te delegate classify "task"` — classify work for delegation
-- `./te delegate cost-check "task"` — compatibility alias for `./te cost preflight`
-- `./te delegate document --verified ...` — route verified durable evidence to wiki-documenter
-- `./te pa --directive "/pa <prompt>"` — route context-light personal-assistant prompts
+
+> There is no `./te` wrapper binary (it was planned, never shipped). Call each
+> tool directly: wiki commands via `python3 skills/wiki-memory/tools/wiki.py …`;
+> other capabilities via their owning skill's tool under `skills/<skill>/tools/`.
+
+Wiki commands (this skill):
+- `python3 skills/wiki-memory/tools/wiki.py search "topic"` — find relevant wiki pointers
+- `python3 skills/wiki-memory/tools/wiki.py timeline "<id>"` — inspect the page's link graph (backlinks/outbound/neighbors — follow them as next-hops)
+- `python3 skills/wiki-memory/tools/wiki.py fetch "<id>"` — load a relevant page
+- `python3 skills/wiki-memory/tools/wiki.py context "task"` — build an audited bounded context packet
+- `python3 skills/wiki-memory/tools/code_map.py "symbol or path"` — inspect compact code structure before file reads
+- `python3 skills/wiki-memory/tools/wiki.py lint --strict` — validate wiki pages
+
+Other framework capabilities (each provided by its own skill — invoke that skill's tool directly; there is no `./te`):
+- doctor — verify local framework health
+- context status / checkpoint — inspect context budget · create a lean continuation packet
+- cost preflight / profile — pre-work context/tool guidance · transcript cost analysis
+- delegate classify / cost-check / document — delegation routing and verified-evidence handoff
+- pa — route context-light personal-assistant prompts
 
 ## Wiki Layout
-- `raw/` — source summaries and imported evidence
+
+Primary knowledge folders — new pages go here, picked by *kind* (all catalogued in L1):
+- `concepts/` — atomic technique/idea pages (the bulk of curated knowledge)
+- `patterns/` — reusable workflows and runbooks
 - `projects/` — active target-project state
-- `L2_facts/` — verified durable facts
-- `L3_sops/` — reusable workflows and runbooks
 - `queries/` — durable Q&A
+
+Other folders (not L1-catalogued):
+- `people/` — referenced humans (entity scaffolding; reach via search)
+- `raw/` — source summaries and imported evidence (immutable; search-only, never a write target)
+
+L-tier buckets (available, often empty — not the primary store):
+- `L2_facts/` — verified durable facts (in practice filed under `concepts/`/`queries/`)
+- `L3_sops/` — reusable runbooks (in practice filed under `patterns/`)
 - `L4_archive/` — cold history kept only when useful
 
 ## Extension Points
