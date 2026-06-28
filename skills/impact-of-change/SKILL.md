@@ -67,6 +67,18 @@ Per the spec thresholds, each changed symbol is scored from its inbound callers:
 
 Overall report risk is the max across changed symbols.
 
+**Soundness limit — a static call graph sees only static callers.** A symbol
+invoked *dynamically* — reflection, dependency injection, event/route/signal
+handlers, framework callbacks, `getattr`/`importlib` dispatch, cross-service
+HTTP — has no inbound `CALLS` edge, so it can score **LOW ("no callers")** while
+still being live. LOW is a **floor, not proof of safety**: it means "no *static*
+caller found," not "safe to skip." Because the protocol routes only HIGH/MEDIUM
+to `verify-before-completion`, a dynamically-invoked symbol that reads LOW
+escapes verification — so for a changed symbol you know is reached dynamically,
+verify it regardless of the score. (graphify's `CALLS` layer does not resolve
+dynamic dispatch; tools that do — codegraph — and runtime-trace validation —
+codebase-memory-mcp's `ingest_traces` — confirm the gap independently.)
+
 ## Degraded mode (graphify absent)
 
 If `graphify-out/graph.json` is missing (or fails to load), the skill **does not
