@@ -27,6 +27,7 @@ Do not claim:
 - delegated work is correct without inspecting result/diff
 - ship/merge-ready without Live Proof: exercise the changed path on the real built artifact or service — a mock or simulation does not count
 - a **visual / rendered** output (chart, diagram, UI, PDF, image) is correct without **looking at it** — screenshot or open the rendered artifact and verify it with vision; text-only checking misses occlusion, flattening, overlap, and scale
+- a **security-sensitive** change (auth / secret / dependency / dangerous sink) is safe without triaging the diff — run [`security-oversight`](../security-oversight/SKILL.md) for the HIGH/REVIEW list, then verify those zones; a leaked secret or injected sink that ships is not "done"
 
 When fixing a bug, investigate before editing: reproduce it, read the whole error and stack trace, change one thing at a time. Don't add a guard for a failure whose root cause you haven't located — a null-check over an unexplained null just moves the bug somewhere quieter.
 
