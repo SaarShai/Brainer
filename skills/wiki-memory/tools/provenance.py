@@ -65,6 +65,54 @@ def trust_for(source: str = "agent", corroboration: int = 1, verified: bool = Fa
     return TRUST_TIERS["asserted"]
 
 
+def tier_name(trust: float) -> str:
+    """Inverse of TRUST_TIERS: the highest named tier at or below `trust`."""
+    for name in ("user_confirmed", "verified", "corroborated", "asserted"):
+        if trust >= TRUST_TIERS[name] - _EPS:
+            return name
+    return "asserted"
+
+
+# A candidate may be auto-filed to the durable graph only at/above this tier.
+AUTOFILE_TRUST = TRUST_TIERS["corroborated"]
+
+
+def should_autofile(trust: float) -> bool:
+    """Quorum gate for autonomous compile-on-ingest.
+
+    True only when a candidate has earned at least `corroborated` trust (>=2
+    independent sources, a real verification, or user confirmation). A single-source
+    `asserted` claim returns False and MUST be quarantined as a draft and surfaced
+    for confirmation. Rationale: write-gate scores FORM, not TRUTH — a well-formed
+    WRONG synthesis passes it (exp5_adversarial: 8/8 at 4.88) — so an autonomous
+    agent that auto-files every single-source synthesis would calcify unreviewed
+    claims into the wiki. Karpathy's compile-on-ingest is safe only because a human
+    reviews lint output; this gate is the autonomous substitute for that reviewer.
+    """
+    return trust >= AUTOFILE_TRUST - _EPS
+
+
+def quorum_decision(sources: int = 1, verified: bool = False,
+                    user_confirmed: bool = False, source: str = "agent") -> dict:
+    """Decide whether a compile-ingest candidate auto-files or is quarantined.
+
+    `sources` = count of INDEPENDENT sources asserting the same claim (the quorum).
+    Returns {action, trust, tier, auto_file, reason}; action ∈ {autofile, quarantine}.
+    """
+    src = "user" if user_confirmed else source
+    trust = trust_for(src, corroboration=max(1, sources), verified=verified)
+    auto = should_autofile(trust)
+    tier = tier_name(trust)
+    if auto:
+        reason = (f"{tier} (trust {trust:.1f} >= corroborated) — quorum met; safe to "
+                  f"auto-file to the durable graph.")
+    else:
+        reason = (f"{tier} (trust {trust:.1f} < corroborated) — single unverified source; "
+                  f"quarantine as an asserted draft and surface for confirmation, do not auto-file.")
+    return {"action": "autofile" if auto else "quarantine",
+            "trust": round(trust, 3), "tier": tier, "auto_file": auto, "reason": reason}
+
+
 def _norm(v: str) -> str:
     return " ".join(str(v).strip().lower().split())
 
