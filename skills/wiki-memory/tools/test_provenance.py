@@ -81,6 +81,40 @@ def test_verify_against_oracle():
                                                                  ["helios ship --wave 3"]))
 
 
+def test_tier_name_inverts_trust():
+    _check("1.0 => asserted", P.tier_name(1.0) == "asserted")
+    _check("2.0 => corroborated", P.tier_name(2.0) == "corroborated")
+    _check("2.9 (capped corrob) => corroborated", P.tier_name(2.9) == "corroborated")
+    _check("3.0 => verified", P.tier_name(3.0) == "verified")
+    _check("4.0 => user_confirmed", P.tier_name(4.0) == "user_confirmed")
+    _check("below floor still asserted", P.tier_name(0.0) == "asserted")
+
+
+def test_should_autofile_threshold():
+    _check("corroborated autofiles", P.should_autofile(P.TRUST_TIERS["corroborated"]))
+    _check("verified autofiles", P.should_autofile(P.TRUST_TIERS["verified"]))
+    _check("asserted does NOT autofile", not P.should_autofile(P.TRUST_TIERS["asserted"]))
+
+
+def test_quorum_decision_quarantines_single_source():
+    # The whole point: one unverified source must NOT auto-file (poison defense).
+    d = P.quorum_decision(sources=1)
+    _check("single source => quarantine", d["action"] == "quarantine")
+    _check("single source tier asserted", d["tier"] == "asserted" and d["auto_file"] is False)
+
+
+def test_quorum_decision_autofiles_on_quorum_or_verify_or_user():
+    _check("2 independent sources => autofile corroborated",
+           P.quorum_decision(sources=2)["action"] == "autofile"
+           and P.quorum_decision(sources=2)["tier"] == "corroborated")
+    _check("verified single source => autofile verified",
+           P.quorum_decision(sources=1, verified=True)["tier"] == "verified")
+    _check("user_confirmed => autofile user_confirmed",
+           P.quorum_decision(user_confirmed=True)["tier"] == "user_confirmed")
+    _check("zero/neg sources clamped, still quarantine",
+           P.quorum_decision(sources=0)["action"] == "quarantine")
+
+
 def run_all():
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     print(f"running {len(fns)} provenance test groups")

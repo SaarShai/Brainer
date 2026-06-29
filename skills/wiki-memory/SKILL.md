@@ -29,6 +29,43 @@ python3 skills/wiki-memory/tools/wiki.py ingest-decisions [--repo-root <path>]
 
 Scans the repo (`--repo-root`, default the wiki root's parent) for `DECISIONS.md`, `DECISIONS/*.md`, and `docs/adr/*.md`, and creates one `type: decision` page per source via the normal `new`/decision-template path. The source's H1 is the page title and the dedup key, so a re-run skips already-ingested decisions rather than duplicating them. The full ADR body (Status / Context / Decision / Consequences) is preserved with a source-provenance line.
 
+## Compile-ingest (external sources)
+
+Karpathy's core primitive: when the user brings an **external** source (paper, repo,
+doc, article), don't just store it — *compile* it into the wiki so synthesis is paid
+once and the wiki compounds. `wiki.py ingest <path|url>` deposits the source into
+`raw/` (immutable) + logs it — **that is step 1 only**. The compile pass is an AGENT
+procedure (code can't summarize), gated so an autonomous agent can't calcify
+*unverified* syntheses into durable facts:
+
+1. **Deposit** — `ingest <path|url>` → `raw/YYYY-MM-DD-slug.md`. One source at a time
+   (a batch import is a dump, not a wiki).
+2. **Extract** candidate concept/claim pages from the source (summarize; one
+   technique/claim per page).
+3. **Gate admission per candidate** — `python3 skills/wiki-memory/tools/wiki.py quorum
+   --title "<t>" --sources <N> [--verified] [--user-confirmed] [--tags a,b] [--body-file <draft>]`:
+   - **`autofile`** (≥2 *independent* sources, OR `--verified` against code/test, OR
+     `--user-confirmed`) → create at the returned trust tier, add ≥2 backlinks,
+     propagate to related pages.
+   - **`quarantine`** (single unverified source) → create as an **`asserted` draft** and
+     **surface it to the user** for confirmation; do NOT promote to a durable fact.
+     Why: [`write-gate`](../write-gate/SKILL.md) scores *form, not truth* — a lone
+     well-formed synthesis is exactly the poison it misses, so a second source / a
+     verify step / a human is the only thing that earns `corroborated+`. (Karpathy's
+     compile is safe because a human reviews lint output; `quorum` is the autonomous
+     substitute for that reviewer.)
+   - **`update-existing`** (overlap `high`) → update the same-subject page, don't create
+     a near-duplicate.
+4. **Reconcile** — after the batch run `contradict-scan`; if a new page supersedes/
+   contradicts an old one, wire `supersedes`/`superseded-by` (+ `contradicts:`) then run
+   `stale-citers` (see *Aging & reconcile*) so citers of the old page get repointed.
+5. **Index + log** — `index`; the `new` path appends `log.md` for you.
+
+Every page created still passes the write-gate why-clause + `overlap` dedup. This is a
+generator→verifier pipeline (generator = candidate extraction; SEPARATE verifier =
+`quorum` + write-gate + `contradict-scan`); model it with [`loop-engineering`](../loop-engineering/SKILL.md)
+as a budget=1-per-source loop.
+
 ## Retrieve
 
 Use when the task references past work, decisions, docs, memory, project facts, or "have we done X".
@@ -52,6 +89,16 @@ Use when the task references past work, decisions, docs, memory, project facts, 
    when the typed edges miss). Judge by topical relevance to the task. Broaden to a
    new `search` only when the graph runs dry.
 6. Cite page paths/IDs in your response.
+
+**Compounding queries (file substantive answers back).** A query that produced a
+*substantive synthesis* — a comparison, analysis, or decision spanning ≥2 pages, not a
+trivial lookup — is itself new knowledge. File it back as a `queries/` page through the
+normal gated write path (`overlap` → [`write-gate`](../write-gate/SKILL.md) → `new
+--template decision` lands in `queries/`), citing the pages it synthesized, stamped
+`trust: asserted` (promote on reuse via `consolidate`). This is the paper's "exploration
+compounds" — the answer becomes durable so the next session recalls it instead of
+re-deriving. Skip one-off / ephemeral lookups (the write **Fire condition** below still
+governs).
 
 **Loud query errors (cbm cypher.c lineage):** `search` distinguishes an *unsupported/malformed* query (empty · whitespace · punctuation-only · all-stopwords — nothing searchable) from a *valid* query that simply matched nothing. The former returns `{"error": "unsupported query: <reason>"}` and exits non-zero (`2`); the latter returns a normal empty `[]` (exit 0). Don't read an `error` payload as "no matches" — reword the query.
 
@@ -121,6 +168,16 @@ python3 skills/wiki-memory/tools/wiki.py decay [--halflife-days D] [--apply]
 
 `decay`: time-based confidence aging (exponential, default half-life 405d; vendored from PROMPTER's memory-decay — `tools/decay.py`). Protection class skips `type: error|lesson|sop|procedure`, `protected: true`, `evidence_count ≥3`, `L0_rules.md`/`L3_sops/`/`raw/`. Dry-run by default. Run weekly/before audits, never per-prompt.
 
+## Schema-evolution (recurring failures → proposed rules)
+
+```bash
+python3 skills/wiki-memory/tools/wiki.py schema-evolution [--threshold N]
+```
+
+Karpathy's point that the human's *primary* lever is refining the **schema** (not editing pages), made autonomous. Instead of fixing the same defect page-by-page forever, a defect class that recurs ≥`--threshold` (default 3 — rule of three) becomes a **proposed amendment** to `schema.md` / the page templates (e.g. recurring `missing_trigger_cue` → "bake a Trigger/symptom line into the lesson template"). Signal = the wiki's own `lint --strict` warning histogram + an optional append-only reject log at `<root>/.brainer/schema_signals.jsonl`.
+
+**Report-only, human-gated by hard rule:** it NEVER edits `schema.md`. `schema.md` is a canonical contract co-owned by human + agent; the loop *proposes* (with evidence — count + target section), a human approves and applies. That gate is the schema-side analogue of `quorum` for facts and is why [`task-retrospective`](../task-retrospective/SKILL.md) likewise won't auto-edit canonical contracts. Run periodically (with `decay`/`wiki-refresh`), not per-prompt.
+
 ## Lint
 
 ```
@@ -146,6 +203,7 @@ Write-gate (two layers). Both are **procedure gates** — agent steps in the wri
 Once a page is in the wiki, two companions maintain it:
 - Page `confidence` and the `verified:` date carry staleness signal; `wiki-refresh` reconciles drifted pages against the codebase, and `lint --strict` flags pages whose `verified:` date is stale.
 - [`wiki-refresh`](../wiki-refresh/SKILL.md) reconciles pages against the *current codebase* (Keep/Update/Consolidate/Replace/Delete) and emits typed `contradicts:` edges. Drift signal: `python skills/wiki-memory/tools/wiki.py audit-refs [--code-root PATH]` lists pages whose cited code paths no longer exist. Run decay weekly (cheap), refresh monthly or after a refactor/rename (costs reads).
+- **Belief-update propagation:** `python3 skills/wiki-memory/tools/wiki.py stale-citers` surfaces pages whose **body** cites a `superseded-by`/`contradicts:`-marked page — a supersession does NOT auto-ripple to its citers, so they keep pointing at outdated knowledge. Run it in [`wiki-refresh`](../wiki-refresh/SKILL.md) right after wiring any supersession/contradiction edge, then repoint each citer at the newer page (or note the dispute). Report-only: it never rewrites another page's body (invalidate-don't-delete; surface, don't silently mutate).
 
 ## Tier layout
 

@@ -2140,6 +2140,49 @@ class WikiStore:
                       f"surfaces the dispute instead of serving one as truth.")
         return {**base, "action": action, "reason": reason}
 
+    def quorum(self, title: str, body: str = "", tags: list[str] | None = None,
+               sources: int = 1, verified: bool = False, user_confirmed: bool = False,
+               k: int = 5) -> dict[str, Any]:
+        """Quorum gate for compile-on-ingest (the autonomous substitute for Karpathy's
+        human lint reviewer). Should this compiled candidate AUTO-FILE to the durable
+        graph, or be QUARANTINED as an `asserted` draft pending confirmation?
+
+        Combines the trust-quorum decision (provenance.quorum_decision: auto-file only
+        at corroborated+, i.e. >=2 independent sources / verified / user-confirmed) with
+        the dedup `overlap` check, so one call tells the compile procedure: (a) auto-file
+        vs quarantine, (b) at what trust tier, (c) whether a same-subject page already
+        exists (update instead of create). Reuses `resolve` for the conflict case — this
+        verb only decides admission, not who-wins-a-contradiction."""
+        import provenance as _prov
+        decision = _prov.quorum_decision(sources=sources, verified=verified,
+                                         user_confirmed=user_confirmed)
+        ov = self.overlap(title, body=body, tags=tags, k=k)
+        band = ov.get("overlap")
+        # A same-subject page already exists (overlap high): reconcile into it, never
+        # create a parallel page. If the candidate cleared the quorum (autofile-trust),
+        # update the existing page; if it is only quarantine-trust, route through
+        # `resolve` (trust-gated) so its low trust is WEIGHED against the existing page
+        # (likely reject/dispute) instead of silently updating the graph from one
+        # unverified source — `update-existing` on a quarantined candidate would
+        # contradict the quarantine and is never emitted.
+        if band == "high":
+            target = "update-existing" if decision["action"] == "autofile" else "reconcile-via-resolve"
+        elif decision["action"] == "autofile":
+            target = "create"
+        else:
+            target = "create-quarantined-draft"
+        return {
+            "title": title,
+            "action": decision["action"],
+            "trust": decision["trust"],
+            "tier": decision["tier"],
+            "auto_file": decision["auto_file"],
+            "reason": decision["reason"],
+            "overlap": band,
+            "best_match": ov.get("best_match"),
+            "recommended_target": target,
+        }
+
     # GRAFT 2 support — code-grounded staleness signal. The refresh skill reads
     # this to decide Keep/Update/Replace/Delete: a page whose cited code paths
     # have vanished is drifting against ground truth, not just against the clock.
@@ -2677,6 +2720,92 @@ class WikiStore:
         total = sum(v for angle in by_angle.values() for v in angle.values())
         return {"total_findings": total, "by_angle": by_angle,
                 "note": "one-pass epistemic health (report-only); 0 = healthy. Run the individual verb behind any non-zero count for detail."}
+
+    def stale_citers(self) -> dict[str, Any]:
+        """REPORT-ONLY belief-update propagation: pages whose BODY cites a page that
+        is itself superseded or contested, so the citation can be repointed.
+
+        The wiki already supports supersession (`superseded-by`) and contradiction
+        (`contradicts:`) ON the cited page, but that status does NOT propagate to the
+        pages still linking to it — they keep pointing readers at outdated knowledge
+        (GLM-5.2 review: "supersession doesn't ripple to citers"). This surfaces those
+        citers; the agent / `wiki-refresh` decides whether to repoint each. One-
+        directional and report-only: it never rewrites another page's body, matching
+        the wiki's invalidate-don't-delete stance and the autonomous poison-defense
+        (surface the conflict, don't silently mutate)."""
+        pages = [p for p in self._knowledge_pages(include_raw=False) if p.frontmatter]
+        ids = {p.id for p in pages}
+        stem: dict[str, str] = {}
+        for p in pages:
+            stem.setdefault(Path(p.id).name, p.id)
+
+        def resolve_one(raw: str) -> str | None:
+            t = raw.removesuffix(".md").lstrip("?")
+            if not t:
+                return None
+            return t if t in ids else stem.get(Path(t).name)
+
+        def fm_targets(value: str) -> list[str]:
+            out: list[str] = []
+            for m in re.findall(r"\[\[([^\]]+)\]\]", value or ""):
+                tgt = resolve_one(normalize_wikilink(m))
+                if tgt and tgt not in out:
+                    out.append(tgt)
+            return out
+
+        # Classify each page's outdated status (only pages that declare it).
+        superseded_by: dict[str, list[str]] = {}   # outdated id -> [newer ids]
+        contested: set[str] = set()
+        for p in pages:
+            sby = p.frontmatter.get("superseded-by", "")
+            if listish_has_value(sby):
+                newer = fm_targets(sby)
+                # Only treat as superseded-for-propagation if the replacement resolves
+                # to a real page — otherwise there is no `newer` to repoint citers at, so
+                # flagging a citer with newer=[] is an unactionable false positive. A
+                # broken/non-resolving superseded-by link is lint's `broken_supersession`,
+                # a separate concern from belief-update propagation.
+                if newer:
+                    superseded_by[p.id] = newer
+            if listish_has_value(p.frontmatter.get("contradicts", "")):
+                contested.add(p.id)
+
+        cites_superseded: list[dict[str, Any]] = []
+        cites_contested: list[dict[str, Any]] = []
+        for c in pages:
+            seen: set[str] = set()
+            for link in c.links:
+                t = resolve_one(link)
+                if not t or t == c.id or t in seen:
+                    continue
+                seen.add(t)
+                if t in superseded_by:
+                    newer = superseded_by[t]
+                    # Don't flag the superseding page for citing what it replaces.
+                    if c.id not in newer:
+                        cites_superseded.append({
+                            "citer": c.id,
+                            "citer_path": c.path.relative_to(self.root).as_posix(),
+                            "cites": t,
+                            "newer": newer,
+                        })
+                if t in contested:
+                    cites_contested.append({
+                        "citer": c.id,
+                        "citer_path": c.path.relative_to(self.root).as_posix(),
+                        "cites": t,
+                    })
+        cites_superseded.sort(key=lambda r: (r["citer"], r["cites"]))
+        cites_contested.sort(key=lambda r: (r["citer"], r["cites"]))
+        return {
+            "cites_superseded": cites_superseded,
+            "cites_contested": cites_contested,
+            "count": len(cites_superseded) + len(cites_contested),
+            "scanned": len(pages),
+            "note": ("belief-update propagation (report-only): body citations of a "
+                     "superseded/contested page; repoint each citer at the newer page "
+                     "or note the dispute. Never auto-rewrites."),
+        }
 
     def calibration(self, high: float = 0.8, low: float = 0.4, stale_days: int = 180) -> dict[str, Any]:
         """REPORT-ONLY calibration lens: does a page's stated `confidence` MATCH its
@@ -3363,6 +3492,26 @@ def _cli_main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("health", help="One-pass epistemic health summary across all six lenses (claim-quality/contradictions/synthesis/maturity/completeness/calibration + novelty). 0 = healthy.")
 
+    sub.add_parser("stale-citers", help="Report-only belief-update propagation: pages whose body cites a superseded/contested page (repoint each citer). Run in wiki-refresh.")
+
+    sp = sub.add_parser("quorum", help="Quorum gate for compile-on-ingest: auto-file (corroborated+) vs quarantine a candidate as an asserted draft pending confirmation.")
+    sp.add_argument("--title", required=True)
+    sp.add_argument("--body", default="", help="Candidate body text.")
+    sp.add_argument("--body-file", default=None, help="Read candidate body from a file (overrides --body).")
+    sp.add_argument("--tags", default="", help="Comma-separated candidate tags (used by the overlap dedup check).")
+    sp.add_argument("--sources", type=int, default=1,
+                    help="Count of INDEPENDENT sources asserting the claim (the quorum; >=2 auto-files).")
+    sp.add_argument("--verified", action="store_true",
+                    help="Claim checked against ground truth (fs/code/test) -> verified tier, auto-files.")
+    sp.add_argument("--user-confirmed", action="store_true",
+                    help="A human confirmed the claim -> user_confirmed tier, auto-files.")
+    sp.add_argument("-k", type=int, default=5)
+
+    sp = sub.add_parser("schema-evolution",
+                        help="Report-only: recurring write-defect classes (lint/reject histogram) -> PROPOSED schema.md/template amendments (rule-of-three; human-approved, never auto-applied).")
+    sp.add_argument("--threshold", type=int, default=3,
+                    help="Min recurrences of a defect class before proposing an amendment (default 3).")
+
     args = p.parse_args(argv)
     root = Path(args.root).expanduser().resolve() if args.root else _cli_default_root()
     store = WikiStore(root)
@@ -3485,6 +3634,19 @@ def _cli_dispatch(args, store, root) -> int:
         _cli_print(store.calibration(high=args.high, low=args.low, stale_days=args.stale_days))
     elif args.cmd == "health":
         _cli_print(store.health())
+    elif args.cmd == "stale-citers":
+        _cli_print(store.stale_citers())
+    elif args.cmd == "quorum":
+        body = args.body
+        if args.body_file:
+            body = Path(args.body_file).expanduser().read_text(encoding="utf-8", errors="replace")
+        tags = [t.strip() for t in (args.tags or "").split(",") if t.strip()]
+        _cli_print(store.quorum(args.title, body=body, tags=tags,
+                                sources=args.sources, verified=args.verified,
+                                user_confirmed=args.user_confirmed, k=args.k))
+    elif args.cmd == "schema-evolution":
+        import schema_evolution as _se
+        return _se.main(["--root", str(root), "--threshold", str(args.threshold)])
     else:  # unreachable — argparse enforces choices
         p.error(f"unknown subcommand: {args.cmd}")
     return 0

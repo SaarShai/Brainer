@@ -335,3 +335,7 @@ The 2026-06-24 merge pushed main RED (`make check` exit 2). Root cause was TWO o
 
 Created `queries/memory-as-a-tool-validation.md` from `decision` template.
 
+## [2026-06-29] update | Adopting Karpathy LLM-Wiki compile-on-ingest
+
+Created `queries/llm-wiki-compile-on-ingest-adoptions.md` from `decision` template.
+

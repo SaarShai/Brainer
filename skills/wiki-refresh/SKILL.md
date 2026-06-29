@@ -90,6 +90,16 @@ When investigation (scan-surfaced or otherwise) finds a page that conflicts with
 
 These contradictions become durable graph state (not just sweep-time detection): retrieval keeps flagging the pair until an agent resolves it. (Dedup-at-write and store-discoverability are `wiki-memory`'s job, not repeated here.)
 
+## Propagate belief updates (after any supersession/contradiction edge)
+
+A `superseded-by`/`contradicts:` edge marks the *target* page — it does NOT ripple to the pages still citing it, which keep pointing readers at outdated knowledge. After wiring any such edge (or a Replace), run:
+
+```bash
+python3 skills/wiki-memory/tools/wiki.py --root wiki stale-citers
+```
+
+It returns `cites_superseded[]` (citer → old page → `newer[]`) and `cites_contested[]`. Repoint each citer's body link at the newer page, or add a "(superseded — see [[newer]])" note; for contested targets, ensure the citer doesn't assert the disputed claim as settled. Report-only — it never rewrites another page for you (invalidate-don't-delete). A clean `stale-citers` (count 0) is part of a finished reconcile.
+
 ## Execute
 
 1. Apply Keep (no-op) / Update / Consolidate directly when evidence is clear.

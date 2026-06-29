@@ -18,6 +18,7 @@ Compact pointers. Fetch details on demand.
 - projects/semdiff (project tags=semantic-diff,ast,context-compression) -> `projects/semdiff.md`
 - projects/wiki-search (project tags=retrieval,progressive-disclosure,mcp,wiki) -> `projects/wiki-search.md`
 - queries/external-validation (decision tags=decision,validation,loop-engineering,external-review) -> `queries/external-validation.md`
+- queries/llm-wiki-compile-on-ingest-adoptions (decision tags=decision,wiki-memory,ingest,provenance,quorum,paper) -> `queries/llm-wiki-compile-on-ingest-adoptions.md`
 - queries/memory-as-a-tool-validation (decision tags=decision,eval,memory,negative-result) -> `queries/memory-as-a-tool-validation.md`
 - queries/understand-anything-adoption-kept-2-3-4-dropped-1-5 (decision tags=decision,adoption,understand-anything,framework-hardening) -> `queries/understand-anything-adoption-kept-2-3-4-dropped-1-5.md`
 - patterns/blind-validation-for-classifiers (pattern tags=validation,eval,classifier,claim-grade,methodology,falsification) -> `patterns/blind-validation-for-classifiers.md`
