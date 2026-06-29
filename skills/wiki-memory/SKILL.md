@@ -168,6 +168,16 @@ python3 skills/wiki-memory/tools/wiki.py decay [--halflife-days D] [--apply]
 
 `decay`: time-based confidence aging (exponential, default half-life 405d; vendored from PROMPTER's memory-decay — `tools/decay.py`). Protection class skips `type: error|lesson|sop|procedure`, `protected: true`, `evidence_count ≥3`, `L0_rules.md`/`L3_sops/`/`raw/`. Dry-run by default. Run weekly/before audits, never per-prompt.
 
+## Schema-evolution (recurring failures → proposed rules)
+
+```bash
+python3 skills/wiki-memory/tools/wiki.py schema-evolution [--threshold N]
+```
+
+Karpathy's point that the human's *primary* lever is refining the **schema** (not editing pages), made autonomous. Instead of fixing the same defect page-by-page forever, a defect class that recurs ≥`--threshold` (default 3 — rule of three) becomes a **proposed amendment** to `schema.md` / the page templates (e.g. recurring `missing_trigger_cue` → "bake a Trigger/symptom line into the lesson template"). Signal = the wiki's own `lint --strict` warning histogram + an optional append-only reject log at `<root>/.brainer/schema_signals.jsonl`.
+
+**Report-only, human-gated by hard rule:** it NEVER edits `schema.md`. `schema.md` is a canonical contract co-owned by human + agent; the loop *proposes* (with evidence — count + target section), a human approves and applies. That gate is the schema-side analogue of `quorum` for facts and is why [`task-retrospective`](../task-retrospective/SKILL.md) likewise won't auto-edit canonical contracts. Run periodically (with `decay`/`wiki-refresh`), not per-prompt.
+
 ## Lint
 
 ```

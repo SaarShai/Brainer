@@ -84,6 +84,7 @@ UNIT_TESTS=(
   skills/wiki-memory/tools/test_lint_hygiene.py
   skills/wiki-memory/tools/test_provenance.py
   skills/wiki-memory/tools/test_belief_propagation.py
+  skills/wiki-memory/tools/test_schema_evolution.py
   skills/wiki-memory/tools/test_refresh.py
   skills/wiki-memory/tools/test_resolve.py
   skills/wiki-memory/tools/test_write_path_gate.py

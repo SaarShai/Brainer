@@ -3507,6 +3507,11 @@ def _cli_main(argv: list[str] | None = None) -> int:
                     help="A human confirmed the claim -> user_confirmed tier, auto-files.")
     sp.add_argument("-k", type=int, default=5)
 
+    sp = sub.add_parser("schema-evolution",
+                        help="Report-only: recurring write-defect classes (lint/reject histogram) -> PROPOSED schema.md/template amendments (rule-of-three; human-approved, never auto-applied).")
+    sp.add_argument("--threshold", type=int, default=3,
+                    help="Min recurrences of a defect class before proposing an amendment (default 3).")
+
     args = p.parse_args(argv)
     root = Path(args.root).expanduser().resolve() if args.root else _cli_default_root()
     store = WikiStore(root)
@@ -3639,6 +3644,9 @@ def _cli_dispatch(args, store, root) -> int:
         _cli_print(store.quorum(args.title, body=body, tags=tags,
                                 sources=args.sources, verified=args.verified,
                                 user_confirmed=args.user_confirmed, k=args.k))
+    elif args.cmd == "schema-evolution":
+        import schema_evolution as _se
+        return _se.main(["--root", str(root), "--threshold", str(args.threshold)])
     else:  # unreachable — argparse enforces choices
         p.error(f"unknown subcommand: {args.cmd}")
     return 0
