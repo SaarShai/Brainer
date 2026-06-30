@@ -58,6 +58,7 @@ Brainer should treat plans, context, delegation, and process artifacts as invent
 - [[L0_rules]]
 - [[concepts/caveman-output-compression]]
 - [[concepts/framework-hardening-adoption]]
+- [[concepts/when-to-extract-a-skill-md-section-into-tools]] — a lean-execution corollary: don't relocate a SKILL.md section to `tools/` unless it earns the extra file.
 
 ## Open Questions
 

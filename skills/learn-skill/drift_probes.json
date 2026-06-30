@@ -1,4 +1,4 @@
 [
   {"kind": "workflow_nomination", "id": "nominate", "min_tool_calls": 6,
-   "message": "a non-trivial multi-step workflow just completed (>=6 tool calls). If this procedure is REPEATABLE, capture it: `/learn how I just did this`. The /learn flow dedups (patch, don't duplicate) and gates the rationale through write-gate; the result is born `proposed` (slash-only, won't auto-fire) until usage earns promotion. Skip if this was a one-off."}
+   "message": "a non-trivial multi-step workflow just completed (>=6 tool calls). Two optional ways to learn from it: (1) if the PROCEDURE is REPEATABLE, capture it as a skill — `/learn how I just did this` (the /learn flow dedups (patch, don't duplicate) and gates the rationale through write-gate; the skill is born `proposed`, slash-only, won't auto-fire, until usage earns promotion); (2) if the TASK will recur or is worth a lesson, retrospect it — `/retro` (task-retrospective decides whether the lesson belongs in a wiki fact, a gate, a skill, or an always-on rule). Both advisory; skip if this was a one-off."}
 ]

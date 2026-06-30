@@ -139,7 +139,7 @@ Protocol:
 4. If no page, run `python skills/wiki-memory/tools/wiki.py new --template page --title "<title>" --domain "<domain>"`.
 5. Name new pages at domain/category level, not task-specific bug names.
 6. Fill v2 frontmatter completely.
-7. **Why-clause requirement (decisions / conventions):** the page body must contain at least one of `because …`, `so that …`, `to avoid …`, `in order to …`, `due to …`. (`since` is intentionally *not* accepted — it reads as temporal and was bypassing the gate; write a causal `because`/`in order to` instead. See `write_gate.py` `WHY_CLAUSES`.) Reasonless decisions are rejected by write-gate. Source: [codenamev/claude_memory](https://github.com/codenamev/claude_memory) (100% on a 100-case FEVER-derived test).
+7. **Why-clause requirement (decisions / conventions):** the page body must embed a causal why-clause — see [`write-gate`](../write-gate/SKILL.md) for the accepted phrases (note: `since` is *not* accepted — it reads as temporal and bypasses the gate; write a causal `because`/`in order to`). Reasonless decisions are rejected by write-gate.
 8. For procedures/failures, include when it applies and the exact prevention rule.
 8b. **Retrieval cue (the observable symptom).** For `error` / `lesson` / `sop` pages, add a body line naming the *observable signal* a future agent would pattern-match on — the symptom, not the topic:
     ```
@@ -194,15 +194,13 @@ Write-gate (two layers). Both are **procedure gates** — agent steps in the wri
 - `wiki/raw/` is immutable after creation (convention; not enforced by the write path).
 - No duplicate page without supersession.
 
-**Content gate** (run [`write-gate`](../write-gate/SKILL.md) before the write, per protocol step 3):
-- Candidate must score above the signal threshold (decisions / errors / architecture / code / numbers, minus filler / speculation).
-- Decisions and conventions must embed a why-clause.
+**Content gate** — run [`write-gate`](../write-gate/SKILL.md) before the write (protocol step 3): the candidate must clear write-gate's signal threshold and, if it is a decision/convention, embed a why-clause. (Scoring table + accepted why-phrases live there.)
 
 ## Aging & reconcile
 
 Once a page is in the wiki, two companions maintain it:
 - Page `confidence` and the `verified:` date carry staleness signal; `wiki-refresh` reconciles drifted pages against the codebase, and `lint --strict` flags pages whose `verified:` date is stale.
-- [`wiki-refresh`](../wiki-refresh/SKILL.md) reconciles pages against the *current codebase* (Keep/Update/Consolidate/Replace/Delete) and emits typed `contradicts:` edges. Drift signal: `python skills/wiki-memory/tools/wiki.py audit-refs [--code-root PATH]` lists pages whose cited code paths no longer exist. Run decay weekly (cheap), refresh monthly or after a refactor/rename (costs reads).
+- [`wiki-refresh`](../wiki-refresh/SKILL.md) reconciles pages against the *current codebase* (the Keep/Update/Consolidate/Replace/Delete decision is wiki-refresh's — not restated here) and emits typed `contradicts:` edges. Drift signal: `python skills/wiki-memory/tools/wiki.py audit-refs [--code-root PATH]` lists pages whose cited code paths no longer exist. Run decay weekly (cheap), refresh monthly or after a refactor/rename (costs reads).
 - **Belief-update propagation:** `python3 skills/wiki-memory/tools/wiki.py stale-citers` surfaces pages whose **body** cites a `superseded-by`/`contradicts:`-marked page — a supersession does NOT auto-ripple to its citers, so they keep pointing at outdated knowledge. Run it in [`wiki-refresh`](../wiki-refresh/SKILL.md) right after wiring any supersession/contradiction edge, then repoint each citer at the newer page (or note the dispute). Report-only: it never rewrites another page's body (invalidate-don't-delete; surface, don't silently mutate).
 
 ## Tier layout
@@ -243,7 +241,7 @@ When writing a new page, first run `graphify query "<topic>"` (or grep `graphify
 
 ## OKF interop & quality scans
 
-Grounded in a deep review of Google's Open Knowledge Format (OKF v0.1, `GoogleCloudPlatform/knowledge-catalog`). Our `page_id` already equals an OKF concept-id (path-minus-ext), so interop is a thin serializer; the higher-value adoptions are the eval-lens detectors our toolchain lacked.
+Grounded in a deep review of Google's Open Knowledge Format (OKF v0.1, `GoogleCloudPlatform/knowledge-catalog`). Our `page_id` already equals an OKF concept-id (path-minus-ext), so interop is a thin serializer; the higher-value adoptions are the eval-lens detectors our toolchain lacked. All report-only — run `health` first, drill into any non-zero count.
 
 ```
 python3 skills/wiki-memory/tools/wiki.py export-okf --out <dir>     # one-way publish to a conformant OKF bundle
@@ -284,6 +282,5 @@ tools/
 ├── config.py          # path + threshold defaults
 ├── tokens.py          # shared token estimator
 ├── wiki_mcp/          # optional MCP server
-├── test_lint_hygiene.py
-└── README.md
+└── test_lint_hygiene.py
 ```

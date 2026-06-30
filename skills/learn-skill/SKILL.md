@@ -137,7 +137,7 @@ write-gate; it is "trusted" only when telemetry clears the promotion gate.
 
 ## Related skills
 - [`write-gate`](../write-gate/SKILL.md) — the rationale gate (step 4).
-- [`task-retrospective`](../task-retrospective/SKILL.md) — learn from a task you *did*; `/learn` ingests a source you *point at*.
+- [`task-retrospective`](../task-retrospective/SKILL.md) — decides *what* to learn from a task you *did* and *which form* it takes; it calls `/learn` only when that form is a skill. `/learn` is the skill-authoring *mechanism* (it ingests a source you *point at*) — a different level, not a duplicate.
 - [`wiki-refresh`](../wiki-refresh/SKILL.md) — will re-check the `source:` field for staleness (deferred follow-up).
 - [`wiki-memory`](../wiki-memory/SKILL.md) — for durable *facts* rather than procedures.
 

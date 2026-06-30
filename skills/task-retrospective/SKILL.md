@@ -172,9 +172,9 @@ backend — prefer the lightest that fits: **drop > wiki page > skill > always-o
 
 1. **drop** — no durable write (most lessons end here).
 2. **wiki page** → [`wiki-memory`](../wiki-memory/SKILL.md) — a durable fact, lesson, SOP,
-   or checklist. One destination, several *shapes*: the wiki is internally tiered (L2 facts /
-   L3 SOPs), so pick the lightest shape that captures it — a one-off fact and a multi-step
-   SOP both land here, the wiki's tiers keep them apart.
+   or checklist. One destination, several *shapes*: the wiki is internally tiered, so pick
+   the lightest shape that captures it (see wiki-memory's tier layout) — a one-off fact and
+   a multi-step SOP both land here.
 3. **skill** → [`learn-skill`](../learn-skill/SKILL.md) (`/learn`) — a reusable *procedure*.
    Create-vs-update is `/learn`'s dedup decision (PATCH vs CREATE), not a separate target.
 4. **always-on rule** — project `AGENTS.md` / `CLAUDE.md` / `GEMINI.md`, only for broad
@@ -210,6 +210,8 @@ Canonical Brainer skill updates are not on this ladder.
 
 ### Destination 3 (skill) hands off to `/learn`
 
+**task-retrospective DECIDES WHAT to learn and routes it to the wisest FORM** (drop / wiki fact / gate / skill / always-on rule); [`/learn`](../learn-skill/SKILL.md) is the skill-authoring *mechanism* it calls only when the chosen form is a skill — a different level, not a duplicate.
+
 When — and ONLY when — the chosen destination is a skill, do not hand-write the
 `SKILL.md`. Hand the lesson to [`learn-skill`](../learn-skill/SKILL.md):
 
@@ -241,7 +243,7 @@ candidate lesson
 → route-probe: if procedure-shaped, test the skill (dest-3) gate before allowing a wiki page
 → run write-gate as content-quality filter
 → dedup/overlap check
-→ write/update target if accepted (for a wiki page, write the Trigger/symptom cue as a BODY line per wiki-memory step 8b, so the lesson is later findable by its symptom phrase via search — not in a frontmatter-only key, which search ignores)
+→ write/update target if accepted (for a wiki page, add the Trigger/symptom cue as a BODY line — see [`wiki-memory`](../wiki-memory/SKILL.md) step 8b — so the lesson is findable by its symptom phrase)
 → read back
 → append project log entry if the project wiki exists
 → include final persistence summary in the report
@@ -255,20 +257,7 @@ Task-retrospective owns:
 - what future trigger should re-fire it;
 - whether it belongs in memory, SOP, checklist, project-specific skill, or instructions.
 
-[`write-gate`](../write-gate/SKILL.md) owns candidate quality:
-
-- concrete enough;
-- evidence-backed;
-- causal why-clause for decisions/conventions;
-- not low-value recap fluff.
-
-If write-gate rejects, do not silently override it. Valid outcomes:
-
-1. revise with stronger evidence or a why-clause;
-2. drop the lesson;
-3. ask the user for explicit override.
-
-A user override is valid, but record it using [`write-gate`](../write-gate/SKILL.md)'s user-directed override fields: rejected gate, explicit user override, and the user's reason. No agent-only override.
+[`write-gate`](../write-gate/SKILL.md) owns candidate **quality** — concrete · evidence-backed · causal why-clause for decisions · not low-value recap — and the reject outcomes (revise / drop / ask the user). Don't restate or silently bypass it; a user override is recorded with write-gate's user-directed override fields (rejected gate, explicit override, the user's reason). No agent-only override.
 
 ## Report format
 
@@ -344,25 +333,7 @@ The wiki should not receive pass logs. Promote the rule, not the trace.
 
 ## Optional adversarial cross-check
 
-A self-audit shares the generator's blind spots. For high-stakes, hard-to-reverse, contested, or repeated-failure results, run a separate read-only verifier before banking lessons or shipping conclusions.
-
-Use the strongest available separation:
-
-| Orchestrator | Preferred verifier |
-|---|---|
-| Claude / Opus | GPT via Codex, or Gemini |
-| GPT / Codex | Claude / Opus, or Gemini |
-| Gemini / Antigravity | Claude or GPT |
-
-`python3 skills/_shared/model_roster.py --panel 3 --role verifier --exclude-lane <self>` resolves this table against what is actually installed on the host (codex · gemini · claude · ollama · glm) and renders the read-only dispatch, instead of assuming a fixed pair.
-
-Ask the verifier to judge, not edit:
-
-1. Does the result hold? Cite command/output or artifact evidence.
-2. What is the independent root cause of any failure?
-3. Is each proposed lesson correct and routed to the right project-owned target?
-
-A verifier refutation blocks the write until resolved. This is optional and cost-gated; do not run it for clean, low-risk retrospectives.
+A self-audit shares the generator's blind spots. For **high-stakes, hard-to-reverse, contested, or repeated-failure** results, run a separate read-only cross-vendor verifier before banking lessons — the mechanism (vendor separation, `model_roster.py --panel 3 --role verifier --exclude-lane <self>`, odd-N majority, refute-if-you-can) is [`verify-before-completion`](../verify-before-completion/SKILL.md#high-stakes-escalate-to-a-cross-vendor-verifier-inline-before-shipping)'s — the same gate, fired here at task-end. Ask it the usual two questions (does the result hold, with command/artifact evidence? what's the independent root cause of any failure?) plus the retrospective-specific one — **is each proposed lesson correct and routed to the right project-owned target?** A verifier refutation blocks the write until resolved. Optional and cost-gated; skip for clean, low-risk retrospectives.
 
 ## Measure tool
 

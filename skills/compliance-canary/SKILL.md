@@ -39,138 +39,26 @@ Probes are declared by each skill in `<.claude/skills>/<skill>/drift_probes.json
 
 ### Probe kinds (v1)
 
-#### `forbidden_regex`
+Each kind is the JSON shape an author writes in their skill's `drift_probes.json`. Full schema + per-field semantics for every kind: [`tools/PROBES.md`](tools/PROBES.md) (`hook.py`'s `DETECTORS` registry is the authoritative behavior).
 
-Pattern match on recent assistant text. Fires on first match in the message window.
+- **`forbidden_regex`** — regex on recent assistant text → style drift (pleasantries, fluff, "as an AI" hedges, emoji creep).
+- **`word_count_per_message`** — avg words/msg over a window → terseness drift (caveman-ultra creep, explanation bloat).
+- **`claim_without_evidence`** — a claim word with no verify-style tool call in recent history → [verify-before-completion](../verify-before-completion/SKILL.md) drift.
+- **`repeated_tool_error`** *(v1.7)* — a recurring `is_error` signature → a tool error the agent keeps re-triggering.
+- **`user_correction`** *(v1.7)* — current prompt matches a correction pattern → surface it so it isn't ignored (route the lesson through [write-gate](../write-gate/SKILL.md) only when persistence is explicitly selected).
+- **`trajectory_drift`** *(v1.8)* — session tool-error RATE over the tail → thrashing (retry loops, schema-mismatch storms).
+- **`prompt_intent`** *(v1.11)* — current prompt matches a governed situation → a PRE-TASK skill nudge (spontaneous Skill invocation is unreliable, so fire mechanically).
+- **`early_stop`** *(v1.11)* — last turn is a forward-looking promise with no tool/claim/question → the anti-early-stop reflex ([verify-before-completion](../verify-before-completion/SKILL.md)).
+- **`completion_without_closure`** *(v1.11)* — a terminal done-claim without asking the user to confirm closure → the self-close gate ([verify-before-completion](../verify-before-completion/SKILL.md)).
 
-```json
-{
-  "kind": "forbidden_regex",
-  "id": "filler-phrases",
-  "pattern": "(?i)\\b(certainly|absolutely|of course)\\b",
-  "message": "filler/pleasantry phrase detected — drop hedges, soft closings",
-  "severity": "warn"
-}
-```
+### Wrap-up learning nudges (`workflow_nomination`)
 
-Use for: style drift (caveman pleasantries, marketing fluff, "as an AI" hedges, emoji creep).
+At a wrap-up turn — the agent's last message reads as a completion claim, past a tool-call floor, with a substantive Edit/Write or a non-boilerplate Bash this window — the `workflow_nomination` probe fires a single ADVISORY nudge so a finished non-trivial workflow doesn't pass unlearned. (The detector kind lives in `hook.py`; the probe instance + message text are shipped by [`learn-skill`](../learn-skill/SKILL.md)'s `drift_probes.json`, so the nudge wording is maintained there, not here.) It suggests two routes, whichever fits:
 
-#### `word_count_per_message`
+- **`/learn`** — capture the workflow as a reusable skill ([learn-skill](../learn-skill/SKILL.md)); write-gate + dedup in the `/learn` flow decide whether it earns one.
+- **`/retro`** — retrospect the task when it's one that repeats or is worth learning from ([task-retrospective](../task-retrospective/SKILL.md)); it decides whether the lesson belongs in a wiki fact, a gate, a skill, or an always-on rule.
 
-Average words per assistant message over a sliding window. Fires when average exceeds threshold.
-
-```json
-{
-  "kind": "word_count_per_message",
-  "id": "word-creep",
-  "threshold": 120,
-  "window": 3,
-  "severity": "warn"
-}
-```
-
-Use for: terseness drift (caveman-ultra creep, explanation bloat).
-
-#### `claim_without_evidence`
-
-Looks for claim words in the last assistant message AND checks that a verification-style tool call appears in the recent tool-use history. Fires when claim present but evidence absent.
-
-```json
-{
-  "kind": "claim_without_evidence",
-  "id": "unverified-done",
-  "claim_pattern": "(?i)\\b(done|fixed|complete|passes|verified)\\b",
-  "verify_tools": ["Bash"],
-  "verify_keywords": ["test", "pytest", "make", "build", "check", "curl"],
-  "lookback_tool_uses": 5,
-  "severity": "warn"
-}
-```
-
-Use for: verify-before-completion drift (claiming success without running a check).
-
-#### `repeated_tool_error` *(v1.7)*
-
-Scans recent `is_error` tool_results (user-type events — invisible to the message detectors) for a recurring error signature. Added after transcript mining found one signature ("File has not been read yet") was 15 of 18 tool errors across 5 sessions.
-
-```json
-{
-  "kind": "repeated_tool_error",
-  "id": "edit-without-read",
-  "pattern": "File has not been read yet",
-  "min_count": 2,
-  "severity": "warn"
-}
-```
-
-Use for: any tool error the agent keeps re-triggering after the native error message failed to break the habit.
-
-#### `user_correction` *(v1.7)*
-
-Matches the user's CURRENT prompt (not the transcript) against correction patterns ("no, use X", "that's wrong", "I said …"). It surfaces the correction at the exact turn it lands; if task-retrospective is armed, record it as evidence, and if persistence is explicitly selected, route the lesson through write-gate. Lineage: BayramAnnakov/claude-reflect; ships in `wiki-memory/drift_probes.json`.
-
-```json
-{
-  "kind": "user_correction",
-  "id": "user-correction",
-  "pattern": "(?i)(?:^\\s*no[,. ]|don'?t use\\b|i said\\b|that'?s wrong)",
-  "severity": "warn"
-}
-```
-
-Use for: preventing corrections from being ignored without turning every correction into an automatic memory write.
-
-#### `trajectory_drift` *(v1.8)*
-
-Session-level tool-error RATE over the transcript tail (tool_use count vs `is_error` tool_results, same window). Catches error-loop drift that `repeated_tool_error` misses when each retry fails differently. Cheapest form of trajectory calibration (lineage: HTC, arXiv 2601.15778) — no model, no training. Ships default-on in `compliance-canary/drift_probes.json`.
-
-```json
-{
-  "kind": "trajectory_drift",
-  "id": "traj-error-rate",
-  "min_tool_calls": 8,
-  "max_error_rate": 0.25
-}
-```
-
-Use for: stop-and-reassess when the agent is thrashing (retry loops, wrong-cwd cascades, schema-mismatch storms). `min_tool_calls` guards cold starts.
-
-#### `prompt_intent` *(v1.11)*
-
-Same mechanism as `user_correction` (matches the CURRENT user prompt) but for a PRE-TASK nudge rather than a correction: a skill fires the moment the prompt describes the situation it governs — e.g. `loop-engineering` on a "build a self-correcting automation" or "spawn parallel agents" prompt, or `eval-gate` on "is this good enough / would this pass". Measured rationale: spontaneous Skill-tool invocation is unreliable (blind agents don't auto-load a skill even with a strong description), so a mechanical trigger beats hoping the model remembers. Ships in `loop-engineering/drift_probes.json` (loop-build + fleet-orchestration intent) and `eval-gate/drift_probes.json`.
-
-```json
-{
-  "kind": "prompt_intent",
-  "id": "loop-build-intent",
-  "pattern": "(?i)\\b(iterate|retry)\\b[^.?!]{0,30}\\buntil\\b",
-  "severity": "warn"
-}
-```
-
-#### `early_stop` *(v1.11)*
-
-Fires when the agent's LAST turn ended on a forward-looking PROMISE ("I'll now implement…", "let me start…") with no completion claim, no question, and no tool call that turn — it narrated the next step instead of doing it. Suppressed when the closing turn called a tool (work happened), reported completion (a legit "next steps" note), or asked the user a question (a legitimate pause). The anti-early-stop reflex; ships in `verify-before-completion/drift_probes.json`. Overridable: `pattern` (the promise), `done_pattern` (suppress on completion), `question_pattern` (suppress on a question).
-
-```json
-{
-  "kind": "early_stop",
-  "id": "early-stop-on-promise",
-  "severity": "warn"
-}
-```
-
-#### `completion_without_closure` *(v1.11)*
-
-The closure gate — mirror of `early_stop`. Fires when the agent's last turn makes a TERMINAL "whole task is finished" claim ("all done", "task is complete", "ready to ship") but does NOT ask the user to confirm closure — i.e. it self-closes. Suppressed when the message invites confirmation ("shall I close this?", "anything else?") or is only a mid-task milestone (the claim regex is tighter than `claim_without_evidence`'s, which fires on any sub-step "done"). Distinct from `claim_without_evidence` (that is about EVIDENCE; this fires even when verification ran, because a verified-done still must be offered to the user). Ships in `verify-before-completion/drift_probes.json`. Overridable: `claim_pattern` (terminal claim), `ask_pattern` (closure invite that suppresses).
-
-```json
-{
-  "kind": "completion_without_closure",
-  "id": "completion-without-closure",
-  "severity": "warn"
-}
-```
+Both are suggestions inside a `<system-reminder>` — the canary NEVER auto-runs `/learn` or `/retro`. They share the one wrap-up detector (one suppression/budget path) so the two never double-nag.
 
 ## Mechanism 2 — periodic re-anchor
 

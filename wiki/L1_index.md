@@ -54,5 +54,6 @@ Compact pointers. Fetch details on demand.
 - concepts/superpowers-skills (concept tags=skills,superpowers,agents,workflow) -> `concepts/superpowers-skills.md`
 - concepts/turboquant-kv-cache (concept tags=turboquant,kv-cache,llama-cpp,apple-silicon,gguf-stack) -> `concepts/turboquant-kv-cache.md`
 - concepts/unsloth-distill (concept tags=distillation,local-models) -> `concepts/unsloth-distill.md`
+- concepts/when-to-extract-a-skill-md-section-into-tools (concept tags=skills,authoring,refactor,extraction,bloat,lazy-load) -> `concepts/when-to-extract-a-skill-md-section-into-tools.md`
 - concepts/wiki-governance (concept tags=wiki,governance,schema) -> `concepts/wiki-governance.md`
 - concepts/write-gate-not-truth-filter (concept tags=eval-methodology,write-gate,provenance,memory-poisoning) -> `concepts/write-gate-not-truth-filter.md`

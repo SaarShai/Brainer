@@ -339,3 +339,7 @@ Created `queries/memory-as-a-tool-validation.md` from `decision` template.
 
 Created `queries/llm-wiki-compile-on-ingest-adoptions.md` from `decision` template.
 
+## [2026-06-30] update | When to extract a SKILL.md section into tools/
+
+Created `concepts/when-to-extract-a-skill-md-section-into-tools.md` from `page` template.
+

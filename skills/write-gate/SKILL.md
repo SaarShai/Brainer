@@ -30,7 +30,7 @@ Trigger phrases: "remember that …", "log this …", "add to memory", "record �
 
 ## What earns a memory (and which store)
 
-The gate is about *quality*; the *contract* is about shape. Record **corrections AND confirmed approaches alike**, each with the **why** it mattered. Don't store what the repo, the code graph, or chat history already records. **Update an existing note rather than creating a duplicate** (`wiki.py overlap` flags near-matches). **Delete a note that turns out wrong** — git is the archive; a falsified non-protected page is removed via [`wiki-refresh`](../wiki-refresh/SKILL.md)'s Delete outcome.
+The gate is about *quality*; the *contract* is about shape. Record **corrections AND confirmed approaches alike**, each with the **why** it mattered. Don't store what the repo, the code graph, or chat history already records. **Dedup-at-write** (update rather than duplicate) is [`wiki-memory`](../wiki-memory/SKILL.md)'s write-path job (`wiki.py overlap`), not restated here. **Delete a note that turns out wrong** — git is the archive; a falsified non-protected page is removed via [`wiki-refresh`](../wiki-refresh/SKILL.md)'s Delete outcome.
 
 Two stores, two shapes — don't conflate them:
 - **The cross-session memory dir** (`~/.claude/projects/<proj>/memory/`, harness-owned): **one fact per file**, with a **one-line summary at the top** (the frontmatter `description:`). Atomic by contract.

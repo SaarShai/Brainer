@@ -37,9 +37,11 @@ that can't silently come back. The floor rises on its own.
    copy-pasteable step") yields a score you can trust; a vague one ("is this
    good") doesn't. The judge inherits your taste only if you write it down.
 3. **Threshold** — the line below which nothing ships. Default `0.7`. The gate
-   only works if you never wave a 0.6 through because you liked it — and never
-   lower the threshold mid-run to turn a FAIL into a PASS. A threshold change
-   needs explicit sign-off; the ratchet only ever *raises* the floor.
+   only works if you never wave a 0.6 through because you liked it. Don't weaken
+   the gate to pass — the general rule + the human-sign-off requirement live in
+   [`verify-before-completion`](../verify-before-completion/SKILL.md); here that
+   means never lowering the threshold mid-run to flip a FAIL→PASS, and the ratchet
+   only ever *raises* the floor.
 
 ## CLI
 
@@ -118,10 +120,10 @@ fails *safe* — it never reports a pass it couldn't compute).
    as a vague one, so make it complete (covers the degenerate/edge cases that
    matter), not just specific.
 2. `score` at the point of shipping. Exit 1 → rework or kill; do not ship.
-   **Two-pass when a maker hands you a result:** score it once from the maker's
-   claims, then again from the artifact alone — any criterion that drops on the
-   second pass is a refuted claim → below the line (the cold-context catch a
-   self-grade structurally misses).
+   **When a maker hands you a result, run the two-pass refute check** — see
+   [`verify-before-completion`](../verify-before-completion/SKILL.md): a criterion
+   that drops when re-scored from the artifact alone is a refuted claim, below the
+   line (the cold-context catch a self-grade structurally misses).
 3. On any prompt / model / pipeline change, run `suite` against the baseline.
    A regression blocks until you've looked at which case dropped and why.
 4. Every time you (or a reviewer) catch a bad output, `add-case` it. The reason
