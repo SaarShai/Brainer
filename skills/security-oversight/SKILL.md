@@ -30,8 +30,8 @@ Both parse `git diff`, triage, and hand the high-risk list to
 **added lines** and flags introduced risk. It does **not** run tests, modify
 code, auto-fix, or block — it tells you (and a human) *what to look at*.
 
-Born **opt-in / untrusted** (`auto-install: false`, `status: proposed`): wire it
-deliberately, promote after it earns trust on real diffs.
+Ships **opt-in / untrusted** (`auto-install: false`, `status: proposed`) — enable it
+by hand; it graduates to default only after proving out on real security diffs.
 
 ## When to use
 
@@ -129,7 +129,7 @@ future enhancement may auto-corroborate via gitleaks/semgrep when present.)
 
 ## Output
 
-Structured `dict` (→ JSON with `--json`, or markdown by default). Top-level keys:
+Returns a `dict` — markdown by default, or JSON via `--json`. Top-level keys:
 `mode` (`lexical-triage`|`error`), `risk`, `summary`, `findings` (each: `class`,
 `severity`, `file`, `line`, `snippet`, `owasp`, `why`, `detector`, `verified`),
 `routed` (HIGH/MEDIUM), `review`, `scanners_available`, `recommendations`,

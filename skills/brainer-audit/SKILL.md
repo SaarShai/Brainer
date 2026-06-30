@@ -134,7 +134,7 @@ The sidecar records git status/diff signals and optional artifact/log folder met
 - [`tools/audit_session.py`](tools/audit_session.py) — opt-in start/status/finish marker tool for live collection.
 - [`tools/antigravity_sidecar.py`](tools/antigravity_sidecar.py) — lower-fidelity Antigravity sidecar snapshot CLI.
 - [`tools/watch_artifacts.py`](tools/watch_artifacts.py) — git/artifact sidecar helpers.
-- [`tools/hook.py`](tools/hook.py) / [`tools/hook.sh`](tools/hook.sh) — Claude/Codex command hook adapter.
+- [`tools/hook.py`](tools/hook.py) — Claude/Codex command hook adapter.
 - [`tools/install.sh`](tools/install.sh) — optional hook installer.
 - [`tools/normalize.py`](tools/normalize.py) — host payload normalizer.
 - [`tools/ingest_event.py`](tools/ingest_event.py) — append redacted normalized events to a fixture/event log.
