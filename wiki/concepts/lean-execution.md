@@ -61,6 +61,7 @@ Brainer should treat plans, context, delegation, and process artifacts as invent
 - [[concepts/when-to-extract-a-skill-md-section-into-tools]] — a lean-execution corollary: don't relocate a SKILL.md section to `tools/` unless it earns the extra file.
 - [[concepts/systematic-debugging-skill-measured-null]] — rule-of-three in practice: an article-inspired skill, A/B-tested, reverted for zero measured lift over baseline.
 - [[concepts/premortem-and-think-edits-measured]] — same discipline on a premortem skill + `/think` edits: one small measured win shipped, the rest rejected on evidence.
+- [[concepts/claude-skills-ecosystem-scan-2026-07]] — 32-item ecosystem scan: one capability adopted (skill pre-install auditor), rest already-have/out-of-scope; verify-before-relay caught a false "vaporware" claim.
 
 ## Open Questions
 

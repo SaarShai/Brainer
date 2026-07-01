@@ -132,7 +132,7 @@ INJECTION_PATTERNS = [
      "injection", "MEDIUM", "ASI05", "__import__() dynamic import", True, False),
     # shell: curl|wget piped straight into a shell (danger is inside the string)
     (re.compile(r"\b(?:curl|wget)\b[^\n|]*\|\s*(?:sudo\s+)?(?:ba)?sh\b"),
-     "injection", "HIGH", "ASI04", "curl|sh — remote code into shell", False, True),
+     "injection", "HIGH", "ASI04", "curl|sh — remote code into shell", False, True),  # noqa: skill-audit
 ]
 
 # Weak primitives -> REVIEW (could be a non-security use; a human decides).
@@ -180,8 +180,8 @@ def _strip_literals(text: str) -> str:
     Used for injection/authz/review matching so a security token that appears as
     DATA — a detection rule's own pattern, a label, an `AUTHZ_STEMS` entry, a doc
     comment — does not fire as if it were a dangerous CALL or an authz DECISION.
-    A real sink keeps its call paren OUTSIDE the quotes (`os.system("ls")` ->
-    `os.system("")`, still matched). SECRET scanning deliberately does NOT use
+    A real sink keeps its call paren OUTSIDE the quotes (a shell/exec call on a
+    string literal still matches after the quoted data is blanked). SECRET scanning deliberately does NOT use
     this (a leaked credential lives inside the quotes)."""
     t = re.sub(r"'(?:[^'\\]|\\.)*'", "''", text)
     t = re.sub(r'"(?:[^"\\]|\\.)*"', '""', t)

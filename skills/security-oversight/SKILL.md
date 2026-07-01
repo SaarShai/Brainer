@@ -1,6 +1,6 @@
 ---
 name: security-oversight
-description: "Use before committing or claiming work done to triage a code edit for INTRODUCED security risk — leaked secrets, dangerous sinks, untrusted dependencies, and security-sensitive logic that scanners can't judge. Trigger on \"is this safe to ship?\", \"did I leak a secret?\", \"any security issues with this change?\", \"did the agent introduce a vulnerability?\", or as the security gate in a generate→verify loop. Parses `git diff` added lines, classifies into 4 OWASP-anchored classes (secret/injection/supply_chain/authz), scores HIGH/MEDIUM/REVIEW, routes HIGH/MEDIUM to verify-before-completion and surfaces REVIEW for a human; detects reputable scanners (gitleaks/semgrep/osv-scanner) and recommends them for depth. Does NOT modify code, auto-fix, or block. Absence of a finding is NOT proof of safety. Also: /security-oversight."
+description: "Use before committing or claiming work done to triage a code edit for INTRODUCED security risk — leaked secrets, dangerous sinks, untrusted dependencies, and security-sensitive logic that scanners can't judge. Trigger on \"is this safe to ship?\", \"did I leak a secret?\", \"any security issues with this change?\", \"did the agent introduce a vulnerability?\", or as the security gate in a generate→verify loop. Parses `git diff` added lines, classifies into 4 OWASP-anchored classes (secret/injection/supply_chain/authz), scores HIGH/MEDIUM/REVIEW, routes HIGH/MEDIUM to verify-before-completion and surfaces REVIEW for a human; detects reputable scanners (gitleaks/semgrep/osv-scanner) and recommends them for depth. Does NOT modify code, auto-fix, or block. Absence of a finding is NOT proof of safety. Also audits a whole UNTRUSTED skill folder or repo before you install/vendor it (skill_audit.py → PASS/WARN/FAIL: prompt-injection in SKILL.md, dangerous scripts, exfiltration, symlink-escape, typosquat) — trigger on \"is this skill safe to install?\", \"audit this skill before I vendor it\". Also: /security-oversight."
 status: proposed
 effort: low
 tools: [Bash, Read]
@@ -127,6 +127,44 @@ reputable tools are installed (`gitleaks`, `trufflehog`, `semgrep`, `bandit`,
 the same way impact-of-change consumes graphify rather than rebuilding it. (A
 future enhancement may auto-corroborate via gitleaks/semgrep when present.)
 
+## Pre-install skill audit (`skill_audit.py`) — the other supply-chain axis
+
+The diff-scanner asks *"what did the agent introduce?"*. This asks *"is this
+third-party skill safe to install / vendor / trust?"* Brainer vendors external
+skills into siblings and adopts from a fast-moving ecosystem (Snyk: 13% of
+agent-skill packages ship critical flaws), so **vet a skill folder before trusting
+it** — with a **PASS / WARN / FAIL** verdict (exit 0/1/2):
+
+```bash
+python3 skills/security-oversight/tools/skill_audit.py <skill-dir>            # audit a local skill
+python3 skills/security-oversight/tools/skill_audit.py <skill-dir> --strict   # any HIGH -> FAIL
+python3 skills/security-oversight/tools/skill_audit.py --repo-url <git-url> [--skill NAME] [--json]
+```
+
+It walks the skill (pruning vendored `.venv`/`node_modules`) and flags:
+
+- **prompt_injection** — the **distinctive net-new check**: `SKILL.md` / `*.md`
+  prose that hijacks the agent (system-prompt override, role hijack, safety-bypass,
+  data-exfil instruction, hidden zero-width / HTML-comment directives). A skill body
+  **is** a prompt, so a malicious one attacks via text — which the code-focused
+  diff-scanner never inspects.
+- **code_exec / obfuscation** — `eval`/`exec`/`os.system`/`pickle`/`shell=True`/
+  `curl|sh` (reuses `security_scan.py`'s library) + base64/hex/chr payloads feeding
+  an evaluator.
+- **net_exfil + cred_harvest** — outbound network + credential-store reads; the two
+  in **one file** escalate to an **exfiltration CRITICAL**.
+- **priv_esc / fs_structure / supply_chain** — sudo/setuid/persistence writes;
+  **symlink escaping the skill dir**, bundled binaries, committed secret files;
+  typosquatted (Damerau-1) / unpinned deps.
+
+Tuned so **legit skills PASS** (a noisy gate gets ignored): dual-use patterns
+(reading env, base64, `pip install`) are MEDIUM, never a FAIL; CRITICAL is reserved
+for unambiguous malice (injection, exec, the exfil combo, symlink escape). It
+**never executes** the skill — clone-to-audit is static-only. Same soundness limit:
+a clean result means *"no obvious malicious pattern,"* never *"safe"* — read it
+yourself. `noqa: skill-audit` on a line/file suppresses a finding (so a skill that
+legitimately documents these patterns can be audited).
+
 ## Output
 
 Returns a `dict` — markdown by default, or JSON via `--json`. Top-level keys:
@@ -142,14 +180,25 @@ caveat), never a block.
 ```
 tools/
 ├── security_scan.py        # git diff added-lines → 4-class triage → severity → routing
-└── test_security_scan.py   # standalone S1–S10 probes (assert + exit 1), temp-git fixture
+├── test_security_scan.py   # standalone S1–S14 probes (assert + exit 1), temp-git fixture
+├── skill_audit.py          # walk an untrusted skill folder/repo → PASS/WARN/FAIL (pre-install)
+└── test_skill_audit.py     # standalone A1–A17 probes (malicious + benign-precision + dogfood)
 ```
 
 ## Tests
 
 ```bash
-python3 skills/security-oversight/tools/test_security_scan.py
+python3 skills/security-oversight/tools/test_security_scan.py   # diff scanner (S1–S14)
+python3 skills/security-oversight/tools/test_skill_audit.py     # skill auditor (A1–A17)
 ```
+
+`test_skill_audit.py` covers **A1–A17**: malicious detection (SKILL.md prompt-
+injection, code-exec, exfil combo, obfuscation, symlink-escape, typosquat, hidden
+HTML-comment, secret file, binary), **precision** (a realistic benign skill and
+injection-resembling prose must PASS — a noisy gate gets ignored), robustness
+(missing dir → ERROR never raises, JSON shape, caveat always present, `noqa`,
+`--strict`), and a **dogfood** self-clean check. Real-world: 23/24 Brainer skills
+PASS on their own audit (the one WARN is this skill's own test fixtures).
 
 Covers (S1–S14): **S1** secret (AWS key/credential → HIGH), **S2** injection
 (`eval(input)`=HIGH, clean=none), **S3** supply_chain (manifest → MEDIUM), **S4**
