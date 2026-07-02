@@ -1,0 +1,10 @@
+{"id": "pr-p1", "prompt": "push the latest skill fixes out to the sibling projects", "expect": "fire", "note": "direct"}
+{"id": "pr-p2", "prompt": "sync screenery with what we changed here today", "expect": "fire", "note": "named sibling"}
+{"id": "pr-p3", "prompt": "roll these updates out to the other repos when you're done", "expect": "fire", "note": "roll out phrasing"}
+{"id": "pr-p4", "prompt": "make sure the consumer projects pick up today's changes", "expect": "fire", "note": "paraphrase, no propagate/sync keywords"}
+{"id": "pr-p5", "prompt": "PROMPTER and farey-hecke should get the new classifier too", "expect": "fire", "note": "hard paraphrase — named siblings, implicit sync"}
+{"id": "pr-p6", "prompt": "propagate the brainer updates everywhere they're vendored", "expect": "fire", "note": "vendored phrasing"}
+{"id": "pr-n1", "prompt": "propagate the error up the call stack instead of swallowing it", "expect": "silent", "note": "code semantics bait"}
+{"id": "pr-n2", "prompt": "push the branch to origin and open a PR", "expect": "silent", "note": "git push bait"}
+{"id": "pr-n3", "prompt": "sync the database replicas before the failover test", "expect": "silent", "note": "db sync bait"}
+{"id": "pr-n4", "prompt": "copy this helper function into the utils module", "expect": "silent", "note": "intra-repo copy"}

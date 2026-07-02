@@ -1,0 +1,10 @@
+{"id": "wm-p1", "prompt": "have we dealt with hook path bugs before in this project?", "expect": "fire", "note": "have-we-done-X"}
+{"id": "wm-p2", "prompt": "what did we decide about adopting Obsidian, and why?", "expect": "fire", "note": "past decision + rationale"}
+{"id": "wm-p3", "prompt": "record this root cause somewhere a future session will find it", "expect": "fire", "note": "durable write ask"}
+{"id": "wm-p4", "prompt": "I feel like we solved something like this timezone issue a month ago — check before redoing it", "expect": "fire", "note": "paraphrase recall, no memory/wiki keywords"}
+{"id": "wm-p5", "prompt": "did we ever benchmark graphify against plain grep? what were the numbers?", "expect": "fire", "note": "project-history fact"}
+{"id": "wm-p6", "prompt": "why is the retry cap set to 3 here — was that deliberate?", "expect": "fire", "note": "hard paraphrase — decision archaeology"}
+{"id": "wm-n1", "prompt": "what's a wiki and how does MediaWiki store revisions?", "expect": "silent", "note": "general knowledge, keyword bait"}
+{"id": "wm-n2", "prompt": "edit the wiki-style FAQ page in docs/faq.md to add the new endpoint", "expect": "silent", "note": "repo doc edit, not memory"}
+{"id": "wm-n3", "prompt": "remember to add a TODO comment above that function", "expect": "silent", "note": "'remember' bait — code comment"}
+{"id": "wm-n4", "prompt": "search the web for agent memory frameworks and summarize", "expect": "silent", "note": "web research, not repo memory"}

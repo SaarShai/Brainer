@@ -1,0 +1,6 @@
+[
+  {"id": "atomic-capture", "weight": 1.0, "required": true, "description": "Every conjunct, question, and constraint in the user message got its own row in .brainer/ledger/<sid>.md; each item was captured atomically, not grouped or paraphrased away."},
+  {"id": "no-self-close", "weight": 1.0, "required": true, "description": "Completion was only claimed after a reconcile step that listed each open ledger item and included an explicit 'ok to close?' question to the user."},
+  {"id": "visible-file", "weight": 1.0, "required": false, "description": "The ledger file was actually Edited or Written in this session (not merely described as being updated); evidence is a tool call or quoted content in the transcript."},
+  {"id": "implicit-surfaced", "weight": 1.0, "required": false, "description": "Implicit asks (hints in prose, actions suggested but not stated directly) were surfaced for user confirmation, never silently acted on or dropped."}
+]

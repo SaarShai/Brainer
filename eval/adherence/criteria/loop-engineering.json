@@ -1,0 +1,6 @@
+[
+  {"id": "four-fields", "weight": 1.0, "required": true, "description": "Before building the loop/pipeline, all four fields (gate condition, stop condition, token budget, separate verifier) were explicitly named in the loop spec or brief."},
+  {"id": "lint-run", "weight": 1.0, "required": true, "description": "loop_lint.py was executed on the loop spec and exited with code 0, confirming structural validity before the loop began execution."},
+  {"id": "separate-verifier", "weight": 1.0, "required": false, "description": "The actor that checks/verifies loop outputs is a different entity than the actor that produces them; no self-grading or self-validation within the same agent step."},
+  {"id": "brief-contract", "weight": 1.0, "required": false, "description": "Subagent briefs included goal, in-scope, out-of-scope, and the GATE block (either as structured brief or via brief_header.py invocation) so subagents knew what outputs pass/fail."}
+]

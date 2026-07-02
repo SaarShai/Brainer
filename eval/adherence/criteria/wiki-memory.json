@@ -1,0 +1,6 @@
+[
+  {"id": "search-first", "weight": 1.0, "required": true, "description": "Before re-deriving any past-work, decision, or fact that might already exist in the wiki, wiki.py search (or L1_index read) was run and its results shown in the transcript."},
+  {"id": "progressive-retrieval", "weight": 1.0, "required": false, "description": "When retrieving existing wiki facts, the order followed search -> timeline -> fetch, with no more than 3 fetches before following the link graph or giving up."},
+  {"id": "citations", "weight": 1.0, "required": false, "description": "Facts cited from the wiki include page paths or IDs (wiki/<page>.md format) so a reader can verify the source."},
+  {"id": "gated-write", "weight": 1.0, "required": true, "description": "Any new wiki write ran overlap/dedup checks and write-gate (either explicitly via skill invocation or described in detail) BEFORE creating or updating a page."}
+]

@@ -1,0 +1,10 @@
+{"id": "rl-p1", "prompt": "fix the login bug, update the docs, and also can you check why CI is slow lately?", "expect": "fire", "note": "3 conjuncts + question"}
+{"id": "rl-p2", "prompt": "constraint: never use tabs in this repo. now refactor foo.py", "expect": "fire", "note": "constraint + ask"}
+{"id": "rl-p3", "prompt": "add auth to the endpoint — oh and the footer is broken on mobile", "expect": "fire", "note": "trailing implicit ask"}
+{"id": "rl-p4", "prompt": "couple of things: first rename the module, second the tests, and lastly send me the diff", "expect": "fire", "note": "paraphrase list, no imperative keywords"}
+{"id": "rl-p5", "prompt": "I prefer short PRs. split this change up. what's the safest order to land them?", "expect": "fire", "note": "preference + ask + question"}
+{"id": "rl-p6", "prompt": "the build is still red by the way", "expect": "fire", "note": "implicit ask embedded in prose"}
+{"id": "rl-n1", "prompt": "thanks, looks good", "expect": "silent", "note": "pure ack"}
+{"id": "rl-n2", "prompt": "go ahead", "expect": "silent", "note": "continuation"}
+{"id": "rl-n3", "prompt": "yes", "expect": "silent", "note": "answer"}
+{"id": "rl-n4", "prompt": "proceed with what you suggested", "expect": "silent", "note": "continuation phrase"}

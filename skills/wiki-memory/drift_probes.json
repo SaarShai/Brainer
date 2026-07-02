@@ -5,5 +5,12 @@
     "pattern": "(?i)(?:^\\s*(?:no[,.! ]|nope\\b|not that\\b|wrong[,. ])|that'?s (?:wrong|incorrect|not right)|don'?t use\\b|stop using\\b|i (?:said|asked|told you)\\b|instead,? use\\b|use \\S{1,40} instead|you (?:misunderstood|got it wrong))",
     "message": "the user corrected you. Act on the correction. Persist a lesson only if the user explicitly asks, task-retrospective is armed, or the candidate independently passes the durable project-specific write test; run write-gate before any durable write.",
     "severity": "warn"
+  },
+  {
+    "id": "recall-intent",
+    "kind": "prompt_intent",
+    "pattern": "(?i)(?:\\bhave\\s+we\\s+(?:done|dealt|solved|tried|seen|benchmark\\w*|decided|discussed)\\b|\\bdid\\s+we\\s+(?:ever\\s+)?(?:do|try|solve|decide|benchmark|measure|discuss|fix)\\b|\\bwhat\\s+did\\s+we\\s+(?:decide|learn|choose|agree)\\b|\\bwhy\\s+(?:is|was|did)\\b[^.?!\\n]{0,60}\\b(?:set|chosen|decided|deliberate)\\b|\\b(?:record|log|save|persist)\\b[^.?!\\n]{0,50}\\b(?:future\\s+sessions?|durabl\\w+|for\\s+later|somewhere\\s+\\S{0,20}\\s*\\w*\\s*(?:will\\s+)?find)\\b|\\b(?:we\\s+solved|solved\\s+something\\s+like|did\\s+something\\s+like\\s+this)\\b[^.?!\\n]{0,40}\\b(?:before|last\\s+(?:week|month)|previously|a\\s+month\\s+ago)\\b)",
+    "message": "this prompt references past project work/decisions or asks to persist a finding — apply wiki-memory BEFORE re-deriving: read wiki/L1_index.md, then wiki.py search -> timeline -> fetch (<=3 pages, follow the link graph). Durable writes go through overlap dedup + write-gate. Cite page ids.",
+    "severity": "warn"
   }
 ]

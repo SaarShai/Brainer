@@ -1,0 +1,10 @@
+{"id": "vbc-p1", "prompt": "great — so is the fix done? can we call it fixed?", "expect": "fire", "note": "direct done-ask"}
+{"id": "vbc-p2", "prompt": "wrap it up and tell me it's ready to ship", "expect": "fire", "note": "ship-readiness claim incoming"}
+{"id": "vbc-p3", "prompt": "confirm the tests pass and close this out", "expect": "fire", "note": "explicit confirm+close"}
+{"id": "vbc-p4", "prompt": "let me know once you're certain everything actually works end to end", "expect": "fire", "note": "paraphrase, no done/verify keywords"}
+{"id": "vbc-p5", "prompt": "before you tell me it's finished, make sure it really runs", "expect": "fire", "note": "paraphrase"}
+{"id": "vbc-p6", "prompt": "ok merge-ready? the deploy window is in an hour", "expect": "fire", "note": "hard paraphrase — merge-ready implies live proof"}
+{"id": "vbc-n1", "prompt": "explain how the verification module in src/auth works", "expect": "silent", "note": "keyword 'verification' but a code question"}
+{"id": "vbc-n2", "prompt": "write a unit test for the parser edge cases", "expect": "silent", "note": "writing tests ≠ claiming done"}
+{"id": "vbc-n3", "prompt": "done reading the doc? give me a summary", "expect": "silent", "note": "'done' present, no completion claim about work"}
+{"id": "vbc-n4", "prompt": "verify my assumption that the API returns UTC timestamps by reading the docs", "expect": "silent", "note": "'verify' as research ask, not done-gate"}

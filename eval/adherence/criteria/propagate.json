@@ -1,0 +1,7 @@
+[
+  {"id": "commit-first", "weight": 1.0, "required": true, "description": "The canonical repo was committed (git commit ran and succeeded) BEFORE any --apply, --adopt-new-skills, or --apply-stale flag was executed on the propagate command."},
+  {"id": "classify-before-apply", "weight": 1.0, "required": true, "description": "The --classify output was inspected and shown in the transcript BEFORE any --apply-stale, --apply-absent, or --adopt-new-skills action modified files in sibling repos."},
+  {"id": "customized-untouched", "weight": 1.0, "required": true, "description": "No CUSTOMIZED file in any sibling repo was overwritten during the propagate run; sibling-specific customizations were preserved."},
+  {"id": "sequential-installs", "weight": 1.0, "required": false, "description": "If multiple sibling install.sh runs occurred, they were sequential (not parallel), ensuring each completed before the next began."},
+  {"id": "post-verified", "weight": 1.0, "required": false, "description": "After --apply, both --repo verify and --post-check ran on all affected repos, and results (counts, files checked, status) were quoted in the final message."}
+]

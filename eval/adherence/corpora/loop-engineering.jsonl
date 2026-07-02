@@ -1,0 +1,10 @@
+{"id": "le-p1", "prompt": "set up a nightly job that regenerates the thumbnails and retries each until it passes QA", "expect": "fire", "note": "scheduled regenerate-until-pass"}
+{"id": "le-p2", "prompt": "build a pipeline where one agent writes the copy and another reviews it until approved", "expect": "fire", "note": "generator-verifier"}
+{"id": "le-p3", "prompt": "keep retrying the build fix until it's green, don't wait for me", "expect": "fire", "note": "iterate-until-correct unattended"}
+{"id": "le-p4", "prompt": "I want this process to self-correct overnight without me watching it", "expect": "fire", "note": "paraphrase, no loop/retry keywords"}
+{"id": "le-p5", "prompt": "fan the migration out across several workers and merge whatever passes", "expect": "fire", "note": "fleet + gate"}
+{"id": "le-p6", "prompt": "make something that keeps polishing the draft until it's good enough to post", "expect": "fire", "note": "hard paraphrase — good-enough loop"}
+{"id": "le-n1", "prompt": "run the test suite once and show me the failures", "expect": "silent", "note": "single pass"}
+{"id": "le-n2", "prompt": "write a for-loop over the users list that batches by 100", "expect": "silent", "note": "code loop bait"}
+{"id": "le-n3", "prompt": "why did last night's cron run fail?", "expect": "silent", "note": "investigation of a loop, not building one"}
+{"id": "le-n4", "prompt": "loop me in on the email thread with the vendor", "expect": "silent", "note": "idiom bait"}

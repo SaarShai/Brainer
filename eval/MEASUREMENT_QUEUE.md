@@ -46,6 +46,27 @@ investment on this evidence.** The actionable finding is instrumentation, not
 retrieval: run wiki searches as standalone commands (results then land in
 tool_results and become minable) — folded into queue item 4.
 
+**Adherence trigger baseline** (2026-07-01, `eval/adherence/trigger_suite.py`,
+5 skills × 10 adversarial cases; naive cold subjects, blind):
+- **Model self-invocation** (catalog-only): GLM-5.2 47/50, qwen3.6:35b 45/50.
+  Perfect on loop-engineering + propagate. Weakest: requirements-ledger 8/10
+  both subjects — misses are exactly implicit asks ("the build is still red")
+  and compound routing — validating that its guarantee rides on the HOOK's
+  unconditional mechanical capture, not on model recall. wiki-memory paraphrase
+  recall missed by the small subject (wm-p4→none).
+- **Probe path** (mechanical): 30/30 after this session's fixes (was 15/20+1
+  uncovered): propagate regex broadened (4 hard-paraphrase misses), loop-eng
+  generator-verifier phrasing branch added, wiki-memory gained a NEW
+  `recall-intent` prompt_intent probe covering the have-we-done-X /
+  record-for-future surface models miss.
+- verify-before-completion + requirements-ledger have NO prompt_intent by
+  design — they fire post-hoc on state (claim-time / every-substantive-turn).
+- **Continuous layer:** `scripts/adherence_watch.sh` cron (Mon 09:23) re-runs
+  the probe corpora + trends real-session probe fires weekly (loop spec
+  `adherence_watch.loop.md`, lint 0). Layer-3 fidelity criteria files live in
+  `eval/adherence/criteria/` (eval-gate per-criterion format); layer-3/4 runs
+  are queue items 1-3.
+
 **Per-repo usage mining caveat** (2026-07-01): grep sessions-touched conflates
 catalog mention with use (resident CLAUDE.md catalogs make every skill appear in
 ~15/15 sessions). Only true zero-signals: impact-of-change, security-oversight
