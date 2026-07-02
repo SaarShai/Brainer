@@ -138,6 +138,7 @@ def audit(repo: str | None = None) -> dict:
             "identical": identical,
             "differs": sorted(differs),
             "absent_count": len(absent),
+            "absent": sorted(absent),
             "sibling_only_skills": sorted(sib_skills - canon_skills),
         })
     return report
@@ -157,10 +158,16 @@ def main() -> int:
                     help="copy canonical HEAD over each STALE file (requires "
                          "--repo; CUSTOMIZED files are never touched; re-run the "
                          "sibling's install.sh + --repo verify afterwards)")
+    ap.add_argument("--apply-absent", action="store_true",
+                    help="copy canonical files the sibling lacks, ONLY inside "
+                         "skills the sibling already adopted (a wholly-absent "
+                         "skill dir is deliberate non-adoption — left alone). "
+                         "Requires --repo.")
     args = ap.parse_args()
-    if args.apply_stale and not args.repo:
-        print("--apply-stale requires --repo <sibling> (one deliberate sibling "
-              "at a time — installs write user-global settings)", file=sys.stderr)
+    if (args.apply_stale or args.apply_absent) and not args.repo:
+        print("--apply-stale/--apply-absent require --repo <sibling> (one "
+              "deliberate sibling at a time — installs write user-global "
+              "settings)", file=sys.stderr)
         return 2
     rep = audit(args.repo)
     if args.repo and not rep["siblings"]:
@@ -195,6 +202,23 @@ def main() -> int:
                           f"{s['repo']}. NOW: re-run {s['repo']}/install.sh, then "
                           f"verify with --repo {s['repo']} (topology hard-rule "
                           f"steps 3-4).")
+        if args.apply_absent and s.get("absent"):
+            sib = DOCS / s["repo"]
+            applied = 0
+            for f in s["absent"]:
+                rel = Path(f)
+                # skills/<file> rides with the skills/ tree itself; deeper paths
+                # require the sibling to have adopted that skill's dir.
+                skill_dir = sib / rel.parts[0] / rel.parts[1]
+                if len(rel.parts) > 2 and not skill_dir.is_dir():
+                    continue  # wholly-absent skill = deliberate non-adoption
+                (sib / rel).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(BRAINER / rel, sib / rel)
+                print(f"      added       {f}")
+                applied += 1
+            if applied:
+                print(f"\n  {applied} absent file(s) added to {s['repo']} "
+                      f"(inside already-adopted skills only).")
     return 0
 
 

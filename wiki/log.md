@@ -343,3 +343,5 @@ Created `queries/llm-wiki-compile-on-ingest-adoptions.md` from `decision` templa
 
 Created `concepts/when-to-extract-a-skill-md-section-into-tools.md` from `page` template.
 
+
+- 2026-07-01: sibling sync executed with new `--classify`/`--apply-stale`/`--apply-absent` (sibling_sync_audit.py): screenery-lean 244/247, product-images 246/247, farey-hecke 247/247, PROMPTER 246/247 identical; remaining DIFFERS are deliberate (generated HOOKS_MAP.md per repo; screenery loop-engineering + wiki-memory carry real local customizations -> manual-merge candidates). Classifier caught a sibling-local loop-engineering bullet a blind rsync would have clobbered.
