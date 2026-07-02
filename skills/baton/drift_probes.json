@@ -1,0 +1,5 @@
+[
+  {"kind": "prompt_intent", "id": "baton_handoff",
+   "pattern": "(?i)\\b(hand (this |it )?off|hand-?off|pick (this |it )?up (later|tomorrow)|pick up where (i|we) left off|pass (this |it |the rest )?to (another|a fresh|a new|the next) (agent|session|window|model)|continue (this )?(later|tomorrow|in a (new|fresh) session)|resume (this )?(later|tomorrow)|running (low|out) (on|of) context|wrap(ping)? up for (today|now|the day)|closing (this |the )?session)\\b",
+   "message": "handoff/resume intent detected. If work is IN FLIGHT: drop a baton — a verified handoff file in .brainer/baton/ (skills/baton/SKILL.md; Iron Rule: build State of Play from `git status`, never chat narrative). If PICKING UP: grab the newest with `ls -t .brainer/baton/`. Advisory — skip if the task is finished."}
+]

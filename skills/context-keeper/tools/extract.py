@@ -274,7 +274,44 @@ JSON:"""
     return {}
 
 
-def render_markdown(regex_out, llm_out, session_id, transcript_path):
+def git_snapshot(repo_root):
+    """Runtime repo truth at snapshot time — the Iron Rule (adopted 2026-07-01
+    from blader/baton): persisted state must reflect `git status`, never the
+    chat narrative. Fail-soft: any git error returns {} (hook must never
+    break), and a non-repo dir just skips the section."""
+    import subprocess
+    out = {}
+    def run(*args):
+        try:
+            r = subprocess.run(["git", "-C", str(repo_root), *args],
+                               capture_output=True, text=True, timeout=5)
+            return r.stdout.strip() if r.returncode == 0 else None
+        except Exception:
+            return None
+    branch = run("branch", "--show-current")
+    if branch is None:
+        return {}
+    out["branch"] = branch or "(detached)"
+    status = run("status", "--porcelain")
+    if status is not None:
+        lines = status.splitlines()
+        out["dirty"] = lines[:30]
+        out["dirty_count"] = len(lines)
+    head = run("log", "-1", "--format=%h %s")
+    if head:
+        out["head"] = head
+    return out
+
+
+# Section provenance (baton adoption 2026-07-01): tool-call-derived sections
+# are runtime truth; regex-over-narrative sections are claims the next reader
+# must not treat as verified. Rendered as a per-section tag.
+_VERIFIED_KEYS = {"files_created", "commands_run", "urls"}
+_ASSUMED_KEYS = {"user_goals", "numbers", "failed_attempts", "files_touched",
+                 "errors_seen"}
+
+
+def render_markdown(regex_out, llm_out, session_id, transcript_path, git_state=None):
     lines = [
         "---",
         "type: session-memory",
@@ -288,11 +325,32 @@ def render_markdown(regex_out, llm_out, session_id, transcript_path):
         "",
     ]
 
+    if git_state:
+        lines.append("## Repo state (verified at snapshot — Iron Rule)")
+        lines.append(f"- Branch: `{git_state.get('branch', '?')}`" +
+                     (f" — HEAD `{git_state['head']}`" if git_state.get("head") else ""))
+        dc = git_state.get("dirty_count", 0)
+        if dc:
+            lines.append(f"- Uncommitted ({dc} paths):")
+            lines.extend(f"  - `{ln}`" for ln in git_state.get("dirty", []))
+            if dc > len(git_state.get("dirty", [])):
+                lines.append(f"  - … +{dc - len(git_state['dirty'])} more")
+        else:
+            lines.append("- Working tree clean")
+        lines.append("- If the narrative below contradicts this section, "
+                     "THIS section wins — it is runtime truth, the rest is "
+                     "extracted narrative.")
+        lines.append("")
+
     conf_map = regex_out.get("_confidence", {})
 
     def section(title, items, fmt=lambda x, c: f"- {x}" + (f"  `{c:.2f}`" if c < 0.9 else ""),
                  section_key=None):
         if not items: return
+        if section_key in _VERIFIED_KEYS:
+            title += " (verified — from tool calls)"
+        elif section_key in _ASSUMED_KEYS:
+            title += " (assumed — narrative-derived, unverified)"
         lines.append(f"## {title}")
         kc = conf_map.get(section_key or "", {}) if section_key else {}
         for it in items:
@@ -444,9 +502,9 @@ def main():
     regex_out = regex_extract(events)
     llm_out = llm_extract(events, args.llm) if args.llm else {}
 
-    md = render_markdown(regex_out, llm_out, sid, args.transcript)
-
     repo_root = Path(os.environ.get("TOKEN_ECONOMY_ROOT", Path.cwd()))
+    git_state = git_snapshot(repo_root)
+    md = render_markdown(regex_out, llm_out, sid, args.transcript, git_state)
     if args.out:
         out_path = Path(args.out)
     else:
@@ -502,10 +560,16 @@ def main():
         f"(snapshot is lossy — some sections were capped/truncated)\n"
         if persisted < expected else ""
     )
+    git_line = (
+        f"  git (verified): {git_state.get('branch')}, "
+        f"{git_state.get('dirty_count', 0)} uncommitted paths\n"
+        if git_state else ""
+    )
     pointer = (
         style_block
         + f"[context-keeper] structured memory saved → {out_path}\n"
         f"  {n_files} files touched, {n_cmds} commands run, {n_errs} errors logged\n"
+        + git_line
         + degraded_line
         + (f"  goals: {'; '.join(goals)}\n" if goals else "")
         + f"  READ this file post-compact if prior context needed."

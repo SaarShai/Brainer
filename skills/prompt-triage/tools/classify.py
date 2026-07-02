@@ -411,6 +411,22 @@ def _validate_llm_result(obj: dict) -> dict | None:
     return obj
 
 
+# Per-agent acceptance gates (adopted 2026-07-01 from blader/arbitrage: "a
+# dispatch without acceptance criteria is malformed — codex returns 'done'
+# with red tests"). The gate names what the subagent's output must show
+# before the main model accepts it; the directive binds escalation to a
+# FAILED gate (observed), never to predicted difficulty. Keyed by agent —
+# every routable agent in _VALID_AGENTS except "none" must have an entry
+# (test-locked) so a routed directive always carries a gate.
+GATES = {
+    "wiki-note": "quote the changed wiki lines",
+    "quick-fix": "show the edited hunk; rerun the named check (lint/test) green",
+    "research-lite": "answer cites >=1 source URL",
+    "glm-executor": "output matches the requested shape; spot-check 2 items against input",
+    "general-purpose": "state what was verified and quote the check's output",
+}
+
+
 # Above this many chars, no cheap-route directive is ever emitted — not even
 # on an LLM verdict. A 7B classifier rated a 4k-char multi-objective
 # orchestration prompt "medium/research-lite" (2026-06-12); the cost asymmetry
@@ -609,15 +625,26 @@ def emit_context(prompt: str, use_ollama_fallback: bool = True) -> str:
     # Drop empty lean_context from the wire — pure noise when [].
     if not result.get("lean_context"):
         result.pop("lean_context", None)
+    # Every emitted directive carries its acceptance gate (arbitrage adoption
+    # 2026-07-01). Routed agents are guaranteed a GATES entry (test-locked).
+    result["gate"] = GATES.get(result.get("agent"),
+                               "state what was verified and quote the check's output")
     cls_json = json.dumps(result)
     # Directive trimmed 122→~70 tokens (2026-06-12 self-audit): the directive
     # is injected on EVERY routed prompt, so its own size is part of the
-    # skill's cost. One imperative line beats three paragraphs of rationale.
+    # skill's cost. 2026-07-01: +~40 tokens buy the arbitrage rules — gate
+    # check, two-strike ladder, observed-not-predicted — which close failure
+    # modes #1/#4 (no escalation policy) and the main model's "faster to do
+    # it myself" override.
     return (
         "⚡ [agents-triage] Task classified:\n"
         f"{cls_json}\n"
-        "Dispatch via the Task tool to this subagent+model and return its "
-        "result — skip deep thinking. Wrong call? User can resend with \"NO TRIAGE\"."
+        "Dispatch via the Task tool to this subagent+model — skip deep "
+        "thinking. Accept the result only if it passes `gate`. Escalate only "
+        "on OBSERVED failure, never predicted difficulty ('this needs my "
+        "judgment' is not a reason): on gate fail, retry ONCE with concrete "
+        "corrective feedback, then take over, salvaging the partial output. "
+        "Wrong call? User can resend with \"NO TRIAGE\"."
     )
 
 

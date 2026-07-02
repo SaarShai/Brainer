@@ -109,6 +109,24 @@ def test_high_confidence_simple_emits_directive():
     assert "agents-triage" in out and "haiku" in out, out[:200]
 
 
+def test_directive_carries_gate_and_two_strike_rules():
+    # arbitrage adoption 2026-07-01: every routed directive must carry (a) a
+    # per-agent acceptance gate, (b) the two-strike escalation ladder, (c) the
+    # observed-not-predicted anti-override rule.
+    import json as _json
+    out = emit_context("commit and push", use_ollama_fallback=False)
+    payload = _json.loads(out.splitlines()[1])
+    assert payload["gate"], payload
+    assert "hunk" in payload["gate"], payload  # quick-fix gate, not the default
+    assert "OBSERVED" in out and "retry ONCE" in out and "salvag" in out, out
+
+
+def test_every_routable_agent_has_a_gate():
+    from classify import GATES, _VALID_AGENTS
+    for agent in _VALID_AGENTS - {"none"}:
+        assert GATES.get(agent), f"no acceptance gate for routable agent {agent}"
+
+
 def test_bypass_flags():
     assert is_bypass("NO TRIAGE just do it")
     assert is_bypass("/opus think hard about this")

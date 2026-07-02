@@ -12,6 +12,11 @@ tools: [Bash, Read, Write]
 
 Parses the transcript JSONL, regex-extracts structured state (goals, files touched, commands, errors, numbers, URLs, failure signals). Optional LLM pass (local `gemma4:31b` by default, off by default in the hook) pulls out decisions and next-steps. Writes a terse markdown packet to `.brainer/sessions/<YYYY-MM-DD-HHMM>-<sid8>.md` and emits a multi-line pointer on the hook's stdout — Claude Code prepends that pointer to the compaction prompt so the summarizer references the checkpoint path.
 
+Two provenance rules (adopted 2026-07-01 from [blader/baton](https://github.com/blader/baton)):
+
+- **Iron Rule** — the snapshot opens with a *Repo state (verified at snapshot)* section captured by running `git branch --show-current` / `git status --porcelain` at PreCompact time. Runtime truth, not chat narrative; the section states that it wins over any contradicting narrative below. Fails soft outside a repo.
+- **Verified vs assumed** — tool-call-derived sections (files created, commands run, URLs) are tagged *verified*; regex-over-narrative sections (goals, numbers, errors, failure signals) are tagged *assumed — narrative-derived, unverified* so a post-compaction reader never mistakes an extracted claim for a checked fact.
+
 Measured on an 893-line transcript: 100 files, 40 commands, 30 errors logged in ~290 lines. See [`EVAL.md`](EVAL.md).
 
 ## Session archive (SessionEnd)

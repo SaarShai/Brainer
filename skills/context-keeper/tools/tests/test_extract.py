@@ -190,6 +190,36 @@ def test_loop_pass_memory_contract_extraction():
     assert any("optimistic_revision" in x for x in out.get("loop_next_actions", [])), out
 
 
+def test_git_snapshot_iron_rule_and_provenance_tags():
+    # baton adoption 2026-07-01: snapshot embeds runtime git truth (Iron Rule)
+    # and tags narrative-derived sections as assumed, tool-derived as verified.
+    from extract import git_snapshot, render_markdown
+
+    # A non-repo dir fails soft — {} and no section, never a crash.
+    empty = tempfile.mkdtemp()
+    assert git_snapshot(empty) == {}
+
+    # This test file lives in a git repo — snapshot must carry a branch.
+    gs = git_snapshot(Path(__file__).resolve().parents[4])
+    assert gs.get("branch"), gs
+
+    regex_out = {
+        "commands_run": ["pytest -x"], "numbers": ["17 tests"],
+        "_confidence": {"commands_run": {"pytest -x": 0.9},
+                        "numbers": {"17 tests": 0.6}},
+    }
+    md = render_markdown(regex_out, {}, "s" * 16, "/t.jsonl",
+                         git_state={"branch": "main", "dirty_count": 1,
+                                    "dirty": [" M a.py"], "head": "abc123 msg"})
+    assert "Repo state (verified at snapshot — Iron Rule)" in md, md
+    assert "THIS section wins" in md, md
+    assert "Commands run (verified — from tool calls)" in md, md
+    assert "Key numbers (assumed — narrative-derived, unverified)" in md, md
+    # git_state omitted (non-repo) → section absent, no crash.
+    md2 = render_markdown(regex_out, {}, "s" * 16, "/t.jsonl", git_state={})
+    assert "Repo state" not in md2
+
+
 def main():
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in fns:
