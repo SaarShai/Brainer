@@ -163,7 +163,38 @@ def main() -> int:
                          "skills the sibling already adopted (a wholly-absent "
                          "skill dir is deliberate non-adoption — left alone). "
                          "Requires --repo.")
+    ap.add_argument("--post-check", action="store_true",
+                    help="mechanical target-repo test after a propagation: "
+                         "byte-compile every .py under the sibling's skills/ "
+                         "(exit 1 on any failure). Requires --repo.")
     args = ap.parse_args()
+    if args.post_check and not args.repo:
+        print("--post-check requires --repo <sibling>", file=sys.stderr)
+        return 2
+    if args.post_check:
+        sib = DOCS / args.repo
+        if not is_sibling(sib):
+            print(f"no sibling repo named {args.repo!r}", file=sys.stderr)
+            return 2
+        import py_compile
+        failures = []
+        n = 0
+        for p in (sib / "skills").rglob("*.py"):
+            if any(part in SKIP for part in p.relative_to(sib).parts):
+                continue
+            n += 1
+            try:
+                py_compile.compile(str(p), doraise=True)
+            except py_compile.PyCompileError as exc:
+                failures.append(f"{p.relative_to(sib)}: {exc.msg.splitlines()[0]}")
+        if failures:
+            print(f"post-check FAIL: {len(failures)}/{n} .py files do not compile "
+                  f"in {args.repo}:")
+            for f in failures:
+                print(f"  {f}")
+            return 1
+        print(f"post-check OK: {n} .py files byte-compile clean in {args.repo}.")
+        return 0
     if (args.apply_stale or args.apply_absent) and not args.repo:
         print("--apply-stale/--apply-absent require --repo <sibling> (one "
               "deliberate sibling at a time — installs write user-global "

@@ -1,0 +1,9 @@
+[
+  {
+    "id": "propagate-intent",
+    "kind": "prompt_intent",
+    "pattern": "(?i)(?:\\b(?:propagat\\w+|sync\\w*|push(?:ing|ed)?|roll(?:ing)?\\s*out|fast[- ]?forward\\w*)\\b[^.?!\\n]{0,50}\\b(?:sibling|consumer|other|downstream)\\s+(?:repos?|projects?)\\b|\\bsibling\\s+(?:sync|repos?\\b[^.?!\\n]{0,20}\\b(?:sync\\w*|updat\\w+))|\\b(?:propagat\\w+|sync\\w*)\\b[^.?!\\n]{0,40}\\b(?:screenery|prompter|farey|product[- ]images)\\b)",
+    "message": "this prompt asks to propagate Brainer changes to sibling repos — apply the propagate skill: commit canonical FIRST, then per sibling (sequentially, never parallel): --classify -> --apply-stale --apply-absent -> sibling install.sh -> --repo verify -> --post-check + adjacent vendored tests. Never overwrite CUSTOMIZED files; flag them for manual merge.",
+    "severity": "warn"
+  }
+]
