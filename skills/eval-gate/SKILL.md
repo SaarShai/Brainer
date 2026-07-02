@@ -62,7 +62,18 @@ echo "$BAD_OUTPUT" | $EG add-case --cases cases.jsonl \
 
 # per-criterion rubric: judge each criterion PASS/FAIL -> a FAIL names WHICH one
 $EG score --criteria-file skills/eval-gate/tools/criteria.example.json --file draft.md
+
+# HIGH-STAKES: cross-vendor panel cross-check (odd N >= 3) on top of the single judge
+$EG score --rubric rubric.md --file draft.md --panel 3
 ```
+
+**`--panel N`** (high-stakes scores only — cost-gated like verify-before-completion's
+cross-vendor escalation): after the normal single-judge score, an odd-N cross-vendor
+panel (`skills/_shared/model_roster.py`, verifier role, refute-if-you-can) re-checks
+"does this output meet the rubric at ≥ threshold". Ship only on judge-PASS **+** panel
+majority; any disagreement exits 1 with per-member verdicts. Fewer than 2 reachable
+members → loud warning + single-judge fallback, never a fabricated quorum. Closes the
+same-model-judging hole for outputs that are hard to reverse.
 
 **Per-criterion mode** (`--criteria-file` / `--criteria-json`) turns one holistic
 `0-5` into a list of `{id, description, weight, required}` criteria judged

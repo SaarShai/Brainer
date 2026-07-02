@@ -91,6 +91,9 @@ WHY_TOKENS = (
     "expected", "instead", "rather than", "missing", "wrong", "hallucinat",
 )
 
+_MODEL_ROSTER = None
+_HOLDS_RE = re.compile(r"(?im)^\s*holds\s*:\s*(true|false)\b")
+
 
 # -------------------------- judge --------------------------------------------
 
@@ -362,6 +365,112 @@ def run_judge(task, candidate, rubric, backend, model, stub_score=None,
     return judge_ollama(model, task, candidate, rubric)
 
 
+# -------------------------- verifier panel -----------------------------------
+
+def _load_model_roster():
+    """Lazy import so score without --panel keeps the historical dependency path."""
+    global _MODEL_ROSTER
+    if _MODEL_ROSTER is None:
+        shared_dir = Path(__file__).resolve().parents[2] / "_shared"
+        if str(shared_dir) not in sys.path:
+            sys.path.insert(0, str(shared_dir))
+        import model_roster  # type: ignore
+        _MODEL_ROSTER = model_roster
+    return _MODEL_ROSTER
+
+
+def _panel_count(value):
+    try:
+        n = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError("--panel must be an odd integer >= 3")
+    if n < 3 or n % 2 == 0:
+        raise argparse.ArgumentTypeError("--panel must be an odd integer >= 3")
+    return n
+
+
+def _one_line(text, limit=700):
+    s = " ".join(str(text or "").split())
+    return s if len(s) <= limit else s[:limit - 15].rstrip() + " ...[truncated]"
+
+
+def _truncate_panel_text(text, limit=4000):
+    s = str(text or "")
+    return s if len(s) <= limit else s[:limit].rstrip() + "\n...[truncated]"
+
+
+def _score_summary(res, verdict, criteria):
+    if criteria:
+        bits = [
+            f"{c['id']}={'PASS' if c['pass'] else 'FAIL'}:{c['reason']}"
+            for c in res.get("criteria", [])
+        ]
+        return _one_line(
+            f"verdict={verdict} score_norm={round(res['score_norm'], 3)} "
+            f"blocking_criteria={res.get('blocking_criteria', [])} criteria={'; '.join(bits)}"
+        )
+    return _one_line(
+        f"score={res['score']}/5 score_norm={round(res['score'] / 5.0, 3)} "
+        f"verdict={verdict} reason={res['reason']}"
+    )
+
+
+def _panel_result_from_dispatch(member, raw_result):
+    result = dict(raw_result or {})
+    holds = result.get("holds")
+    if not isinstance(holds, bool):
+        m = _HOLDS_RE.search(result.get("raw", "") or "")
+        holds = (m.group(1).lower() == "true") if m else None
+    return {
+        "vendor": result.get("vendor") or getattr(member, "vendor", "unknown"),
+        "lane": result.get("lane") or getattr(member, "lane", "unknown"),
+        "ok": bool(result.get("ok")) and isinstance(holds, bool),
+        "holds": holds,
+        "findings": result.get("findings", ""),
+        "error": result.get("error", "" if isinstance(holds, bool) else "missing holds: true|false"),
+    }
+
+
+def _print_panel_verdicts(results):
+    print("eval-gate panel verdicts:", file=sys.stderr)
+    for r in results:
+        prefix = f"  [{r['lane']}] {r['vendor']}:"
+        if r["ok"]:
+            print(f"{prefix} holds={'true' if r['holds'] else 'false'}"
+                  + (f" — {r['findings']}" if r["findings"] else ""), file=sys.stderr)
+        else:
+            print(f"{prefix} no verdict"
+                  + (f" ({r['error']})" if r["error"] else ""), file=sys.stderr)
+
+
+def _run_verifier_panel(n, threshold, rubric_txt, candidate, score_summary):
+    roster_mod = _load_model_roster()
+    roster = roster_mod.detect_roster()
+    panel = roster_mod.pick_panel(roster, n)
+    claim = f"This output meets the rubric at >= {threshold}: {score_summary}"
+    brief = (
+        f"RUBRIC:\n{_truncate_panel_text(rubric_txt)}\n\n"
+        f"SCORED OUTPUT:\n{_truncate_panel_text(candidate)}"
+    )
+    results = []
+    for member in panel:
+        try:
+            raw_result = roster_mod.run_dispatch(member, "verifier", claim, brief)
+        except Exception as e:
+            raw_result = {"ok": False, "error": f"dispatch raised: {e}"}
+        results.append(_panel_result_from_dispatch(member, raw_result))
+    responders = [r for r in results if r["ok"]]
+    holds = sum(1 for r in responders if r["holds"] is True)
+    refutes = sum(1 for r in responders if r["holds"] is False)
+    return {
+        "requested": n,
+        "dispatched": len(panel),
+        "responders": responders,
+        "results": results,
+        "majority_holds": holds > refutes,
+    }
+
+
 # -------------------------- io helpers ---------------------------------------
 
 def _read_text(text, file):
@@ -492,7 +601,21 @@ def cmd_score(args):
             "blocking_criteria": blocking, "criteria": res["criteria"],
             "latency_ms": res["latency_ms"],
         }, indent=2))
-        return 0 if verdict == "pass" else 1
+        single_exit = 0 if verdict == "pass" else 1
+        if args.panel is None:
+            return single_exit
+        panel = _run_verifier_panel(
+            args.panel, args.threshold, rubric_txt, candidate, _score_summary(res, verdict, criteria)
+        )
+        responders = panel["responders"]
+        if len(responders) < 2:
+            print(f"panel degraded to single-judge (only {len(responders)} members reachable)",
+                  file=sys.stderr)
+            return single_exit
+        if single_exit != 0 or not panel["majority_holds"]:
+            _print_panel_verdicts(panel["results"])
+            return 1
+        return 0
     if res["score"] is None:
         print("eval-gate: judge returned no parseable score", file=sys.stderr)
         return 2
@@ -503,7 +626,21 @@ def cmd_score(args):
         "threshold": args.threshold, "verdict": verdict,
         "reason": res["reason"], "latency_ms": res["latency_ms"],
     }, indent=2))
-    return 0 if verdict == "pass" else 1
+    single_exit = 0 if verdict == "pass" else 1
+    if args.panel is None:
+        return single_exit
+    panel = _run_verifier_panel(
+        args.panel, args.threshold, rubric_txt, candidate, _score_summary(res, verdict, criteria)
+    )
+    responders = panel["responders"]
+    if len(responders) < 2:
+        print(f"panel degraded to single-judge (only {len(responders)} members reachable)",
+              file=sys.stderr)
+        return single_exit
+    if single_exit != 0 or not panel["majority_holds"]:
+        _print_panel_verdicts(panel["results"])
+        return 1
+    return 0
 
 
 def cmd_suite(args):
@@ -658,6 +795,8 @@ def main():
     ps = sub.add_parser("score", help="judge one output against a rubric")
     _add_judge_args(ps)
     _add_candidate_args(ps)
+    ps.add_argument("--panel", type=_panel_count, metavar="N",
+                    help="run an odd-N verifier panel after the normal score")
     ps.set_defaults(fn=cmd_score)
 
     pu = sub.add_parser("suite", help="judge a saved case-set vs a baseline (regression gate)")

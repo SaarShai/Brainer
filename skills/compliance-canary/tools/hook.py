@@ -938,6 +938,32 @@ LEDGER_STORE_CAP = 50      # hard cap on stored items (bound state-file size)
 LEDGER_SHOW_MAX = 8        # max items surfaced in one reminder
 LEDGER_TEXT_CAP = 140      # chars kept per remembered request
 
+# Harness-injected content is NOT user intent. Task-notifications, slash-command
+# transcripts, and system-reminders arrive on the UserPromptSubmit channel but
+# were not typed by the user — capturing them pollutes the ledger with
+# non-requests (observed live: background-agent notifications resurfacing as
+# "open user requests" every turn) and lets prompt_intent probes misfire on
+# notification text. STRIP the blocks and keep any user-authored remainder —
+# skipping the whole prompt would itself drop a real ask appended after a
+# local-command block (the exact failure the ledger exists to prevent).
+_HARNESS_BLOCK_RE = re.compile(
+    r"<(task-notification|local-command-caveat|local-command-stdout|"
+    r"local-command-stderr|command-name|command-message|command-args|"
+    r"system-reminder)>.*?</\1>",
+    re.S,
+)
+# An unterminated harness block (truncated notification) swallows the tail —
+# these two kinds are never followed by user-authored text.
+_HARNESS_OPEN_RE = re.compile(r"<(?:task-notification|system-reminder)>.*\Z", re.S)
+
+
+def strip_harness_injected(text: str) -> str:
+    """Remove harness-injected blocks; return the user-authored remainder."""
+    out = _HARNESS_BLOCK_RE.sub("", text or "")
+    out = _HARNESS_OPEN_RE.sub("", out)
+    return out.strip()
+
+
 # Pure acknowledgements / answers — not new trackable requests. Skipped.
 _LEDGER_TRIVIAL_RE = re.compile(
     r"(?i)^\s*(?:ok(?:ay)?|k|yes|yep|yeah|sure|got it|sounds good|thanks?(?: you)?|"
@@ -1367,6 +1393,9 @@ def main() -> int:
     ledger_action = "none"
     substantive_add_count = 0
     prompt_text = str(payload.get("prompt") or "")
+    # Ledger + prompt-scanning probes see only user-AUTHORED text; harness
+    # injections (task-notifications, command transcripts) are stripped.
+    prompt_text_user = strip_harness_injected(prompt_text)
 
     with state_lock(path):
         state = load_state(path)
@@ -1376,7 +1405,7 @@ def main() -> int:
         if is_new_session:
             state["session_started_iso"] = state["last_seen_iso"]
         ledger, closed_now, ledger_action = update_ledger(
-            state.get("request_ledger", []), prompt_text, turn)
+            state.get("request_ledger", []), prompt_text_user, turn)
         state["request_ledger"] = ledger
         if ledger_action == "add":
             state["substantive_add_count"] = _as_int(state.get("substantive_add_count"), 0) + 1
@@ -1467,7 +1496,7 @@ def main() -> int:
             try:
                 with probe_time_limit(PROBE_TIMEOUT_SECONDS):
                     fired = run_probes(probes, messages, tool_uses, suppressed, tool_errors,
-                                       user_prompt=str(payload.get("prompt") or ""),
+                                       user_prompt=prompt_text_user,
                                        traj_stats=traj)
             except _ProbeBudgetExceeded:
                 # A drift_probes regex blew the time budget (likely ReDoS). Skip
