@@ -345,3 +345,5 @@ Created `concepts/when-to-extract-a-skill-md-section-into-tools.md` from `page` 
 
 
 - 2026-07-01: sibling sync executed with new `--classify`/`--apply-stale`/`--apply-absent` (sibling_sync_audit.py): screenery-lean 244/247, product-images 246/247, farey-hecke 247/247, PROMPTER 246/247 identical; remaining DIFFERS are deliberate (generated HOOKS_MAP.md per repo; screenery loop-engineering + wiki-memory carry real local customizations -> manual-merge candidates). Classifier caught a sibling-local loop-engineering bullet a blind rsync would have clobbered.
+
+- 2026-07-01: propagate skill (v1.14) — new-skill auto-adoption + line-level CUSTOMIZED classifier. Validated by adopting `propagate` itself into all 4 siblings (24 skills each, new-sk 0, post-check green). Classifier blind-spot fixed: screenery wiki-memory was false-CUSTOMIZED (mix of synced+unsynced canonical sections, no local lines) -> now correctly STALE + fast-forwarded. Genuine local remaining: screenery loop-engineering "Main thread keeps the artifact moving" bullet (kept, manual-merge/upstream decision pending); HOOKS_MAP.md CUSTOMIZED per-repo by design.
