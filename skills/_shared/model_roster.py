@@ -181,14 +181,19 @@ def _run_glm(prompt: str, *, timeout: float, model: str = "glm-5.2",
 # (`prefer_transport`) to consolidate everything behind one provider. The verifier
 # gate logic is unchanged either way — OpenRouter is wire, not judgment.
 
-# Default production slugs per lane (real ids from the live catalog; override with
-# env OPENROUTER_MODEL_<LANE>, e.g. OPENROUTER_MODEL_GPT). Mid-tier, chat-capable,
-# non-image/-codex variants — a panel member, not a flagship spend.
+# Default production slugs per lane (override with env OPENROUTER_MODEL_<LANE>,
+# e.g. OPENROUTER_MODEL_GPT). Mid-tier, chat-capable, non-image/-codex variants —
+# a panel member, not a flagship spend. These names ROT (see
+# skills/_shared/ORCHESTRATION.md): re-verify against the live catalog when
+# touching this file —
+#   curl -s https://openrouter.ai/api/v1/models | python3 -c \
+#     "import json,sys;print([m['id'] for m in json.load(sys.stdin)['data']])"
+# Last verified against the live catalog: 2026-07-01.
 _OPENROUTER_SLUGS = {
-    LANE_GPT: "openai/gpt-5-mini",
-    LANE_GEMINI: "google/gemini-3-flash-preview",
+    LANE_GPT: "openai/gpt-5.4-mini",
+    LANE_GEMINI: "google/gemini-3.5-flash",
     LANE_CLAUDE: "anthropic/claude-haiku-4.5",
-    LANE_GLM: "z-ai/glm-4.6",
+    LANE_GLM: "z-ai/glm-5.2",
 }
 # Lanes OpenRouter is allowed to provide. LOCAL is deliberately excluded: the
 # ollama lane is the on-box SURVIVOR backstop against the proxy being a single

@@ -31,7 +31,7 @@ Do not claim:
 
 When fixing a bug, investigate before editing: reproduce it, read the whole error and stack trace, change one thing at a time. Don't add a guard for a failure whose root cause you haven't located — a null-check over an unexplained null just moves the bug somewhere quieter.
 
-When dispatching verification to a subagent: mid-tier model (sonnet-class) with read-only tools is the default — verifying is cheaper than making; escalate only when the artifact demands frontier reasoning.
+When dispatching verification to a subagent: a mid-tier model with read-only tools is the default — verifying is cheaper than making; escalate only when the artifact demands frontier reasoning. Resolve the tier per [`skills/_shared/ORCHESTRATION.md`](../_shared/ORCHESTRATION.md) (newest in-host model of that tier, or a clearly-better reachable cross-API lane).
 
 If verification is impossible, say what was not verified and why.
 

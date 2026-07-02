@@ -33,6 +33,7 @@ Compact pointers. Fetch details on demand.
 - concepts/brainer-multi-repo-topology (concept tags=sibling-sync,propagation,multi-repo,topology,install,hard-rule) -> `concepts/brainer-multi-repo-topology.md`
 - concepts/caveman-compress-session-files (concept tags=caveman,startup,compression) -> `concepts/caveman-compress-session-files.md`
 - concepts/caveman-output-compression (concept tags=caveman,output-compression,style) -> `concepts/caveman-output-compression.md`
+- concepts/claude-skills-ecosystem-scan-2026-07 (concept tags=skills,ecosystem,adoption,security,supply-chain,review,negative-result) -> `concepts/claude-skills-ecosystem-scan-2026-07.md`
 - concepts/cross-model-ollama-eval-gotchas (concept tags=eval-methodology,ollama,local-models,cross-model) -> `concepts/cross-model-ollama-eval-gotchas.md`
 - concepts/demote-vs-description-tax (concept tags=eval-methodology,skills,description-tax,cost) -> `concepts/demote-vs-description-tax.md`
 - concepts/devices-inventory (concept tags=infra,devices,inventory,compute) -> `concepts/devices-inventory.md`
@@ -46,12 +47,14 @@ Compact pointers. Fetch details on demand.
 - concepts/measure-triggers-by-decision-marker (concept tags=eval-methodology,triggers,measurement) -> `concepts/measure-triggers-by-decision-marker.md`
 - concepts/optimization-axes (concept tags=framework,categorization,meta) -> `concepts/optimization-axes.md`
 - concepts/prefix-caching (concept tags=prompt-caching,cost) -> `concepts/prefix-caching.md`
+- concepts/premortem-and-think-edits-measured (concept tags=skills,premortem,think,eval,ab-test,over-warning,sycophancy,negative-result,calibration) -> `concepts/premortem-and-think-edits-measured.md`
 - concepts/progressive-retrieval (concept tags=retrieval,progressive-disclosure,wiki,memory,synthesis) -> `concepts/progressive-retrieval.md`
 - concepts/recurring-defect-classes (concept tags=bugs,regex,frontmatter,installer,tests,perf,hardening) -> `concepts/recurring-defect-classes.md`
 - concepts/semantic-diff-edits (concept tags=semantic-diff,ast,context-compression,code-editing) -> `concepts/semantic-diff-edits.md`
 - concepts/speculative-decoding (concept tags=decoding,throughput) -> `concepts/speculative-decoding.md`
 - concepts/structured-outputs (concept tags=structured-outputs,tokens) -> `concepts/structured-outputs.md`
 - concepts/superpowers-skills (concept tags=skills,superpowers,agents,workflow) -> `concepts/superpowers-skills.md`
+- concepts/systematic-debugging-skill-measured-null (concept tags=skills,debugging,eval,ab-test,negative-result,redundancy,rule-of-three) -> `concepts/systematic-debugging-skill-measured-null.md`
 - concepts/turboquant-kv-cache (concept tags=turboquant,kv-cache,llama-cpp,apple-silicon,gguf-stack) -> `concepts/turboquant-kv-cache.md`
 - concepts/unsloth-distill (concept tags=distillation,local-models) -> `concepts/unsloth-distill.md`
 - concepts/when-to-extract-a-skill-md-section-into-tools (concept tags=skills,authoring,refactor,extraction,bloat,lazy-load) -> `concepts/when-to-extract-a-skill-md-section-into-tools.md`

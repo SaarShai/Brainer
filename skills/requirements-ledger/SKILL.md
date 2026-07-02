@@ -1,6 +1,6 @@
 ---
 name: requirements-ledger
-description: Use whenever the user states anything carrying intent — an ask, a question, a constraint, a preference, a compound "do X, Y, and Z" (one row per conjunct), or an implicit ask embedded in prose. Maintains a USER-VISIBLE markdown ledger as the hard source of truth so nothing the user said is ever silently dropped; mirrors open items into the native task list on Claude Code; reconciles every item and ASKS before closing. Fires on every substantive user turn and before any completion claim.
+description: Use whenever the user states anything carrying intent — an ask, a question, a constraint, a preference, a compound "do X, Y, and Z" (one row per conjunct), or an implicit ask embedded in prose. Maintains a USER-VISIBLE markdown ledger as the hard source of truth so nothing the user said is ever silently dropped; reconciles every item and ASKS before closing. Fires on every substantive user turn and before any completion claim.
 effort: medium
 tools: [Read, Edit, Write, TaskCreate, TaskUpdate, TaskList]
 auto-install: true

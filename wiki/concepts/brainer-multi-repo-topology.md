@@ -7,8 +7,8 @@ domain: "framework"
 tier: semantic
 confidence: 0.8
 created: "2026-06-27"
-updated: "2026-06-27"
-verified: "2026-06-27"
+updated: "2026-07-01"
+verified: "2026-07-01"
 sources: ["log.md", "scripts/sibling_sync_audit.py"]
 resource: scripts/sibling_sync_audit.py
 supersedes: []
@@ -29,7 +29,12 @@ FORKED.
 - **Never** blind `rsync skills/` across siblings, **because** each fork carries
   sibling-local customizations a blind copy would clobber.
 - Propagate **deliberately, per-file** (git-archaeology each file as
-  stale-vs-customized) **so that** sibling-local work survives.
+  stale-vs-customized) **so that** sibling-local work survives. That
+  archaeology is now mechanized: `sibling_sync_audit.py --classify` byte-matches
+  each DIFFERS file against every historical canonical version — a match means
+  STALE (safe fast-forward), no match means CUSTOMIZED (manual merge);
+  `--repo <name> --apply-stale` fast-forwards only the STALE set (added
+  2026-07-01).
 - After any sync, **re-run the sibling's own `install.sh`** **in order to**
   rewire that host's carriers/hooks (install writes the user-GLOBAL
   `~/.claude/settings.json`, so sibling installs run sequentially, never in

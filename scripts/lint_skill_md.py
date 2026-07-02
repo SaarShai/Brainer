@@ -22,6 +22,10 @@ except ImportError:  # pragma: no cover - exercised only on hosts without PyYAML
     yaml = None  # type: ignore
 
 DESC_MAX = 1536
+# Descriptions are ALWAYS resident in agent context (per SKILLS_INDEX.md) — a
+# long one is a permanent token tax across every host and consumer repo. The
+# 2026-07 pass compressed the 9 worst (62-153 words) to <=~90; warn past 100.
+DESC_MAX_WORDS = 100
 REQUIRED_FIELDS = ("name", "description")
 TRIGGER_HINTS = (
     "use when", "use on", "use at", "use for", "use whenever", "use before", "use after", "use opt-in",
@@ -88,6 +92,10 @@ def lint_one(path: Path) -> list[str]:
     desc = fm.get("description", "")
     if len(desc) > DESC_MAX:
         issues.append(f"description {len(desc)} chars > {DESC_MAX} cap")
+    n_words = len(desc.split())
+    if n_words > DESC_MAX_WORDS:
+        issues.append(f"description {n_words} words > {DESC_MAX_WORDS} — "
+                      "resident-context tax; move detail into the body")
     desc_lc = desc.lower()
     # Slash-only skills (`disable-model-invocation: true`) trigger on the literal
     # token, not description-matching — they don't need trigger keywords.

@@ -64,7 +64,7 @@ Bootstrap once per project: `python3 skills/wiki-memory/tools/wiki.py init && gr
 - **Lean execution**: smallest reversible action.
 - **Verify before claiming done**.
 - **Retrieve before reasoning** about project/wiki facts — prefer `graphify explain` for code questions, `wiki-memory` for decision questions.
-- **Use cheapest capable worker**; keep main context clean.
+- **Use cheapest capable worker**; keep main context clean. Dispatch speaks in capability **tiers**, resolved to the newest in-host (or clearly-better reachable) model at dispatch time — doctrine in [`_shared/ORCHESTRATION.md`](_shared/ORCHESTRATION.md).
 
 Stacking, anti-patterns, and workload guidance live in [`eval/FINDINGS.md`](../eval/FINDINGS.md) — not always-loaded; read once when installing or tuning the catalog.
 

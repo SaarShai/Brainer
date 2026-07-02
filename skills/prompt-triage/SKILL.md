@@ -21,7 +21,7 @@ Heavy default model (opus, high-effort) burns tokens deciding what model a task 
 - **Ollama fallback** (<1.5s) — local small model classifies if regex uncertain. Model auto-resolves from installed tags (preference order in `PREFERRED_MODELS`; pin with `AGENTS_TRIAGE_OLLAMA_MODEL`). First call of a session may miss while the model cold-loads (`keep_alive=2h` keeps it warm after).
 - **Fail-closed** — a prompt carrying complex-work hints with no LLM available defers to the main model; no directive is emitted below 0.7 confidence.
 - **Context guard** (0ms) — prompts referencing the current session/conversation ("what we built", "this suite") get NO directive: a fresh subagent cannot see chat history, so any verdict just forces the main model to evaluate-and-override.
-- **Platform models only** — routing targets are in-platform small models (haiku/sonnet in Claude Code). Never out-of-platform local models; those are for explicit manual dispatch.
+- **Routing targets** — in-platform small models (haiku/sonnet tiers in Claude Code) plus `glm-executor` (GLM via z.ai) for bounded, self-contained content tasks only (summarize / classify / extract / rewrite over supplied content — cheap, 1M ctx, but blind to chat history). Local Ollama models are never auto-routed; manual dispatch only.
 
 Outputs JSON + directive block appended to context:
 
@@ -34,6 +34,8 @@ Outputs JSON + directive block appended to context:
  "lean_context": [...]}
 ```
 
+Model fields (`haiku|sonnet|opus`) are Claude Code **tier aliases** — the host resolves them to its newest model of each tier. On other hosts, map them to that host's tier equivalents per [`skills/_shared/ORCHESTRATION.md`](../_shared/ORCHESTRATION.md).
+
 ### Layer 2: main model sees directive, dispatches
 
 Main model reads `⚡ [prompt-triage] ...` block → emits `Task(subagent_type, model, prompt)` immediately. Minimal thinking because the directive already specifies what to do.
@@ -42,9 +44,10 @@ Full opus bypass isn't possible (the host always routes through main), but the d
 
 ### Layer 3: specialized subagents
 
-Five bundled agents, each minimal-context:
+Six bundled agents, each minimal-context:
 - **wiki-note** (haiku) — repo-local wiki edits only.
 - **quick-fix** (haiku) — small scoped edits, one Bash verify max.
+- **glm-executor** (haiku coordinator) — bounded summarize/classify/extract/rewrite over supplied content, routed to GLM via z.ai. Triage routes here for self-contained content tasks, especially large-input ones.
 - **local-ollama** (haiku coordinator) — shells out to local Ollama models. Manual dispatch only — triage never routes here (2026-06-12 policy).
 - **research-lite** (haiku) — ≤5 web calls, ≤800-word output.
 - **kaggle-feeder** (haiku) — archived Kaggle eval pipeline maintainer.
@@ -91,6 +94,7 @@ tools/
 └── agents/
     ├── wiki-note.md
     ├── quick-fix.md
+    ├── glm-executor.md
     ├── local-ollama.md
     ├── research-lite.md
     └── kaggle-feeder.md

@@ -1,6 +1,6 @@
 ---
 name: impact-of-change
-description: "Use before committing or claiming work done to map a code edit to its blast radius — which symbols depend on the changed ones, plus a LOW/MEDIUM/HIGH risk score. Trigger on \"what breaks if I change this?\", \"who calls this function?\", \"what's the impact of this edit?\", \"is this change safe to ship?\", or as the pre-commit gate in a generate→verify loop. Parses `git diff` for changed symbols, queries graphify's CALLS edges for inbound dependents (depth<=3), and degrades to a labelled lexical grep when graphify is absent. Does NOT run tests or modify code — it tells verify-before-completion WHAT to verify. Forward impact only (no dead-symbol detection). Also: /impact-of-change."
+description: "Use before committing or claiming work done to map a code edit to its blast radius — which symbols depend on the changed ones, plus a LOW/MEDIUM/HIGH risk score. Trigger on \"what breaks if I change this?\", \"who calls this?\", \"is this safe to ship?\", or as the pre-commit gate in a generate→verify loop. Uses graphify's call graph when present, labelled lexical grep otherwise; tells verify-before-completion WHAT to verify. Also: /impact-of-change."
 status: proposed
 effort: low
 tools: [Bash, Read]

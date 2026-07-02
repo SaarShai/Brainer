@@ -30,12 +30,26 @@ Usage:
   python3 scripts/sibling_sync_audit.py --files    # list every DIFFERS file
   python3 scripts/sibling_sync_audit.py --repo X   # only sibling X (post-propagate verify)
   python3 scripts/sibling_sync_audit.py --json
+  python3 scripts/sibling_sync_audit.py --classify           # DIFFERS -> STALE vs CUSTOMIZED
+  python3 scripts/sibling_sync_audit.py --repo X --apply-stale  # fast-forward STALE files only
+
+--classify mechanizes the topology hard-rule's "git-archaeology each file":
+a DIFFERS file whose content byte-matches ANY historical canonical version of
+that path is STALE (the sibling simply never received later fixes — safe to
+fast-forward to canonical HEAD); a DIFFERS file matching NO canonical version
+ever committed is CUSTOMIZED (sibling-local work — never auto-overwrite, merge
+by hand). --apply-stale copies canonical HEAD over STALE files only, requires
+--repo, and still expects you to re-run that sibling's install.sh and re-verify
+with --repo afterwards (the hard rule's steps 3-4 stay manual and sequential).
 """
 from __future__ import annotations
 
 import argparse
 import filecmp
+import hashlib
 import json
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -64,6 +78,38 @@ def skill_files(root: Path) -> list[Path]:
 def skill_names(root: Path) -> set[str]:
     return {d.name for d in (root / "skills").iterdir()
             if d.is_dir() and d.name != "_shared" and (d / "SKILL.md").is_file()}
+
+
+def _blob_id(p: Path) -> str:
+    """git hash-object equivalent, no subprocess."""
+    data = p.read_bytes()
+    return hashlib.sha1(b"blob %d\x00" % len(data) + data).hexdigest()
+
+
+def _canon_blob_history(rel: str, max_commits: int = 400) -> set[str]:
+    """Every blob id this path has ever had in canonical history (bounded)."""
+    revs = subprocess.run(
+        ["git", "rev-list", f"--max-count={max_commits}", "HEAD", "--", rel],
+        cwd=BRAINER, capture_output=True, text=True).stdout.split()
+    blobs: set[str] = set()
+    for sha in revs:
+        ls = subprocess.run(["git", "ls-tree", sha, "--", rel],
+                            cwd=BRAINER, capture_output=True, text=True).stdout.strip()
+        if ls:
+            blobs.add(ls.split()[2])
+    return blobs
+
+
+def classify_differs(sib: Path, differs: list[str]) -> dict[str, list[str]]:
+    """Split a sibling's DIFFERS list into stale (matches some historical
+    canonical version) vs customized (matches none)."""
+    stale, customized = [], []
+    for rel in differs:
+        if _blob_id(sib / rel) in _canon_blob_history(rel):
+            stale.append(rel)
+        else:
+            customized.append(rel)
+    return {"stale": stale, "customized": customized}
 
 
 def audit(repo: str | None = None) -> dict:
@@ -103,7 +149,19 @@ def main() -> int:
     ap.add_argument("--repo", help="audit only this sibling (exact dir name) — "
                     "post-propagation single-sibling verify")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--classify", action="store_true",
+                    help="split DIFFERS into STALE (byte-matches a historical "
+                         "canonical version — safe fast-forward) vs CUSTOMIZED "
+                         "(sibling-local work — manual merge)")
+    ap.add_argument("--apply-stale", action="store_true",
+                    help="copy canonical HEAD over each STALE file (requires "
+                         "--repo; CUSTOMIZED files are never touched; re-run the "
+                         "sibling's install.sh + --repo verify afterwards)")
     args = ap.parse_args()
+    if args.apply_stale and not args.repo:
+        print("--apply-stale requires --repo <sibling> (one deliberate sibling "
+              "at a time — installs write user-global settings)", file=sys.stderr)
+        return 2
     rep = audit(args.repo)
     if args.repo and not rep["siblings"]:
         print(f"no sibling repo named {args.repo!r} found alongside Brainer "
@@ -122,6 +180,21 @@ def main() -> int:
         if args.files and s["differs"]:
             for f in s["differs"]:
                 print(f"      DIFFERS  {f}")
+        if (args.classify or args.apply_stale) and s["differs"]:
+            cl = classify_differs(DOCS / s["repo"], s["differs"])
+            for f in cl["stale"]:
+                print(f"      STALE       {f}")
+            for f in cl["customized"]:
+                print(f"      CUSTOMIZED  {f}")
+            if args.apply_stale:
+                for f in cl["stale"]:
+                    shutil.copy2(BRAINER / f, DOCS / s["repo"] / f)
+                    print(f"      applied     {f}")
+                if cl["stale"]:
+                    print(f"\n  {len(cl['stale'])} stale file(s) fast-forwarded in "
+                          f"{s['repo']}. NOW: re-run {s['repo']}/install.sh, then "
+                          f"verify with --repo {s['repo']} (topology hard-rule "
+                          f"steps 3-4).")
     return 0
 
 
