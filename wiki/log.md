@@ -347,3 +347,29 @@ Created `concepts/when-to-extract-a-skill-md-section-into-tools.md` from `page` 
 - 2026-07-01: sibling sync executed with new `--classify`/`--apply-stale`/`--apply-absent` (sibling_sync_audit.py): screenery-lean 244/247, product-images 246/247, farey-hecke 247/247, PROMPTER 246/247 identical; remaining DIFFERS are deliberate (generated HOOKS_MAP.md per repo; screenery loop-engineering + wiki-memory carry real local customizations -> manual-merge candidates). Classifier caught a sibling-local loop-engineering bullet a blind rsync would have clobbered.
 
 - 2026-07-01: propagate skill (v1.14) — new-skill auto-adoption + line-level CUSTOMIZED classifier. Validated by adopting `propagate` itself into all 4 siblings (24 skills each, new-sk 0, post-check green). Classifier blind-spot fixed: screenery wiki-memory was false-CUSTOMIZED (mix of synced+unsynced canonical sections, no local lines) -> now correctly STALE + fast-forwarded. Genuine local remaining: screenery loop-engineering "Main thread keeps the artifact moving" bullet (kept, manual-merge/upstream decision pending); HOOKS_MAP.md CUSTOMIZED per-repo by design.
+
+- 2026-07-01 (full-session record — suite overhaul + propagation mechanization): FOUND:
+  9 resident descriptions 62-153w (permanent context tax); stale hardcoded model slugs
+  (glm-4.6/gpt-5-mini era) in model_roster; 2 doc-vs-code contradictions (prompt-triage
+  "platform models only" vs glm-executor routing; eval-gate "opt-in" vs auto-install:true);
+  3 consumer repos identically drift-stale (single old vendoring point) + PROMPTER fresh;
+  sibling classify blind spot (whole-file hash mislabels mixed old/new files CUSTOMIZED);
+  screenery's one genuine local loop-engineering bullet (kept local by user decision);
+  drift-probe baseline: edit-without-read fires in 60% of sessions (top real drift);
+  canary ledger polluted by harness-injected task-notifications; wiki retrieval 0 confirmed
+  misses/31 searches (58% unmeasurable — compound-pipeline instrumentation problem);
+  per-repo usage mining conflates catalog residency with use (no trims justified).
+  DONE: descriptions compressed + lint word-cap ratchet; _shared/ORCHESTRATION.md tier
+  doctrine (naive-subject comprehension 5/5) + pointers from loop-eng/verify/prompt-triage;
+  slugs refreshed vs live catalog; contradictions fixed; wiki quality-scan docs moved to
+  wiki-refresh (panel-reviewed A GO / B,C NO-GO); EVAL stubs ×3; /think doc-bloat +
+  smallest-verifiable-steps additions; propagate skill v1.14 (classify->apply->install->
+  verify->post-check runbook, prompt_intent probe 6/6-0/4, new-skill AUTO-ADOPTION with
+  .brainer-sync-optout explicit decline, line-level CUSTOMIZED classifier printing local
+  lines); canary harness-strip (test.sh 90/90); _shared/brief_header.py (fleet brief
+  renderer, 4/4); eval-gate --panel cross-vendor cross-check (4/4 + suite green); weekly
+  drift-watch cron (loop_lint 0, Mon 09:17); eval/MEASUREMENT_QUEUE.md (11-item ranked
+  eval-debt queue + standing baselines). All 4 consumer repos (screenery-lean, product
+  images repo, farey-hecke, PROMPTER) propagated twice + vendored suites green in-sibling
+  (canary 90/90, panel 4/4, brief_header 4/4, roster 46/46 in each). Canonical commits
+  651e850..a7a1854; run_all_tests 88->89/89 green throughout.
