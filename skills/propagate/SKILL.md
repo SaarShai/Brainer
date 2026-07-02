@@ -28,12 +28,20 @@ copy-everything. Full topology + landmines:
 
 ```bash
 R="<sibling dir name>"   # e.g. screenery-lean · "product images repo" · farey-hecke · PROMPTER
-python3 scripts/sibling_sync_audit.py --repo "$R" --classify        # 1. read-only: STALE vs CUSTOMIZED
-python3 scripts/sibling_sync_audit.py --repo "$R" --apply-stale --apply-absent   # 2. fast-forward safe subset
+python3 scripts/sibling_sync_audit.py --repo "$R" --classify        # 1. read-only: STALE vs CUSTOMIZED + NEW-SKILL list
+python3 scripts/sibling_sync_audit.py --repo "$R" --apply-stale --apply-absent --adopt-new-skills   # 2. fast-forward + adopt new skills
 ( cd "/Users/za/Documents/$R" && bash install.sh )                  # 3. rewire that host's carriers/hooks
-python3 scripts/sibling_sync_audit.py --repo "$R" --classify        # 4. verify: differs ≈ CUSTOMIZED only
+python3 scripts/sibling_sync_audit.py --repo "$R" --classify        # 4. verify: differs ≈ CUSTOMIZED only, new-sk 0
 python3 scripts/sibling_sync_audit.py --repo "$R" --post-check      # 5. mechanical target-repo test
 ```
+
+**New skills adopt by default.** `--adopt-new-skills` copies every canonical
+skill a sibling wholly lacks — so a skill you just created in Brainer reaches
+every sibling on the next propagation with **no per-skill opt-in**. A sibling
+that genuinely doesn't want a skill declines *explicitly* by listing its name in
+that sibling's root `.brainer-sync-optout` (one per line); declining is the
+deliberate act, adoption is the default. Always run step 2 with all three apply
+flags — omitting `--adopt-new-skills` is what used to silently strand new skills.
 
 6. **Judgment test (per repo):** for any propagated `tools/*.py` that has an
    adjacent vendored test (`test_*.py` / `test.sh`), run it **in the sibling**
@@ -44,10 +52,13 @@ python3 scripts/sibling_sync_audit.py --repo "$R" --post-check      # 5. mechani
 
 - **STALE** — byte-matches a historical canonical version: the sibling simply
   never received later fixes. Safe to fast-forward; `--apply-stale` does it.
-- **CUSTOMIZED** — matches no canonical version ever committed: sibling-local
-  work. **Never overwritten.** Handle manually: diff against canonical HEAD,
-  re-apply the local additions on top, and ask whether the local change should
-  be upstreamed into canonical. (`skills/HOOKS_MAP.md` is generated per-repo —
+- **CUSTOMIZED** — holds ≥1 line that appears in **no** canonical version ever
+  (line-level provenance, not whole-file hash — so a file that merely mixes
+  old+new canonical sections is correctly STALE, not falsely CUSTOMIZED). The
+  offending local lines are printed under the verdict. **Never overwritten.**
+  Handle manually: fast-forward the file to canonical HEAD, then re-apply just
+  those local lines on top, and ask whether the local change should be
+  upstreamed into canonical. (`skills/HOOKS_MAP.md` is generated per-repo —
   permanently CUSTOMIZED, always leave it.)
 - **absent** — `--apply-absent` adds missing files only inside skills the
   sibling already adopted; a wholly-absent skill dir is deliberate

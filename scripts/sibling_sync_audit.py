@@ -100,16 +100,74 @@ def _canon_blob_history(rel: str, max_commits: int = 400) -> set[str]:
     return blobs
 
 
-def classify_differs(sib: Path, differs: list[str]) -> dict[str, list[str]]:
-    """Split a sibling's DIFFERS list into stale (matches some historical
-    canonical version) vs customized (matches none)."""
+def _canon_line_corpus(rel: str, max_commits: int = 400) -> set[str]:
+    """Every line this path has ever contained across canonical history + HEAD.
+
+    Whole-file hashing has a blind spot: a sibling file that is a MIX of
+    already-synced and not-yet-synced canonical sections byte-matches no single
+    historical snapshot, so hash-classification calls it CUSTOMIZED even though
+    it holds zero local work. Line-level provenance closes that: a line the
+    sibling has that appears in NO canonical version (ever) is the only real
+    signal of sibling-local authorship."""
+    revs = subprocess.run(
+        ["git", "rev-list", f"--max-count={max_commits}", "HEAD", "--", rel],
+        cwd=BRAINER, capture_output=True, text=True).stdout.split()
+    corpus: set[str] = set()
+    for sha in revs:
+        blob = subprocess.run(["git", "show", f"{sha}:{rel}"],
+                              cwd=BRAINER, capture_output=True, text=True)
+        if blob.returncode == 0:
+            corpus.update(ln.strip() for ln in blob.stdout.splitlines() if ln.strip())
+    return corpus
+
+
+def classify_differs(sib: Path, differs: list[str]) -> dict:
+    """Split a sibling's DIFFERS list into STALE (safe to fast-forward) vs
+    CUSTOMIZED (holds sibling-local lines — never overwrite).
+
+    A file is STALE if it holds no line absent from all canonical history —
+    i.e. it is some pure or mixed subset of canonical content that simply never
+    caught up. It is CUSTOMIZED only if it has genuinely local lines; those
+    exact lines are returned so a manual merge knows what to preserve."""
     stale, customized = [], []
+    local_lines: dict[str, list[str]] = {}
     for rel in differs:
+        # Fast path: whole-file byte-match against a historical snapshot.
         if _blob_id(sib / rel) in _canon_blob_history(rel):
             stale.append(rel)
-        else:
+            continue
+        # Line-provenance fallback: does the sibling hold any never-canonical line?
+        corpus = _canon_line_corpus(rel)
+        sib_lines = [ln.strip() for ln in (sib / rel).read_text(
+            errors="replace").splitlines() if ln.strip()]
+        novel = [ln for ln in sib_lines if ln not in corpus]
+        if novel:
             customized.append(rel)
-    return {"stale": stale, "customized": customized}
+            local_lines[rel] = novel
+        else:
+            stale.append(rel)
+    return {"stale": stale, "customized": customized, "local_lines": local_lines}
+
+
+def _optout_skills(sib: Path) -> set[str]:
+    """Skills a sibling has explicitly DECLINED — one skill name per line in
+    `.brainer-sync-optout` at the sibling root. Everything not listed here is
+    adopted by default, so a NEW canonical skill reaches every sibling with no
+    per-skill opt-in from the author (declining is the deliberate, explicit act)."""
+    f = sib / ".brainer-sync-optout"
+    if not f.is_file():
+        return set()
+    return {ln.strip() for ln in f.read_text().splitlines()
+            if ln.strip() and not ln.startswith("#")}
+
+
+def new_skills_for(sib: Path) -> list[str]:
+    """Canonical skills wholly absent from the sibling and not opted out —
+    the auto-adoption set."""
+    canon = skill_names(BRAINER)
+    have = skill_names(sib)
+    declined = _optout_skills(sib)
+    return sorted(canon - have - declined)
 
 
 def audit(repo: str | None = None) -> dict:
@@ -140,6 +198,8 @@ def audit(repo: str | None = None) -> dict:
             "absent_count": len(absent),
             "absent": sorted(absent),
             "sibling_only_skills": sorted(sib_skills - canon_skills),
+            "new_skills": new_skills_for(sib),
+            "declined_skills": sorted(_optout_skills(sib)),
         })
     return report
 
@@ -163,6 +223,12 @@ def main() -> int:
                          "skills the sibling already adopted (a wholly-absent "
                          "skill dir is deliberate non-adoption — left alone). "
                          "Requires --repo.")
+    ap.add_argument("--adopt-new-skills", action="store_true",
+                    help="copy every canonical skill the sibling wholly lacks "
+                         "(new skills reach every sibling by default — no "
+                         "per-skill opt-in from the author). A sibling declines "
+                         "explicitly by listing the skill in its root "
+                         ".brainer-sync-optout. Requires --repo.")
     ap.add_argument("--post-check", action="store_true",
                     help="mechanical target-repo test after a propagation: "
                          "byte-compile every .py under the sibling's skills/ "
@@ -195,10 +261,10 @@ def main() -> int:
             return 1
         print(f"post-check OK: {n} .py files byte-compile clean in {args.repo}.")
         return 0
-    if (args.apply_stale or args.apply_absent) and not args.repo:
-        print("--apply-stale/--apply-absent require --repo <sibling> (one "
-              "deliberate sibling at a time — installs write user-global "
-              "settings)", file=sys.stderr)
+    if (args.apply_stale or args.apply_absent or args.adopt_new_skills) and not args.repo:
+        print("--apply-stale/--apply-absent/--adopt-new-skills require --repo "
+              "<sibling> (one deliberate sibling at a time — installs write "
+              "user-global settings)", file=sys.stderr)
         return 2
     rep = audit(args.repo)
     if args.repo and not rep["siblings"]:
@@ -210,11 +276,14 @@ def main() -> int:
         return 0
     print(f"canonical: {rep['canonical_files']} skill files, "
           f"{rep['canonical_skills']} skills (Brainer)\n")
-    print(f"{'sibling':<18}{'shared':>7}{'ident':>7}{'differ':>7}{'absent':>7}  sibling-only-skills")
+    print(f"{'sibling':<18}{'shared':>7}{'ident':>7}{'differ':>7}{'absent':>7}{'new-sk':>7}  sibling-only-skills")
     for s in rep["siblings"]:
         print(f"{s['repo']:<18}{len(s['shared_skills']):>7}{s['identical']:>7}"
-              f"{len(s['differs']):>7}{s['absent_count']:>7}  "
+              f"{len(s['differs']):>7}{s['absent_count']:>7}{len(s['new_skills']):>7}  "
               f"{','.join(s['sibling_only_skills']) or '-'}")
+        if s["new_skills"]:
+            print(f"      NEW-SKILL   {','.join(s['new_skills'])}  "
+                  f"(--adopt-new-skills to add{'' if not s['declined_skills'] else '; declined: '+','.join(s['declined_skills'])})")
         if args.files and s["differs"]:
             for f in s["differs"]:
                 print(f"      DIFFERS  {f}")
@@ -224,6 +293,8 @@ def main() -> int:
                 print(f"      STALE       {f}")
             for f in cl["customized"]:
                 print(f"      CUSTOMIZED  {f}")
+                for ln in cl["local_lines"].get(f, [])[:6]:
+                    print(f"          local: {ln[:100]}")
             if args.apply_stale:
                 for f in cl["stale"]:
                     shutil.copy2(BRAINER / f, DOCS / s["repo"] / f)
@@ -250,6 +321,18 @@ def main() -> int:
             if applied:
                 print(f"\n  {applied} absent file(s) added to {s['repo']} "
                       f"(inside already-adopted skills only).")
+        if args.adopt_new_skills and s["new_skills"]:
+            sib = DOCS / s["repo"]
+            for name in s["new_skills"]:
+                src = BRAINER / "skills" / name
+                dst = sib / "skills" / name
+                shutil.copytree(src, dst, dirs_exist_ok=True,
+                                ignore=shutil.ignore_patterns(*SKIP))
+                print(f"      adopted     skills/{name}/")
+            print(f"\n  {len(s['new_skills'])} new skill(s) adopted into "
+                  f"{s['repo']}. NOW: re-run {s['repo']}/install.sh (wires the "
+                  f"new skill's carriers/hooks), then verify with --repo "
+                  f"{s['repo']}.")
     return 0
 
 
