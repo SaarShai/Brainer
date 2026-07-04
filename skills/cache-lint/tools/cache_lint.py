@@ -8,6 +8,7 @@ Checks against Anthropic's six prompt-cache rules:
   4. model switching busts cache
   5. breakpoint sizing
   6. fork safety (no prefix mutation by terminal hooks)
+  7. tool-surface audit (resident-but-unused MCP servers)
 
 Lineage: ussumant/cache-audit (52★).
 """
@@ -60,6 +61,7 @@ class Report:
 PREFIX_FILES = ("CLAUDE.md", "AGENTS.md", "GEMINI.md", ".cursorrules")
 # JSON sources of hook / settings config
 SETTINGS_GLOBS = (
+    ".mcp.json",
     ".claude/settings.json",
     ".claude/settings.local.json",
     ".claude/hooks/*.json",
@@ -491,6 +493,132 @@ def check_fork_safety(report: Report, files: list[Path]) -> None:
                     ))
 
 
+# --- Rule 7: tool-surface audit ------------------------------------------
+
+MCP_USAGE_RE = re.compile(r"mcp__([A-Za-z0-9_-]+)__")
+
+
+def _normalized_mcp_name(name: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", name.lower())
+
+
+def _read_json_object(path: Path) -> dict | None:
+    try:
+        data = json.loads(path.read_text(errors="ignore"))
+    except Exception:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _configured_mcp_servers(root: Path) -> dict[str, list[Path]]:
+    servers: dict[str, list[Path]] = {}
+    disabled: set[str] = set()
+    for rel in (".mcp.json", ".claude/settings.json", ".claude/settings.local.json"):
+        path = root / rel
+        data = _read_json_object(path)
+        if data is None:
+            continue
+        mcp_servers = data.get("mcpServers", {})
+        if isinstance(mcp_servers, dict):
+            for name in mcp_servers:
+                if isinstance(name, str):
+                    servers.setdefault(name, []).append(path)
+        disabled_servers = data.get("disabledMcpjsonServers", [])
+        if isinstance(disabled_servers, list):
+            disabled.update(name for name in disabled_servers if isinstance(name, str))
+    disabled_norm = {_normalized_mcp_name(name) for name in disabled}
+    return {
+        name: sources
+        for name, sources in servers.items()
+        if name not in disabled and _normalized_mcp_name(name) not in disabled_norm
+    }
+
+
+def _recent_jsonl_files(transcripts_dir: Path, sessions: int) -> list[Path]:
+    try:
+        files = list(transcripts_dir.glob("*.jsonl"))
+    except OSError:
+        return []
+
+    def mtime(path: Path) -> float:
+        try:
+            return path.stat().st_mtime
+        except OSError:
+            return 0.0
+
+    return sorted(files, key=mtime, reverse=True)[:sessions]
+
+
+def _observed_mcp_usage(session_files: list[Path]) -> dict[str, int]:
+    usage: dict[str, int] = {}
+    for path in session_files:
+        try:
+            with path.open(errors="ignore") as fh:
+                for line in fh:
+                    for match in MCP_USAGE_RE.finditer(line):
+                        slug = _normalized_mcp_name(match.group(1))
+                        usage[slug] = usage.get(slug, 0) + 1
+        except OSError:
+            continue
+    return usage
+
+
+def check_tool_surface(
+    report: Report,
+    root: Path,
+    transcripts_dir: Path | None = None,
+    sessions: int = 20,
+) -> None:
+    servers = _configured_mcp_servers(root)
+    if not servers:
+        return
+
+    if transcripts_dir is None:
+        transcripts_dir = Path.home() / ".claude" / "projects" / str(root.resolve()).replace("/", "-")
+    else:
+        transcripts_dir = Path(transcripts_dir)
+
+    session_files = _recent_jsonl_files(transcripts_dir, sessions)
+    if not transcripts_dir.exists() or not session_files:
+        report.add(Finding(
+            rule=7, severity="OK",
+            title="tool-surface usage mining skipped (no session transcripts found)",
+            file=str(transcripts_dir),
+            detail="No recent Claude Code session transcripts were available, so unused-server warnings were suppressed.",
+        ))
+        report.add(Finding(
+            rule=7, severity="OK",
+            title=f"{len(servers)} MCP servers configured; 0 with observed usage in last 0 sessions",
+            file=str(transcripts_dir),
+        ))
+        return
+
+    usage = _observed_mcp_usage(session_files)
+    observed = {
+        name for name in servers
+        if _normalized_mcp_name(name) in usage
+    }
+    scanned = len(session_files)
+    for name in sorted(servers):
+        if name in observed:
+            continue
+        report.add(Finding(
+            rule=7, severity="WARN",
+            title=f"MCP server '{name}' resident but unused in last {scanned} sessions",
+            file=str(servers[name][0]) if servers[name] else "",
+            detail="No matching mcp__server__ tool calls were observed in recent Claude Code transcripts.",
+            suggested_action=(
+                "Remove this server from .mcp.json/settings or defer/load it on demand; "
+                "every resident schema costs prefix tokens on every turn."
+            ),
+        ))
+    report.add(Finding(
+        rule=7, severity="OK",
+        title=f"{len(servers)} MCP servers configured; {len(observed)} with observed usage in last {scanned} sessions",
+        file=str(transcripts_dir),
+    ))
+
+
 # --- Rule 1 & 3: ordering / tool stability via fingerprint ---------------
 
 FINGERPRINT_NAME = ".cache-lint-fingerprint.json"
@@ -650,10 +778,10 @@ def check_ordering_and_tools(report: Report, root: Path) -> None:
 
 # --- Driver ---------------------------------------------------------------
 
-def audit(root: Path, rule_filter: int | None = None) -> Report:
+def audit(root: Path, rule_filter: int | None = None, transcripts_dir: Path | None = None) -> Report:
     files = discover(root)
     report = Report(root=str(root), targets=[str(p) for p in files])
-    if not files:
+    if not files and rule_filter not in (7,):
         report.add(Finding(rule=0, severity="WARN", title="no Claude Code prefix files found", file=str(root)))
         report.finalize()
         return report
@@ -667,6 +795,8 @@ def audit(root: Path, rule_filter: int | None = None) -> Report:
         check_fork_safety(report, files)
     if rule_filter in (None, 1, 3):
         check_ordering_and_tools(report, root)
+    if rule_filter in (None, 7):
+        check_tool_surface(report, root, transcripts_dir=transcripts_dir)
     report.finalize()
     return report
 
@@ -677,7 +807,7 @@ def main(argv: list[str]) -> int:
     a = sub.add_parser("audit")
     a.add_argument("root", nargs="?", default=".")
     a.add_argument("--json", action="store_true")
-    a.add_argument("--rule", type=int, choices=[1, 2, 3, 4, 5, 6])
+    a.add_argument("--rule", type=int, choices=[1, 2, 3, 4, 5, 6, 7])
     a.add_argument("--list-targets", action="store_true")
     args = ap.parse_args(argv)
 

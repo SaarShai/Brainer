@@ -6,6 +6,13 @@ default path. 10 of 24 skills are unmeasured/pending. This queue orders them by
 most expensive ignorance). Method per skill lives in its EVAL.md; this file is
 the order + the standing baselines.
 
+Scaffold-shrink rule (2026-07-03): each new frontier-model release re-queues the
+standing baselines for the default-path skills — a skill whose measured delta
+vanishes on the new model is demoted or removed (precedent: `think` → slash-only
+after its frontier A/B measured posture-neutral). As models improve the harness
+should shrink, not grow; a skill earns its slot only if its gain survives model
+upgrades without added scaffolding.
+
 ## Queue (top = next)
 
 | # | Skill / question | Why this rank | Method pointer |

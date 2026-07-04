@@ -538,7 +538,8 @@ def test_strict_memory_valid_contract_and_concurrency_pass():
             .replace("gate: pytest tests/ -q", "gate: pytest -q then reviewer quorum >=2/3")
             + MEMORY_FIELDS
             + "state_concurrency: worktree_isolated\n"
-            + "verifier_blind: true\n")   # outer/fleet LLM verifier ⇒ R13 wants blindness declared
+            + "verifier_blind: true\n"   # outer/fleet LLM verifier ⇒ R13 wants blindness declared
+            + "on_error: transient retry x2, user-fixable escalate, unexpected halt\n")
     assert _rules(spec, strict_memory=True) == [], _rules(spec, strict_memory=True)
     assert _exit_for(spec, args=["--strict-memory"]) == 0
 
@@ -555,6 +556,7 @@ UNATTENDED = (
     "gate: regex: spam patterns match\n"
     "stop: nightly cron completes; the bot closes the issue and posts a comment\n"
     "budget: max_iterations=50\n"
+    "on_error: transient retry x2, user errors interrupt, unexpected halt\n"  # silence R14
 ) + MEMORY_FIELDS
 
 
@@ -635,6 +637,46 @@ def test_r10_fires_through_adjectives():
 
 
 # --- input forms ----------------------------------------------------------
+
+# --- R14 UNCLASSIFIED-FAILURE-POLICY ----------------------------------------
+
+# Use a base unattended spec with output_actions to isolate R14 (avoid R10 noise)
+_UNATTENDED_R14_BASE = (
+    "name: mod-bot\n"
+    "topology: closed · outer · single\n"
+    "generator: claude agent triages each new issue\n"
+    "verifier: sonnet reviewer (fresh context)\n"
+    "gate: regex: spam patterns match\n"
+    "stop: nightly cron completes; the bot closes the issue and posts a comment\n"
+    "budget: max_iterations=50\n"
+    "output_actions: post-comment max 10, close-issue max 5\n"
+) + MEMORY_FIELDS
+
+
+def test_unattended_without_on_error_warns_r14():
+    # an unattended loop without on_error field must warn
+    spec = _UNATTENDED_R14_BASE
+    assert _has(spec, 14, "WARN"), _rules(spec)
+
+
+def test_unattended_with_good_on_error_ok_r14():
+    # on_error that includes halt/escalate/interrupt tokens silences R14
+    spec = _UNATTENDED_R14_BASE + "on_error: transient retry x2, auth errors interrupt human, unexpected halt\n"
+    assert not any(r == 14 for r, _ in _rules(spec)), _rules(spec)
+
+
+def test_attended_loop_without_on_error_ok_r14():
+    # an attended/inner loop does not require on_error — R14 is opt-in for unattended
+    assert not any(r == 14 for r, _ in _rules(CLEAN)), _rules(CLEAN)
+
+
+def test_unattended_on_error_retry_only_warns_r14():
+    # on_error that only retries (no halt/escalate/interrupt token) still warns
+    spec = _UNATTENDED_R14_BASE + "on_error: retry everything with backoff\n"
+    assert _has(spec, 14, "WARN"), _rules(spec)
+
+
+
 
 def test_fenced_loop_block_in_markdown():
     md = "# Plan\n\nsome prose\n\n```loop\n" + CLEAN + "```\n\nmore prose\n"

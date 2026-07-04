@@ -2,7 +2,7 @@
 
 ## What it does
 
-Static linter for prompt-cache hygiene against Anthropic's six prompt-cache rules. Reads `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` / `.claude/settings*.json` / `skills/*/SKILL.md`, applies six rule-checkers, emits typed findings + exit codes + report-only `suggested_action` hints.
+Static linter for prompt-cache hygiene against Anthropic's six prompt-cache rules. Reads `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` / `.claude/settings*.json` / `skills/*/SKILL.md`, applies six rule-checkers plus the report-only Rule 7 tool-surface audit, emits typed findings + exit codes + report-only `suggested_action` hints.
 
 ## Lineage
 
@@ -18,12 +18,15 @@ Static linter for prompt-cache hygiene against Anthropic's six prompt-cache rule
 | 4 | Model switching | scan for `"model": "..."` across hook configs | high |
 | 5 | Breakpoint sizing | byte-size heuristic (token estimate /4) | medium |
 | 6 | Fork safety | scan terminal-hook commands for prefix-file writes | high |
+| 7 | Tool-surface audit (report-only) | configured MCP server names vs recent Claude Code transcript `mcp__server__` usage | medium (absence of transcripts emits OK skip; absence of usage is advisory WARN only) |
+
+Rule 7 shipped 2026-07-03. Motivation: minimal-tool-surface (harness-article/Vercel evidence; Vercel cut 80% of v0's tools and improved results). Measured savings pending: schema tokens per removed server.
 
 Backtick command substitution (`` `date` ``) is intentionally not checked — see SKILL.md "What it does NOT do".
 
 ## Built-in tests
 
-`python tools/test_cache_lint.py` — 20 tests:
+`python tools/test_cache_lint.py` — 23 tests:
 
 - clean project passes
 - `$(date)` and `{{env.USER}}` flagged as FAIL with `suggested_action`
@@ -31,6 +34,7 @@ Backtick command substitution (`` `date` ``) is intentionally not checked — se
 - dynamic content inside ``` fence ``` downgraded to WARN
 - tiny CLAUDE.md triggers Rule 5 WARN
 - multi-model settings trigger Rule 4 WARN with a report-only hint
+- configured-but-unused MCP servers trigger Rule 7 WARN; missing transcripts emit an OK skip note; sanitized config/transcript names match
 - Stop hook writing CLAUDE.md triggers Rule 6 FAIL with sidecar guidance
 - fingerprint baseline creates, then catches description drift
 - nested hook/plugin discovery, recursive-skip guards, block-scalar descriptions, cap/typography ordering, interpreter flags, non-dict JSON settings, and read-only prefix mentions are covered.

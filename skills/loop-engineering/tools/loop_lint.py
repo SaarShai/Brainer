@@ -202,7 +202,7 @@ KNOWN_KEYS = {
     "name", "topology", "generator", "verifier", "gate", "stop", "budget",
     "accepted_open_loop", "quorum", "aggregate", "anchor_files", "state_store",
     "recall", "writeback", "state_concurrency", "stuck", "advisor",
-    "redaction", "consent", "egress", "verifier_inputs", "verifier_blind",
+    "redaction", "consent", "egress", "verifier_inputs", "verifier_blind", "on_error",
 }
 
 _KV_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*(.*)$")
@@ -730,6 +730,16 @@ def _irreversible_action(text: str) -> "re.Match | None":
 # what kills the read-only false positives.
 _DET = r"(?:(?:the|a|an|this|that|its|their|your)\s+)?(?:\w+\s+){0,2}"
 
+# R14 UNCLASSIFIED-FAILURE-POLICY — an unattended loop that retries every
+# failure class implicitly without distinguishing transient (network/rate-limit),
+# recoverable-by-generator (bad output), user-fixable (auth/config), or unexpected
+# (halt/surface) burns budget on errors no retry can fix. Detect an unattended spec
+# without `on_error`, or with `on_error` containing no halt/escalate/interrupt token
+# that would break the retry loop.
+_HALT_OR_ESCALATE = re.compile(
+    r"\b(halt|stop|abort|escalate|interrupt|human|bubble|fail[\s-]?fast|page|alert)\b", re.I)
+
+
 # A SIDE-EFFECTING world action — something an UNATTENDED loop mutates outside
 # itself: a comment, an issue/PR state, a label, a merge/commit/push, an email/
 # message, a published/deployed/charged side effect. Broader than _IRREVERSIBLE
@@ -1049,6 +1059,31 @@ def check_spec(report: Report, spec: Spec, rule_filter: int | None, *, strict_me
                                    "satisfies this in prose.)"))
 
 
+    # R14 UNCLASSIFIED-FAILURE-POLICY — an UNATTENDED loop that retries every
+    # failure class implicitly (no differentiation between transient/recoverable/
+    # user-fixable/unexpected errors) burns budget on errors that no retry can fix.
+    # Detect: unattended spec without `on_error` field, OR with `on_error` but no
+    # halt/escalate/interrupt token that would break the retry loop.
+    if want(14) and needs_memory_contract:
+        on_error = spec.get("on_error")
+        if not on_error:
+            report.add(Finding(14, "WARN", f"spec '{label}' is unattended without an `on_error` failure policy",
+                               src, spec.line_of("stop") or spec.start_line,
+                               "an unattended loop that retries every failure class burns budget on errors a "
+                               "retry can never fix. Classify failures: transient (network/rate-limit) → retry "
+                               "with backoff (cap ~2) · recoverable-by-generator (bad output) → return the error "
+                               "as an observation · user-fixable (config/auth/permissions) → interrupt, don't retry "
+                               "· unexpected (halt and surface). Declare the mapping in on_error."))
+        elif not _HALT_OR_ESCALATE.search(on_error):
+            report.add(Finding(14, "WARN", f"spec '{label}' has an `on_error` policy where every failure class retries",
+                               src, spec.line_of("on_error"),
+                               "the on_error policy names no halt/escalate/interrupt-class token — meaning every "
+                               "failure implicitly retries. Classify failures: transient (network/rate-limit) → retry "
+                               "with backoff (cap ~2) · recoverable-by-generator (bad output) → return the error as an "
+                               "observation · user-fixable (config/auth → interrupt, never retry) · unexpected (halt and "
+                               "surface). Add halt/stop/abort/escalate/interrupt/human/bubble/fail-fast/page/alert tokens "
+                               "to the on_error value so non-transient errors do not retry indefinitely."))
+
 def lint(text: str, source: str, rule_filter: int | None = None, *, strict_memory: bool = False) -> Report:
     report = Report(root=source)
     specs = parse_specs(text, source)
@@ -1223,7 +1258,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--diagram", action="store_true",
                     help="emit a Mermaid diagram of each spec with lint findings overlaid "
                          "(grounded in the parsed spec; wrap in a ```mermaid fence to render)")
-    ap.add_argument("--rule", type=int, choices=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
+    ap.add_argument("--rule", type=int, choices=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
                     help="restrict to one rule")
     ap.add_argument("--strict-memory", action="store_true",
                     help="promote R8/R9 loop-memory findings to FAIL for scheduled/fleet/outer/long-running loops")
