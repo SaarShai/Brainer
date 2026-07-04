@@ -28,6 +28,7 @@ upgrades without added scaffolding.
 | 9 | prompt-triage research-lite leg | one routing leg unmeasured | EVAL.md |
 | 10 | think 2026-07 edits (doc-bloat governor, smallest-verifiable-steps) | slash-only so cheap, but repo culture A/Bs think edits (premortem precedent) | premortem-style eval (wiki: premortem-and-think-edits-measured) |
 | 11 | impact-of-change / security-oversight | opt-in → lowest urgency | new EVAL.md stubs (2026-07-01) |
+| 12 | cache-lint rule 7 + loop-lint R14 (2026-07-03 harness-article additions) | report-only sub-rules of default skills; fire-rate + real catch-rate unknown (rule 7: unused-server WARNs across repos with project MCP config; R14: on_error warns on real loop specs) | each skill's EVAL.md |
 
 ## Standing baselines (2026-07-01)
 
