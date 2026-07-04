@@ -46,6 +46,7 @@ Compact pointers. Fetch details on demand.
 - concepts/llmlingua (concept tags=compression,llmlingua) -> `concepts/llmlingua.md`
 - concepts/local-model-setup (concept tags=infra,devices,models,routing,harnesses) -> `concepts/local-model-setup.md`
 - concepts/measure-triggers-by-decision-marker (concept tags=eval-methodology,triggers,measurement) -> `concepts/measure-triggers-by-decision-marker.md`
+- concepts/memory-article-4layer-evaluated-2026-07 (concept tags=memory,article-adoption,multi-agent,concurrency,negative-result,ab-test) -> `concepts/memory-article-4layer-evaluated-2026-07.md`
 - concepts/optimization-axes (concept tags=framework,categorization,meta) -> `concepts/optimization-axes.md`
 - concepts/prefix-caching (concept tags=prompt-caching,cost) -> `concepts/prefix-caching.md`
 - concepts/premortem-and-think-edits-measured (concept tags=skills,premortem,think,eval,ab-test,over-warning,sycophancy,negative-result,calibration) -> `concepts/premortem-and-think-edits-measured.md`
