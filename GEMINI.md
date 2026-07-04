@@ -32,7 +32,7 @@ equivalent:
 You don't need to dispatch these manually — but knowing they exist helps you
 notice when context matches one (e.g. `wiki-memory` for "have we done X").
 
-- `cache-lint` — Audit a Claude Code project for prompt-cache hygiene against Anthropic's six cache rules (ordering, dynamic-content injection, tool stability, model switching, breakpoint sizing, fork safety)
+- `cache-lint` — Audit a Claude Code project for prompt-cache hygiene against Anthropic's six cache rules (ordering, dynamic-content injection, tool stability, model switching, breakpoint sizing, fork safety), plus a rule-7 tool-surface audit (resident-but-unused MCP servers)
 - `caveman-ultra` — Terse output style
 - `compliance-canary` — Use when a long session drifts — the single always-on drift watcher: one UserPromptSubmit hook combining symptomatic per-skill drift probes (filler creep, verbosity growth, unverified done-claims, looping tool errors), a periodic skill-rule re-anchor, and a request ledger that keeps every user request OPEN until completed or user-closed
 - `context-keeper` — PreCompact hook that extracts structured state (files, commands, errors, numbers, decisions, failures) from the transcript before compaction, so the summarizer can't silently drop facts; a SessionEnd hook also archives the raw transcript to .brainer/sessions/raw/ (git-ignored)
