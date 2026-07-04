@@ -38,6 +38,7 @@ Compact pointers. Fetch details on demand.
 - concepts/demote-vs-description-tax (concept tags=eval-methodology,skills,description-tax,cost) -> `concepts/demote-vs-description-tax.md`
 - concepts/devices-inventory (concept tags=infra,devices,inventory,compute) -> `concepts/devices-inventory.md`
 - concepts/framework-hardening-adoption (concept tags=framework,adoption,retrieval,memory,routing,skills) -> `concepts/framework-hardening-adoption.md`
+- concepts/harness-article-adoption-2026-07 (concept tags=skills,harness,article-adoption,tool-scoping,error-taxonomy,negative-result) -> `concepts/harness-article-adoption-2026-07.md`
 - concepts/hook-path-fragility (concept tags=hooks,install,cwd-drift,lockout,pretooluse,claude-project-dir,fail-open,hard-rule) -> `concepts/hook-path-fragility.md`
 - concepts/karpathy-wiki (concept tags=wiki,memory,retrieval) -> `concepts/karpathy-wiki.md`
 - concepts/kv-cache-eviction (concept tags=kv-cache,long-context) -> `concepts/kv-cache-eviction.md`
