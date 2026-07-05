@@ -68,3 +68,39 @@ final message** — fire-and-forget returns nothing a gate can read. Verifiers a
 (hooks don't fire inside subagents), and their output is re-verified in the main
 loop. Cross-vendor egress goes through redaction + consent
 (`model_roster.render_prompt`; loop_lint R12).
+
+## 6. Architect cost discipline (frontier-tier orchestrator)
+
+When the orchestrating session itself runs a frontier-tier model, **invert the
+token volume**: the expensive model emits judgment — decomposition, specs,
+routing, verdicts — and cheap lanes emit the volume (code, boilerplate, tests,
+bulk reads). Rules:
+
+- **A code block longer than an interface signature is a spec that hasn't been
+  delegated yet** — stop and delegate it. Fixing a cheap lane's bug by hand is
+  the same failure in disguise: send back a corrected spec instead.
+- **The orchestrator's context is re-read at frontier prices every turn** —
+  keep conclusions, not dumps; route broad exploration to read-only cheap
+  agents; a path reference or excerpt beats a pasted file.
+- **Reason once, then hand off.** Capture the architecture / hypothesis in the
+  delegation brief (goal · in-scope files · interfaces the output must match ·
+  constraints + out-of-scope · verification command) and let the lane carry it;
+  re-deriving decisions across turns burns the premium twice. A brief you can't
+  finish writing means the decision isn't made — that's orchestrator work, not
+  ambiguity to hand a cheaper model.
+- **Commitment boundaries, not only stuckness:** before an architecture choice,
+  migration, API shape, or wide-blast-radius refactor — take a read-only,
+  context-fresh skeptic verdict (advisor role, preferably cross-vendor; short:
+  verdict + the single deciding risk). Act on it or surface the disagreement;
+  never silently ignore it. (Stuck-after-2-attempts and ship-time escalation
+  already trigger consults; this adds the *pre-decision* trigger.)
+- **Verify the pin.** Hosts can silently fall back to the session model when a
+  pinned lane model is unavailable — the dispatch *succeeds* on the wrong
+  model, which reachability detection (rule 2) cannot catch. When the lane
+  choice is load-bearing (capability or vendor diversity), have the lane echo
+  its model identity in its report. A lane re-route (e.g. cross-vendor →
+  in-family) is reported loudly, never absorbed — the caller may have chosen
+  the lane for its failure distribution.
+
+(Adapted from DannyMac180/fable-advisor, MIT — generalized from concrete
+models to tiers.)
