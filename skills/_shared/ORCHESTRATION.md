@@ -103,6 +103,12 @@ bulk reads). Rules:
   verdict + the single deciding risk). Act on it or surface the disagreement;
   never silently ignore it. (Stuck-after-2-attempts and ship-time escalation
   already trigger consults; this adds the *pre-decision* trigger.)
+- **Author down the ladder.** When a frontier lane keeps redoing the same task
+  class, have it AUTHOR a skill for that class instead — skill-authoring
+  converts recurring frontier spend into a permanent tier drop (author once at
+  the top, execute forever at the bottom). Write the skill for the **weakest
+  executor** that will run it, and acceptance-test it there (learn-skill step
+  6), not in the author's own context.
 - **Verify the pin.** Hosts can silently fall back to the session model when a
   pinned lane model is unavailable — the dispatch *succeeds* on the wrong
   model, which reachability detection (rule 2) cannot catch. When the lane

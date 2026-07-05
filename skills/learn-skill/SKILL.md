@@ -73,6 +73,14 @@ durable *fact* (→ `wiki-memory` + `write-gate`). `/learn` produces a *procedur
    The scaffold sets `status: proposed`, `disable-model-invocation: true` (won't auto-fire),
    `auto-install: false`, and stamps `source:` + `learned_at:` for later staleness checks.
 
+6. **Weakest-executor acceptance test.** Before proposing, run the skill on the
+   weakest model tier that will actually execute it — fresh context, an instance
+   the skill was NOT authored from (a different input of the same class). The
+   author's context always runs its own skill fine; the test is whether a dumb
+   cold executor can. On failure, **fix the skill text, not the output** — that
+   write-back is what converts one frontier authoring pass into a permanent
+   cheap-tier execution path.
+
 ## Trust — earned by counted usage, not granted
 A learned skill is **born `proposed` and cannot auto-fire.** Promotion to model-invocable
 is **gated on real usage telemetry** — a hand-incremented counter would be a lie, so the
