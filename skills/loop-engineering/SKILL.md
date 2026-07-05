@@ -137,7 +137,7 @@ Declare these BEFORE the loop runs — they are `loop_lint.py`'s input contract:
 4. **generator ≠ verifier** — distinct producer and checker.
 
 Then answer the questions the four fields don't cover:
-- Against **what oracle** — test suite, spec, reference output, schema, or another agent?
+- Against **what oracle** — test suite, spec, reference output, schema, or another agent? **No obvious oracle** (perceptual / creative / "matches the original" goals)? Delegate metric-invention: have the agent propose a concrete, machine-checkable proxy derived from the real target (record the real thing → derive a comparable artifact → diff against it), then approve the proxy BEFORE it becomes the gate — an unapproved self-invented gate is self-grading by construction (R3).
 - Is the loop **open or closed**, and is that intentional for THIS task (novelty wanted vs bounded shipping)?
 - If the loop is scheduled/fleet/outer, where do `anchor_files`, `state_store`, `recall`, and `writeback` live — and who owns `state_concurrency`?
 - For a scheduled/recurring loop: **freeze the check across rounds** (a changed check makes this round's score incomparable with last round's) and **change ONE thing per round** — single-change rounds keep attribution clean. Over a noisy signal, set an **evidence floor**: act only on ≥N independent, cited instances (one loud instance is not a trend); below the floor the round is a `no-op`, not a smaller action.
