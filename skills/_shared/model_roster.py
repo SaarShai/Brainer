@@ -140,10 +140,17 @@ def _zai_key() -> str:
 
 
 def _run_glm(prompt: str, *, timeout: float, model: str = "glm-5.2",
-             base: str = "https://api.z.ai/api/coding/paas/v4") -> tuple[bool, str, str]:
+             base: str = "https://api.z.ai/api/coding/paas/v4",
+             thinking: bool = False) -> tuple[bool, str, str]:
     """Dispatch GLM directly over z.ai's OpenAI-compatible chat/completions
     (proven HTTP 200; codex's Responses-only wire 404s here, so this bypasses
-    codex entirely). Returns (ok, text, error). Never raises."""
+    codex entirely). Returns (ok, text, error). Never raises.
+
+    thinking=False (default) sends `"thinking": {"type": "disabled"}` — the
+    delegate-router gotcha: glm-5.2's reasoning otherwise eats the max_tokens
+    budget and `content` comes back empty (reproduced 2026-07-05: 9/12 eval
+    cells unparseable through this very function). Pass thinking=True only when
+    the caller wants the reasoning trace and handles the fallback."""
     key = _zai_key()
     if not key:
         return False, "", "no z.ai key (env ZAI_API_KEY/… or ~/.config/zai/key)"
@@ -151,8 +158,11 @@ def _run_glm(prompt: str, *, timeout: float, model: str = "glm-5.2",
     import urllib.request
     # max_tokens is REQUIRED in practice: glm-5.2 is a reasoning model, and without a
     # cap it emits an unbounded reasoning trace and the request times out (measured).
-    body = json.dumps({"model": model, "max_tokens": 2048,
-                       "messages": [{"role": "user", "content": prompt}]}).encode()
+    payload = {"model": model, "max_tokens": 2048,
+               "messages": [{"role": "user", "content": prompt}]}
+    if not thinking:
+        payload["thinking"] = {"type": "disabled"}
+    body = json.dumps(payload).encode()
     req = urllib.request.Request(f"{base}/chat/completions", data=body, method="POST",
                                  headers={"Authorization": f"Bearer {key}",
                                           "Content-Type": "application/json"})
