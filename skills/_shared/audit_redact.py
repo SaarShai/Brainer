@@ -96,11 +96,13 @@ def _replace_env_assign(m: "re.Match[str]") -> str:
     return f"{m.group(1)}{m.group(2)}{m.group(3)}{REDACTED}{m.group(5)}"
 
 
-def redact(text: Any) -> str:
-    """Scrub every covered secret family from ``text``; returns a string.
+def redact_secrets(text: Any) -> str:
+    """Scrub secret families only — leaves local home-directory paths intact.
 
-    Accepts non-str input defensively (coerced via ``str``); ``None``/empty
-    yields ``""``.
+    For persistence surfaces that NEED absolute paths to stay useful (e.g.
+    context-keeper session-memory resume pointers) while still refusing to
+    store credential-shaped strings. Accepts non-str input defensively
+    (coerced via ``str``); ``None``/empty yields ``""``.
     """
     if text is None:
         return ""
@@ -126,6 +128,19 @@ def redact(text: Any) -> str:
     out = _GITHUB_PAT_RE.sub(REDACTED, out)
     out = _GITHUB_TOKEN_RE.sub(REDACTED, out)
     out = _AWS_AKID_RE.sub(REDACTED, out)
+
+    return out
+
+
+def redact(text: Any) -> str:
+    """Scrub every covered secret family from ``text``; returns a string.
+
+    Accepts non-str input defensively (coerced via ``str``); ``None``/empty
+    yields ``""``.
+    """
+    out = redact_secrets(text)
+    if not out:
+        return out
 
     # 5. Local usernames in home paths.
     out = _USERS_PATH_RE.sub(lambda m: m.group(1) + REDACTED, out)

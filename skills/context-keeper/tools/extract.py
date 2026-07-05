@@ -544,6 +544,15 @@ def main():
         while out_path.exists():
             out_path = base / f"{stamp}-{sid[:8]}-{trig}-{n}.md"
             n += 1
+    # Secrets-only scrub before persistence (paths stay — they're the resume
+    # pointers). Identity fallback: a missing _shared import must not kill the
+    # PreCompact hook, matching model_roster's convention.
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "_shared"))
+        from audit_redact import redact_secrets  # type: ignore
+        md = redact_secrets(md)
+    except Exception:
+        pass
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(md, encoding="utf-8")
 
