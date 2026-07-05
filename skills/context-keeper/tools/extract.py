@@ -18,6 +18,7 @@ Schema (stable — pre-registered):
   - loop_next_actions next-pass / next-action lines
   - user_goals       lines from user messages starting with imperative verbs
   - failed_attempts  blocks near "fail/error/bug/wrong/doesn't work"
+  - compromises      settled-for choices near workaround/stopgap markers
   - pending_todos    unchecked items from TodoWrite (if present)
 
 Usage:
@@ -44,7 +45,14 @@ FAIL_WORD_RE = re.compile(r"didn't work|doesn't work|not work|broke|broken|bug|w
 # Compromise markers: settled-for choices that compaction would otherwise
 # launder into "intended design" — the next session must not build on them
 # as if deliberate.
-COMPROMISE_WORD_RE = re.compile(r"workaround|stopgap|for now\b|temporar(?:y|ily)|\bhacky?\b|settled? for|good enough for now|revisit (?:this |it )?later|quick fix|band-aid|kludge", re.I)
+COMPROMISE_WORD_RE = re.compile(
+    r"workaround|stopgap|for now\b"
+    # bare "temporary/temporarily" false-positives on operational text
+    # ("temporary file", "temporarily unavailable") — require a fix-shaped
+    # noun or a settled-for verb nearby (cross-vendor review 2026-07-05).
+    r"|temporar(?:y|ily)[ -](?:fix|workaround|hack|solution|patch|measure|shim|stub|kludge)"
+    r"|(?:went with|using|keep(?:ing)?|accept(?:ed|ing)?) (?:a |the )?temporar(?:y|ily)"
+    r"|\bhacky?\b|settled? for|good enough for now|revisit (?:this |it )?later|quick fix|band-aid|kludge", re.I)
 LOOP_PASS_RE = re.compile(r"\b(?:loop\s+)?(?:pass|iteration|round)\s*(?:#|:|=)?\s*\d+\b", re.I)
 LOOP_ANCHOR_RE = re.compile(r"\b(?:anchor_files|anchor files?|VISION\.md|PROMPT\.md|AGENTS\.md|SKILL\.md)\b[^\n]{0,180}", re.I)
 LOOP_STATE_RE = re.compile(r"\b(?:state_store|state store|state path|loop state|LOOP-STATE(?:\.json)?|STATE\.md)\b[^\n]{0,180}", re.I)

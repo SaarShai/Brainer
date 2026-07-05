@@ -71,7 +71,7 @@ $EG score --rubric rubric.md --file draft.md --panel 3
 cross-vendor escalation): after the normal single-judge score, an odd-N cross-vendor
 panel (`skills/_shared/model_roster.py`, verifier role, refute-if-you-can) re-checks
 "does this output meet the rubric at ≥ threshold". Ship only on judge-PASS **+** panel
-majority; any disagreement exits 1 with per-member verdicts. Fewer than 2 reachable
+majority; any disagreement exits 1 with per-member verdicts. Fewer than 3 reachable
 members → loud warning + single-judge fallback, never a fabricated quorum. Closes the
 same-model-judging hole for outputs that are hard to reverse.
 

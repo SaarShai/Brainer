@@ -32,6 +32,8 @@ eval/*/output/
 .brainer/
 .brainer-profile
 .claude/
+# agent definitions are SOURCE (team-lead roster seats), not generated state
+!.claude/agents/
 .mcp.json
 
 # Per-machine install targets (./install.sh symlinks skills into these)

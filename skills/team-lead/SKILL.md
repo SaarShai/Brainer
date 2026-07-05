@@ -89,7 +89,10 @@ MAX ITERATIONS: 2, then stop and report blockers.
 ```
 
 Brief altitude follows ORCHESTRATION §6: spec-shaped for cheap lanes,
-goal-shaped for frontier lanes.
+goal-shaped for frontier lanes. The template above is altitude-neutral — GOAL,
+boundaries, DONE MEANS, and the report contract apply to every lane; what
+altitude changes is only whether CONSTRAINTS dictates steps/interfaces (cheap
+lanes) or leaves the how to the worker (frontier lanes).
 
 ## 4. Review (leader + cold verifier)
 

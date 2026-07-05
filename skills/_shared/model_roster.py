@@ -61,8 +61,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
     from audit_redact import redact as _redact          # type: ignore
 except Exception:                                        # pragma: no cover - defensive
-    def _redact(s: str) -> str:                          # never let a missing import egress raw
-        return s
+    def _redact(s: str) -> str:
+        # EGRESS fails CLOSED: with no scrubber, refuse to build the prompt
+        # rather than send raw text to a third-party model. (Persistence paths
+        # may fail open — local files, hook must not die — but egress must not.)
+        raise RuntimeError(
+            "audit_redact unavailable — refusing cross-vendor egress without redaction")
 
 Role = Literal["advisor", "verifier"]
 
