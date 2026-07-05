@@ -1,0 +1,301 @@
+{
+ "cells": [
+  {
+   "eval": "A",
+   "arm": "armA",
+   "task": "Summarize this week's production incident report i",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "required_flag": true,
+    "judge_spec_tied": true
+   }
+  },
+  {
+   "eval": "A",
+   "arm": "armB",
+   "task": "Summarize this week's production incident report i",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "required_flag": true,
+    "judge_spec_tied": true
+   }
+  },
+  {
+   "eval": "A",
+   "arm": "armA",
+   "task": "Write the product page copy for our new desk lamp ",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "required_flag": true,
+    "judge_spec_tied": true
+   }
+  },
+  {
+   "eval": "A",
+   "arm": "armB",
+   "task": "Write the product page copy for our new desk lamp ",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "required_flag": true,
+    "judge_spec_tied": true
+   }
+  },
+  {
+   "eval": "A",
+   "arm": "armA",
+   "task": "Write a runbook for migrating the users table from",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "required_flag": true,
+    "judge_spec_tied": true
+   }
+  },
+  {
+   "eval": "A",
+   "arm": "armB",
+   "task": "Write a runbook for migrating the users table from",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "required_flag": true,
+    "judge_spec_tied": true
+   }
+  },
+  {
+   "eval": "A",
+   "arm": "armA",
+   "task": "Draft the onboarding email sequence (3 emails) for",
+   "parseable": true,
+   "pass": false,
+   "detail": {
+    "required_flag": true,
+    "judge_spec_tied": false
+   }
+  },
+  {
+   "eval": "A",
+   "arm": "armB",
+   "task": "Draft the onboarding email sequence (3 emails) for",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "required_flag": true,
+    "judge_spec_tied": true
+   }
+  },
+  {
+   "eval": "A",
+   "arm": "armA",
+   "task": "Produce a competitive analysis of the top 3 rival ",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "required_flag": true,
+    "judge_spec_tied": true
+   }
+  },
+  {
+   "eval": "A",
+   "arm": "armB",
+   "task": "Produce a competitive analysis of the top 3 rival ",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "required_flag": true,
+    "judge_spec_tied": true
+   }
+  },
+  {
+   "eval": "A",
+   "arm": "armA",
+   "task": "Write API reference docs for our new /v2/export en",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "required_flag": true,
+    "judge_spec_tied": true
+   }
+  },
+  {
+   "eval": "A",
+   "arm": "armB",
+   "task": "Write API reference docs for our new /v2/export en",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "required_flag": true,
+    "judge_spec_tied": true
+   }
+  },
+  {
+   "eval": "B",
+   "arm": "armA",
+   "task": "Weekly review sweep: cluster customer reviews into",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "noop_declared": true,
+    "carry_in_spec": false,
+    "invented_work": false
+   }
+  },
+  {
+   "eval": "B",
+   "arm": "armB",
+   "task": "Weekly review sweep: cluster customer reviews into",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "noop_declared": true,
+    "carry_in_spec": true,
+    "invented_work": false
+   }
+  },
+  {
+   "eval": "B",
+   "arm": "armA",
+   "task": "Daily inbox triage: draft a reply for the single h",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "noop_declared": true,
+    "carry_in_spec": false,
+    "invented_work": false
+   }
+  },
+  {
+   "eval": "B",
+   "arm": "armB",
+   "task": "Daily inbox triage: draft a reply for the single h",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "noop_declared": true,
+    "carry_in_spec": true,
+    "invented_work": false
+   }
+  },
+  {
+   "eval": "B",
+   "arm": "armA",
+   "task": "Weekly SOP drift check: propose one SOP edit only ",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "noop_declared": true,
+    "carry_in_spec": false,
+    "invented_work": false
+   }
+  },
+  {
+   "eval": "B",
+   "arm": "armB",
+   "task": "Weekly SOP drift check: propose one SOP edit only ",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "noop_declared": true,
+    "carry_in_spec": true,
+    "invented_work": false
+   }
+  },
+  {
+   "eval": "B",
+   "arm": "armA",
+   "task": "Weekly competitor watch: write one counter-brief o",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "noop_declared": true,
+    "carry_in_spec": false,
+    "invented_work": false
+   }
+  },
+  {
+   "eval": "B",
+   "arm": "armB",
+   "task": "Weekly competitor watch: write one counter-brief o",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "noop_declared": true,
+    "carry_in_spec": true,
+    "invented_work": false
+   }
+  },
+  {
+   "eval": "B",
+   "arm": "armA",
+   "task": "Weekly KPI watch: write an investigation note only",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "noop_declared": true,
+    "carry_in_spec": false,
+    "invented_work": false
+   }
+  },
+  {
+   "eval": "B",
+   "arm": "armB",
+   "task": "Weekly KPI watch: write an investigation note only",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "noop_declared": true,
+    "carry_in_spec": true,
+    "invented_work": false
+   }
+  },
+  {
+   "eval": "B",
+   "arm": "armA",
+   "task": "Weekly regulatory digest: digest the single most m",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "noop_declared": true,
+    "carry_in_spec": false,
+    "invented_work": false
+   }
+  },
+  {
+   "eval": "B",
+   "arm": "armB",
+   "task": "Weekly regulatory digest: digest the single most m",
+   "parseable": true,
+   "pass": true,
+   "detail": {
+    "noop_declared": true,
+    "carry_in_spec": true,
+    "invented_work": false
+   }
+  }
+ ],
+ "verdict": {
+  "A/armA": {
+   "n": 6,
+   "pass": 5
+  },
+  "A/armB": {
+   "n": 6,
+   "pass": 6
+  },
+  "A/lift": 0.167,
+  "B/armA": {
+   "n": 6,
+   "pass": 6
+  },
+  "B/armB": {
+   "n": 6,
+   "pass": 6
+  },
+  "B/lift": 0.0
+ },
+ "blocked": false
+}

@@ -37,6 +37,7 @@ Compact pointers. Fetch details on demand.
 - concepts/cross-model-ollama-eval-gotchas (concept tags=eval-methodology,ollama,local-models,cross-model) -> `concepts/cross-model-ollama-eval-gotchas.md`
 - concepts/demote-vs-description-tax (concept tags=eval-methodology,skills,description-tax,cost) -> `concepts/demote-vs-description-tax.md`
 - concepts/devices-inventory (concept tags=infra,devices,inventory,compute) -> `concepts/devices-inventory.md`
+- concepts/e2-prose-rules-measured-2026-07 (concept tags=eval-methodology,ab-test,negative-result,eval-gate,loop-engineering,measured) -> `concepts/e2-prose-rules-measured-2026-07.md`
 - concepts/framework-hardening-adoption (concept tags=framework,adoption,retrieval,memory,routing,skills) -> `concepts/framework-hardening-adoption.md`
 - concepts/harness-article-adoption-2026-07 (concept tags=skills,harness,article-adoption,tool-scoping,error-taxonomy,negative-result) -> `concepts/harness-article-adoption-2026-07.md`
 - concepts/hook-path-fragility (concept tags=hooks,install,cwd-drift,lockout,pretooluse,claude-project-dir,fail-open,hard-rule) -> `concepts/hook-path-fragility.md`
