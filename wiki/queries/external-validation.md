@@ -60,5 +60,6 @@ new lint rules since cadence and spec-fidelity aren't statically checkable.
 
 - [[memory-as-a-tool-validation]]
 - [[concepts/team-lead-upstream-2026-07]] — sibling-session upstreaming that converged on the fable-advisor row's §6 doctrine
+- [[concepts/e2-prose-rules-measured-2026-07]] — E2 A/B verdicts on two of this page's adopted rules (mostly null; grader lessons)
 - [[index]]
 - [[schema]]
