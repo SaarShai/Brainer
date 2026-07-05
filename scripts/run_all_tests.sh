@@ -109,6 +109,7 @@ UNIT_TESTS=(
   skills/_shared/test_transcript_norm.py
   scripts/test_gen_hooks_map.py
   scripts/test_mine_transcripts.py
+  scripts/test_sibling_sync_audit.py
 )
 # semantic-diff needs tree-sitter; SKIP (not FAIL) where the dep is absent
 # (e.g. bare CI runners) — semdiff's own suite covers it on dev machines.

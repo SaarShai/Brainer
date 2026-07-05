@@ -10,7 +10,9 @@ invisible — both were found late, by accident, for exactly this missing-lens
 reason. This is that missing lens as a standing, repeatable check.
 
 For every sibling repo (a dir alongside Brainer that has skills/ + install.sh),
-and every file under Brainer's skills/ (real files only — no .venv/__pycache__),
+and every file under Brainer's skills/ (real files only — no .venv/__pycache__)
+PLUS every canonical agent-def (`.claude/agents/*.md` — team-lead's
+builder/verifier roster + labor-tier lanes, tracked SOURCE per .gitignore),
 classify the sibling's copy:
 
   identical   byte-for-byte == canonical Brainer
@@ -32,6 +34,15 @@ Usage:
   python3 scripts/sibling_sync_audit.py --json
   python3 scripts/sibling_sync_audit.py --classify           # DIFFERS -> STALE vs CUSTOMIZED
   python3 scripts/sibling_sync_audit.py --repo X --apply-stale  # fast-forward STALE files only
+  python3 scripts/sibling_sync_audit.py --repo X --adopt-agents # add missing .claude/agents/*.md
+
+Agent-defs ride the SAME classify machinery as skills: a stale roster def (the
+sibling holds an older builder.md that byte-matches a historical canonical
+version) fast-forwards under --apply-stale; a customized one is protected; a
+missing one adopts by default under --adopt-agents (a sibling declines one with
+an `agent:<name>` line in its .brainer-sync-optout). Agent defs live DIRECTLY in
+the host loader path (.claude/agents/), so — unlike skills — the copy is live
+immediately with no install.sh symlink step.
 
 --classify mechanizes the topology hard-rule's "git-archaeology each file":
 a DIFFERS file whose content byte-matches ANY historical canonical version of
@@ -57,6 +68,11 @@ BRAINER = Path(__file__).resolve().parent.parent
 DOCS = BRAINER.parent
 SKIP = {".venv", "venv", "__pycache__", ".git", ".pytest_cache", "node_modules",
         ".mypy_cache", ".ruff_cache", "dist", "build"}
+# Agent-defs are tracked SOURCE (see .gitignore carve-out `.claude/*` +
+# `!.claude/agents/`), NOT runtime state — they are team-lead's builder/verifier
+# roster + labor-tier lanes. They live directly in each host's agent loader path,
+# so the ONLY thing they need is the cross-repo carry that skills already get.
+AGENTS_DIR = ".claude/agents"
 
 
 def is_sibling(d: Path) -> bool:
@@ -78,6 +94,21 @@ def skill_files(root: Path) -> list[Path]:
 def skill_names(root: Path) -> set[str]:
     return {d.name for d in (root / "skills").iterdir()
             if d.is_dir() and d.name != "_shared" and (d / "SKILL.md").is_file()}
+
+
+def agent_files(root: Path) -> list[Path]:
+    """Canonical agent-defs: the flat `.claude/agents/*.md` roster. Classified
+    with the same git-archaeology as skill files (they are tracked source), but
+    kept as their own track so folding them in never perturbs the skills counts."""
+    d = root / AGENTS_DIR
+    if not d.is_dir():
+        return []
+    return sorted(p.relative_to(root) for p in d.glob("*.md") if p.is_file())
+
+
+def agent_names(root: Path) -> set[str]:
+    d = root / AGENTS_DIR
+    return {p.stem for p in d.glob("*.md") if p.is_file()} if d.is_dir() else set()
 
 
 def _blob_id(p: Path) -> str:
@@ -153,12 +184,38 @@ def _optout_skills(sib: Path) -> set[str]:
     """Skills a sibling has explicitly DECLINED — one skill name per line in
     `.brainer-sync-optout` at the sibling root. Everything not listed here is
     adopted by default, so a NEW canonical skill reaches every sibling with no
-    per-skill opt-in from the author (declining is the deliberate, explicit act)."""
+    per-skill opt-in from the author (declining is the deliberate, explicit act).
+    `agent:<name>` lines belong to _optout_agents and are skipped here."""
     f = sib / ".brainer-sync-optout"
     if not f.is_file():
         return set()
     return {ln.strip() for ln in f.read_text().splitlines()
-            if ln.strip() and not ln.startswith("#")}
+            if ln.strip() and not ln.startswith("#")
+            and not ln.strip().startswith("agent:")}
+
+
+def _optout_agents(sib: Path) -> set[str]:
+    """Agent-defs a sibling has DECLINED — an `agent:<name>` line in the SAME
+    `.brainer-sync-optout` file. Everything not listed adopts by default, so a
+    new roster def (a freshly added team-lead lane) reaches every sibling with
+    no per-agent opt-in — declining is the deliberate, explicit act."""
+    f = sib / ".brainer-sync-optout"
+    if not f.is_file():
+        return set()
+    out = set()
+    for ln in f.read_text().splitlines():
+        s = ln.strip()
+        if s.startswith("agent:"):
+            name = s[len("agent:"):].strip()
+            if name:
+                out.add(name)
+    return out
+
+
+def new_agents_for(sib: Path) -> list[str]:
+    """Canonical agent-defs wholly absent from the sibling and not opted out —
+    the auto-adoption roster (mirrors new_skills_for)."""
+    return sorted(agent_names(BRAINER) - agent_names(sib) - _optout_agents(sib))
 
 
 def new_skills_for(sib: Path) -> list[str]:
@@ -173,11 +230,12 @@ def new_skills_for(sib: Path) -> list[str]:
 def audit(repo: str | None = None) -> dict:
     canon_files = skill_files(BRAINER)
     canon_skills = skill_names(BRAINER)
+    canon_agents = agent_files(BRAINER)
     sibs = sorted((d for d in DOCS.iterdir() if is_sibling(d)), key=lambda p: p.name)
     if repo is not None:
         sibs = [d for d in sibs if d.name == repo]
     report = {"canonical_files": len(canon_files), "canonical_skills": len(canon_skills),
-              "siblings": []}
+              "canonical_agents": len(canon_agents), "siblings": []}
     for sib in sibs:
         differs, absent = [], []
         identical = 0
@@ -190,6 +248,19 @@ def audit(repo: str | None = None) -> dict:
             else:
                 differs.append(str(rel))
         sib_skills = skill_names(sib)
+        # Agent-def roster: its own track (a missing roster def surfaces as
+        # new_agents, adopt-by-default — never as a skills `absent` file).
+        agent_differs = []
+        agent_identical = 0
+        for rel in canon_agents:
+            sp = sib / rel
+            if not sp.is_file():
+                continue  # surfaced via new_agents below
+            elif filecmp.cmp(BRAINER / rel, sp, shallow=False):
+                agent_identical += 1
+            else:
+                agent_differs.append(str(rel))
+        sib_agents = agent_names(sib)
         report["siblings"].append({
             "repo": sib.name,
             "shared_skills": sorted(canon_skills & sib_skills),
@@ -200,6 +271,11 @@ def audit(repo: str | None = None) -> dict:
             "sibling_only_skills": sorted(sib_skills - canon_skills),
             "new_skills": new_skills_for(sib),
             "declined_skills": sorted(_optout_skills(sib)),
+            "agent_identical": agent_identical,
+            "agent_differs": sorted(agent_differs),
+            "new_agents": new_agents_for(sib),
+            "sibling_only_agents": sorted(sib_agents - agent_names(BRAINER)),
+            "declined_agents": sorted(_optout_agents(sib)),
         })
     return report
 
@@ -229,6 +305,15 @@ def main() -> int:
                          "per-skill opt-in from the author). A sibling declines "
                          "explicitly by listing the skill in its root "
                          ".brainer-sync-optout. Requires --repo.")
+    ap.add_argument("--adopt-agents", action="store_true",
+                    help="copy every canonical .claude/agents/*.md the sibling "
+                         "lacks (team-lead's builder/verifier roster + labor "
+                         "lanes travel by default — decline one with an "
+                         "`agent:<name>` line in .brainer-sync-optout). STALE "
+                         "roster defs fast-forward under --apply-stale; "
+                         "CUSTOMIZED ones are never overwritten. Agent defs live "
+                         "in the loader path, so a copy is live with no install "
+                         "step. Requires --repo.")
     ap.add_argument("--post-check", action="store_true",
                     help="mechanical target-repo test after a propagation: "
                          "byte-compile every .py under the sibling's skills/ "
@@ -261,10 +346,11 @@ def main() -> int:
             return 1
         print(f"post-check OK: {n} .py files byte-compile clean in {args.repo}.")
         return 0
-    if (args.apply_stale or args.apply_absent or args.adopt_new_skills) and not args.repo:
-        print("--apply-stale/--apply-absent/--adopt-new-skills require --repo "
-              "<sibling> (one deliberate sibling at a time — installs write "
-              "user-global settings)", file=sys.stderr)
+    if (args.apply_stale or args.apply_absent or args.adopt_new_skills
+            or args.adopt_agents) and not args.repo:
+        print("--apply-stale/--apply-absent/--adopt-new-skills/--adopt-agents "
+              "require --repo <sibling> (one deliberate sibling at a time — "
+              "installs write user-global settings)", file=sys.stderr)
         return 2
     rep = audit(args.repo)
     if args.repo and not rep["siblings"]:
@@ -275,15 +361,23 @@ def main() -> int:
         print(json.dumps(rep, indent=2))
         return 0
     print(f"canonical: {rep['canonical_files']} skill files, "
-          f"{rep['canonical_skills']} skills (Brainer)\n")
-    print(f"{'sibling':<18}{'shared':>7}{'ident':>7}{'differ':>7}{'absent':>7}{'new-sk':>7}  sibling-only-skills")
+          f"{rep['canonical_skills']} skills, {rep['canonical_agents']} agent-defs (Brainer)\n")
+    print(f"{'sibling':<18}{'shared':>7}{'ident':>7}{'differ':>7}{'absent':>7}{'new-sk':>7}"
+          f"{'ag-id':>7}{'ag-df':>7}{'ag-new':>7}  sibling-only-skills")
     for s in rep["siblings"]:
         print(f"{s['repo']:<18}{len(s['shared_skills']):>7}{s['identical']:>7}"
-              f"{len(s['differs']):>7}{s['absent_count']:>7}{len(s['new_skills']):>7}  "
+              f"{len(s['differs']):>7}{s['absent_count']:>7}{len(s['new_skills']):>7}"
+              f"{s['agent_identical']:>7}{len(s['agent_differs']):>7}{len(s['new_agents']):>7}  "
               f"{','.join(s['sibling_only_skills']) or '-'}")
         if s["new_skills"]:
             print(f"      NEW-SKILL   {','.join(s['new_skills'])}  "
                   f"(--adopt-new-skills to add{'' if not s['declined_skills'] else '; declined: '+','.join(s['declined_skills'])})")
+        if s["new_agents"]:
+            print(f"      NEW-AGENT   {','.join(s['new_agents'])}  "
+                  f"(--adopt-agents to add{'' if not s['declined_agents'] else '; declined: '+','.join(s['declined_agents'])})")
+        if s["sibling_only_agents"]:
+            print(f"      AGENT-ONLY  {','.join(s['sibling_only_agents'])}  "
+                  f"(sibling-local roster — never touched)")
         if args.files and s["differs"]:
             for f in s["differs"]:
                 print(f"      DIFFERS  {f}")
@@ -304,6 +398,22 @@ def main() -> int:
                           f"{s['repo']}. NOW: re-run {s['repo']}/install.sh, then "
                           f"verify with --repo {s['repo']} (topology hard-rule "
                           f"steps 3-4).")
+        if (args.classify or args.apply_stale) and s["agent_differs"]:
+            acl = classify_differs(DOCS / s["repo"], s["agent_differs"])
+            for f in acl["stale"]:
+                print(f"      AGENT-STALE       {f}")
+            for f in acl["customized"]:
+                print(f"      AGENT-CUSTOMIZED  {f}")
+                for ln in acl["local_lines"].get(f, [])[:6]:
+                    print(f"          local: {ln[:100]}")
+            if args.apply_stale:
+                for f in acl["stale"]:
+                    shutil.copy2(BRAINER / f, DOCS / s["repo"] / f)
+                    print(f"      applied           {f}")
+                if acl["stale"]:
+                    print(f"\n  {len(acl['stale'])} stale agent-def(s) "
+                          f"fast-forwarded in {s['repo']} (live immediately — "
+                          f".claude/agents/ is the loader path, no install step).")
         if args.apply_absent and s.get("absent"):
             sib = DOCS / s["repo"]
             applied = 0
@@ -333,6 +443,17 @@ def main() -> int:
                   f"{s['repo']}. NOW: re-run {s['repo']}/install.sh (wires the "
                   f"new skill's carriers/hooks), then verify with --repo "
                   f"{s['repo']}.")
+        if args.adopt_agents and s["new_agents"]:
+            sib = DOCS / s["repo"]
+            (sib / AGENTS_DIR).mkdir(parents=True, exist_ok=True)
+            for name in s["new_agents"]:
+                shutil.copy2(BRAINER / AGENTS_DIR / f"{name}.md",
+                             sib / AGENTS_DIR / f"{name}.md")
+                print(f"      adopted     {AGENTS_DIR}/{name}.md")
+            print(f"\n  {len(s['new_agents'])} agent-def(s) adopted into "
+                  f"{s['repo']} — team-lead's roster now travels. They are live "
+                  f"immediately (.claude/agents/ is the loader path); no "
+                  f"install.sh step needed for agent defs.")
     return 0
 
 
