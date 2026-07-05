@@ -19,6 +19,7 @@ Before any completion/success claim:
 3. Read the output or result.
 4. Re-read the ORIGINAL ask (or the plan's `done means:` block) and check **each criterion** — code-level green is not goal-level done.
 5. Report the verification as a **per-criterion verdict** (criterion → pass/fail → the evidence line that proves it), not prose "done" — a claim with no per-criterion evidence is not a verdict. **Two-pass:** score it once from your own claims, then again from the artifact; any criterion that drops on the second pass is a refuted claim → NOT done (the hallucination signature).
+6. **Visual deliverables get a vision check.** If the artifact is visual — UI, chart, rendered doc, slide, image — render it and verify with vision against the goal (and the prior state, if iterating); a text-only check (DOM/markup/exit code) structurally cannot see the failure mode that matters (layout, overlap, wrong chart shape).
 
 Do not claim:
 - tests pass without a fresh test run
