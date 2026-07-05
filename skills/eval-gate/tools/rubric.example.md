@@ -3,6 +3,8 @@
 The score is only as sharp as this rubric. Replace the criteria below with the
 specific things a reader bookmarks YOU for. A vague rubric ("is this good and
 engaging") produces a vague score; a specific one produces a score you can trust.
+Keep at least one spec-tied criterion — "does this do what the ask actually
+asked" — and mark it `required` in per-criterion mode.
 
 Rate the candidate 0-5:
 

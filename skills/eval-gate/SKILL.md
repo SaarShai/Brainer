@@ -129,7 +129,11 @@ fails *safe* — it never reports a pass it couldn't compute).
    the criteria a reader would bookmark you for. The grader trusts this rubric
    blindly: a **missing or wrong-target** criterion passes bad output as surely
    as a vague one, so make it complete (covers the degenerate/edge cases that
-   matter), not just specific.
+   matter), not just specific. **At least one criterion must be spec-tied** —
+   a restatement of the original ask ("does this do what was actually asked"),
+   marked `required` in per-criterion mode: a rubric of only generic craft
+   dimensions lets an iteration loop hill-climb polish while drifting off-spec
+   (asked for a boat, shipped a painting of a boat).
 2. `score` at the point of shipping. Exit 1 → rework or kill; do not ship.
    **When a maker hands you a result, run the two-pass refute check** — see
    [`verify-before-completion`](../verify-before-completion/SKILL.md): a criterion
