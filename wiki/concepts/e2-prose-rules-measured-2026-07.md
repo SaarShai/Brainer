@@ -41,9 +41,22 @@ budget / separate verifier). Harness: `eval/e2-rules-202607/run_e2.py`.
   not cite them as measured behavioral lift**. The one real effect is
   declaration-level: typed stop text makes every spec carry partial/carry
   semantics it otherwise never mentions. Whether that declaration prevents
-  silent drops **at cap** (the rule's other half) was NOT tested — planted
-  inputs covered the empty-round case only. That is the follow-up eval if one
-  is ever warranted.
+  silent drops **at cap** (the rule's other half) was tested in the follow-up
+  below: also null.
+
+## Follow-up: drop-at-cap (2026-07-05, run_e2b.py)
+
+6 paired scenarios, queue > per-round cap, planted explicit item IDs so
+leftover-detection is deterministic. Result: **armA 6/6, armB 6/6, lift 0.0**
+— glm-5.2 does not silently drop leftovers at cap even without the rule; all
+12 raw cells eyeballed, grading clean on first pass this time. Arm difference
+is vocabulary only: armB emits typed machine-parseable states
+(`state: partial`, `remainder_queue_head: …`) where armA writes free prose
+("Deferred to next round: M5–M9"). Standing caveats: leftovers were SALIENT
+(crisp enumerated IDs); the untested condition is a messy/implicit queue where
+the remainder isn't enumerated in the input — and weaker-than-glm subjects.
+Verdict unchanged: keep the rule for its declaration-standardization value (a
+monitor can parse `partial` states), claim no behavioral lift.
 - Consistent with house precedent: prose additions to already-competent
   frontier/near-frontier subjects tend to measure null on behavior the model
   already does ([[concepts/premortem-and-think-edits-measured]],

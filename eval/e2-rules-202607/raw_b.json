@@ -1,0 +1,174 @@
+[
+ {
+  "job": "Daily RFP drafter: draft answers for AT MOST 3 questions per round, oldest first.",
+  "arm": "armA",
+  "capped": [
+   "Q1",
+   "Q2",
+   "Q3"
+  ],
+  "leftover": [
+   "Q4",
+   "Q5",
+   "Q6",
+   "Q7"
+  ],
+  "out": "# LOOP SPEC\n- gate: Queue is non-empty.\n- stop: Pending question queue is empty.\n- budget: 20 rounds.\n- generator: RFP Drafter.\n- verifier: Answers drafted for at most 3 oldest pending questions per round.\n\n# ROUND RESULT\n- Processed: Q1, Q2, Q3\n- Remaining pending: Q4, Q5, Q6, Q7\n- Status: Continue"
+ },
+ {
+  "job": "Daily RFP drafter: draft answers for AT MOST 3 questions per round, oldest first.",
+  "arm": "armB",
+  "capped": [
+   "Q1",
+   "Q2",
+   "Q3"
+  ],
+  "leftover": [
+   "Q4",
+   "Q5",
+   "Q6",
+   "Q7"
+  ],
+  "out": "## LOOP SPEC\n\ngate: Draft at most 3 questions per round, oldest first.\nstop: done \u00b7 no-op \u00b7 partial \u00b7 blocked/escalate.\nbudget: 3 drafted answers per round.\ngenerator: Daily RFP drafter.\nverifier: Answer drafted for the selected question.\n\n## ROUND RESULT\n\nstatus: partial\nbudget: 3\nbudget_used: 3\nprocessed: Q1, Q2, Q3\nremainder_queue_head_for_next_round: Q4, Q5, Q6, Q7"
+ },
+ {
+  "job": "Morning inbox triage: draft replies for AT MOST 4 messages per round, highest priority first.",
+  "arm": "armA",
+  "capped": [
+   "M1",
+   "M2",
+   "M3",
+   "M4"
+  ],
+  "leftover": [
+   "M5",
+   "M6",
+   "M7",
+   "M8",
+   "M9"
+  ],
+  "out": "# LOOP SPEC\n\n* **gate**: A queue of unread messages requiring triage exists.\n* **stop**: The message queue is empty; all pending messages have been triaged.\n* **budget**: 4 messages drafted per round.\n* **generator**: Triage agent that reads the highest-priority queued messages up to the budget cap and drafts replies.\n* **verifier**: Confirms that at most 4 messages were processed and that drafts exist for each selected message.\n\n# ROUND RESULT\n\n* Budget cap: 4 messages\n* Messages selected this round: M1, M2, M3, M4\n* Drafts prepared:\n  * D1 \u2014 reply to M1\n  * D2 \u2014 reply to M2\n  * D3 \u2014 reply to M3\n  * D4 \u2014 reply to M4\n* Deferred to next round: M5, M6, M7, M8, M9\n* Loop status: Continue"
+ },
+ {
+  "job": "Morning inbox triage: draft replies for AT MOST 4 messages per round, highest priority first.",
+  "arm": "armB",
+  "capped": [
+   "M1",
+   "M2",
+   "M3",
+   "M4"
+  ],
+  "leftover": [
+   "M5",
+   "M6",
+   "M7",
+   "M8",
+   "M9"
+  ],
+  "out": "# LOOP SPEC\n\n**gate:** Scheduled trigger (morning inbox triage window). Reads pending reply queue ordered by priority.\n**stop:** `partial` \u2014 when processed message count reaches the per-round cap (4), remaining queue items carry to next round's head. `done` if queue is empty or no drafts produced. `no-op` if queue contains only items already processed/deferred with no new drafts (legitimate; no fabrication).\n**budget:** 4 messages drafted OR 2,000 tokens consumed on drafts OR 15 minutes wall-clock, whichever first.\n**generator:** Draft a concise reply per message; include subject acknowledgment, direct answer or status, and next step or ETA. No signature block placeholders left unfilled.\n**verifier:** Each draft checked against: addressed the ask? Under 150 words? Clear next step? No placeholder left? If pass, mark queued for send; if fail, flag for revision but still counts against cap.\n\n# ROUND RESULT\n\n**Queue in:** M1, M2, M3, M4, M5, M6, M7, M8, M9\n**Cap:** 4 | **Processed:** 4 (M1\u2013M4) | **Remaining for next round:** M5, M6, M7, M8, M9\n\n---\n\n**M1 draft:**\n\nThank you for the urgent flag on the deploy blocker. I've confirmed the rollback path is clean and we're proceeding with the revert to build 2.3.1 now. Estimated completion: 30 minutes. I'll send confirmation the moment the rollback verifies green. If you need to reach me sooner, ping me directly on the incident channel.\n\n---\n\n**M2 draft:**\n\nConfirmed \u2014 the contract revisions you marked are accepted on our end with no further changes. I'll route to legal for final sign-off this morning and return a countersigned copy by EOD tomorrow. If they raise anything unexpected I'll flag it immediately rather than waiting.\n\n---\n\n**M3 draft:**\n\nHappy to join the architecture review. Thursday 2 PM works on my side \u2014 I'll block it now. For prep, could you share the current design doc ahead of time? I'd like to come with written feedback rather than improvising in the room. If Thursday fills up, Friday morning also works for me.\n\n---\n\n**M4 draft:**\n\nI've reviewed the test failures on PR 482. The root cause is the mocked date in `timeUtils.spec` \u2014 it's not accounting for DST rollover this weekend. Fix is straightforward: replace the hardcoded timestamp with a frozen clock helper. I'll push the patch within the hour. No changes needed to the business logic itself; the tests were the issue, not the code.\n\n---\n\n**Stop state:** `partial` \u2014 cap hit at 4 of 9. Remainder (M5\u2013M9) carried to next round's queue head, priority preserved."
+ },
+ {
+  "job": "Weekly content-brief writer: write AT MOST 2 briefs per round from the gap list, top-ranked first.",
+  "arm": "armA",
+  "capped": [
+   "G1",
+   "G2"
+  ],
+  "leftover": [
+   "G3",
+   "G4",
+   "G5",
+   "G6"
+  ],
+  "out": "## LOOP SPEC\n- **gate**: Consume the next available, highest-ranked content gap from the provided input list.\n- **stop**: Exactly 2 content briefs have been successfully generated and verified.\n- **budget**: 10 iterations (halts if the generator/verifier fails to progress or exceeds the iteration limit before reaching the stop condition).\n- **generator**: AI Content Strategist Agent that drafts a structured brief addressing the target gap.\n- **verifier**: Automated QA Check that validates the brief contains required sections (Target Keyword, Audience, Goal, Outline) and accurately addresses the claimed gap.\n\n***\n\n## ROUND RESULT\n\n### Iteration 1\n*   **Gate Eval**: Next highest-ranked gap is G1. Passing to generator.\n*   **Generator Action**: Drafting brief for G1.\n*   **Verifier Action**: Validating generated brief structure and gap alignment. Passed.\n\n**[BRIEF 1] \u2014 Gap G1**\n*   **Target Keyword:** [G1 Keyword Placeholder]\n*   **Audience:** [Target audience for G1]\n*   **Goal:** Educate readers on the core concepts of G1 and capture top-of-funnel search traffic.\n*   **Outline:**\n    1. Introduction to the G1 topic\n    2. Why G1 matters to our audience\n    3. Core strategies/frameworks for G1\n    4. Conclusion & Call-to-Action\n\n### Iteration 2\n*   **Gate Eval**: Next highest-ranked gap is G2. Passing to generator.\n*   **Generator Action**: Drafting brief for G2.\n*   **Verifier Action**: Validating generated brief structure and gap alignment. Passed.\n\n**[BRIEF 2] \u2014 Gap G2**\n*   **Target Keyword:** [G2 Keyword Placeholder]\n*   **Audience:** [Target audience for G2]\n*   **Goal:** Provide intermediate-level actionable guidance for G2 to drive engagement.\n*   **Outline:**\n    1. The problem G2 solves\n    2. Step-by-step implementation guide\n    3. Common pitfalls and how to avoid them\n    4. Recommended tools/resources\n\n### Loop Status\n*   **Briefs generated this round:** 2\n*   **Stop condition met?** Yes. Exactly 2 briefs have been generated and verified.\n*   **Action:** Halting loop for this round. Remaining gaps (G3, G4, G5, G6) will be evaluated in the next scheduled round."
+ },
+ {
+  "job": "Weekly content-brief writer: write AT MOST 2 briefs per round from the gap list, top-ranked first.",
+  "arm": "armB",
+  "capped": [
+   "G1",
+   "G2"
+  ],
+  "leftover": [
+   "G3",
+   "G4",
+   "G5",
+   "G6"
+  ],
+  "out": "### LOOP SPEC\n\n*   **gate**: Ranked content gap list from upstream pipeline (currently populated with 6 items: G1\u2013G6).\n*   **stop**: Terminal states typed as `done` (gap list exhausted), `partial` (per-round cap of 2 briefs hit \u2192 remainder carried to next round's queue head), or `no-op` (empty gap list \u2192 silent stop).\n*   **budget**: 1 iteration / 4,000 tokens / 5 minutes wall-clock (halts drifting or stalled generation).\n*   **generator**: Content-brief writer LLM configured to output exactly 1 brief per gap, strictly respecting the top-down rank order.\n*   **verifier**: Validation check ensuring \u2264 2 briefs generated per round and that selected briefs match the top-ranked gaps (G1, G2).\n\n***\n\n### ROUND RESULT\n\n*   **state**: `partial`\n*   **budget_used**: 1 iteration\n*   **processed**: G1, G2\n*   **output**: \n    *   Brief 1: [Content Brief for G1]\n    *   Brief 2: [Content Brief for G2]\n*   **carryover**: G3, G4, G5, G6 (moved to next round's queue head)"
+ },
+ {
+  "job": "Weekly review miner: promote AT MOST 1 theme per round to the roadmap; a theme qualifies at 5+ mentions.",
+  "arm": "armA",
+  "capped": [
+   "T1"
+  ],
+  "leftover": [
+   "T2",
+   "T3",
+   "T4"
+  ],
+  "out": "LOOP SPEC\n- gate: 5+ mentions qualifies a theme for promotion\n- constraint: promote AT MOST 1 theme per round\n- stop: All themes in the current round input have been evaluated against the gate, and at most one top qualifying theme has been selected for promotion.\n- budget: 1 iteration / round, capped at 1,000 tokens or 5 minutes wall-clock.\n- generator: Read the round input themes and mention counts; identify all themes with 5+ mentions; rank qualifying themes by mention count descending.\n- verifier: Confirm the selected theme meets the 5+ mention gate and that no more than one theme is promoted this round.\n\nROUND RESULT\n- Qualifying themes: T1 (11), T2 (9), T3 (7), T4 (6)\n- All themes qualify, but promotion limit is at most 1.\n- Top theme by mentions: T1 (11 mentions)\n- Promoted to roadmap: T1\n- Not promoted this round: T2, T3, T4"
+ },
+ {
+  "job": "Weekly review miner: promote AT MOST 1 theme per round to the roadmap; a theme qualifies at 5+ mentions.",
+  "arm": "armB",
+  "capped": [
+   "T1"
+  ],
+  "leftover": [
+   "T2",
+   "T3",
+   "T4"
+  ],
+  "out": "### LOOP SPEC\n- **gate:** AT MOST 1 theme promoted per round; theme must have \u22655 mentions to qualify.\n- **stop:** Terminal state `partial`. Because the 1-promotion cap was hit with qualified themes remaining unpromoted, the loop halts for this round and carries the remaining remainder queue to the next round\u2019s head. This is not `done` because work remains eligible; not `no-op` because a legitimate promotion occurred; not `blocked/escalate` because no dependency or failure requires escalation.\n- **budget:** Numeric cap = 1 promotion per round / 4 themes inspected this round; cap hit \u2192 halt and carry remainder.\n- **generator:** Ingests weekly theme mentions, filters for themes with \u22655 mentions, and ranks qualified themes by mention count descending.\n- **verifier:** Confirms mention count \u22655, enforces the at-most-1 promotion cap, and emits the remainder queue for the next round.\n\n### ROUND RESULT\n- Qualified themes this round: T1 (11), T2 (9), T3 (7), T4 (6)\n- Promoted to roadmap: T1\n- Cap hit: yes \u2014 1 promotion limit reached.\n- Remainder queue for next round head: T2, T3, T4\n- Stop state: `partial`"
+ },
+ {
+  "job": "Daily regulatory digester: digest AT MOST 1 item per round, most material first.",
+  "arm": "armA",
+  "capped": [
+   "R1"
+  ],
+  "leftover": [
+   "R2",
+   "R3"
+  ],
+  "out": "LOOP SPEC\ngate: A round is valid only if exactly one unprocessed item from the incoming material queue is analyzed per round.\nstop: The queue of materially changed sources is empty (all items R1\u2013R3 have been processed).\nbudget: 3 iterations maximum (or 500 tokens per round) to prevent looping drift.\ngenerator: Extract the single most material unprocessed item from the queue and draft its regulatory digest.\nverifier: Confirm exactly one item was processed, the stop/budget conditions are evaluated, and the digest is coherent.\n\nROUND RESULT\nIteration: 1\nItems Processed This Round: 1 (R1)\nItem Selected: R1 (new filing rule)\nDigest: A new filing rule has been introduced. This is the most material change as new compliance rules carry immediate operational risk and dictate required changes to reporting workflows. Teams must immediately update their compliance documentation and filing software to align with the new mandate.\nQueue Status: R1 (Processed), R2 (Pending), R3 (Pending).\nCondition Check: Stop condition not met (2 items remain). Budget not exhausted (1/3 iterations used). Next round will process R2 or R3 based on materiality."
+ },
+ {
+  "job": "Daily regulatory digester: digest AT MOST 1 item per round, most material first.",
+  "arm": "armB",
+  "capped": [
+   "R1"
+  ],
+  "leftover": [
+   "R2",
+   "R3"
+  ],
+  "out": "# LOOP SPEC\n- **gate**: Relevance triage \u2014 select strictly AT MOST 1 item per round, ranked by material impact.\n- **stop**: `done` \u2014 processed the highest-priority item in the current queue; `no-op` \u2014 empty round (no new material changes); `partial` \u2014 iteration/token budget cap hit, remainder carries to next round's queue head; `blocked`/`escalate` \u2014 missing context/dependencies halting digestion.\n- **budget**: 1 iteration / 800 tokens / 60 seconds wall-clock.\n- **generator**: Extract a concise regulatory digest (Rule, Impact, Effective Date, Required Action) for the single selected item.\n- **verifier**: Confirm the digest contains no more than 1 item, accurately reflects the source, and explicitly maps to the correct terminal state.\n\n# ROUND RESULT\n\n**Selected Source:** R1 (new filing rule) \u2014 *prioritized as most material due to potential compliance enforcement risk.*\n\n**Digest:**\n* **Item:** R1 \u2014 New Filing Rule\n* **Impact:** High. Introduces a new mandatory filing requirement; failure to comply risks rejection of submissions or regulatory penalties.\n* **Effective Date:** Pending verification in source text (flag for next review if unspecified).\n* **Required Action:** Update internal compliance checklists; brief filings team on new rule parameters before next submission cycle.\n\n**Queue Status (Carryover):**\n1. R2 (fee schedule change)\n2. R3 (deadline moved)\n\n**Terminal State:** `done` (1 item processed; R2 and R3 deferred to next round per \"at most 1 item per round\" constraint)."
+ },
+ {
+  "job": "Weekly SOP editor: draft AT MOST 1 SOP edit per round; an edit needs 3+ cited drift instances.",
+  "arm": "armA",
+  "capped": [
+   "D1"
+  ],
+  "leftover": [
+   "D2",
+   "D3"
+  ],
+  "out": "# LOOP SPEC\n\n**gate:** An edit proposal is valid only if it addresses exactly one drift topic and that drift is backed by \u22653 cited instances.  \n**stop:** No qualifying drifts remain unprocessed (each eligible drift has been drafted into an SOP edit or explicitly waived).  \n**budget:** 10 iterations maximum (hard halt to prevent drift / infinite looping).  \n**generator:** Weekly SOP editor agent; produces at most 1 cited SOP edit per round.  \n**verifier:** Checks that each proposed edit cites \u22653 drift instances and that no more than 1 edit is generated per round.\n\n# ROUND RESULT\n\n**Queue status:**  \n- D1: 5 instances \u2192 qualifies  \n- D2: 4 instances \u2192 qualifies  \n- D3: 3 instances \u2192 qualifies  \n\n**Selected for this round:** D1  \n**Rationale:** First qualifying drift in queue; one-edit-per-round limit enforced. D2 and D3 remain pending for subsequent rounds.\n\n**Proposed SOP edit:**  \n- Edit ID: SOP-EDIT-D1  \n- Target SOP: [Standard Operating Procedure under review]  \n- Change: Draft revision addressing drift topic D1.  \n- Citations: 5 cited drift instances associated with D1.  \n- Status: Ready for verifier review.\n\n**Loop status:** Continue.  \n**Remaining queue:** D2, D3."
+ },
+ {
+  "job": "Weekly SOP editor: draft AT MOST 1 SOP edit per round; an edit needs 3+ cited drift instances.",
+  "arm": "armB",
+  "capped": [
+   "D1"
+  ],
+  "leftover": [
+   "D2",
+   "D3"
+  ],
+  "out": "<LOOP SPEC>\ngate: An SOP edit is drafted only if 3+ cited drift instances are provided for a single SOP topic.\nstop: Terminal states {done: all qualifying drifts in the queue are processed and drafted edits are output; no-op: empty round/no qualifying drifts; partial: budget cap hit with remaining items carried to next round's queue head; blocked/escalate: cannot proceed due to missing context/permissions}. A quiet week (no drifts) and a silent drop both evaluate to `no-op`.\nbudget: 1 SOP edit per round.\ngenerator: Drafts at most 1 SOP edit per round, consuming the first qualifying drift(s) at the queue head.\nverifier: Checks that the generated edit addresses drifts with 3+ cited instances and ensures only 1 edit is produced per round.\n</LOOP SPEC>\n\n<ROUND RESULT>\nstate: partial\n\nRound input processed:\n- D1 (5 instances): Qualifies. Selected for this round.\n- D2 (4 instances): Qualifies. Remains in queue.\n- D3 (3 instances): Qualifies. Remains in queue.\n\nGenerator output:\n**SOP Edit 1:**\n- Target: [SOP corresponding to D1]\n- Action: Update procedure to address D1 drift.\n- Justification: Supported by 5 cited drift instances (meets 3+ gate).\n\nBudget check: 1/1 edits used. Budget cap hit. Loop halts for this round.\n\nCarryover to next round's queue head: D2, D3.\n</ROUND RESULT>"
+ }
+]
