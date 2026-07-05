@@ -57,6 +57,7 @@ Compact pointers. Fetch details on demand.
 - concepts/structured-outputs (concept tags=structured-outputs,tokens) -> `concepts/structured-outputs.md`
 - concepts/superpowers-skills (concept tags=skills,superpowers,agents,workflow) -> `concepts/superpowers-skills.md`
 - concepts/systematic-debugging-skill-measured-null (concept tags=skills,debugging,eval,ab-test,negative-result,redundancy,rule-of-three) -> `concepts/systematic-debugging-skill-measured-null.md`
+- concepts/team-lead-upstream-2026-07 (concept tags=orchestration,team-lead,builder,verifier,upstream,sibling-sync,adoption) -> `concepts/team-lead-upstream-2026-07.md`
 - concepts/turboquant-kv-cache (concept tags=turboquant,kv-cache,llama-cpp,apple-silicon,gguf-stack) -> `concepts/turboquant-kv-cache.md`
 - concepts/unsloth-distill (concept tags=distillation,local-models) -> `concepts/unsloth-distill.md`
 - concepts/when-to-extract-a-skill-md-section-into-tools (concept tags=skills,authoring,refactor,extraction,bloat,lazy-load) -> `concepts/when-to-extract-a-skill-md-section-into-tools.md`

@@ -58,5 +58,6 @@ new lint rules since cadence and spec-fidelity aren't statically checkable.
 ## Related
 
 - [[memory-as-a-tool-validation]]
+- [[concepts/team-lead-upstream-2026-07]] — sibling-session upstreaming that converged on the fable-advisor row's §6 doctrine
 - [[index]]
 - [[schema]]
