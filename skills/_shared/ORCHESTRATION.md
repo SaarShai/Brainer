@@ -88,6 +88,15 @@ bulk reads). Rules:
   re-deriving decisions across turns burns the premium twice. A brief you can't
   finish writing means the decision isn't made — that's orchestrator work, not
   ambiguity to hand a cheaper model.
+- **Match brief altitude to lane tier.** A small/mid lane gets a *spec-shaped*
+  brief — the spec fully determines the outcome, steps and all; ambiguity there
+  is a defect. A frontier-tier lane (advisor, verifier, researcher, hard
+  synthesis) gets a *goal-shaped* brief — goal, boundaries, done-bar, injected
+  facts — and NOT a step list: each dictated step overrides the judgment you
+  chose that tier to get. Same discipline as prompting the orchestrator itself;
+  the orchestrator is the sub-agent's user, and it owns the sub-agent's whole
+  context (inlined directives = global, injected precomputed facts = project,
+  the brief = task — a subagent starts context-empty and sees nothing else).
 - **Commitment boundaries, not only stuckness:** before an architecture choice,
   migration, API shape, or wide-blast-radius refactor — take a read-only,
   context-fresh skeptic verdict (advisor role, preferably cross-vendor; short:
