@@ -50,7 +50,10 @@ COMPROMISE_WORD_RE = re.compile(
     # bare "temporary/temporarily" false-positives on operational text
     # ("temporary file", "temporarily unavailable") — require a fix-shaped
     # noun or a settled-for verb nearby (cross-vendor review 2026-07-05).
-    r"|temporar(?:y|ily)[ -](?:fix|workaround|hack|solution|patch|measure|shim|stub|kludge)"
+    # "temporary <fix-noun>" OR "temporarily <compromise-verb>" — but NOT bare
+    # "temporary file" / "temporarily unavailable" (operational, not a compromise).
+    r"|temporar(?:y|ily)[ -](?:fix|workaround|hack|solution|patch|measure|shim|stub|kludge"
+    r"|disabl\w*|remov\w*|comment\w*|skip\w*|bypass\w*|hardcod\w*|ignor\w*|suppress\w*|disable\w*)"
     r"|(?:went with|using|keep(?:ing)?|accept(?:ed|ing)?) (?:a |the )?temporar(?:y|ily)"
     r"|\bhacky?\b|settled? for|good enough for now|revisit (?:this |it )?later|quick fix|band-aid|kludge", re.I)
 LOOP_PASS_RE = re.compile(r"\b(?:loop\s+)?(?:pass|iteration|round)\s*(?:#|:|=)?\s*\d+\b", re.I)
@@ -553,8 +556,12 @@ def main():
             out_path = base / f"{stamp}-{sid[:8]}-{trig}-{n}.md"
             n += 1
     # Secrets-only scrub before persistence (paths stay — they're the resume
-    # pointers). Identity fallback: a missing _shared import must not kill the
-    # PreCompact hook, matching model_roster's convention.
+    # pointers). Fail-OPEN by design (unlike model_roster egress, which fails
+    # closed): a missing _shared import must not kill the PreCompact hook — a
+    # lost local snapshot is worse than an unredacted local file. The manifest
+    # below counts against `md_preredact` so redaction is never miscounted as
+    # cap-loss (redaction rewrites items out of `md`, but they DID land).
+    md_preredact = md
     try:
         sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "_shared"))
         from audit_redact import redact_secrets  # type: ignore
@@ -577,7 +584,7 @@ def main():
     persisted = sum(
         1 for k, v in regex_out.items()
         if not k.startswith("_") and isinstance(v, list)
-        for item in v if str(item) in md
+        for item in v if str(item) in md_preredact
     )
 
     # Terse pointer for PreCompact hook: gets injected into compaction context

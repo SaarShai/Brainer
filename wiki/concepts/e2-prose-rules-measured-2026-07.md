@@ -57,6 +57,43 @@ is vocabulary only: armB emits typed machine-parseable states
 the remainder isn't enumerated in the input — and weaker-than-glm subjects.
 Verdict unchanged: keep the rule for its declaration-standardization value (a
 monitor can parse `partial` states), claim no behavioral lift.
+
+## Eval-design flaws (cross-vendor review 2026-07-05, recorded not hidden)
+
+Two frontier reviewers flagged that these evals were *weaker* than the null
+verdict implied — which only strengthens "no measured lift," but the design
+faults are named for honesty and future re-runs:
+- **Control arm smuggled the treatment (eval A).** Both arms' subject prompt
+  mandated a `{id, description, weight, required}` JSON shape — so armA was
+  handed the `required` field the rule under test introduces. A free-form
+  rubric format is the real test; the 5/6 armA baseline is partly
+  harness-induced.
+- **Declaration effect is prompt-echo (eval B).** `CARRY_RE` matches
+  `partial|carry|remainder|next round's queue` — verbatim armB vocabulary,
+  absent from armA. Measuring whether output parrots terms the prompt just
+  supplied is near-tautological; the "robust declaration effect" is *the model
+  repeats the words it was given*, not an independent behavioral change. No
+  length/attention-matched control arm exists.
+- **Cap-violation grades as PASS (eval B-followup).** `leftover_named` counts a
+  leftover ID as "acknowledged" even in a run that ignored the cap and
+  processed it; `over_cap` is tracked but non-gating. The shipped cells all
+  show `over_cap 0`, so the verdict stands, but the grader shape biases the
+  cap-discipline question toward null.
+
+## Deletion criterion (the accretion falsifier)
+
+A standing critique: every rule this series added was kept — measured-lift →
+keep, measured-null → keep for "declaration value." Nothing a measurement
+returns ever *removes* a rule, so doctrine grows monotonically. The counterweight:
+a rule is a **deletion candidate at the next `suite-health` pass** when ALL of —
+(1) it measured behaviorally null, (2) it has no load-bearing mechanical
+function (no lint/gate/hook depends on it), and (3) it is not cited/loaded by
+another skill. The two rules here survive on (2)/(3) — eval-gate's `required`
+criterion is read by the per-criterion gate; typed-stop feeds `loop_lint`
+semantics — but the criterion now exists so a future null-and-inert rule can be
+cut, not just accumulated. No composed-load eval exists yet (findings F6/F7/F12
+live in rule *interactions*, which no single-rule eval measures) — that is the
+one eval this series still owes.
 - Consistent with house precedent: prose additions to already-competent
   frontier/near-frontier subjects tend to measure null on behavior the model
   already does ([[concepts/premortem-and-think-edits-measured]],

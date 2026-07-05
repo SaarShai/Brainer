@@ -96,6 +96,28 @@ def test_render_prompt_redacts_secrets_before_egress():
     return ("sk-proj-abcdef" not in p and "ghp_aaaa" not in p and "[REDACTED]" in p)
 
 
+def test_render_prompt_redacts_gitlab_and_slack():
+    # standalone GitLab/Slack token shapes (not env-assignments) must scrub too
+    # (2026-07-05 review found these uncovered).
+    p = mr.render_prompt("advisor", task="glpat-abcdef0123456789ABCD",
+                         brief="slack xoxb-1234567890-abcdefghij")
+    return ("glpat-abcdef" not in p and "xoxb-1234567890" not in p)
+
+
+def test_run_dispatch_fails_closed_not_crashes_when_redactor_raises(monkeypatch=None):
+    # egress redaction fails CLOSED (render_prompt raises), but run_dispatch must
+    # catch it and return ok=False so the panel drops the member, never crashes.
+    orig = mr.render_prompt
+    mr.render_prompt = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("redactor missing"))
+    try:
+        b = mr.Backend(vendor="glm", lane=mr.LANE_GLM, kind="http",
+                       invocation="", available=True, probe="test", models=["glm-5.2"])
+        res = mr.run_dispatch(b, "verifier", task="t", brief="b")
+        return res["ok"] is False and "redactor missing" in res["error"]
+    finally:
+        mr.render_prompt = orig
+
+
 def test_verifier_quorum_requires_odd_ge3():
     return (mr.verifier_quorum(3)["ok"] is True
             and mr.verifier_quorum(1)["ok"] is False        # too few

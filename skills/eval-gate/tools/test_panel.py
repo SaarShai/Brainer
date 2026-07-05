@@ -138,6 +138,7 @@ def main():
         test_majority_holds_passes,
         test_majority_refutes_fails,
         test_degraded_fallback_warns_and_uses_single_exit,
+        test_two_responders_is_not_a_quorum,
         test_panel_argparse_rejects_bad_counts,
     ]
     for test in tests:

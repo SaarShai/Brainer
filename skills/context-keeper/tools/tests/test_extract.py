@@ -16,7 +16,21 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from extract import PATH_RE, iter_events, regex_extract  # noqa: E402
+from extract import PATH_RE, COMPROMISE_WORD_RE, iter_events, regex_extract  # noqa: E402
+
+
+def test_compromise_regex_balances_fp_and_fn():
+    # settled-for phrasing MATCHES; ordinary operational language does NOT
+    # (2026-07-05 cross-vendor review: first fix over-corrected FP into FN).
+    should_match = ["went with a temporary workaround", "temporary fix for auth",
+                    "temporarily disabled the check", "hacky stopgap", "quick fix for now",
+                    "settled for the simpler shape", "band-aid until the refactor"]
+    should_not = ["the temporary file is fine", "the service is temporarily unavailable",
+                  "this is the canonical solution", "a permanent fix landed"]
+    miss = [s for s in should_match if not COMPROMISE_WORD_RE.search(s)]
+    false_pos = [s for s in should_not if COMPROMISE_WORD_RE.search(s)]
+    assert not miss, f"false negatives: {miss}"
+    assert not false_pos, f"false positives: {false_pos}"
 
 _EXTRACT_PY = Path(__file__).parent.parent / "extract.py"
 

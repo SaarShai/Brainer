@@ -608,8 +608,10 @@ def cmd_score(args):
             args.panel, args.threshold, rubric_txt, candidate, _score_summary(res, verdict, criteria)
         )
         responders = panel["responders"]
-        if len(responders) < 2:
-            print(f"panel degraded to single-judge (only {len(responders)} members reachable)",
+        # <3 responders is a fabricated quorum — same rule as the plain-score
+        # branch below (was <2: a half-fix caught by the 2026-07-05 review).
+        if len(responders) < 3:
+            print(f"panel degraded to single-judge (only {len(responders)} members reachable, need 3)",
                   file=sys.stderr)
             return single_exit
         if single_exit != 0 or not panel["majority_holds"]:

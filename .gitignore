@@ -31,8 +31,11 @@ eval/*/output/
 # Brainer runtime state
 .brainer/
 .brainer-profile
-.claude/
-# agent definitions are SOURCE (team-lead roster seats), not generated state
+# .claude/ is runtime state EXCEPT agents/ — those are SOURCE (team-lead roster
+# seats). A negation cannot re-include under an ignored parent, so ignore the
+# CONTENTS of .claude/ and carve agents/ back out (2026-07-05 review: the old
+# `.claude/` + `!.claude/agents/` was a no-op; 6 roster defs shipped untracked).
+.claude/*
 !.claude/agents/
 .mcp.json
 

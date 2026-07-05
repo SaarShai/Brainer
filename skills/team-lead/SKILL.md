@@ -100,6 +100,11 @@ lanes) or leaves the how to the worker (frontier lanes).
   lane's READY FOR JUDGING report to `verifier` (or the leader re-derives from
   the artifacts — never from the worker's prose). No "looks simple" exception:
   the self-verify escape is the measured top failure class.
+- **Match verifier strength to lane risk.** The `verifier` seat is mid-tier;
+  when the leader did the *hard reasoning* in-context (the "leader does it"
+  roster row) or the lane is high-blast-radius, the cold verdict escalates to a
+  **frontier** cold context (`codex:codex-rescue` read-only, or a fresh
+  frontier subagent) — the hardest work must not get the weakest checker.
 - **Never sample a repeated element.** If the deliverable has N of a thing
   (N files changed, N entries, N test cases), the verdict needs N checks, not a
   spot-check of one.
@@ -125,3 +130,14 @@ Catching yourself doing bulk mechanical edits — stop, brief a builder.
 - Task is a one-sentence diff → just do it (plan-first-execute bypass).
 - Unattended/scheduled regeneration loop → `loop-engineering` first.
 - Conversational / analysis-only turns → no fleet, just answer.
+
+**Proportionality (the anti-ceremony gate).** Delegation has a fixed cost
+(brief + spawn + cold-verify round-trip). If that cost exceeds doing the task
+and self-evidencing it, the protocol is net-negative — a "critical" *label* on
+a tiny task does not change its size. The leader may type a change small enough
+that a brief+verify would cost more than the fix, PROVIDED it still produces
+fresh evidence (run the test/lint, quote it) — cold-verify guards the leader's
+*judgment*, not its keystrokes. `prompt-triage` (per-prompt model routing) and
+team-lead (per-task lane decomposition) can both fire; **triage wins for a
+single-shot task, team-lead for genuinely decomposable multi-lane work** —
+don't run both on one small ask.

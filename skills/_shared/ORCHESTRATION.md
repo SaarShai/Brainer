@@ -109,11 +109,15 @@ bulk reads). Rules:
   the top, execute forever at the bottom). Write the skill for the **weakest
   executor** that will run it, and acceptance-test it there (learn-skill step
   6), not in the author's own context.
-- **Verify the pin.** Hosts can silently fall back to the session model when a
-  pinned lane model is unavailable — the dispatch *succeeds* on the wrong
-  model, which reachability detection (rule 2) cannot catch. When the lane
-  choice is load-bearing (capability or vendor diversity), have the lane echo
-  its model identity in its report. A lane re-route (e.g. cross-vendor →
+- **Verify the pin — from the transport, not the model's word.** Hosts can
+  silently fall back to the session model when a pinned lane model is
+  unavailable — the dispatch *succeeds* on the wrong model, which reachability
+  detection (rule 2) cannot catch. Prefer the **authoritative identity the
+  transport returns** (the API response's `model` field, the CLI's
+  `--version`) — a model's self-report *inside its answer* is forgeable and
+  models mis-identify, so it is only the weak fallback. `model_roster._run_glm`
+  enforces this today: it compares the served `model` to the requested one and
+  prints `PIN MISMATCH` on divergence. A lane re-route (e.g. cross-vendor →
   in-family) is reported loudly, never absorbed — the caller may have chosen
   the lane for its failure distribution.
 
