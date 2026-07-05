@@ -29,6 +29,7 @@ Scope:
 
 - **Claude Code** — `SessionEnd` → `archive.py` (transcript path from the hook payload).
 - **Codex** — `Stop` → `codex_archive.py`. Codex doesn't pass a transcript path, so it resolves the current dir, finds the newest `~/.codex/sessions` rollout whose recorded `session_meta.cwd` matches, and copies that. Wired via `.codex/hooks.json` (mirrors the `.claude` wiring).
+- **Gemini** — `gemini hooks migrate --from-claude` maps `PreCompact`→`PreCompress` and `SessionEnd`→`SessionEnd` into `.gemini/settings.json`. The migrator reads `.claude/settings.local.json` FIRST and silently stops if it exists — temporarily move it aside before migrating. Hooks are fail-open (smoke-tested: exit 0 on synthetic payloads).
 - **Antigravity** — not supported. Conversations are stored as binary SQLite (`.db`) + protobuf (`.pb`) under `~/.gemini/antigravity/conversations/`, UUID-keyed with no plaintext `cwd` and no per-project routing key, and the GUI app exposes no session-end hook. A clean lossless-text, project-routed copy isn't possible without decoding its proprietary store; revisit if Antigravity adds a session-end hook or a text export.
 
 ## Loop-pass checkpoints

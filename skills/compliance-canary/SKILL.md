@@ -206,6 +206,8 @@ tools/
 
 **Claude Code + Codex.** Both fire `UserPromptSubmit` with a stdin payload carrying `transcript_path`, so the installer wires the hook on both (`.claude/settings.json` and `.codex/hooks.json`). Codex transcripts use a different schema (`{type, payload}`, `function_call` instead of `tool_use`); the hook normalizes them to Claude shape via [`skills/_shared/transcript_norm.py`](../_shared/transcript_norm.py) — including mapping Codex shell calls (`exec_command`) to `Bash` so the nomination substantive-action filter works, and reading Codex's injected `<skill><name>…</name>` block as a skill invocation. Cursor/Gemini get the folder symlinked for description visibility but no hook (no equivalent event).
 
+Codex gets the canary via `.codex/hooks.json` `UserPromptSubmit` (Claude-compatible schema, wired by `tools/install.sh`). Gemini gets it on `BeforeAgent` via `gemini hooks migrate`. Cursor has no equivalent surface — the resident catalog's host matrix tells cursor agents to self-anchor.
+
 ## Known gaps
 
 - Probe detectors are syntactic — they catch keyword/structural signals but miss semantic drift (a paraphrased "done" without claim-word match). A judge-style probe using a tiny LLM is the natural next add (the `llm_judge` kind, currently deferred).

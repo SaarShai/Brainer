@@ -60,6 +60,20 @@ domain lanes to this table (e.g. screenery-lean routes `.ai` edits to its
 `bracket` planner/executor/judge) — domain tables extend this one, they don't
 replace the protocol.
 
+### Hosts without an Agent tool
+
+On hosts with no Agent tool (Codex CLI, Gemini CLI, plain terminals), the
+protocol is unchanged — only dispatch mechanics differ. Lanes route via
+synchronous CLI dispatch instead of subagents: `python3
+skills/_shared/model_roster.py --run …` (renders + executes a read-only
+cross-vendor call), `ollama run <model>` for free local lanes, and the codex
+CLI (`codex exec` per skills/codex conventions) for the cross-vendor
+implementation lane. The verifier lane stays a SEPARATE fresh CLI context
+(cold, read-only) — never the leader's own context re-reading its work.
+Briefs are identical (`brief_header.py` output pasted into the CLI prompt);
+the executor report contract (READY FOR JUDGING, attempts + assumptions) is
+identical.
+
 ## 3. The brief (every builder, no exceptions)
 
 Hooks, canaries, and skills do NOT fire inside subagents — the brief must carry
