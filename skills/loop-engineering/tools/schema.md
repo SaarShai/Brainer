@@ -13,7 +13,7 @@ No PyYAML dependency — values are read as plain strings after the first `:`.
 | `generator` | yes (closed) | the actor that produces the work |
 | `verifier` | yes (closed) | the SEPARATE actor that runs the gate. `== generator` → **R3 FAIL**; empty on a closed loop → **R3 FAIL**. Must be BLIND to the generator's reasoning/code/skill content — seeing only the task + the outputs, never the generator's self-justification, since a verifier that reads it inherits the same bias even when it is a different actor. |
 | `gate` | **yes** | a machine-checkable pass/fail signal. Prose with no command/test-id/assertion/path → **R1 FAIL** |
-| `stop` | **yes** | the completion condition the loop runs until. Missing → **R2 FAIL** |
+| `stop` | **yes** | the completion condition the loop runs until. Missing → **R2 FAIL**. On scheduled/recurring loops, type the terminal states: `done` · `no-op` (nothing cleared the evidence floor this round — an empty round is a legitimate outcome; never invent work to fill it) · `partial` (cap hit; carry the remainder to the head of the next round's queue, never drop it) · `blocked/escalate` (with the evidence attached). |
 | `budget` | **yes** | a numeric cap (`max_iterations` / `max_tokens` / `max_wallclock`). Missing or `unbounded` → **R2 FAIL** |
 | `accepted_open_loop` | open only | `true` declares "no feedback gate is intentional"; silences **R4** |
 | `quorum` / `aggregate` | fleet only | the convergence gate for parallel results; absent (and no quorum/reviewer/merge token in the gate) → **R5 WARN** |

@@ -132,7 +132,7 @@ A fleet converges two ways, and the doc above only named one. **SELECT** — a v
 Declare these BEFORE the loop runs — they are `loop_lint.py`'s input contract:
 
 1. **gate** — a concrete machine-checkable pass/fail signal the agent can call and read (a command / test id / assertion / schema), never "looks correct".
-2. **stop** — the completion condition the loop runs until.
+2. **stop** — the completion condition the loop runs until. Scheduled/recurring loops type the terminal states — `done` · `no-op` (empty round is legitimate; don't invent work to fill it) · `partial` (cap hit → carry the remainder to the next round's queue head) · `blocked/escalate` — so a quiet week and a silent drop stop looking identical.
 3. **budget** — a numeric iteration / token / wall-clock cap that halts a drifting loop. Unbounded is not a loop, it's a spin.
 4. **generator ≠ verifier** — distinct producer and checker.
 
@@ -140,6 +140,7 @@ Then answer the questions the four fields don't cover:
 - Against **what oracle** — test suite, spec, reference output, schema, or another agent?
 - Is the loop **open or closed**, and is that intentional for THIS task (novelty wanted vs bounded shipping)?
 - If the loop is scheduled/fleet/outer, where do `anchor_files`, `state_store`, `recall`, and `writeback` live — and who owns `state_concurrency`?
+- For a scheduled/recurring loop: **freeze the check across rounds** (a changed check makes this round's score incomparable with last round's) and **change ONE thing per round** — single-change rounds keep attribution clean. Over a noisy signal, set an **evidence floor**: act only on ≥N independent, cited instances (one loud instance is not a trend); below the floor the round is a `no-op`, not a smaller action.
 - If it is a fix/retry loop, what is the `stuck` detector (same command 3× / same error 2× / 2 iters no movement), and which `advisor` panel does it consult on stall? Source it from [`skills/_shared/model_roster.py`](../_shared/model_roster.py); keep it separate from the verifier (R11).
 - Does the **first** gate check land early in the budget? A loop whose first verification runs only after most of the budget is spent is a once-through in disguise — early misreadings ossify into design later iterations build around. Size iterations so verification starts at iteration 1.
 - **green ≠ correct**: does the gate cover behaviour nobody wrote a test for yet, or only reproduce what existing tests already describe? 99.8% on an existing suite is *benchmark-green*, not correct — production is the behaviour nobody tested.
