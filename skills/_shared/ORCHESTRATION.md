@@ -74,7 +74,29 @@ loop. Cross-vendor egress goes through redaction + consent
 When the orchestrating session itself runs a frontier-tier model, **invert the
 token volume**: the expensive model emits judgment — decomposition, specs,
 routing, verdicts — and cheap lanes emit the volume (code, boilerplate, tests,
-bulk reads). Rules:
+bulk reads).
+
+**Topology default.** The frontier model IS the main loop and routes DOWN
+(plan → delegate → review); every surveyed production coding agent (aider
+architect mode, opusplan, Devin, Cursor) uses strong-leads. A cheap main loop
+escalates UP only via the prompt-triage escalate-up mode
+(`BRAINER_TRIAGE_ESCALATE_UP=1` → frontier-advisor / frontier-verifier
+subagents) and may only EXECUTE from a frontier-authored plan — never decide
+architecture or escalation timing from scratch. Model switches (`/model`)
+happen only at phase boundaries (plan → execute → review), never mid-phase:
+model switching splits the prompt-cache namespace (cache-lint rule 4), so
+switch coarse-grained or spawn a subagent instead.
+
+**Evidence.** Orchestrator/worker splits measure 58–74% cheaper than
+end-to-end top-model (architect-loop DESIGN.md, PEAR); weak planners hurt
+multi-agent output more than weak executors (PEAR) — so the plan seat gets
+the strongest model, the typing seat doesn't; reasoning-effort curve: xhigh
+vs high = 88% vs 69% semantic equivalence to human PR, 69% vs 38%
+review-pass, at ~2.2× cost (stet.sh via architect-loop) — buy xhigh for
+unattended work where review-survival matters, tier down effort for
+recipe-shaped work; RouteLLM: 85% cost cut at 95% GPT-4 quality (MT Bench).
+
+Rules:
 
 - **A code block longer than an interface signature is a spec that hasn't been
   delegated yet** — stop and delegate it. Fixing a cheap lane's bug by hand is
@@ -120,6 +142,17 @@ bulk reads). Rules:
   prints `PIN MISMATCH` on divergence. A lane re-route (e.g. cross-vendor →
   in-family) is reported loudly, never absorbed — the caller may have chosen
   the lane for its failure distribution.
+- **A lane failure is a BRIEF/context problem first.** Diagnose from evidence,
+  fix the input, respawn at the SAME tier; move tier only on a diagnosed
+  capability gap, never on failure count or predicted difficulty. A
+  merge/file conflict between lanes is a DECOMPOSITION failure (kill the
+  lane, re-split), not a worker failure.
+- **Cross-vendor review direction caveat.** One directional study found
+  Claude-reviews-GPT helped while GPT-reviews-Claude hurt; treat direction as
+  a recorded variable, not settled doctrine (single study).
+- **Lane returns are digests, not dumps.** Compact-return target ≈2,500
+  tokens against the artifact paths; payloads go to disk, conclusions to
+  context.
 
 (Adapted from DannyMac180/fable-advisor, MIT — generalized from concrete
 models to tiers.)
