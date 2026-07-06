@@ -6,7 +6,7 @@
 |---|---|
 | description (always resident) | **90 tokens** (378 chars) |
 | body (loaded on trigger)      | **3623 tokens** (14388 chars) — re-measured 2026-07-06 after the core+deep-dive split (REFERENCE.md carries compile-ingest, loop-mode, consolidate/decay, schema-evolution, aging/reconcile, graphify boundary, and OKF interop; loaded only when consulted, not on every trigger) |
-| tools/ payload                 | 506.5 KB |
+| tools/ payload                 | 400.7 KB |
 | model pin                      | `any` |
 | effort pin                     | `low` |
 

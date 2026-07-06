@@ -280,7 +280,25 @@ def check_h2b() -> tuple[str, str, bool, str]:
     if not wiki_py.exists():
         return ("H2b", "reliability", False, "wiki.py not found")
 
-    with tempfile.TemporaryDirectory(prefix="harness_acceptance_h2b_") as td:
+    # The behavioral probe needs a writable temp dir. In a restricted/read-only
+    # consumer environment (no usable TMPDIR) creating one raises — that is an
+    # ENVIRONMENT limitation, not a write-gate defect, so fall back to a
+    # source-presence check rather than reporting a spurious FAIL (2026-07-06
+    # cross-vendor review: codex's read-only sandbox had no temp dir and the
+    # unguarded probe turned into a false 15/16).
+    try:
+        _tmpctx = tempfile.TemporaryDirectory(prefix="harness_acceptance_h2b_")
+    except Exception:
+        _tmpctx = None
+    if _tmpctx is None:
+        src = wiki_py.read_text(encoding="utf-8", errors="ignore")
+        wired = ("gate_candidate" in src or "_load_write_gate" in src
+                 or "WikiWriteRejected" in src)
+        return ("H2b", "reliability", wired,
+                "no writable temp dir for the behavioral probe — fell back to source "
+                "presence: write-gate call " + ("found" if wired else "MISSING") +
+                " in wiki.py's write path (env-limited, not behaviorally re-proven)")
+    with _tmpctx as td:
         wiki_root = Path(td) / "wiki"
         try:
             init_proc = subprocess.run(
@@ -580,6 +598,11 @@ def check_h6a() -> tuple[str, str, bool, str]:
     """
     tolerance_rel = 0.25
     tolerance_abs_kb = 4.0
+    # Hard absolute cap (2026-07-06 cross-vendor review): the rel-AND-abs gate
+    # let a 105KB drift (21% of a 500KB dir) pass — "quality docs wrong by
+    # 100KB still certify green". A large absolute drift now FAILs regardless
+    # of the ratio.
+    tolerance_abs_hard_kb = 25.0
     row_re = re.compile(r"tools/\s*payload\s*\|\s*\*{0,2}([\d.]+)\s*KB", re.IGNORECASE)
     mismatches = []
     checked = 0
@@ -600,7 +623,7 @@ def check_h6a() -> tuple[str, str, bool, str]:
         actual_kb = round(actual_bytes / 1024, 1)
         abs_diff = abs(actual_kb - claimed_kb)
         rel_diff = abs_diff / claimed_kb if claimed_kb else (1.0 if actual_kb else 0.0)
-        if rel_diff > tolerance_rel and abs_diff > tolerance_abs_kb:
+        if (rel_diff > tolerance_rel and abs_diff > tolerance_abs_kb) or abs_diff > tolerance_abs_hard_kb:
             mismatches.append(f"{skill_dir.name} (claimed {claimed_kb}KB, actual {actual_kb}KB)")
     ok = not mismatches
     reason = (f"{checked} EVAL.md tools/ payload rows checked, all within tolerance" if ok else
