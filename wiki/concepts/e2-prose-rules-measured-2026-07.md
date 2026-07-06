@@ -118,8 +118,49 @@ FAIL and every strongest-claim cell before certifying** (never-sample applies
 to eval cells too). The apparent lift moved 0.667 → 0.5 → 0.0 as grader bugs
 were fixed — each intermediate number would have been a false positive.
 
+## Follow-up: PHASE 0 + LANE REPORT behavioral A/B (2026-07-05, isolated cells)
+
+Tested the two architect-loop adoptions ([[concepts/architect-loop-adoption-2026-07]])
+now default in `brief_header.py`. Subjects: 6 naive haiku builder agents, each in
+a **physically isolated** project tree (first run was void — a shared parent dir
+let a cell read a sibling's already-written code, laundering the planted flaw;
+re-run in `proj_<rand>/svc/` with cwd-confinement). Brief carried a planted trap:
+"reuse the existing `load_yaml()`" — but the file only has JSON `load_config()`.
+Arm A (n=3): brief WITHOUT PHASE 0 / LANE REPORT. Arm B (n=3): WITH. Grading is
+deterministic from artifacts, not self-reports.
+
+| signal | A (no rule) | B (PHASE 0 + LANE REPORT) |
+|---|---|---|
+| typed `STATUS:` line emitted | 0/3 | 3/3 |
+| planted flaw escalated to reviewer (vs silently resolved) | 0/3 | 2/3 |
+| phantom `load_yaml`+yaml dependency injected | 1/3 | 0/3 |
+
+Read: the **declaration half is robust** (typed STATUS 3/3 vs 0/3 — same
+declaration effect as the rules above), and unlike the earlier null results the
+**behavioral half moved the right way**: every A cell noticed the `load_yaml`
+discrepancy too, but all 3 silently resolved it in post-hoc "Assumptions"
+("refers to load_config"), while 2/3 B cells raised it to the verifier as an
+unresolved concern *before* closing — the PHASE-0 "silent compliance is a defect"
+framing converted a quietly-papered ambiguity into a surfaced one. Modest n, and
+consistent on the phantom-injection axis (0/3 vs 1/3).
+
+**Caveat (eval-design debt, unpaid):** the trap was MILD — a rename a competent
+subject resolves correctly on its own (5/6 did), so it under-tests the dangerous
+case: a flaw that silently produces WRONG output. Behavioral lift on genuinely
+costly flaws is still unmeasured — the same debt the rules above owe. Verdict:
+ship-justified (declaration effect real + directional behavioral gain), not
+"proven prevents bad builds."
+
+**Also unverified live:** escalate-up's spawn-obedience. `classify.py` emits the
+correct frontier-advisor directive in PROMPTER (confirmed), but the headless
+`claude -p` run that would prove a cheap main loop ACTS on it hit a 401 (no auth
+in that env). Directive-injection proven; spawn-obedience not. See
+[[concepts/frontier-routing-topology-2026-07]].
+
 ## Related
 
 - [[queries/external-validation]] — the adoption rows these rules came from
 - [[concepts/team-lead-upstream-2026-07]] — never-sample rule, applied here to
   the eval's own cells
+- [[concepts/architect-loop-adoption-2026-07]] — the rules under test here
+- [[concepts/frontier-routing-topology-2026-07]] — escalate-up live-test status
