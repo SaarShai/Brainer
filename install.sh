@@ -158,20 +158,17 @@ render_skills_catalog() {
   cat <<'HEADER'
 ## Repo-local trigger skills (resident at boot)
 
-Skill bodies under `skills/<name>/` lazy-load on trigger. The names + 1-line
-descriptions below are kept in this resident doc so a freshly booted (or
-post-compaction) agent still knows what's available — so a model-invokable
-trigger (e.g. `wiki-memory` for "have we done X") is recognised on sight
-rather than re-derived from scratch.
+Skill bodies under `skills/<name>/` lazy-load on trigger; the 1-line
+descriptions below stay resident so a freshly booted (or post-compaction)
+agent still recognises a trigger on sight instead of re-deriving it.
 
 ### Slash-triggered (user types literally; model cannot auto-invoke)
 
-These are literal text tokens you recognise yourself — NOT host-registered
-commands. When the user's message starts with one of these tokens, load
-`skills/<name>/SKILL.md` and follow it yourself, even if this host has no such
-command installed (e.g. Codex, Antigravity) or shows an "unknown command"
-error. Treat the rest of the message as the task. Don't improvise a hand-rolled
-equivalent:
+Literal tokens you recognise yourself — NOT host-registered commands. If the
+user's message starts with one, load `skills/<name>/SKILL.md` and follow it
+yourself even if this host has no such command (e.g. Codex, Antigravity) or
+shows "unknown command". Treat the rest of the message as the task; don't
+improvise a hand-rolled equivalent:
 
 HEADER
   local any_slash=0
@@ -191,8 +188,8 @@ HEADER
 
 ### Model-invokable (host fires on matching context)
 
-You don't need to dispatch these manually — but knowing they exist helps you
-notice when context matches one (e.g. `wiki-memory` for "have we done X").
+No manual dispatch needed — but knowing these exist helps you notice a
+context match (e.g. `wiki-memory` for "have we done X").
 
 MID
   for skill in "$SRC"/*/; do
@@ -214,13 +211,10 @@ MID
 
 ### Durable memory store (`wiki/`)
 
-This repo carries a curated knowledge store at `wiki/` — the *why/decision/
-failure-lesson* layer (rationale, trade-offs, incidents, procedures), distinct
-from auto-extracted code structure. Relevant when the task references past work,
-prior decisions, or "have we done X". Query it before re-deriving: read
-`wiki/L1_index.md` first, then `python3 skills/wiki-memory/tools/wiki.py search "<q>"`
-→ `timeline` → `fetch`. Maintained by `wiki-memory` (write) and `wiki-refresh`
-(reconcile vs code).
+Curated why/decision/failure-lesson layer at `wiki/`. Query before re-deriving
+(e.g. "have we done X"): read `wiki/L1_index.md`, then
+`python3 skills/wiki-memory/tools/wiki.py search "<q>"` → `timeline` → `fetch`.
+Maintained by `wiki-memory` (write) / `wiki-refresh` (reconcile vs code).
 STORE
   fi
   cat <<'CRAFT'
@@ -244,10 +238,9 @@ CRAFT
 
 ### Host capability matrix (honest degradation)
 
-- **claude-code** — full: hooks (PreCompact/SessionEnd/UserPromptSubmit/SessionStart) + Agent-tool subagents (builder/verifier lanes).
-- **codex** — hooks ported via `.codex/hooks.json` (compaction checkpoint, session archive, canary); NO Agent tool → team-lead lanes go through CLI dispatch (team-lead §2 fallback).
-- **gemini** — hooks are NOT auto-wired by the installer: run `gemini hooks migrate --from-claude` once (move `.claude/settings.local.json` aside first — see context-keeper SKILL) for the PreCompress checkpoint, SessionEnd archive, and BeforeAgent canary/triage; verify on first live session.
-- Any host: skills are text-portable; tools are plain python3/bash. If a rule references a hook this host lacks, the RULE still binds — you enforce it manually.
+Host capability & degradation matrix (claude/codex/gemini): see
+`docs/HOST_CAPABILITY_MATRIX.md` — the RULE still binds on a host lacking a
+hook; enforce it manually.
 MATRIX
   cat <<'FOOT'
 

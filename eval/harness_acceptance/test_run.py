@@ -87,8 +87,13 @@ def test_gate_mode_exits_nonzero_when_any_check_fails():
         [sys.executable, str(RUN_PY), "--gate"],
         capture_output=True, text=True, cwd=str(REPO), timeout=30,
     )
-    # Today's honest baseline has FAILs (see BASELINE.md); --gate must reflect that.
-    if "FAIL" in proc.stdout:
+    # Whatever today's honest baseline is (see BASELINE.md), --gate must
+    # reflect it. Match an actual per-row FAIL verdict ("| FAIL |", exactly
+    # how format_table renders a failing row), not the bare substring "FAIL"
+    # — the latter also matches inside a fully-passing summary line like
+    # "16/16 PASS, 0 FAIL", which would wrongly demand a nonzero exit on a
+    # clean run.
+    if "| FAIL |" in proc.stdout:
         assert proc.returncode != 0, "--gate must exit nonzero when any check FAILs"
     else:
         assert proc.returncode == 0
