@@ -599,6 +599,33 @@ def _read_prompt_from_stdin() -> str:
     return prompt if isinstance(prompt, str) else str(prompt)
 
 
+# Escalate-UP mode (BRAINER_TRIAGE_ESCALATE_UP=1): today, a hard/agent-none
+# verdict emits silence — correct when the SESSION model is already frontier
+# (it handles hard prompts itself; team-lead only fires from a frontier main
+# loop). Wrong when the session model is cheap: the hard prompt gets a cheap
+# answer with no escalation path. Under this env flag, hard/agent-none instead
+# emits a directive telling the (cheap) main model to spawn a frontier
+# subagent. Default (env unset) stays byte-identical to today — proven by
+# test_classify.py.
+_VERIFY_INTENT_RE = re.compile(
+    r"\b(?:verify|review|judge|audit|critique|grade|assess|evaluate|"
+    r"double[-\s]?check|sanity[-\s]?check|sign[-\s]?off|pass\/fail|"
+    r"pass or fail)\b",
+    re.I,
+)
+
+
+def _escalate_up_agent(prompt: str) -> str:
+    """Pick which frontier seat the escalate-up directive targets. Reuses the
+    existing intent vocabulary (COMPLEX_HINTS' review/audit/critique overlap
+    is deliberate — those already signal 'judge this', not 'plan this').
+    Verify/review/judge-shaped prompts get the cold verifier seat;
+    plan/architecture/decision prompts (the default) get the advisor seat."""
+    if _VERIFY_INTENT_RE.search(prompt.translate(_UNICODE_FOLD)):
+        return "frontier-verifier"
+    return "frontier-advisor"
+
+
 def emit_context(prompt: str, use_ollama_fallback: bool = True) -> str:
     """H1 fix: produce the exact directive block hook.sh used to assemble — but
     inside the same Python process that parsed stdin and ran the classifier.
@@ -614,6 +641,18 @@ def emit_context(prompt: str, use_ollama_fallback: bool = True) -> str:
     # If main-model required (tier=hard or agent=none), emit nothing — preserves
     # the prior hook.sh behavior of early-exiting on these classifications.
     if result.get("tier") == "hard" or result.get("agent") == "none":
+        if os.environ.get("BRAINER_TRIAGE_ESCALATE_UP") == "1":
+            agent = _escalate_up_agent(prompt)
+            return (
+                "⚡ [agents-triage] Task classified:\n"
+                f'{json.dumps({"tier": result.get("tier"), "agent": agent, "reason": result.get("reason")})}\n'
+                f"This prompt needs frontier judgment but the session model is "
+                f"cheap-tier. Dispatch via the Task tool to the `{agent}` "
+                "subagent (model: inherit escalates it to frontier) with a "
+                "self-contained brief. Accept its report; do not answer this "
+                "yourself at cheap tier. Wrong call? User can resend with "
+                "\"NO TRIAGE\"."
+            )
         return ""
     # A "Strong recommendation" below 0.7 confidence is miscalibrated language;
     # silence lets the main model proceed normally (the safe direction).

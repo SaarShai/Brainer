@@ -549,6 +549,44 @@ def test_router_eval_gate_no_misroute_down():
     assert report["cost_proxy"]["vs_opus_pct"] < 100, report["cost_proxy"]
 
 
+def test_escalate_up_env_unset_is_byte_identical():
+    # Default (env unset) must match today's silent behavior exactly on a
+    # hard/agent-none prompt — no directive, regardless of escalate-up code
+    # existing in the module.
+    os.environ.pop("BRAINER_TRIAGE_ESCALATE_UP", None)
+    p = "refactor the auth system across multiple files"
+    r = classify(p, use_ollama_fallback=False)
+    assert r["tier"] == "hard" and r["agent"] == "none", r
+    assert emit_context(p, use_ollama_fallback=False) == ""
+
+
+def test_escalate_up_emits_advisor_directive_for_plan_prompt():
+    os.environ["BRAINER_TRIAGE_ESCALATE_UP"] = "1"
+    try:
+        p = "design the architecture for a new multi-file payments module"
+        r = classify(p, use_ollama_fallback=False)
+        assert r["tier"] == "hard" and r["agent"] == "none", r
+        out = emit_context(p, use_ollama_fallback=False)
+        assert out != "", out
+        assert "frontier-advisor" in out, out
+        assert "frontier-verifier" not in out, out
+    finally:
+        os.environ.pop("BRAINER_TRIAGE_ESCALATE_UP", None)
+
+
+def test_escalate_up_emits_verifier_directive_for_review_prompt():
+    os.environ["BRAINER_TRIAGE_ESCALATE_UP"] = "1"
+    try:
+        p = "review and audit this multi-file refactor across the codebase"
+        r = classify(p, use_ollama_fallback=False)
+        assert r["tier"] == "hard" and r["agent"] == "none", r
+        out = emit_context(p, use_ollama_fallback=False)
+        assert out != "", out
+        assert "frontier-verifier" in out, out
+    finally:
+        os.environ.pop("BRAINER_TRIAGE_ESCALATE_UP", None)
+
+
 def main():
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in fns:
