@@ -140,6 +140,14 @@ lanes) or leaves the how to the worker (frontier lanes).
   authors the missing verdict or fills it from memory.
 - Leader synthesizes as lanes return — don't barrier-wait unless a lane
   consumes another's output.
+- **User-facing synthesis contract.** The `LANE_REPORT` shape is worker→leader;
+  the leader→USER synthesis is a different register. State the OUTCOME first,
+  then evidence, risks, next step. Strip internal orchestration vocabulary —
+  lane IDs, `STATUS:` / `READY FOR JUDGING` tokens, arrow chains, agent handles.
+  **A failed, blocked, or dropped lane is named as an explicit gap in that
+  synthesis — never silently filtered to the surviving lanes** (the no-drop
+  guarantee, applied at the output edge: a `.filter(Boolean)` that removes a
+  dead lane must still be reported as "lane X produced nothing").
 - Ledger: a lane is OPEN until its verification passes.
 
 ## 5. Leader keystroke budget
