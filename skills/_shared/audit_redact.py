@@ -57,26 +57,39 @@ _URL_CRED_RE = re.compile(
     r"(?i)\b([a-z][a-z0-9+.\-]*://[^\s:/@]+):([^\s:/@]+)@"
 )
 
+# NOTE: the standalone-token patterns below deliberately carry NO `\b` word-
+# boundary anchors. Two cross-vendor review rounds (2026-07-05) showed `\b` is
+# the wrong primitive for a security SINK: (a) a token immediately preceded by
+# an ASCII word char — `key_sk-proj-…` (`_` is a word char) — has no boundary,
+# so a leading `\b` silently refuses the match and the secret leaks; (b) a
+# trailing `\b` fails the same way for families whose char class lacks `_`
+# (`ghp_…_tail`, `AKIA…x` with a fixed `{16}` that cannot backtrack); (c) with
+# default unicode semantics even a NON-ASCII neighbor (`sk-proj-…é`) defeated
+# `\b`. Dropping the anchors is strictly recall-additive: these prefixes are
+# specific enough (sk-/ghp_/glpat-/xox?-/AKIA/eyJ…) that the residual false-
+# positive risk is over-redaction of odd identifiers inside a telemetry line —
+# acceptable for a scrubber; under-redaction is not.
+
 # JWT: three base64url segments separated by dots. Require a reasonable length
 # so ordinary dotted identifiers are not caught.
 _JWT_RE = re.compile(
-    r"\beyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\b"
+    r"eyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}"
 )
 
 # OpenAI keys (incl. project keys). Generic sk- form kept broad.
-_OPENAI_RE = re.compile(r"\bsk-(?:proj-)?[A-Za-z0-9_-]{16,}\b")
+_OPENAI_RE = re.compile(r"sk-(?:proj-)?[A-Za-z0-9_-]{16,}")
 
 # GitHub tokens (classic prefixes + fine-grained PAT).
-_GITHUB_PAT_RE = re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}\b")
-_GITHUB_TOKEN_RE = re.compile(r"\bgh[opusr]_[A-Za-z0-9]{20,}\b")
+_GITHUB_PAT_RE = re.compile(r"github_pat_[A-Za-z0-9_]{20,}")
+_GITHUB_TOKEN_RE = re.compile(r"gh[opusr]_[A-Za-z0-9]{20,}")
 
 # GitLab personal-access / deploy tokens, and Slack bot/user/app tokens
 # (standalone shapes the env-assignment pattern doesn't cover — 2026-07-05 review).
-_GITLAB_RE = re.compile(r"\b(?:glpat|gldt|glrt|glsoat|glptt|feed_token)-[A-Za-z0-9_-]{20,}\b")
-_SLACK_RE = re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}\b")
+_GITLAB_RE = re.compile(r"(?:glpat|gldt|glrt|glsoat|glptt|feed_token)-[A-Za-z0-9_-]{20,}")
+_SLACK_RE = re.compile(r"xox[baprs]-[A-Za-z0-9-]{10,}")
 
 # AWS access key id.
-_AWS_AKID_RE = re.compile(r"\b(?:AKIA|ASIA|AGPA|AIDA|AROA|ANPA|ANVA)[A-Z0-9]{16}\b")
+_AWS_AKID_RE = re.compile(r"(?:AKIA|ASIA|AGPA|AIDA|AROA|ANPA|ANVA)[A-Z0-9]{16}")
 
 # AWS secret access key assignment (40-char base64-ish following the key name).
 _AWS_SECRET_RE = re.compile(
