@@ -47,6 +47,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from dataclasses import asdict, dataclass, field
 from typing import Literal
 
@@ -68,6 +69,15 @@ except Exception:                                        # pragma: no cover - de
         raise RuntimeError(
             "audit_redact unavailable — refusing cross-vendor egress without redaction")
 
+# Per-lane cost/latency telemetry (usage, latency_ms, served_model) is written
+# best-effort to an append-only JSONL trace after each dispatch — see
+# orchestration_trace.py. Persistence, unlike egress, fails OPEN: a missing or
+# broken trace writer must never take down a dispatch. BRAINER_TRACE=0 disables.
+try:
+    from orchestration_trace import record_lane_event as _record_lane_event  # type: ignore
+except Exception:                                        # pragma: no cover - defensive
+    _record_lane_event = None
+
 Role = Literal["advisor", "verifier"]
 
 # Vendor LANES — the diversity unit. Two backends in the same lane (codex + an
@@ -77,6 +87,13 @@ LANE_CLAUDE = "claude"
 LANE_GEMINI = "gemini"
 LANE_LOCAL = "local"
 LANE_GLM = "glm"
+
+# GPT-style effort tiers — additive granularity on top of the existing
+# vendor/lane roster. "standard" is the implicit default (today's behavior
+# when no --effort flag is given); the other four let a caller trade
+# latency/cost for reasoning depth per dispatch.
+EFFORT_TIERS = ("instant", "light", "standard", "high", "xhigh")
+DEFAULT_EFFORT = "standard"
 
 
 @dataclass
@@ -91,6 +108,7 @@ class Backend:
     notes: str = ""
     transport: str = ""  # "" = native CLI/local/zai; "openrouter" = dispatched via the OpenRouter proxy
     slug: str = ""       # provider model id for a proxied lane, e.g. "openai/gpt-5-mini"
+    effort: str = "standard"  # GPT-style effort tier: instant|light|standard|high|xhigh (additive; "standard" is today's behavior)
 
 
 # --- Detection ------------------------------------------------------------
@@ -145,7 +163,7 @@ def _zai_key() -> str:
 
 def _run_glm(prompt: str, *, timeout: float, model: str = "glm-5.2",
              base: str = "https://api.z.ai/api/coding/paas/v4",
-             thinking: bool = False) -> tuple[bool, str, str]:
+             thinking: bool = False, meta: dict | None = None) -> tuple[bool, str, str]:
     """Dispatch GLM directly over z.ai's OpenAI-compatible chat/completions
     (proven HTTP 200; codex's Responses-only wire 404s here, so this bypasses
     codex entirely). Returns (ok, text, error). Never raises.
@@ -154,7 +172,13 @@ def _run_glm(prompt: str, *, timeout: float, model: str = "glm-5.2",
     delegate-router gotcha: glm-5.2's reasoning otherwise eats the max_tokens
     budget and `content` comes back empty (reproduced 2026-07-05: 9/12 eval
     cells unparseable through this very function). Pass thinking=True only when
-    the caller wants the reasoning trace and handles the fallback."""
+    the caller wants the reasoning trace and handles the fallback.
+
+    `meta`, if given, is filled IN-PLACE with `usage` (the provider's raw
+    `usage` object, or None) and `served_model` (the API's reported `model`,
+    or None) — additive telemetry for run_dispatch/orchestration_trace; the
+    return tuple's shape and meaning are unchanged so existing 3-tuple
+    unpacking call sites keep working untouched."""
     key = _zai_key()
     if not key:
         return False, "", "no z.ai key (env ZAI_API_KEY/… or ~/.config/zai/key)"
@@ -178,6 +202,9 @@ def _run_glm(prompt: str, *, timeout: float, model: str = "glm-5.2",
         # whole reply there and leaves `content` empty, fall back to it so a panel
         # member is never silently dropped for a non-empty response.
         text = (msg.get("content") or "").strip() or (msg.get("reasoning_content") or "").strip()
+        if meta is not None:
+            meta["usage"] = data.get("usage")
+            meta["served_model"] = data.get("model")
         if not text:
             return False, "", "z.ai returned empty content + reasoning"
         # Transport-level identity check (2026-07-05 review): the API's returned
@@ -244,13 +271,40 @@ def _openrouter_slug(lane: str) -> str:
     return os.environ.get(f"OPENROUTER_MODEL_{lane.upper()}") or _OPENROUTER_SLUGS.get(lane, "")
 
 
+def _openrouter_effort_override(lane: str, effort: str) -> str:
+    """The effort-scoped env override for a lane, or "" if none is set.
+
+    Looks up `OPENROUTER_MODEL_<LANE>_<EFFORT>` (e.g. `OPENROUTER_MODEL_GPT_HIGH`)
+    only — never falls back to the plain per-lane slug, so a caller can tell
+    "no override for this tier" apart from "the default slug" and keep using
+    an already-resolved backend slug (e.g. a detected Backend.slug) instead."""
+    tier = (effort or DEFAULT_EFFORT).lower()
+    return os.environ.get(f"OPENROUTER_MODEL_{lane.upper()}_{tier.upper()}", "")
+
+
+def _openrouter_slug_for_effort(lane: str, effort: str = DEFAULT_EFFORT) -> str:
+    """The model slug for a lane at a given effort tier.
+
+    Resolution order (most to least specific), additive on top of
+    `_openrouter_slug`: an effort-scoped env override
+    `OPENROUTER_MODEL_<LANE>_<EFFORT>` (e.g. `OPENROUTER_MODEL_GPT_HIGH`) wins
+    when set; DEFAULT_EFFORT ("standard") with no override falls through to
+    the existing per-lane resolution unchanged, so a caller who never passes
+    --effort gets byte-identical slugs to before this feature existed."""
+    return _openrouter_effort_override(lane, effort) or _openrouter_slug(lane)
+
+
 def _run_openrouter(prompt: str, *, timeout: float, model: str,
-                    base: str = _OPENROUTER_BASE) -> tuple[bool, str, str]:
+                    base: str = _OPENROUTER_BASE, meta: dict | None = None) -> tuple[bool, str, str]:
     """Dispatch one prompt through OpenRouter's OpenAI-compatible chat/completions
     (twin of `_run_glm`, different base/key/headers). max_tokens is capped for the
     same reason — a reasoning model with no cap can run unbounded — and the reply
     falls back to `reasoning` when `content` lands empty. Returns (ok, text, err);
-    never raises so a failing member is dropped, not fatal."""
+    never raises so a failing member is dropped, not fatal.
+
+    `meta`, if given, is filled IN-PLACE with `usage` and `served_model` —
+    same additive contract as `_run_glm`'s `meta` param; the return tuple is
+    unchanged so existing 3-tuple unpacking call sites keep working untouched."""
     key = _openrouter_key()
     if not key:
         return False, "", "no OpenRouter key (env OPENROUTER_API_KEY/… or ~/.config/openrouter/key)"
@@ -276,6 +330,9 @@ def _run_openrouter(prompt: str, *, timeout: float, model: str,
     # OpenRouter surfaces upstream errors (402 credits, provider overload) in-body.
     if isinstance(data, dict) and data.get("error"):
         return False, "", f"OpenRouter: {str(data['error'].get('message', data['error']))[:160]}"
+    if meta is not None and isinstance(data, dict):
+        meta["usage"] = data.get("usage")
+        meta["served_model"] = data.get("model")
     try:
         msg = data["choices"][0]["message"]
     except (KeyError, IndexError, TypeError) as e:
@@ -472,11 +529,30 @@ def render_prompt(role: Role, task: str, brief: str) -> str:
     return _SCAFFOLDS[role].format(task=task, brief=brief)
 
 
-def render_dispatch(b: Backend, role: Role, task: str, brief: str, *, model: str = "") -> str:
+def _apply_codex_effort(inv: str, b: Backend, effort: str) -> str:
+    """Append `-c model_reasoning_effort=<effort>` to a codex-CLI invocation
+    when a NON-default effort tier is requested. DEFAULT_EFFORT ("standard")
+    or no effort given is a no-op — the exact case that keeps no-flag
+    rendering byte-identical to before this feature existed. Scoped to the
+    codex CLI GPT lane only (the mapping the brief specifies); every other
+    lane's invocation is untouched by effort."""
+    tier = (effort or DEFAULT_EFFORT).lower()
+    if b.lane == LANE_GPT and b.kind == "cli" and tier != DEFAULT_EFFORT and inv.startswith("codex exec"):
+        return f"{inv} -c model_reasoning_effort={tier}"
+    return inv
+
+
+def render_dispatch(b: Backend, role: Role, task: str, brief: str, *, model: str = "", effort: str = "") -> str:
     """A copy-paste-runnable, read-only, synchronous dispatch for one backend.
     CLI lanes use a single-quoted heredoc on stdin so the multiline prompt needs
-    no escaping and the shell expands nothing inside it."""
+    no escaping and the shell expands nothing inside it.
+
+    `effort`, if given (and non-default), is applied to the codex-CLI GPT lane
+    as `-c model_reasoning_effort=<effort>` — see `_apply_codex_effort`. Empty
+    string (the default) means "no flag given"; rendering is byte-identical to
+    before this feature existed."""
     prompt = render_prompt(role, task, brief)
+    eff = effort or b.effort
     if b.kind in ("api", "http"):
         if b.kind == "http" and b.transport == "openrouter":
             how = "auto-runnable with --run (OpenRouter chat/completions)"
@@ -490,6 +566,7 @@ def render_dispatch(b: Backend, role: Role, task: str, brief: str, *, model: str
     if "{model}" in inv:
         chosen = model or (b.models[0] if b.models else "MODEL")
         inv = inv.format(model=chosen)
+    inv = _apply_codex_effort(inv, b, eff)
     delim = f"LOOP_{role.upper()}_EOF"
     return f"{inv} <<'{delim}'\n{prompt}\n{delim}"
 
@@ -519,14 +596,46 @@ def _extract_findings(text: str) -> str:
     return lines[-1] if lines else ""
 
 
+def _trace_dispatch(result: dict, task: str) -> None:
+    """Best-effort telemetry write after a dispatch — never raises, never
+    affects `result`. BRAINER_TRACE=0 disables (e.g. noisy test runs); default
+    is on. A missing/broken trace writer is silently skipped — persistence is
+    additive, not a dependency of dispatch."""
+    if os.environ.get("BRAINER_TRACE", "").strip() == "0":
+        return
+    if _record_lane_event is None:
+        return
+    try:
+        _record_lane_event(None, {
+            "role": result.get("role"), "lane": result.get("lane"),
+            "vendor": result.get("vendor"), "ok": result.get("ok"),
+            "usage": result.get("usage"), "latency_ms": result.get("latency_ms"),
+            "served_model": result.get("served_model"), "task_digest": task,
+        })
+    except Exception:
+        pass
+
+
 def run_dispatch(b: Backend, role: Role, task: str, brief: str, *,
-                 model: str = "", timeout: float = 120.0) -> dict:
+                 model: str = "", timeout: float = 120.0, effort: str = "") -> dict:
     """Execute ONE backend read-only, prompt on stdin, capture the result. Never
     raises — a failure is reported as ok=False with the reason, so the caller can
-    drop it and keep the survivors."""
+    drop it and keep the survivors.
+
+    Additive telemetry: the returned dict also carries `usage` (provider-
+    reported prompt/completion token counts, or None), `latency_ms` (wall-clock
+    time of the dispatch call), and `served_model` (the model the transport
+    actually reports serving, or None when not reported/parseable) — every
+    existing key is unchanged. A best-effort trace event is appended after
+    each dispatch (see orchestration_trace.py); BRAINER_TRACE=0 disables it.
+
+    `effort`, if given (non-default), maps to `-c model_reasoning_effort=
+    <effort>` on the codex-CLI GPT lane, same as render_dispatch; no effort ==
+    today's exact invocation."""
     import shlex     # stdlib; local so the pure path needs no import
     result = {"vendor": b.vendor, "lane": b.lane, "role": role,
-              "ok": False, "findings": "", "raw": "", "error": ""}
+              "ok": False, "findings": "", "raw": "", "error": "",
+              "usage": None, "latency_ms": None, "served_model": None}
     # Render once, up front. render_prompt fails CLOSED (raises) when the
     # redactor is unavailable — catch it here so "never raises" holds and the
     # caller drops this member instead of the whole panel crashing (2026-07-05).
@@ -534,48 +643,85 @@ def run_dispatch(b: Backend, role: Role, task: str, brief: str, *,
         prompt = render_prompt(role, task, brief)
     except RuntimeError as e:
         result["error"] = str(e)
+        _trace_dispatch(result, task)
         return result
     if b.kind == "http" and b.transport == "openrouter":
+        meta: dict = {}
+        t0 = time.monotonic()
+        eff = effort or b.effort
+        # GPT lane resolves its slug per effort tier via an effort-SCOPED env
+        # override only (OPENROUTER_MODEL_GPT_<EFFORT>); with no such override
+        # (including the no-flag / DEFAULT_EFFORT case), falls back to the
+        # backend's own already-detected `slug` unchanged — never the bare
+        # per-lane default — so an explicit OPENROUTER_MODEL_GPT env or a
+        # non-default detected slug survives untouched when --effort is absent.
+        slug = model or (b.lane == LANE_GPT and _openrouter_effort_override(b.lane, eff)) or b.slug
         ok, text, err = _run_openrouter(prompt,
-                                        timeout=timeout, model=model or b.slug)
+                                        timeout=timeout, model=slug, meta=meta)
+        result["latency_ms"] = (time.monotonic() - t0) * 1000
+        result["usage"] = meta.get("usage")
+        result["served_model"] = meta.get("served_model")
         text = _strip_ansi(text)
         result.update(ok=ok, raw=text,
                       findings=_extract_findings(text) if ok else "", error=err)
+        _trace_dispatch(result, task)
         return result
     if b.kind == "http" and b.lane == LANE_GLM:
+        meta = {}
+        t0 = time.monotonic()
         ok, text, err = _run_glm(prompt,
-                                 timeout=timeout, model=model or "glm-5.2")
+                                 timeout=timeout, model=model or "glm-5.2", meta=meta)
+        result["latency_ms"] = (time.monotonic() - t0) * 1000
+        result["usage"] = meta.get("usage")
+        result["served_model"] = meta.get("served_model")
         text = _strip_ansi(text)
         result.update(ok=ok, raw=text,
                       findings=_extract_findings(text) if ok else "", error=err)
+        _trace_dispatch(result, task)
         return result
     if b.kind == "api":
         result["error"] = "api lane: dispatch via the glm-executor subagent, not auto-runnable from this util"
+        _trace_dispatch(result, task)
         return result
     inv = b.invocation
+    resolved_model = ""
     if "{model}" in inv:
-        inv = inv.format(model=model or (b.models[0] if b.models else "MODEL"))
+        resolved_model = model or (b.models[0] if b.models else "MODEL")
+        inv = inv.format(model=resolved_model)
+    inv = _apply_codex_effort(inv, b, effort or b.effort)
     try:
         argv = shlex.split(inv)
     except ValueError as e:
         result["error"] = f"unparseable invocation {inv!r}: {e}"
+        _trace_dispatch(result, task)
         return result
+    t0 = time.monotonic()
     try:
         proc = subprocess.run(argv, input=prompt, capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         result["error"] = f"timeout after {timeout:.0f}s"
+        result["latency_ms"] = (time.monotonic() - t0) * 1000
+        _trace_dispatch(result, task)
         return result
     except (OSError, ValueError) as e:
         result["error"] = f"dispatch failed: {e}"
+        _trace_dispatch(result, task)
         return result
+    result["latency_ms"] = (time.monotonic() - t0) * 1000
+    # CLI transports don't report token usage; `served_model` is only set when
+    # trivially known from the resolved invocation (never parsed from stdout).
+    if resolved_model and resolved_model != "MODEL":
+        result["served_model"] = resolved_model
     out = _strip_ansi(proc.stdout or "")
     result["raw"] = out
     if proc.returncode != 0:
         # an unauthenticated / misconfigured CLI lands here (the gemini case)
         result["error"] = f"exit {proc.returncode}: {_strip_ansi(proc.stderr or '')[:200].strip()}"
+        _trace_dispatch(result, task)
         return result
     result["ok"] = True
     result["findings"] = _extract_findings(out)
+    _trace_dispatch(result, task)
     return result
 
 
@@ -595,11 +741,14 @@ def verifier_quorum(n_survivors: int) -> dict:
 
 
 def run_panel(roster: list[Backend], n: int, role: Role, task: str, brief: str, *,
-              exclude_lane: str | None = None, timeout: float = 120.0) -> dict:
+              exclude_lane: str | None = None, timeout: float = 120.0, effort: str = "") -> dict:
     """Pick a diverse panel and run every member. Returns survivors + failures
-    separately so the caller can recompute quorum over who ACTUALLY responded."""
+    separately so the caller can recompute quorum over who ACTUALLY responded.
+
+    `effort`, if given, is passed through to every member's run_dispatch (see
+    its docstring); empty string (the default) is a no-op."""
     panel = pick_panel(roster, n, exclude_lane=exclude_lane)
-    runs = [run_dispatch(b, role, task, brief, timeout=timeout) for b in panel]
+    runs = [run_dispatch(b, role, task, brief, timeout=timeout, effort=effort) for b in panel]
     survivors = [r for r in runs if r["ok"]]
     failures = [r for r in runs if not r["ok"]]
     out = {"role": role, "requested": n, "dispatched": len(panel),
@@ -720,6 +869,11 @@ def main(argv: list[str]) -> int:
                          "first, but the task/brief text still leaves this host — this gate makes that a choice, "
                          "not a default.")
     ap.add_argument("--timeout", type=float, default=120.0, help="per-member dispatch timeout in seconds (--run)")
+    ap.add_argument("--effort", choices=list(EFFORT_TIERS), default="",
+                    help="GPT-style effort tier for this dispatch (instant|light|standard|high|xhigh). "
+                         "Omit for today's exact behavior — 'standard' is the implicit default either way. "
+                         "GPT/OpenRouter lane: resolves OPENROUTER_MODEL_GPT_<EFFORT> (falls back to the "
+                         "default slug). codex-CLI GPT lane: adds -c model_reasoning_effort=<effort>.")
     ap.add_argument("--via", choices=["openrouter"], default="",
                     help="prefer this transport for every eligible lane even when a native CLI exists "
                          "(one-provider consolidation / ours-vs-OpenRouter comparison)")
@@ -774,7 +928,7 @@ def main(argv: list[str]) -> int:
                   "for a clean majority.", file=sys.stderr)
         if args.run:
             res = run_panel(roster, args.panel, args.role, args.task, args.brief,
-                            exclude_lane=args.exclude_lane, timeout=args.timeout)
+                            exclude_lane=args.exclude_lane, timeout=args.timeout, effort=args.effort)
             if args.json:
                 print(json.dumps(res, indent=2))
             else:
@@ -790,7 +944,7 @@ def main(argv: list[str]) -> int:
                           file=sys.stderr)
             # survivors present → 0; all members failed → 1 (caller decides on an empty panel)
             return 0 if res["survivors"] else 1
-        blocks = [render_dispatch(b, args.role, args.task, args.brief) for b in panel]
+        blocks = [render_dispatch(b, args.role, args.task, args.brief, effort=args.effort) for b in panel]
         if args.json:
             print(json.dumps({"role": args.role, "panel": [b.vendor for b in panel],
                               "dispatches": blocks}, indent=2))

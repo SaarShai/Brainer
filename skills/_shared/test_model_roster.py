@@ -12,7 +12,9 @@ on any machine, CLIs installed or not.
 """
 from __future__ import annotations
 
+import json
 import os
+import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -448,6 +450,275 @@ def test_run_fusion_no_key_errors():
         return (not r["ok"]) and "no OpenRouter key" in r["error"]
     finally:
         mr._openrouter_key = orig
+
+
+# --- per-lane telemetry (usage/latency/served_model) ----------------------
+# Mocks urllib.request.urlopen (not _run_glm/_run_openrouter themselves) so the
+# actual usage/served_model extraction code in those functions is exercised,
+# not bypassed.
+
+class _FakeHTTPResponse:
+    def __init__(self, body: bytes):
+        self._body = body
+
+    def read(self):
+        return self._body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def test_run_glm_captures_usage_and_served_model_via_meta():
+    import urllib.request
+    orig_urlopen = urllib.request.urlopen
+    orig_key = mr._zai_key
+    mr._zai_key = lambda: "test-key"
+    body = json.dumps({
+        "model": "glm-5.2-air", "choices": [{"message": {"content": "FINDINGS: ok"}}],
+        "usage": {"prompt_tokens": 11, "completion_tokens": 22},
+    }).encode()
+    urllib.request.urlopen = lambda req, timeout=0: _FakeHTTPResponse(body)
+    try:
+        meta: dict = {}
+        ok, text, err = mr._run_glm("p", timeout=5, model="glm-5.2", meta=meta)
+        return (ok and meta.get("usage") == {"prompt_tokens": 11, "completion_tokens": 22}
+                and meta.get("served_model") == "glm-5.2-air")
+    finally:
+        urllib.request.urlopen = orig_urlopen
+        mr._zai_key = orig_key
+
+
+def test_run_glm_meta_defaults_none_when_absent_from_response():
+    import urllib.request
+    orig_urlopen = urllib.request.urlopen
+    orig_key = mr._zai_key
+    mr._zai_key = lambda: "test-key"
+    body = json.dumps({"choices": [{"message": {"content": "FINDINGS: ok"}}]}).encode()
+    urllib.request.urlopen = lambda req, timeout=0: _FakeHTTPResponse(body)
+    try:
+        meta: dict = {}
+        mr._run_glm("p", timeout=5, meta=meta)
+        return meta.get("usage") is None and meta.get("served_model") is None
+    finally:
+        urllib.request.urlopen = orig_urlopen
+        mr._zai_key = orig_key
+
+
+def test_run_glm_meta_is_untouched_when_not_passed():
+    # meta=None (the default) must not raise — existing 3-tuple callers are
+    # unaffected by the telemetry addition.
+    import urllib.request
+    orig_urlopen = urllib.request.urlopen
+    orig_key = mr._zai_key
+    mr._zai_key = lambda: "test-key"
+    body = json.dumps({"model": "glm-5.2", "choices": [{"message": {"content": "FINDINGS: ok"}}]}).encode()
+    urllib.request.urlopen = lambda req, timeout=0: _FakeHTTPResponse(body)
+    try:
+        ok, text, err = mr._run_glm("p", timeout=5)
+        return ok and "FINDINGS: ok" in text
+    finally:
+        urllib.request.urlopen = orig_urlopen
+        mr._zai_key = orig_key
+
+
+def test_run_openrouter_captures_usage_and_served_model_via_meta():
+    import urllib.request
+    orig_urlopen = urllib.request.urlopen
+    orig_key = mr._openrouter_key
+    mr._openrouter_key = lambda: "test-key"
+    body = json.dumps({
+        "model": "openai/gpt-5.4-mini", "choices": [{"message": {"content": "FINDINGS: ok"}}],
+        "usage": {"prompt_tokens": 5, "completion_tokens": 9},
+    }).encode()
+    urllib.request.urlopen = lambda req, timeout=0: _FakeHTTPResponse(body)
+    try:
+        meta: dict = {}
+        ok, text, err = mr._run_openrouter("p", timeout=5, model="openai/gpt-5.4-mini", meta=meta)
+        return (ok and meta.get("usage") == {"prompt_tokens": 5, "completion_tokens": 9}
+                and meta.get("served_model") == "openai/gpt-5.4-mini")
+    finally:
+        urllib.request.urlopen = orig_urlopen
+        mr._openrouter_key = orig_key
+
+
+def test_run_dispatch_glm_populates_usage_latency_served_model():
+    orig = mr._run_glm
+
+    def _stub(prompt, *, timeout, model="glm-5.2", meta=None, **kw):
+        if meta is not None:
+            meta["usage"] = {"prompt_tokens": 3, "completion_tokens": 4}
+            meta["served_model"] = "glm-5.2"
+        return True, "FINDINGS: ok", ""
+    mr._run_glm = _stub
+    try:
+        b = _b(mr.LANE_GLM, kind="http", invocation="z.ai chat/completions (glm-5.2)")
+        r = mr.run_dispatch(b, "advisor", "t", "b", timeout=5)
+        return (r["usage"] == {"prompt_tokens": 3, "completion_tokens": 4}
+                and r["served_model"] == "glm-5.2"
+                and isinstance(r["latency_ms"], float) and r["latency_ms"] >= 0)
+    finally:
+        mr._run_glm = orig
+
+
+def test_run_dispatch_openrouter_populates_usage_latency_served_model():
+    orig = mr._run_openrouter
+
+    def _stub(prompt, *, timeout, model, meta=None, **kw):
+        if meta is not None:
+            meta["usage"] = {"prompt_tokens": 7, "completion_tokens": 8}
+            meta["served_model"] = model
+        return True, "FINDINGS: ok", ""
+    mr._run_openrouter = _stub
+    try:
+        r = mr.run_dispatch(_orb(mr.LANE_GPT, "openai/gpt-5-mini"), "advisor", "t", "b", timeout=5)
+        return (r["usage"] == {"prompt_tokens": 7, "completion_tokens": 8}
+                and r["served_model"] == "openai/gpt-5-mini"
+                and isinstance(r["latency_ms"], float))
+    finally:
+        mr._run_openrouter = orig
+
+
+def test_run_dispatch_cli_lane_leaves_usage_none_but_sets_served_model():
+    # CLI transports never report token usage; served_model is set only when
+    # trivially known from the resolved {model} substitution (ollama here).
+    b = _b(mr.LANE_LOCAL, kind="local", invocation="cat", models=["qwen2.5"])
+    r = mr.run_dispatch(b, "advisor", "t", "b", timeout=5)
+    return r["usage"] is None and r["latency_ms"] is not None
+
+
+def test_run_dispatch_never_raises_when_trace_writer_missing():
+    # Simulate an import failure of orchestration_trace (defensive fallback);
+    # run_dispatch must still work and telemetry keys must still be present.
+    orig = mr._record_lane_event
+    mr._record_lane_event = None
+    try:
+        r = mr.run_dispatch(_b(mr.LANE_GPT, invocation="cat"), "advisor", "t", "b", timeout=5)
+        return r["ok"] and "usage" in r and "latency_ms" in r and "served_model" in r
+    finally:
+        mr._record_lane_event = orig
+
+
+def test_run_dispatch_trace_disabled_by_env():
+    calls = []
+    orig = mr._record_lane_event
+    mr._record_lane_event = lambda path, event: calls.append(event) or True
+    prev = os.environ.get("BRAINER_TRACE")
+    os.environ["BRAINER_TRACE"] = "0"
+    try:
+        mr.run_dispatch(_b(mr.LANE_GPT, invocation="cat"), "advisor", "t", "b", timeout=5)
+        return calls == []
+    finally:
+        mr._record_lane_event = orig
+        if prev is None:
+            os.environ.pop("BRAINER_TRACE", None)
+        else:
+            os.environ["BRAINER_TRACE"] = prev
+
+
+def test_run_dispatch_trace_enabled_by_default():
+    calls = []
+    orig = mr._record_lane_event
+    mr._record_lane_event = lambda path, event: calls.append(event) or True
+    prev = os.environ.pop("BRAINER_TRACE", None)
+    try:
+        mr.run_dispatch(_b(mr.LANE_GPT, invocation="cat"), "advisor", "unstick me", "b", timeout=5)
+        return len(calls) == 1 and calls[0]["lane"] == mr.LANE_GPT and calls[0]["task_digest"] == "unstick me"
+    finally:
+        mr._record_lane_event = orig
+        if prev is not None:
+            os.environ["BRAINER_TRACE"] = prev
+
+
+def test_trace_dispatch_never_raises_when_writer_throws():
+    orig = mr._record_lane_event
+    mr._record_lane_event = lambda path, event: (_ for _ in ()).throw(RuntimeError("disk full"))
+    try:
+        r = mr.run_dispatch(_b(mr.LANE_GPT, invocation="cat"), "advisor", "t", "b", timeout=5)
+        return r["ok"] is True   # dispatch result unaffected by a broken trace writer
+    finally:
+        mr._record_lane_event = orig
+
+
+# --- effort tiers -----------------------------------------------------------
+
+def test_effort_tiers_include_gpt_style_granularity():
+    return set(mr.EFFORT_TIERS) == {"instant", "light", "standard", "high", "xhigh"}
+
+
+def test_openrouter_slug_for_effort_env_override():
+    key = "OPENROUTER_MODEL_GPT_HIGH"
+    prev = os.environ.get(key)
+    os.environ[key] = "openai/gpt-5.4-high-tier"
+    try:
+        return mr._openrouter_slug_for_effort(mr.LANE_GPT, "high") == "openai/gpt-5.4-high-tier"
+    finally:
+        if prev is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = prev
+
+
+def test_openrouter_slug_for_effort_falls_back_to_default_slug():
+    key = "OPENROUTER_MODEL_GPT_XHIGH"
+    os.environ.pop(key, None)
+    # no override set for xhigh -> falls back to the plain per-lane default/env slug
+    return mr._openrouter_slug_for_effort(mr.LANE_GPT, "xhigh") == mr._openrouter_slug(mr.LANE_GPT)
+
+
+def test_openrouter_slug_for_effort_standard_matches_plain_slug():
+    return mr._openrouter_slug_for_effort(mr.LANE_GPT, "standard") == mr._openrouter_slug(mr.LANE_GPT)
+
+
+def test_render_dispatch_codex_effort_adds_reasoning_flag():
+    b = _b(mr.LANE_GPT, invocation="codex exec")
+    d = mr.render_dispatch(b, "advisor", "task", "brief", effort="high")
+    return "codex exec -c model_reasoning_effort=high <<'LOOP_ADVISOR_EOF'" in d
+
+
+def test_render_dispatch_codex_effort_only_applies_to_gpt_lane():
+    # a non-GPT lane's invocation is untouched even if effort is passed.
+    b = _b(mr.LANE_GEMINI, invocation="gemini --approval-mode plan -p ''")
+    d = mr.render_dispatch(b, "advisor", "task", "brief", effort="high")
+    return "model_reasoning_effort" not in d
+
+
+def test_render_dispatch_no_effort_flag_is_byte_identical_to_before():
+    # DONE MEANS (5): no --effort flag given -> rendered command matches the
+    # pre-feature baseline exactly for both the default-effort Backend and an
+    # explicit empty-string effort call.
+    b = _b(mr.LANE_GPT, invocation="codex exec")
+    baseline = "codex exec <<'LOOP_ADVISOR_EOF'\n" + mr.render_prompt("advisor", "task", "brief") + "\nLOOP_ADVISOR_EOF"
+    no_effort_kwarg = mr.render_dispatch(b, "advisor", "task", "brief")
+    explicit_empty = mr.render_dispatch(b, "advisor", "task", "brief", effort="")
+    explicit_standard = mr.render_dispatch(b, "advisor", "task", "brief", effort="standard")
+    return no_effort_kwarg == baseline == explicit_empty == explicit_standard
+
+
+def test_run_dispatch_no_effort_argv_is_byte_identical_to_before():
+    # Same DONE MEANS, at the run_dispatch/argv level: capture the argv codex
+    # would be invoked with, before vs after adding --effort, with no effort given.
+    seen = []
+    orig_run = subprocess.run
+
+    def _spy(argv, **kw):
+        seen.append(list(argv))
+        return orig_run(["cat"], **kw)
+    subprocess.run = _spy
+    try:
+        b = _b(mr.LANE_GPT, invocation="cat")   # stand-in binary; argv shape is what's under test
+        mr.run_dispatch(b, "advisor", "t", "b", timeout=5)
+        mr.run_dispatch(b, "advisor", "t", "b", timeout=5, effort="")
+        return seen[0] == seen[1] == ["cat"]
+    finally:
+        subprocess.run = orig_run
+
+
+def test_effort_backend_field_defaults_to_standard():
+    b = _b(mr.LANE_GPT)
+    return b.effort == "standard"
 
 
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
