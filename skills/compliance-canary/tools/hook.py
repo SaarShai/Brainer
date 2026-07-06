@@ -1200,7 +1200,13 @@ def detect_tool_path_touch(probe: dict, _messages, tool_uses: list[dict], _tool_
     # only fires once that count is reached — lets a probe distinguish a single
     # allowed fixup from a bulk mechanical edit (team-lead §5/§6 proportionality)
     # without adding a second window concept (reuses the caller's tool_uses cap).
-    min_count = int(probe.get("min_count", 1))
+    # _as_int + clamp (cross-vendor review P5): a non-numeric min_count (e.g. a
+    # typo'd "three") must NOT raise into run_probes' blanket except — that would
+    # silently DROP the probe instead of degrading to the documented default. And
+    # a 0/negative min_count must NOT invert the threshold into firing on the
+    # FIRST edit (len(hits) >= 0 is always true) — clamp to the fire-on-first
+    # floor of 1, the same floor the default already uses.
+    min_count = max(1, _as_int(probe.get("min_count"), 1))
     hits = []
     for tu in (tool_uses or []):
         if tu.get("name", "") in tools:

@@ -2,7 +2,7 @@
   {
     "id": "leader-bulk-edit",
     "kind": "tool_path_touch",
-    "path_pattern": "(?i)^(?!.*(?:/|^)(?:plan|spec|brief|briefs|ledger|synthesis|synthesize)[^/]*\\.(?:md|json|ya?ml|txt)$)(?!.*\\.brainer/(?:ledger|baton)/)(?!(?:.*/)?wiki/).+$",
+    "path_pattern": "(?i)^(?!.*(?:^|/)(?:[^/]*[-_.])?(?:plan|spec|brief|briefs|ledger|synthesis|synthesize)(?:[-_.][^/]*)?\\.(?:md|json|ya?ml|txt)$)(?!.*\\.brainer/(?:ledger|baton)/)(?!(?:.*/)?wiki/.*\\.(?:md|txt)$).+$",
     "tools": ["Edit", "Write"],
     "min_count": 3,
     "message": "team-lead §5 leader keystroke budget: the leader may only edit the plan/spec, briefs, ledger rows, synthesis docs, and one-line fixups directly — bulk mechanical edits belong to a builder lane. This Edit/Write landed on a non-plan/brief/ledger/synthesis path. If you are the leader and this is one of several such edits this session, stop and dispatch a builder brief instead of continuing to edit directly.",

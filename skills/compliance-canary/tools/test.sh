@@ -1066,6 +1066,113 @@ PY
 out=$(call cc93d tl "$TX" s93d)
 if [ -z "$out" ]; then ok "3 wiki edits stay quiet (wiki/ exempt)"; else no "wiki/ paths should be exempt" "got: $(echo "$out"|head -c160)"; fi
 
+# ------------------------------------------------------------------------
+# Cross-vendor review fixes (P3/P4/P5, post-a44b270) on leader-bulk-edit.
+# P3/P4 exercise the REAL shipped team-lead/drift_probes.json (the "tl" skills
+# dir set up above); P5 asserts detect_tool_path_touch's min_count coercion
+# directly in python (mirrors the update_ledger direct-assert style at [74]+).
+# ------------------------------------------------------------------------
+
+echo "[93e] P3: suffix-token filenames (project-plan.md, api-spec.md, client-brief.md) are now EXEMPT"
+TX="$TRANSCRIPT_DIR/t93e.jsonl"
+python3 - "$TX" <<'PY'
+import json, sys
+paths = ["/proj/docs/project-plan.md", "/proj/docs/api-spec.md", "/proj/briefs/client-brief.md"]
+with open(sys.argv[1], "w") as f:
+    for p in paths:
+        f.write(json.dumps({"type":"assistant","message":{"role":"assistant","content":[
+            {"type":"tool_use","name":"Edit","input":{"file_path":p,"old_string":"a","new_string":"b"}}
+        ]}}) + "\n")
+PY
+out=$(call cc93e tl "$TX" s93e)
+if [ -z "$out" ]; then ok "suffix-token plan/spec/brief filenames exempt (quiet)"; else no "suffix-token filenames should be exempt" "got: $(echo "$out"|head -c160)"; fi
+
+echo "[93f] P3: a suffix-token synthesis filename (design-synthesis.md) is also EXEMPT"
+TX="$TRANSCRIPT_DIR/t93f.jsonl"
+write_transcript "$TX" "$(assistant_tool_use Edit '{"file_path":"/proj/notes/design-synthesis.md","old_string":"a","new_string":"b"}')"
+out=$(call cc93f tl "$TX" s93f)
+if [ -z "$out" ]; then ok "design-synthesis.md exempt (quiet)"; else no "design-synthesis.md should be exempt" "got: $(echo "$out"|head -c160)"; fi
+
+echo "[93g] P3: a non-token filename that merely CONTAINS 'plan' as a substring (plant.md) still COUNTS (no over-exemption)"
+TX="$TRANSCRIPT_DIR/t93g.jsonl"
+python3 - "$TX" <<'PY'
+import json, sys
+with open(sys.argv[1], "w") as f:
+    for i in range(3):
+        f.write(json.dumps({"type":"assistant","message":{"role":"assistant","content":[
+            {"type":"tool_use","name":"Edit","input":{"file_path":f"/proj/plant{i}.md","old_string":"a","new_string":"b"}}
+        ]}}) + "\n")
+PY
+out=$(call cc93g tl "$TX" s93g)
+if emitted "$out" && echo "$out" | grep -q 'tool_path_touch'; then ok "'plant.md' (substring, not word) still counts"; else no "'plant.md' should still count" "got: $(echo "$out"|head -c160)"; fi
+
+echo "[93h] P4: wiki/ DOCS stay exempt but wiki/ CODE now COUNTS (blanket wiki/ exemption no longer hides code)"
+TX="$TRANSCRIPT_DIR/t93h.jsonl"
+python3 - "$TX" <<'PY'
+import json, sys
+paths = ["/proj/wiki/tools/rebuild_index.py", "/proj/wiki/tools/sync.sh", "/proj/wiki/tools/build.js"]
+with open(sys.argv[1], "w") as f:
+    for p in paths:
+        f.write(json.dumps({"type":"assistant","message":{"role":"assistant","content":[
+            {"type":"tool_use","name":"Edit","input":{"file_path":p,"old_string":"a","new_string":"b"}}
+        ]}}) + "\n")
+PY
+out=$(call cc93h tl "$TX" s93h)
+if emitted "$out" && echo "$out" | grep -q 'tool_path_touch'; then ok "wiki/tools/*.py|.sh|.js bulk edits COUNT (code, not doc)"; else no "wiki/ code edits should count" "got: $(echo "$out"|head -c160)"; fi
+
+echo "[93i] P4: wiki doc edits mixed in do NOT count toward min_count — only the 3 wiki .py edits reach the threshold"
+TX="$TRANSCRIPT_DIR/t93i.jsonl"
+python3 - "$TX" <<'PY'
+import json, sys
+# 2 exempt wiki docs (must NOT count) + 3 wiki .py edits (must reach min_count:3
+# on code alone). If the doc edits wrongly counted too, this would already fire
+# at 2 hits before the 3rd .py edit — instead the fix must make the .md edits
+# invisible to the counter and the fire happen exactly at the 3rd .py edit.
+paths = ["/proj/wiki/concepts/foo.md", "/proj/wiki/notes/bar.md",
+         "/proj/wiki/tools/rebuild_index.py", "/proj/wiki/tools/another.py", "/proj/wiki/tools/third.py"]
+with open(sys.argv[1], "w") as f:
+    for p in paths:
+        f.write(json.dumps({"type":"assistant","message":{"role":"assistant","content":[
+            {"type":"tool_use","name":"Edit","input":{"file_path":p,"old_string":"a","new_string":"b"}}
+        ]}}) + "\n")
+PY
+out=$(call cc93i tl "$TX" s93i)
+if emitted "$out" && echo "$out" | grep -q 'tool_path_touch'; then ok "wiki .md stays exempt (uncounted), 3 wiki .py edits alone reach min_count"; else no "3 wiki .py edits amid docs should still fire" "got: $(echo "$out"|head -c160)"; fi
+
+echo "[93j] P5: detect_tool_path_touch min_count coercion — 'three'/0/-1 all clamp to 1 (fire-on-first), no raise"
+p5=$(python3 -c "
+import sys; sys.path.insert(0,'$TOOLS_DIR'); import hook
+def hits(n):
+    return [{'name':'Edit','input':{'file_path':f'/src/f{i}.py'}} for i in range(n)]
+bad = []
+for mc in ('three', 0, -1):
+    probe = {'path_pattern': '.+', 'min_count': mc, '_probe_id': 'x'}
+    try:
+        r0 = hook.detect_tool_path_touch(probe, None, hits(0))
+        r1 = hook.detect_tool_path_touch(probe, None, hits(1))
+    except Exception as e:
+        bad.append(f'{mc!r}:raised:{e!r}')
+        continue
+    if r0 is not None:
+        bad.append(f'{mc!r}:fired-on-zero-hits')
+    if r1 is None or r1.get('min_count') != 1:
+        bad.append(f'{mc!r}:did-not-clamp-to-1:{r1!r}')
+print(';'.join(bad))
+" 2>&1)
+if [ -z "$p5" ]; then ok "min_count 'three'/0/-1 all clamp to 1, no raise, no fire-on-zero-hits"; else no "min_count coercion" "got: $p5"; fi
+
+echo "[93k] P5: a valid positive min_count (e.g. 3) is unaffected by the clamp/coercion"
+p5b=$(python3 -c "
+import sys; sys.path.insert(0,'$TOOLS_DIR'); import hook
+def hits(n):
+    return [{'name':'Edit','input':{'file_path':f'/src/f{i}.py'}} for i in range(n)]
+probe = {'path_pattern': '.+', 'min_count': 3, '_probe_id': 'x'}
+r2 = hook.detect_tool_path_touch(probe, None, hits(2))
+r3 = hook.detect_tool_path_touch(probe, None, hits(3))
+print('ok' if r2 is None and r3 is not None and r3.get('min_count') == 3 else f'r2={r2!r} r3={r3!r}')
+" 2>&1)
+if [ "$p5b" = ok ]; then ok "valid min_count:3 unaffected (2 hits quiet, 3 hits fires)"; else no "valid min_count:3 regressed" "got: $p5b"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then
