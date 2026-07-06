@@ -30,6 +30,7 @@ Compact pointers. Fetch details on demand.
 - L4_archive/2026-05-22-skill-crystallizer/README (project tags=skill,L3-sop,automation) -> `L4_archive/2026-05-22-skill-crystallizer/README.md`
 - L4_archive/2026-05-31-auto-handoff-dropped (decision tags=auto-handoff,dropped,session-launch,context-refresh) -> `L4_archive/2026-05-31-auto-handoff-dropped.md`
 - concepts/adoption-covered-needs-merits-citation (concept tags=adoption,review,method,verification,code-graph) -> `concepts/adoption-covered-needs-merits-citation.md`
+- concepts/architect-loop-adoption-2026-07 (concept tags=orchestration,loop-engineering,adoption,external-review,architect-pattern,team-lead) -> `concepts/architect-loop-adoption-2026-07.md`
 - concepts/brainer-multi-repo-topology (concept tags=sibling-sync,propagation,multi-repo,topology,install,hard-rule) -> `concepts/brainer-multi-repo-topology.md`
 - concepts/caveman-compress-session-files (concept tags=caveman,startup,compression) -> `concepts/caveman-compress-session-files.md`
 - concepts/caveman-output-compression (concept tags=caveman,output-compression,style) -> `concepts/caveman-output-compression.md`
@@ -39,6 +40,7 @@ Compact pointers. Fetch details on demand.
 - concepts/devices-inventory (concept tags=infra,devices,inventory,compute) -> `concepts/devices-inventory.md`
 - concepts/e2-prose-rules-measured-2026-07 (concept tags=eval-methodology,ab-test,negative-result,eval-gate,loop-engineering,measured) -> `concepts/e2-prose-rules-measured-2026-07.md`
 - concepts/framework-hardening-adoption (concept tags=framework,adoption,retrieval,memory,routing,skills) -> `concepts/framework-hardening-adoption.md`
+- concepts/frontier-routing-topology-2026-07 (decision tags=orchestration,routing,topology,decision,measured,cost,frontier-model) -> `concepts/frontier-routing-topology-2026-07.md`
 - concepts/harness-article-adoption-2026-07 (concept tags=skills,harness,article-adoption,tool-scoping,error-taxonomy,negative-result) -> `concepts/harness-article-adoption-2026-07.md`
 - concepts/hook-path-fragility (concept tags=hooks,install,cwd-drift,lockout,pretooluse,claude-project-dir,fail-open,hard-rule) -> `concepts/hook-path-fragility.md`
 - concepts/karpathy-wiki (concept tags=wiki,memory,retrieval) -> `concepts/karpathy-wiki.md`
