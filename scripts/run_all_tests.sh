@@ -112,6 +112,7 @@ UNIT_TESTS=(
   scripts/test_gen_hooks_map.py
   scripts/test_mine_transcripts.py
   scripts/test_sibling_sync_audit.py
+  eval/harness_acceptance/test_run.py
 )
 # semantic-diff needs tree-sitter; SKIP (not FAIL) where the dep is absent
 # (e.g. bare CI runners) — semdiff's own suite covers it on dev machines.
@@ -150,6 +151,15 @@ run "skill-audit" python3 eval/skill_audit.py --check
 # 5e. Hook-safety gate — every hook entrypoint must satisfy the cardinal rule
 # (exit 0 on all paths, no partial stdout, subprocess timeouts, stdout=payload).
 run "hook-safety" python3 skills/compliance-canary/tools/hook_validate.py
+
+# 5f. Harness-acceptance honest report (H1a-H7, H8 excluded — model-dependent,
+# tracked in eval/MEASUREMENT_QUEUE.md). --report ALWAYS exits 0 by design; it
+# prints the current honest PASS/FAIL table on every suite run without gating
+# it. Use `python3 eval/harness_acceptance/run.py --gate` by hand to fail on
+# any H-check FAIL.
+echo
+echo "--- harness_acceptance (report-only; see eval/harness_acceptance/BASELINE.md) ---"
+python3 eval/harness_acceptance/run.py --report
 
 fi
 
