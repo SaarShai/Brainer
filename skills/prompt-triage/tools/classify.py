@@ -22,6 +22,7 @@ Called by UserPromptSubmit hook; stdout is injected into CC context.
 """
 from __future__ import annotations
 import json, os, re, sys, urllib.request
+from pathlib import Path
 
 
 def _extract_json_obj(text: str) -> dict | None:
@@ -608,20 +609,76 @@ def _read_prompt_from_stdin() -> str:
 # subagent. Default (env unset) stays byte-identical to today — proven by
 # test_classify.py.
 _VERIFY_INTENT_RE = re.compile(
-    r"\b(?:verify|review|judge|audit|critique|grade|assess|evaluate|"
+    r"\b(?:verify|review|judge|audit|critique|grade|assess|evaluate|vet|"
     r"double[-\s]?check|sanity[-\s]?check|sign[-\s]?off|pass\/fail|"
-    r"pass or fail)\b",
+    r"pass or fail|find\s+bugs?|red[-\s]?team|safe\s+to\s+ship|"
+    r"correctness\s+risks?)\b",
     re.I,
 )
+
+
+# Plan/design-intent takes PRECEDENCE over verify-intent (cross-vendor review
+# P2 fix, 2026-07-05): "evaluate"/"assess" are ambiguous — they show up both in
+# genuine review asks ("evaluate whether this is safe to ship") and in planning
+# asks ("evaluate two architecture options and design the migration plan").
+# When a plan/design verb is ALSO present, the dominant ask is to produce a
+# plan, not to judge existing work — route advisor even though the prompt also
+# contains an ambiguous verify-ish word. Verify-only prompts (no plan verb at
+# all — "review and audit this refactor") are unaffected; they still fall
+# through to the verify-intent check below.
+_PLAN_INTENT_RE = re.compile(
+    r"\b(?:design|propose|architect)\b",
+    re.I,
+)
+
+
+def _project_root() -> str:
+    """Resolve the consuming project's root. CLAUDE_PROJECT_DIR is the
+    mechanism Claude Code injects at hook invocation time (install.sh's
+    HOOK_CMD relies on the same var: `${CLAUDE_PROJECT_DIR:-$PWD}`) — the
+    authoritative source when a hook is actually running. Falls back to
+    walking up from this file's own location (skills/prompt-triage/tools/
+    classify.py -> parents[3] == repo root), the same fixed-depth idiom used
+    by sibling tools (brainer-audit, task-retrospective, compliance-canary's
+    hook_validate.py) — robust to whatever cwd a bare CLI/test invocation
+    happens to run from, unlike os.getcwd()."""
+    env = os.environ.get("CLAUDE_PROJECT_DIR")
+    if env:
+        return env
+    try:
+        return str(Path(__file__).resolve().parents[3])
+    except Exception:
+        return os.getcwd()
+
+
+def _agent_def_installed(agent: str) -> bool:
+    """Cheap, never-raising check that the escalate-up target's agent def is
+    actually installed in the consuming project (cross-vendor review fix): a
+    consumer that opted out of the frontier-advisor/frontier-verifier roster
+    seats (.brainer-sync-optout, or never ran --adopt-agents) has no
+    `.claude/agents/<agent>.md` file, so a directive naming that subagent
+    points at nothing. Any exception (permission error, weird env value)
+    degrades to "not installed" — silence is always the safe default here."""
+    try:
+        return os.path.exists(
+            os.path.join(_project_root(), ".claude", "agents", f"{agent}.md"))
+    except Exception:
+        return False
 
 
 def _escalate_up_agent(prompt: str) -> str:
     """Pick which frontier seat the escalate-up directive targets. Reuses the
     existing intent vocabulary (COMPLEX_HINTS' review/audit/critique overlap
     is deliberate — those already signal 'judge this', not 'plan this').
-    Verify/review/judge-shaped prompts get the cold verifier seat;
-    plan/architecture/decision prompts (the default) get the advisor seat."""
-    if _VERIFY_INTENT_RE.search(prompt.translate(_UNICODE_FOLD)):
+    Plan/design-shaped prompts get the advisor seat even if an ambiguous
+    verify-ish word ("evaluate"/"assess") is also present (see _PLAN_INTENT_RE
+    docstring). Otherwise: verify/review/judge-shaped prompts get the cold
+    verifier seat; plan/architecture/decision prompts (the default) get the
+    advisor seat."""
+    folded = prompt.translate(_UNICODE_FOLD)
+    if _PLAN_INTENT_RE.search(folded):
+        return "frontier-advisor"
+    if _VERIFY_INTENT_RE.search(folded):
         return "frontier-verifier"
     return "frontier-advisor"
 
@@ -643,14 +700,20 @@ def emit_context(prompt: str, use_ollama_fallback: bool = True) -> str:
     if result.get("tier") == "hard" or result.get("agent") == "none":
         if os.environ.get("BRAINER_TRIAGE_ESCALATE_UP") == "1":
             agent = _escalate_up_agent(prompt)
+            # Guard (cross-vendor review): the consuming project may not have
+            # adopted the frontier-advisor/frontier-verifier agent roster.
+            # A directive naming a missing subagent is worse than silence —
+            # fall through to the pre-escalate-up default (empty string).
+            if not _agent_def_installed(agent):
+                return ""
             return (
                 "⚡ [agents-triage] Task classified:\n"
                 f'{json.dumps({"tier": result.get("tier"), "agent": agent, "reason": result.get("reason")})}\n'
                 f"This prompt needs frontier judgment but the session model is "
                 f"cheap-tier. Dispatch via the Task tool to the `{agent}` "
-                "subagent (model: inherit escalates it to frontier) with a "
-                "self-contained brief. Accept its report; do not answer this "
-                "yourself at cheap tier. Wrong call? User can resend with "
+                "subagent (its agent def pins model: opus as a frontier floor) "
+                "with a self-contained brief. Accept its report; do not answer "
+                "this yourself at cheap tier. Wrong call? User can resend with "
                 "\"NO TRIAGE\"."
             )
         return ""

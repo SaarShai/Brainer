@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -585,6 +586,162 @@ def test_escalate_up_emits_verifier_directive_for_review_prompt():
         assert "frontier-verifier" in out, out
     finally:
         os.environ.pop("BRAINER_TRIAGE_ESCALATE_UP", None)
+
+
+def test_escalate_up_directive_text_matches_opus_floor_not_inherit():
+    # D1 (cross-vendor review, commit 54810a5): frontier-advisor.md and
+    # frontier-verifier.md pin `model: opus` as a floor — they no longer use
+    # `model: inherit`. The escalate-up directive text must describe THAT
+    # mechanism, not the stale "inherit escalates it to frontier" wording.
+    os.environ["BRAINER_TRIAGE_ESCALATE_UP"] = "1"
+    try:
+        p = "design the architecture for a new multi-file payments module"
+        out = emit_context(p, use_ollama_fallback=False)
+        assert out != "", out
+        assert "inherit escalates" not in out, out
+        assert "pins model: opus" in out and "frontier floor" in out, out
+    finally:
+        os.environ.pop("BRAINER_TRIAGE_ESCALATE_UP", None)
+
+
+def test_escalate_up_review_synonyms_route_to_verifier():
+    # P2 repro #1/#2 (cross-vendor review): review-intent synonyms not in the
+    # original _VERIFY_INTENT_RE vocabulary ("find bugs", "red-team"/"red
+    # team", "safe to ship", "correctness risks") must still route to the cold
+    # verifier seat, not the advisor.
+    os.environ["BRAINER_TRIAGE_ESCALATE_UP"] = "1"
+    try:
+        for p in (
+            "Find bugs in this multi-file refactor and tell me whether it "
+            "is safe to ship.",
+            "Do a red-team pass on this multi-file change and list "
+            "correctness risks.",
+        ):
+            r = classify(p, use_ollama_fallback=False)
+            assert r["tier"] == "hard" and r["agent"] == "none", (p, r)
+            out = emit_context(p, use_ollama_fallback=False)
+            assert out != "", (p, out)
+            assert "frontier-verifier" in out, (p, out)
+            assert "frontier-advisor" not in out, (p, out)
+    finally:
+        os.environ.pop("BRAINER_TRIAGE_ESCALATE_UP", None)
+
+
+def test_escalate_up_plan_intent_outranks_ambiguous_verify_words():
+    # P2 repro #3/#4 (cross-vendor review): "evaluate"/"assess" are ambiguous
+    # verify-ish words that also show up in planning asks. When a plan/design
+    # verb is ALSO present ("design ... plan", "propose a rollout plan"), the
+    # dominant ask is to produce a plan — route advisor, not verifier.
+    os.environ["BRAINER_TRIAGE_ESCALATE_UP"] = "1"
+    try:
+        for p in (
+            "Evaluate two architecture options and design the migration "
+            "plan across the repo.",
+            "Assess the architecture options and propose a rollout plan "
+            "across the repo.",
+        ):
+            r = classify(p, use_ollama_fallback=False)
+            assert r["tier"] == "hard" and r["agent"] == "none", (p, r)
+            out = emit_context(p, use_ollama_fallback=False)
+            assert out != "", (p, out)
+            assert "frontier-advisor" in out, (p, out)
+            assert "frontier-verifier" not in out, (p, out)
+    finally:
+        os.environ.pop("BRAINER_TRIAGE_ESCALATE_UP", None)
+
+
+def _make_project_dir(tmp_root: str, agents_present: tuple[str, ...]) -> str:
+    """Build a fake consumer-project dir with only the given agent defs
+    installed under .claude/agents/ — models the "declined roster seats"
+    scenario (.brainer-sync-optout, or never ran --adopt-agents)."""
+    agents_dir = os.path.join(tmp_root, ".claude", "agents")
+    os.makedirs(agents_dir, exist_ok=True)
+    for name in agents_present:
+        with open(os.path.join(agents_dir, f"{name}.md"), "w") as f:
+            f.write("---\nmodel: opus\n---\nstub\n")
+    return tmp_root
+
+
+def test_escalate_up_suppressed_when_target_agent_def_absent():
+    # cross-vendor review fix: a consumer that declined the frontier-advisor/
+    # frontier-verifier roster seats has no .claude/agents/<agent>.md file.
+    # The escalate-up directive must NOT name a missing subagent — it must
+    # fall through to the pre-feature default (silence), not raise, not emit.
+    with tempfile.TemporaryDirectory() as tmp:
+        _make_project_dir(tmp, agents_present=())  # neither def installed
+        os.environ["BRAINER_TRIAGE_ESCALATE_UP"] = "1"
+        os.environ["CLAUDE_PROJECT_DIR"] = tmp
+        try:
+            p = "design the architecture for a new multi-file payments module"
+            r = classify(p, use_ollama_fallback=False)
+            assert r["tier"] == "hard" and r["agent"] == "none", r
+            out = emit_context(p, use_ollama_fallback=False)
+            assert out == "", out
+            assert "frontier-advisor" not in out, out
+        finally:
+            os.environ.pop("BRAINER_TRIAGE_ESCALATE_UP", None)
+            os.environ.pop("CLAUDE_PROJECT_DIR", None)
+
+
+def test_escalate_up_emits_when_target_agent_def_present():
+    # Positive counterpart: both roster seats installed -> directive emitted
+    # exactly as before (unchanged happy path), proving the guard only
+    # SUPPRESSES on absence, it doesn't silence the feature outright.
+    with tempfile.TemporaryDirectory() as tmp:
+        _make_project_dir(tmp, agents_present=("frontier-advisor", "frontier-verifier"))
+        os.environ["BRAINER_TRIAGE_ESCALATE_UP"] = "1"
+        os.environ["CLAUDE_PROJECT_DIR"] = tmp
+        try:
+            p = "design the architecture for a new multi-file payments module"
+            out = emit_context(p, use_ollama_fallback=False)
+            assert out != "", out
+            assert "frontier-advisor" in out, out
+        finally:
+            os.environ.pop("BRAINER_TRIAGE_ESCALATE_UP", None)
+            os.environ.pop("CLAUDE_PROJECT_DIR", None)
+
+
+def test_escalate_up_guard_checks_only_the_chosen_seat():
+    # Only the SPECIFICALLY-chosen seat's absence suppresses — the other
+    # seat's presence/absence is irrelevant. Two asymmetric cases:
+    #   1. advisor seat present, verifier seat absent -> a plan-shaped prompt
+    #      (routes to advisor) still emits.
+    #   2. verifier seat present, advisor seat absent -> a review-shaped
+    #      prompt (routes to verifier) still emits; a plan-shaped prompt
+    #      (routes to advisor, which is missing here) is suppressed.
+    plan_prompt = "design the architecture for a new multi-file payments module"
+    review_prompt = "review and audit this multi-file refactor across the codebase"
+    os.environ["BRAINER_TRIAGE_ESCALATE_UP"] = "1"
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            _make_project_dir(tmp, agents_present=("frontier-advisor",))
+            os.environ["CLAUDE_PROJECT_DIR"] = tmp
+            out = emit_context(plan_prompt, use_ollama_fallback=False)
+            assert "frontier-advisor" in out, out
+        with tempfile.TemporaryDirectory() as tmp:
+            _make_project_dir(tmp, agents_present=("frontier-verifier",))
+            os.environ["CLAUDE_PROJECT_DIR"] = tmp
+            out = emit_context(review_prompt, use_ollama_fallback=False)
+            assert "frontier-verifier" in out, out
+            # advisor seat is absent here -> plan-shaped prompt suppresses
+            out2 = emit_context(plan_prompt, use_ollama_fallback=False)
+            assert out2 == "", out2
+    finally:
+        os.environ.pop("BRAINER_TRIAGE_ESCALATE_UP", None)
+        os.environ.pop("CLAUDE_PROJECT_DIR", None)
+
+
+def test_agent_def_check_never_raises_on_missing_project_dir():
+    # DONE-MEANS constraint: the existence check must never raise even when
+    # CLAUDE_PROJECT_DIR points at a nonexistent path -- degrade to "not
+    # installed" (suppress), never crash the hook.
+    from classify import _agent_def_installed
+    os.environ["CLAUDE_PROJECT_DIR"] = "/this/path/does/not/exist/at/all"
+    try:
+        assert _agent_def_installed("frontier-advisor") is False
+        assert _agent_def_installed("frontier-verifier") is False
+    finally:
+        os.environ.pop("CLAUDE_PROJECT_DIR", None)
 
 
 def main():

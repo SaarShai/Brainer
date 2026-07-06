@@ -672,6 +672,66 @@ def test_openrouter_slug_for_effort_standard_matches_plain_slug():
     return mr._openrouter_slug_for_effort(mr.LANE_GPT, "standard") == mr._openrouter_slug(mr.LANE_GPT)
 
 
+def test_run_dispatch_all_openrouter_lanes_honor_effort_override():
+    # 2026-07-05 review (T2): the effort-scoped env override
+    # (OPENROUTER_MODEL_<LANE>_<EFFORT>) used to be applied ONLY on the GPT
+    # lane inside run_dispatch, even though _openrouter_effort_override is
+    # lane-generic and the env var is named per-lane. Every OpenRouter-routed
+    # lane with an override set for the requested tier must honor it.
+    env_keys = {
+        mr.LANE_GPT: "OPENROUTER_MODEL_GPT_HIGH",
+        mr.LANE_GEMINI: "OPENROUTER_MODEL_GEMINI_HIGH",
+        mr.LANE_CLAUDE: "OPENROUTER_MODEL_CLAUDE_HIGH",
+        mr.LANE_GLM: "OPENROUTER_MODEL_GLM_HIGH",
+    }
+    prev = {k: os.environ.get(k) for k in env_keys.values()}
+    for lane, key in env_keys.items():
+        os.environ[key] = f"override/{lane}-high"
+    seen = {}
+    orig = mr._run_openrouter
+
+    def _stub(prompt, **kw):
+        return (True, "FINDINGS: ok", "")
+    mr._run_openrouter = _stub
+    try:
+        for lane in (mr.LANE_GPT, mr.LANE_GEMINI, mr.LANE_CLAUDE, mr.LANE_GLM):
+            def _capture(prompt, **kw):
+                seen[lane] = kw.get("model")
+                return (True, "FINDINGS: ok", "")
+            mr._run_openrouter = _capture
+            mr.run_dispatch(_orb(lane, f"base/{lane}"), "advisor", "t", "b", effort="high", timeout=5)
+        expected = {lane: f"override/{lane}-high" for lane in env_keys}
+        return seen == expected
+    finally:
+        mr._run_openrouter = orig
+        for k, v in prev.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+def test_run_dispatch_openrouter_lane_without_override_falls_back_to_slug():
+    # A lane with NO effort-scoped override set for the requested tier still
+    # falls back to its own already-detected slug (never another lane's, and
+    # never the bare per-lane default over an explicitly-detected slug).
+    key = "OPENROUTER_MODEL_GEMINI_HIGH"
+    os.environ.pop(key, None)
+    seen = {}
+    orig = mr._run_openrouter
+
+    def _stub(prompt, **kw):
+        seen["model"] = kw.get("model")
+        return (True, "FINDINGS: ok", "")
+    mr._run_openrouter = _stub
+    try:
+        mr.run_dispatch(_orb(mr.LANE_GEMINI, "detected/gemini-slug"), "advisor", "t", "b",
+                        effort="high", timeout=5)
+        return seen["model"] == "detected/gemini-slug"
+    finally:
+        mr._run_openrouter = orig
+
+
 def test_render_dispatch_codex_effort_adds_reasoning_flag():
     b = _b(mr.LANE_GPT, invocation="codex exec")
     d = mr.render_dispatch(b, "advisor", "task", "brief", effort="high")
@@ -719,6 +779,56 @@ def test_run_dispatch_no_effort_argv_is_byte_identical_to_before():
 def test_effort_backend_field_defaults_to_standard():
     b = _b(mr.LANE_GPT)
     return b.effort == "standard"
+
+
+# --- T3: effort validation (render_dispatch/run_dispatch) ------------------
+# The CLI restricts --effort via argparse choices=, but render_dispatch and
+# run_dispatch are also callable directly (not just via main()); an unknown
+# effort value must not be interpolated as extra argv tokens on a CLI
+# invocation (2026-07-05 review: "high --danger=1" repro).
+
+def test_render_dispatch_rejects_unknown_effort():
+    b = _b(mr.LANE_GPT, invocation="codex exec")
+    try:
+        mr.render_dispatch(b, "advisor", "task", "brief", effort="high --danger=1")
+        return False    # must have raised
+    except ValueError as e:
+        return "high --danger=1" in str(e)
+
+
+def test_render_dispatch_accepts_empty_and_known_efforts():
+    b = _b(mr.LANE_GPT, invocation="codex exec")
+    for tier in ("", *mr.EFFORT_TIERS):
+        mr.render_dispatch(b, "advisor", "task", "brief", effort=tier)   # must not raise
+    return True
+
+
+def test_run_dispatch_unknown_effort_is_dropped_not_raised():
+    # run_dispatch's never-raise contract is absolute: an unknown effort must
+    # come back as ok=False (like any other dispatch failure), never propagate
+    # the ValueError render_dispatch raises for the same input.
+    b = _b(mr.LANE_GPT, invocation="codex exec")
+    r = mr.run_dispatch(b, "advisor", "task", "brief", effort="high --danger=1", timeout=5)
+    return (not r["ok"]) and "high --danger=1" in r["error"]
+
+
+def test_run_dispatch_unknown_effort_never_invokes_subprocess():
+    # The bad effort must be rejected BEFORE argv constructed from it ever
+    # reaches subprocess.run — confirms this is validated at render/prepare
+    # time, not just caught after a failed exec.
+    calls = []
+    orig_run = subprocess.run
+
+    def _spy(argv, **kw):
+        calls.append(list(argv))
+        return orig_run(argv, **kw)
+    subprocess.run = _spy
+    try:
+        b = _b(mr.LANE_GPT, invocation="cat")
+        mr.run_dispatch(b, "advisor", "t", "b", effort="high --danger=1", timeout=5)
+        return calls == []
+    finally:
+        subprocess.run = orig_run
 
 
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]

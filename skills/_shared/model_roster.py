@@ -529,6 +529,21 @@ def render_prompt(role: Role, task: str, brief: str) -> str:
     return _SCAFFOLDS[role].format(task=task, brief=brief)
 
 
+def _validate_effort(effort: str) -> str:
+    """Validate `effort` against EFFORT_TIERS, raising ValueError on anything
+    unknown. `""` (no flag given) is always valid — it is the existing
+    sentinel meaning "use the backend's own default", not an effort value
+    itself. The CLI already restricts `--effort` via argparse `choices=`, but
+    a non-CLI caller (or one composing `effort` from unchecked input) could
+    otherwise inject argv tokens straight into a CLI invocation (e.g.
+    `"high --danger=1"` ends up as extra shlex.split()'d flags on the codex
+    invocation) — this closes that gap for both render_dispatch (the pure,
+    testable renderer) and run_dispatch (which also drives real argv)."""
+    if effort and effort.lower() not in EFFORT_TIERS:
+        raise ValueError(f"unknown effort tier {effort!r}; expected one of {EFFORT_TIERS} or \"\"")
+    return effort
+
+
 def _apply_codex_effort(inv: str, b: Backend, effort: str) -> str:
     """Append `-c model_reasoning_effort=<effort>` to a codex-CLI invocation
     when a NON-default effort tier is requested. DEFAULT_EFFORT ("standard")
@@ -550,7 +565,12 @@ def render_dispatch(b: Backend, role: Role, task: str, brief: str, *, model: str
     `effort`, if given (and non-default), is applied to the codex-CLI GPT lane
     as `-c model_reasoning_effort=<effort>` — see `_apply_codex_effort`. Empty
     string (the default) means "no flag given"; rendering is byte-identical to
-    before this feature existed."""
+    before this feature existed. Validated against EFFORT_TIERS (raises
+    ValueError on an unknown value) — the CLI already restricts `--effort` via
+    argparse `choices=`, but a non-CLI caller must not be able to smuggle
+    argv-shaped tokens (e.g. `"high --danger=1"`) into a CLI invocation
+    through this parameter (2026-07-05 review: T3)."""
+    _validate_effort(effort)
     prompt = render_prompt(role, task, brief)
     eff = effort or b.effort
     if b.kind in ("api", "http"):
@@ -631,11 +651,20 @@ def run_dispatch(b: Backend, role: Role, task: str, brief: str, *,
 
     `effort`, if given (non-default), maps to `-c model_reasoning_effort=
     <effort>` on the codex-CLI GPT lane, same as render_dispatch; no effort ==
-    today's exact invocation."""
+    today's exact invocation. Validated against EFFORT_TIERS same as
+    render_dispatch (T3, 2026-07-05 review) — but run_dispatch never raises,
+    so an unknown `effort` is reported as ok=False (dropped, like any other
+    dispatch failure) rather than propagating a ValueError."""
     import shlex     # stdlib; local so the pure path needs no import
     result = {"vendor": b.vendor, "lane": b.lane, "role": role,
               "ok": False, "findings": "", "raw": "", "error": "",
               "usage": None, "latency_ms": None, "served_model": None}
+    try:
+        _validate_effort(effort)
+    except ValueError as e:
+        result["error"] = str(e)
+        _trace_dispatch(result, task)
+        return result
     # Render once, up front. render_prompt fails CLOSED (raises) when the
     # redactor is unavailable — catch it here so "never raises" holds and the
     # caller drops this member instead of the whole panel crashing (2026-07-05).
@@ -649,13 +678,17 @@ def run_dispatch(b: Backend, role: Role, task: str, brief: str, *,
         meta: dict = {}
         t0 = time.monotonic()
         eff = effort or b.effort
-        # GPT lane resolves its slug per effort tier via an effort-SCOPED env
-        # override only (OPENROUTER_MODEL_GPT_<EFFORT>); with no such override
-        # (including the no-flag / DEFAULT_EFFORT case), falls back to the
-        # backend's own already-detected `slug` unchanged — never the bare
-        # per-lane default — so an explicit OPENROUTER_MODEL_GPT env or a
-        # non-default detected slug survives untouched when --effort is absent.
-        slug = model or (b.lane == LANE_GPT and _openrouter_effort_override(b.lane, eff)) or b.slug
+        # EVERY OpenRouter-routed lane (gpt/gemini/claude/glm) resolves its slug
+        # per effort tier via its OWN effort-SCOPED env override
+        # (OPENROUTER_MODEL_<LANE>_<EFFORT>, e.g. OPENROUTER_MODEL_GEMINI_HIGH) —
+        # the env var is per-lane by design, so every lane with one set must
+        # honor it, not just GPT (2026-07-05 review: T2, this used to be GPT-only).
+        # With no such override (including the no-flag / DEFAULT_EFFORT case),
+        # falls back to the backend's own already-detected `slug` unchanged —
+        # never the bare per-lane default — so an explicit OPENROUTER_MODEL_<LANE>
+        # env or a non-default detected slug survives untouched when --effort is
+        # absent.
+        slug = model or _openrouter_effort_override(b.lane, eff) or b.slug
         ok, text, err = _run_openrouter(prompt,
                                         timeout=timeout, model=slug, meta=meta)
         result["latency_ms"] = (time.monotonic() - t0) * 1000
