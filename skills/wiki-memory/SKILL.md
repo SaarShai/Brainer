@@ -9,7 +9,7 @@ tools: [Bash, Read, Write, Glob, Grep]
 
 # wiki-memory
 
-Long-term repo-local memory. One skill, two modes: **retrieve** (read) and **write** (gated).
+Long-term repo-local memory. One skill, two modes: **retrieve** (read) and **write** (gated). **In loop-mode** (when [`loop-engineering`](../loop-engineering/SKILL.md) names a memory contract) the rhythm is **recall before each pass** (read the loop `state_store` + `wiki.py search` to re-anchor) and **write after each pass** (attempts, verdict, failures, next action → loop state, not a wiki page) — full contract in REFERENCE.md.
 
 Deep-dive reference: [REFERENCE.md](REFERENCE.md) — compile-ingest of external sources, loop-mode memory contract, consolidate/decay, schema-evolution, aging & reconcile, the graphify boundary, and OKF interop.
 
