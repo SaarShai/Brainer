@@ -6,7 +6,7 @@
 |---|---|
 | description (always resident) | **105 tokens** (527 chars; budget ≤1536) |
 | body (loaded on trigger) | **2,866 tokens** (12,640 chars) — user-triggered project-learning mode incl. optional cross-check and evidence recorder docs |
-| tools/ payload | **30.3 KB** (`task_audit.py` · `test_task_audit.py` · `audit_lessons.py` · `lesson_patterns.json` · `drift_probes.json`) |
+| tools/ payload | **38.6 KB** (`task_audit.py` · `test_task_audit.py` · `audit_lessons.py` · `lesson_patterns.json` · `drift_probes.json`) |
 | model pin | `any` (none) |
 | effort pin | `medium` |
 

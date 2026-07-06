@@ -6,7 +6,7 @@
 |---|---|
 | description (always resident) | **70 tokens** (347 chars) |
 | body (loaded on trigger)      | **589 tokens** (2536 chars) |
-| tools/ payload                 | 53.1 KB |
+| tools/ payload                 | 33.9 KB |
 | model pin                      | `any` |
 | effort pin                     | `low` |
 

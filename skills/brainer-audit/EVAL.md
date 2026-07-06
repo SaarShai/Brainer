@@ -8,7 +8,7 @@ Run `python3 eval/static_cost.py --json` after catalog changes.
 |---|---|
 | description (always resident) | **67 tokens** (344 chars) |
 | body (loaded on trigger) | **1,412 tokens** (6,121 chars) |
-| tools/ payload | **69.0 KB** (`audit_session.py` · `antigravity_sidecar.py` · `watch_artifacts.py` · `hook.py` · `install.sh` · `normalize.py` · `ingest_event.py` · `inspect_session.py` · `detectors.py` · `report.py` · tests) |
+| tools/ payload | **123.4 KB** (`audit_session.py` · `antigravity_sidecar.py` · `watch_artifacts.py` · `hook.py` · `install.sh` · `normalize.py` · `ingest_event.py` · `inspect_session.py` · `detectors.py` · `report.py` · tests) |
 | model pin | `any` (none) |
 | effort pin | `medium` |
 
