@@ -74,7 +74,7 @@ Then answer the questions the four fields don't cover:
 
 ## Validate the spec
 
-Write the loop spec as a fenced ` ```loop ` block (or a `.yaml`/`.json` file) and lint it:
+Write the loop spec as a fenced ` ```loop ` block (or a `.yaml`/`.json` file) and lint it. **Unattended loop? Declare `on_error` and `output_actions` up front** (R14/R10; field details in the deep-dive) — measured 2026-07: core-only subjects skipped both unless told here.
 
 ```bash
 python3 skills/loop-engineering/tools/loop_lint.py <file>   # exit 2 = fatal gap, 1 = warn, 0 = clean
