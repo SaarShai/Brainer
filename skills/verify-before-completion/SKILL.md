@@ -65,7 +65,7 @@ it gates the done-claim. It does NOT re-score 0–5 quality — that holistic ju
 
 ## High-stakes: escalate to a cross-vendor verifier (inline, before shipping)
 
-Steps 1–5 prove the work runs. For a **high-stakes or hard-to-reverse** result, "runs" is not "correct" — your own check shares your blind spots. Before shipping such a result, escalate to a **separate, preferably cross-vendor, read-only** verifier — the same gate an armed [`task-retrospective`](../task-retrospective/SKILL.md#optional-adversarial-cross-check) fires at task-end, fired **now** instead, before shipping.
+Steps 1–5 prove the work runs. For a **high-stakes or hard-to-reverse** result, "runs" is not "correct" — your own check shares your blind spots. Before shipping such a result, escalate to a **separate, preferably cross-vendor, read-only** verifier — the same gate an armed [`task-retrospective`](../task-retrospective/REFERENCE.md#optional-adversarial-cross-check) fires at task-end, fired **now** instead, before shipping.
 
 **Fire (cost-gated — NOT every claim):** the output is hard to reverse (publish/send/merge/migrate/delete), money- or security-relevant, or a contested/load-bearing conclusion the user will act on. Trivial, internal, or easily-reverted results skip this and just use steps 1–5.
 

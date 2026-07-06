@@ -5,7 +5,7 @@
 | field | tokens / size |
 |---|---|
 | description (always resident) | **105 tokens** (527 chars; budget ≤1536) |
-| body (loaded on trigger) | **2,866 tokens** (12,640 chars) — user-triggered project-learning mode incl. optional cross-check and evidence recorder docs |
+| body (loaded on trigger) | **3,099 tokens** (13,236 chars) — re-measured 2026-07-06 after the core+deep-dive split; user-triggered project-learning mode incl. evidence recorder docs. REFERENCE.md now carries headless mode, loop-pass mode, the optional adversarial cross-check, and the measure tool, loaded only when consulted, not on every trigger |
 | tools/ payload | **38.6 KB** (`task_audit.py` · `test_task_audit.py` · `audit_lessons.py` · `lesson_patterns.json` · `drift_probes.json`) |
 | model pin | `any` (none) |
 | effort pin | `medium` |

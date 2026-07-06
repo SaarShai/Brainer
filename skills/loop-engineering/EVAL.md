@@ -6,7 +6,7 @@
 |---|---|
 | description (frontmatter) | **288 tokens** (1,224 chars; budget ≤ 1,536) |
 | resident catalog line (first sentence only) | **~32 tokens** — what `install.sh` injects into CLAUDE.md/AGENTS.md/GEMINI.md (unchanged by the pipeline clause, which lands later in the description) |
-| body (loaded on trigger) | **7,027 tokens** (re-measured 2026-06-27, final) |
+| body (loaded on trigger) | **3,162 tokens** (13,119 chars; re-measured 2026-07-06 after the core+deep-dive split — REFERENCE.md now carries the moved reference material, loaded only when consulted, not on every trigger) |
 | tools/ payload | **204.1 KB** (`loop_lint.py` · `loop_run_monitor.py` · tests · `schema.md`) |
 | model pin | `any` (none) |
 | effort pin | `medium` |
