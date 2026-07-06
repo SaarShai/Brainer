@@ -1195,11 +1195,20 @@ def detect_tool_path_touch(probe: dict, _messages, tool_uses: list[dict], _tool_
         log_err(f"bad-regex probe={probe.get('_probe_id')} err={e!r}")
         return None
     tools = tuple(probe.get("tools") or _PATH_TOUCH_EDIT_TOOLS_DEFAULT)
+    # min_count (default 1, byte-identical to prior fire-on-first behavior):
+    # counts matching Edit/Write touches over the existing tool_uses window and
+    # only fires once that count is reached — lets a probe distinguish a single
+    # allowed fixup from a bulk mechanical edit (team-lead §5/§6 proportionality)
+    # without adding a second window concept (reuses the caller's tool_uses cap).
+    min_count = int(probe.get("min_count", 1))
+    hits = []
     for tu in (tool_uses or []):
         if tu.get("name", "") in tools:
             fp = str((tu.get("input") or {}).get("file_path", ""))
             if fp and rx.search(fp):
-                return {"path": fp}
+                hits.append(fp)
+    if len(hits) >= min_count:
+        return {"path": hits[-1], "count": len(hits), "min_count": min_count}
     return None
 
 

@@ -979,6 +979,93 @@ if echo "$out" | grep -q 'prompt_intent'; then no "intent silent on notification
 out=$(call_p cc90b sk90 "$TX" s90b 'now propagate to the sibling repos')
 if echo "$out" | grep -q 'prompt_intent'; then ok "intent fires on plain user text"; else no "intent fires on plain text" "got: $(echo "$out"|head -c160)"; fi
 
+# ======================================================================
+# team-lead §5 leader keystroke budget (leader-bulk-edit, tool_path_touch).
+# Sourced from the REAL skills/team-lead/drift_probes.json (not a synthetic
+# copy) so a drift between this test and the shipped file is caught.
+#
+# tool_path_touch now takes an optional min_count (default 1 = fire-on-first,
+# byte-identical to prior behavior for every OTHER probe using this kind).
+# leader-bulk-edit sets min_count:3 so a single allowed one-line fixup
+# (team-lead §5/§6 proportionality) stays quiet, while an actual bulk
+# mechanical edit still fires. Tests [93a]-[93c] assert this directly.
+REAL_TL_PROBES="$(cat "$TOOLS_DIR/../../team-lead/drift_probes.json")"
+mkdir -p "$SKILLS_ROOT/tl/team-lead"
+printf '%s\n' "$REAL_TL_PROBES" > "$SKILLS_ROOT/tl/team-lead/drift_probes.json"
+
+echo "[91] leader-bulk-edit: parses + registers from the shipped drift_probes.json, fires on a bulk-edit window (5 Edit calls to source files)"
+TX="$TRANSCRIPT_DIR/t91.jsonl"
+python3 - "$TX" <<'PY'
+import json, sys
+with open(sys.argv[1], "w") as f:
+    for i in range(5):
+        f.write(json.dumps({"type":"assistant","message":{"role":"assistant","content":[
+            {"type":"tool_use","name":"Edit","input":{"file_path":f"/proj/src/file{i}.py","old_string":"a","new_string":"b"}}
+        ]}}) + "\n")
+PY
+out=$(call cc91 tl "$TX" s91)
+if emitted "$out" && echo "$out" | grep -q 'tool_path_touch' && echo "$out" | grep -q 'keystroke budget'; then
+  ok "leader-bulk-edit registers + fires on a bulk-edit window"
+else
+  no "leader-bulk-edit registers + fires" "got: $(echo "$out" | head -c250)"
+fi
+
+echo "[92] leader-bulk-edit: exempt on plan/ledger/brief/synthesis paths (stays quiet)"
+TX="$TRANSCRIPT_DIR/t92.jsonl"
+write_transcript "$TX" "$(assistant_tool_use Edit '{"file_path":"/proj/PLAN.md","old_string":"a","new_string":"b"}')"
+out=$(call cc92 tl "$TX" s92)
+if [ -z "$out" ]; then ok "plan.md edit stays exempt (quiet)"; else no "plan.md edit should be exempt" "got: $(echo "$out"|head -c160)"; fi
+
+echo "[93a] leader-bulk-edit min_count:3 — a 1-file fixup to a non-exempt path stays QUIET"
+TX="$TRANSCRIPT_DIR/t93a.jsonl"
+write_transcript "$TX" "$(assistant_tool_use Edit '{"file_path":"/proj/src/onefile.py","old_string":"a","new_string":"b"}')"
+out=$(call cc93a tl "$TX" s93a)
+if [ -z "$out" ]; then ok "1-file fixup stays quiet (min_count:3)"; else no "1-file fixup should stay quiet" "got: $(echo "$out"|head -c160)"; fi
+
+echo "[93b] leader-bulk-edit min_count:3 — a 2-edit window stays QUIET"
+TX="$TRANSCRIPT_DIR/t93b.jsonl"
+python3 - "$TX" <<'PY'
+import json, sys
+with open(sys.argv[1], "w") as f:
+    for i in range(2):
+        f.write(json.dumps({"type":"assistant","message":{"role":"assistant","content":[
+            {"type":"tool_use","name":"Edit","input":{"file_path":f"/proj/src/file{i}.py","old_string":"a","new_string":"b"}}
+        ]}}) + "\n")
+PY
+out=$(call cc93b tl "$TX" s93b)
+if [ -z "$out" ]; then ok "2-edit window stays quiet (min_count:3)"; else no "2-edit window should stay quiet" "got: $(echo "$out"|head -c160)"; fi
+
+echo "[93c] leader-bulk-edit min_count:3 — a 3-edit window to non-exempt paths FIRES"
+TX="$TRANSCRIPT_DIR/t93c.jsonl"
+python3 - "$TX" <<'PY'
+import json, sys
+with open(sys.argv[1], "w") as f:
+    for i in range(3):
+        f.write(json.dumps({"type":"assistant","message":{"role":"assistant","content":[
+            {"type":"tool_use","name":"Edit","input":{"file_path":f"/proj/src/file{i}.py","old_string":"a","new_string":"b"}}
+        ]}}) + "\n")
+PY
+out=$(call cc93c tl "$TX" s93c)
+if emitted "$out" && echo "$out" | grep -q 'tool_path_touch'; then
+  ok "3-edit window fires (min_count:3 reached)"
+else
+  no "3-edit window should fire" "got: $(echo "$out"|head -c160)"
+fi
+
+echo "[93d] leader-bulk-edit: wiki/ paths are exempt (synthesis home, team-lead §5) — 3 wiki edits stay QUIET"
+TX="$TRANSCRIPT_DIR/t93d.jsonl"
+python3 - "$TX" <<'PY'
+import json, sys
+paths = ["/proj/wiki/concepts/some-page.md", "/proj/wiki/L1_index.md", "/proj/wiki/queries/external-validation.md"]
+with open(sys.argv[1], "w") as f:
+    for p in paths:
+        f.write(json.dumps({"type":"assistant","message":{"role":"assistant","content":[
+            {"type":"tool_use","name":"Edit","input":{"file_path":p,"old_string":"a","new_string":"b"}}
+        ]}}) + "\n")
+PY
+out=$(call cc93d tl "$TX" s93d)
+if [ -z "$out" ]; then ok "3 wiki edits stay quiet (wiki/ exempt)"; else no "wiki/ paths should be exempt" "got: $(echo "$out"|head -c160)"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then
