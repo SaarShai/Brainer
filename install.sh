@@ -5,6 +5,9 @@
 #   ./install.sh                           # all detected hosts + graphify
 #   ./install.sh --host claude-code        # one host
 #   ./install.sh --host claude-code,codex  # comma-separated
+#   ./install.sh --project /path/to/proj   # install skills INTO an external
+#                                          # project (abs symlinks) instead of
+#                                          # the Brainer checkout itself
 #   ./install.sh --no-graphify             # skip graphify auto-install
 #   ./install.sh --dry-run                 # show what would happen
 #   SKILLS_DIR=skills.new ./install.sh     # alternate canonical dir (Phase A/B)
@@ -21,10 +24,12 @@ SRC="$REPO_ROOT/$SKILLS_DIR"
 HOSTS_REQUESTED=""
 DRY_RUN=0
 INSTALL_GRAPHIFY=1
+PROJECT_DIR=""
 
 while (( "$#" )); do
   case "$1" in
     --host) HOSTS_REQUESTED="$2"; shift 2 ;;
+    --project) PROJECT_DIR="$2"; shift 2 ;;
     --dry-run) DRY_RUN=1; shift ;;
     --no-graphify) INSTALL_GRAPHIFY=0; shift ;;
     -h|--help)
@@ -42,6 +47,22 @@ fi
 
 [ -z "$HOSTS_REQUESTED" ] && HOSTS_REQUESTED="claude-code,codex,gemini"
 
+# Install base. Defaults to the Brainer checkout itself (skills load only when
+# cwd is the repo). --project <dir> retargets the skill symlinks + resident
+# catalog into an EXTERNAL project so its agent sees the skills. External
+# installs use absolute symlink targets (the project moves independently of the
+# Brainer clone, so a relative link would break).
+DEST_ROOT="$REPO_ROOT"
+LINK_ABS=0
+if [ -n "$PROJECT_DIR" ]; then
+  if [ ! -d "$PROJECT_DIR" ]; then
+    echo "--project dir not found: $PROJECT_DIR" >&2
+    exit 2
+  fi
+  DEST_ROOT="$(cd "$PROJECT_DIR" && pwd)"
+  LINK_ABS=1
+fi
+
 run() {
   if [ "$DRY_RUN" = "1" ]; then echo "DRY: $*"; else eval "$@"; fi
 }
@@ -54,7 +75,13 @@ link() {
   # relative to the link's own directory. Falls back to absolute only if
   # python3 is unavailable.
   local rel
-  rel=$(python3 -c "import os,sys;print(os.path.relpath(sys.argv[1].rstrip('/'), os.path.dirname(sys.argv[2])))" "$target" "$linkname" 2>/dev/null) || rel="$target"
+  if [ "${LINK_ABS:-0}" = "1" ]; then
+    # External --project install: absolute target (relative would break if the
+    # project and the Brainer clone move independently).
+    rel="${target%/}"
+  else
+    rel=$(python3 -c "import os,sys;print(os.path.relpath(sys.argv[1].rstrip('/'), os.path.dirname(sys.argv[2])))" "$target" "$linkname" 2>/dev/null) || rel="$target"
+  fi
   if [ -L "$linkname" ] && [ "$(readlink "$linkname")" = "$rel" ]; then
     echo "    [skip] $linkname (already linked)"
     return 0
@@ -473,12 +500,12 @@ PY
 
 install_claude_code() {
   echo "[claude-code]"
-  run "mkdir -p '$REPO_ROOT/.claude/skills'"
-  prune_stale_skill_links "$REPO_ROOT/.claude/skills"
+  run "mkdir -p '$DEST_ROOT/.claude/skills'"
+  prune_stale_skill_links "$DEST_ROOT/.claude/skills"
   for skill in "$SRC"/*/; do
     name=$(basename "$skill")
     [ "$name" = "_shared" ] && continue
-    link "$skill" "$REPO_ROOT/.claude/skills/$name"
+    link "$skill" "$DEST_ROOT/.claude/skills/$name"
   done
   # Prune dead hooks AFTER (re)creating the skill symlinks: prune decides a
   # managed hook is dead via os.path.exists(.claude/skills/<name>/...), which
@@ -486,8 +513,8 @@ install_claude_code() {
   # settings.json rsync'd from another machine before its symlinks exist) made
   # every live Brainer hook look missing and wiped it. With symlinks in place,
   # prune removes only hooks whose skill is genuinely gone.
-  prune_dead_hooks "$REPO_ROOT/.claude/settings.json" "$REPO_ROOT"
-  inject_catalog_into_doc "$REPO_ROOT/CLAUDE.md"
+  prune_dead_hooks "$DEST_ROOT/.claude/settings.json" "$DEST_ROOT"
+  inject_catalog_into_doc "$DEST_ROOT/CLAUDE.md"
   ensure_global_output_style_hooks
   # Regenerate the hooks map (pre-built index for hook-wiring questions;
   # see skills/HOOKS_MAP.md + index-first). Non-fatal: map is an optimization.
@@ -496,26 +523,26 @@ install_claude_code() {
 
 install_codex() {
   echo "[codex]"
-  run "mkdir -p '$REPO_ROOT/.codex/skills'"
-  prune_stale_skill_links "$REPO_ROOT/.codex/skills"
+  run "mkdir -p '$DEST_ROOT/.codex/skills'"
+  prune_stale_skill_links "$DEST_ROOT/.codex/skills"
   for skill in "$SRC"/*/; do
     name=$(basename "$skill")
     [ "$name" = "_shared" ] && continue
-    link "$skill" "$REPO_ROOT/.codex/skills/$name"
+    link "$skill" "$DEST_ROOT/.codex/skills/$name"
   done
-  inject_catalog_into_doc "$REPO_ROOT/AGENTS.md"
+  inject_catalog_into_doc "$DEST_ROOT/AGENTS.md"
 }
 
 install_gemini() {
   echo "[gemini]"
-  run "mkdir -p '$REPO_ROOT/.gemini/skills'"
-  prune_stale_skill_links "$REPO_ROOT/.gemini/skills"
+  run "mkdir -p '$DEST_ROOT/.gemini/skills'"
+  prune_stale_skill_links "$DEST_ROOT/.gemini/skills"
   for skill in "$SRC"/*/; do
     name=$(basename "$skill")
     [ "$name" = "_shared" ] && continue
-    link "$skill" "$REPO_ROOT/.gemini/skills/$name"
+    link "$skill" "$DEST_ROOT/.gemini/skills/$name"
   done
-  local settings="$REPO_ROOT/.gemini/settings.json"
+  local settings="$DEST_ROOT/.gemini/settings.json"
   if [ "$DRY_RUN" = "1" ]; then
     echo "DRY: ensure $settings has skills path"
   elif [ ! -f "$settings" ]; then
@@ -528,7 +555,7 @@ install_gemini() {
 JSON
     echo "    [write] $settings"
   fi
-  inject_catalog_into_doc "$REPO_ROOT/GEMINI.md"
+  inject_catalog_into_doc "$DEST_ROOT/GEMINI.md"
 }
 
 IFS=',' read -ra HOST_LIST <<< "$HOSTS_REQUESTED"
