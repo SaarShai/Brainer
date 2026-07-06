@@ -67,6 +67,13 @@ CODEX_HOOKS="$REPO/.codex/hooks.json"
 # Same portable run-time-expanded form (.codex/hooks.json is committed, so no machine path).
 CODEX_HOOK_CMD='bash "${CLAUDE_PROJECT_DIR:-$PWD}/.codex/skills/compliance-canary/tools/hook.sh"'
 
+# Host-scoping: root install.sh exports BRAINER_HOSTS with the requested host
+# list before running per-skill installers, so a single-host run doesn't also
+# merge another host's inert hook config. Unset/empty (a direct
+# `bash skills/compliance-canary/tools/install.sh` run) means all hosts —
+# unchanged back-compat behavior.
+host_enabled() { [ -z "${BRAINER_HOSTS:-}" ] && return 0; case ",$BRAINER_HOSTS," in *",$1,"*) return 0;; esac; return 1; }
+
 merge_codex() {
   python3 - "$CODEX_HOOKS" "$CODEX_HOOK_CMD" <<'PY'
 import json, sys
@@ -101,8 +108,8 @@ PY
 
 if [ "$DRY_RUN" = "1" ]; then
   echo "dry-run: would symlink $SKILL_SRC → $SKILL_DIR/compliance-canary"
-  echo "dry-run: would update $SETTINGS with UserPromptSubmit * -> $HOOK_CMD"
-  [ -e "$REPO/.codex/skills/compliance-canary" ] && echo "dry-run: would add Codex UserPromptSubmit -> $CODEX_HOOK_CMD"
+  host_enabled claude-code && echo "dry-run: would update $SETTINGS with UserPromptSubmit * -> $HOOK_CMD"
+  { [ -e "$REPO/.codex/skills/compliance-canary" ] && host_enabled codex; } && echo "dry-run: would add Codex UserPromptSubmit -> $CODEX_HOOK_CMD"
   exit 0
 fi
 
@@ -110,11 +117,13 @@ mkdir -p "$SKILL_DIR"
 chmod +x "$TOOLS_DIR/hook.sh" "$TOOLS_DIR/hook.py" "$TOOLS_DIR/measure.py" 2>/dev/null || true
 REL_SRC=$(python3 -c "import os,sys;print(os.path.relpath(sys.argv[1],sys.argv[2]))" "$SKILL_SRC" "$SKILL_DIR" 2>/dev/null || echo "$SKILL_SRC")
 ln -sfn "$REL_SRC" "$SKILL_DIR/compliance-canary"
-merge_settings
-
-echo "Installed compliance-canary into repo-local .claude."
-# Wire Codex too, if this repo has a .codex/skills/compliance-canary symlink (from ./install.sh).
-if [ -e "$REPO/.codex/skills/compliance-canary" ]; then
+if host_enabled claude-code; then
+  merge_settings
+  echo "Installed compliance-canary into repo-local .claude."
+fi
+# Wire Codex too, if this repo has a .codex/skills/compliance-canary symlink (from ./install.sh)
+# AND codex is one of the requested hosts.
+if [ -e "$REPO/.codex/skills/compliance-canary" ] && host_enabled codex; then
   chmod +x "$TOOLS_DIR/hook.sh" 2>/dev/null || true
   merge_codex
   echo "Wired Codex hook (.codex/hooks.json): UserPromptSubmit -> compliance-canary (Codex has no SessionStart)"

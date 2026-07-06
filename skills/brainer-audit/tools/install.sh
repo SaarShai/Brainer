@@ -16,13 +16,24 @@ CODEX_HOOKS="$REPO/.codex/hooks.json"
 CLAUDE_CMD='python3 "${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/brainer-audit/tools/hook.py" --host claude'
 CODEX_CMD='python3 "${CLAUDE_PROJECT_DIR:-$PWD}/.codex/skills/brainer-audit/tools/hook.py" --host codex'
 
-python3 - "$CLAUDE_SETTINGS" "$CODEX_HOOKS" "$CLAUDE_CMD" "$CODEX_CMD" <<'PY'
+# Host-scoping: root install.sh exports BRAINER_HOSTS with the requested host
+# list before running per-skill installers, so a single-host run doesn't also
+# merge another host's inert hook config. Unset/empty (a direct
+# `bash skills/brainer-audit/tools/install.sh` run) means all hosts —
+# unchanged back-compat behavior. An empty path arg tells the python side to
+# skip that host entirely.
+host_enabled() { [ -z "${BRAINER_HOSTS:-}" ] && return 0; case ",$BRAINER_HOSTS," in *",$1,"*) return 0;; esac; return 1; }
+
+CLAUDE_ARG="$CLAUDE_SETTINGS"; host_enabled claude-code || CLAUDE_ARG=""
+CODEX_ARG="$CODEX_HOOKS"; host_enabled codex || CODEX_ARG=""
+
+python3 - "$CLAUDE_ARG" "$CODEX_ARG" "$CLAUDE_CMD" "$CODEX_CMD" <<'PY'
 import json
 import sys
 from pathlib import Path
 
-claude_path = Path(sys.argv[1])
-codex_path = Path(sys.argv[2])
+claude_path = Path(sys.argv[1]) if sys.argv[1] else None
+codex_path = Path(sys.argv[2]) if sys.argv[2] else None
 claude_cmd = sys.argv[3]
 codex_cmd = sys.argv[4]
 events = ["UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop", "PreCompact", "PostCompact"]
@@ -46,16 +57,26 @@ def write(path, data):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
-claude = read_json(claude_path)
-for event in events:
-    add_hook(claude, event, claude_cmd)
-write(claude_path, claude)
+if claude_path is not None:
+    claude = read_json(claude_path)
+    for event in events:
+        add_hook(claude, event, claude_cmd)
+    write(claude_path, claude)
 
-codex = read_json(codex_path)
-for event in events:
-    add_hook(codex, event, codex_cmd)
-write(codex_path, codex)
+if codex_path is not None:
+    codex = read_json(codex_path)
+    for event in events:
+        add_hook(codex, event, codex_cmd)
+    write(codex_path, codex)
 PY
 
-echo "Installed optional brainer-audit hooks for Claude and Codex."
+if [ -n "$CLAUDE_ARG" ] && [ -n "$CODEX_ARG" ]; then
+  echo "Installed optional brainer-audit hooks for Claude and Codex."
+elif [ -n "$CLAUDE_ARG" ]; then
+  echo "Installed optional brainer-audit hooks for Claude."
+elif [ -n "$CODEX_ARG" ]; then
+  echo "Installed optional brainer-audit hooks for Codex."
+else
+  echo "brainer-audit: no requested host (BRAINER_HOSTS=$BRAINER_HOSTS) uses hooks — nothing to install."
+fi
 echo "Hooks write only while .brainer/brainer-audit/current.json or .brainer/task-retrospective/current.json exists."

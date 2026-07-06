@@ -26,6 +26,13 @@ ARCHIVE_CMD='bash "${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/context-keeper/too
 # dangle on a codex-only install (harness H3a).
 CODEX_ARCHIVE_CMD='bash "${CLAUDE_PROJECT_DIR:-$PWD}/.codex/skills/context-keeper/tools/codex_archive.sh"'
 
+# Host-scoping: root install.sh exports BRAINER_HOSTS with the requested host
+# list (e.g. "gemini" or "claude-code,codex") before running per-skill
+# installers, so a single-host run doesn't also merge another host's inert
+# hook config. Unset/empty (a direct `bash skills/context-keeper/tools/install.sh`
+# run) means all hosts — unchanged back-compat behavior.
+host_enabled() { [ -z "${BRAINER_HOSTS:-}" ] && return 0; case ",$BRAINER_HOSTS," in *",$1,"*) return 0;; esac; return 1; }
+
 merge_settings() {
   python3 - "$SETTINGS" "$HOOK_CMD" "$ARCHIVE_CMD" <<'PY'
 import json
@@ -107,9 +114,11 @@ PY
 
 if [ "$DRY_RUN" = "1" ]; then
   echo "dry-run: would symlink $SKILL_SRC → $SKILL_DIR/context-keeper"
-  echo "dry-run: would update $SETTINGS with PreCompact -> $HOOK_CMD"
-  echo "dry-run: would update $SETTINGS with SessionEnd -> $ARCHIVE_CMD"
-  echo "dry-run: would update $CODEX_HOOKS with Stop -> $CODEX_ARCHIVE_CMD"
+  if host_enabled claude-code; then
+    echo "dry-run: would update $SETTINGS with PreCompact -> $HOOK_CMD"
+    echo "dry-run: would update $SETTINGS with SessionEnd -> $ARCHIVE_CMD"
+  fi
+  host_enabled codex && echo "dry-run: would update $CODEX_HOOKS with Stop -> $CODEX_ARCHIVE_CMD"
   exit 0
 fi
 
@@ -117,7 +126,16 @@ mkdir -p "$SKILL_DIR"
 chmod +x "$TOOLS_DIR/hook.sh" "$TOOLS_DIR/archive.sh" "$TOOLS_DIR/codex_archive.sh"
 REL_SRC=$(python3 -c "import os,sys;print(os.path.relpath(sys.argv[1],sys.argv[2]))" "$SKILL_SRC" "$SKILL_DIR" 2>/dev/null || echo "$SKILL_SRC")
 ln -sfn "$REL_SRC" "$SKILL_DIR/context-keeper"
-merge_settings
-merge_codex
+DID_CLAUDE=0; DID_CODEX=0
+host_enabled claude-code && { merge_settings; DID_CLAUDE=1; }
+host_enabled codex && { merge_codex; DID_CODEX=1; }
 
-echo "Installed context-keeper into repo-local .claude + .codex."
+if [ "$DID_CLAUDE" = "1" ] && [ "$DID_CODEX" = "1" ]; then
+  echo "Installed context-keeper into repo-local .claude + .codex."
+elif [ "$DID_CLAUDE" = "1" ]; then
+  echo "Installed context-keeper into repo-local .claude."
+elif [ "$DID_CODEX" = "1" ]; then
+  echo "Installed context-keeper into repo-local .codex."
+else
+  echo "context-keeper: no requested host (BRAINER_HOSTS=${BRAINER_HOSTS:-}) uses hooks — nothing to install."
+fi

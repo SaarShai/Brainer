@@ -542,6 +542,12 @@ for h in "${HOST_LIST[@]}"; do
 done
 
 # Per-skill tools/install.sh — for skills with Python/MCP deps (best-effort).
+# Export the requested host list so a per-skill installer that merges HOST-
+# specific config (e.g. context-keeper's merge_codex writing .codex/hooks.json)
+# only touches hosts actually requested here — a `--host gemini` run must not
+# also merge an inert codex/claude-code hook entry nobody asked for. Unset/empty
+# in a direct `bash skills/x/tools/install.sh` run (back-compat: all hosts).
+export BRAINER_HOSTS="$HOSTS_REQUESTED"
 echo
 echo "[skill-tools] running per-skill installers (Python deps, MCP servers)"
 for tool_installer in "$SRC"/*/tools/install.sh; do

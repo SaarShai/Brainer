@@ -27,6 +27,13 @@ SETTINGS="$REPO/.claude/settings.json"
 HOOK_CMD='bash "${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/prompt-triage/tools/hook.sh"'
 AGENTS=(wiki-note quick-fix local-ollama research-lite kaggle-feeder glm-executor)
 
+# Host-scoping: root install.sh exports BRAINER_HOSTS with the requested host
+# list before running per-skill installers, so a single-host (non claude-code)
+# run doesn't also merge this claude-only hook config. Unset/empty (a direct
+# `bash skills/prompt-triage/tools/install.sh` run) means all hosts — unchanged
+# back-compat behavior.
+host_enabled() { [ -z "${BRAINER_HOSTS:-}" ] && return 0; case ",$BRAINER_HOSTS," in *",$1,"*) return 0;; esac; return 1; }
+
 merge_settings() {
   python3 - "$SETTINGS" "$HOOK_CMD" <<'PY'
 import json
@@ -70,7 +77,7 @@ if [ "$DRY_RUN" = "1" ]; then
     echo "[1/3] dry-run: would symlink skill → $SKILL_DIR/prompt-triage"
     echo "[2/3] dry-run: would copy agent definitions → $AGENT_DIR/"
     printf '  - %s\n' "${AGENTS[@]}"
-    echo "[3/3] dry-run: would update $SETTINGS with UserPromptSubmit -> $HOOK_CMD"
+    host_enabled claude-code && echo "[3/3] dry-run: would update $SETTINGS with UserPromptSubmit -> $HOOK_CMD"
     exit 0
 fi
 
@@ -87,8 +94,12 @@ done
 
 chmod +x "$TOOLS_DIR/hook.sh" "$TOOLS_DIR/classify.py"
 
-echo "[3/3] hook wiring ($SETTINGS)"
-merge_settings
+if host_enabled claude-code; then
+    echo "[3/3] hook wiring ($SETTINGS)"
+    merge_settings
+else
+    echo "[3/3] skip hook wiring (claude-code not in requested hosts: ${BRAINER_HOSTS:-})"
+fi
 
 # Verify the LLM-fallback path is actually serviceable. A dead fallback is
 # silent in production (classify.py fails closed), so surface it at install

@@ -31,6 +31,19 @@ SETTINGS="$CLAUDE_DIR/settings.json"
 # into a subdir, since hooks run from the current cwd, not the repo root.
 HOOK_CMD='python3 "${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/index-first/tools/augment.py"'
 
+# Host-scoping: root install.sh exports BRAINER_HOSTS with the requested host
+# list before running per-skill installers, so a single-host (non claude-code)
+# run doesn't also merge this claude-only hook config. Unset/empty (a direct
+# `bash skills/index-first/tools/install.sh` run) means all hosts — unchanged
+# back-compat behavior. Uninstall always runs regardless of host scope (removing
+# a hook is never harmful to skip-gate).
+host_enabled() { [ -z "${BRAINER_HOSTS:-}" ] && return 0; case ",$BRAINER_HOSTS," in *",$1,"*) return 0;; esac; return 1; }
+
+if [ "$UNINSTALL" != "1" ] && ! host_enabled claude-code; then
+  echo "index-first: skip (claude-code not in requested hosts: ${BRAINER_HOSTS:-})"
+  exit 0
+fi
+
 if [ "$DRY_RUN" = "1" ]; then
   if [ "$UNINSTALL" = "1" ]; then
     echo "dry-run: would REMOVE PreToolUse -> $HOOK_CMD from $SETTINGS"

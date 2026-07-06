@@ -38,15 +38,24 @@ CODEX_HOOKS="$REPO/.codex/hooks.json"
 CODEX_END_CMD='bash "${CLAUDE_PROJECT_DIR:-$PWD}/.codex/skills/learn-skill/tools/hook_codex_stop.sh"'
 CODEX_START_CMD='bash "${CLAUDE_PROJECT_DIR:-$PWD}/.codex/skills/learn-skill/tools/hook_session_start.sh"'
 
+# Host-scoping: root install.sh exports BRAINER_HOSTS with the requested host
+# list before running per-skill installers, so a single-host run doesn't also
+# merge another host's inert hook config. Unset/empty (a direct
+# `bash skills/learn-skill/tools/install.sh` run) means all hosts — unchanged
+# back-compat behavior.
+host_enabled() { [ -z "${BRAINER_HOSTS:-}" ] && return 0; case ",$BRAINER_HOSTS," in *",$1,"*) return 0;; esac; return 1; }
+
 merge_codex() {
   python3 "$TOOLS_DIR/hook_merge.py" codex "$CODEX_HOOKS" "$CODEX_END_CMD" "$CODEX_START_CMD"
 }
 
 if [ "$DRY_RUN" = "1" ]; then
   echo "dry-run: would symlink $SKILL_SRC → $SKILL_DIR/learn-skill"
-  echo "dry-run: would add SessionEnd   * -> $END_CMD"
-  echo "dry-run: would add SessionStart * -> $START_CMD"
-  [ -e "$REPO/.codex/skills/learn-skill" ] && { echo "dry-run: would add Codex Stop -> $CODEX_END_CMD"; echo "dry-run: would add Codex UserPromptSubmit -> $CODEX_START_CMD"; }
+  if host_enabled claude-code; then
+    echo "dry-run: would add SessionEnd   * -> $END_CMD"
+    echo "dry-run: would add SessionStart * -> $START_CMD"
+  fi
+  { [ -e "$REPO/.codex/skills/learn-skill" ] && host_enabled codex; } && { echo "dry-run: would add Codex Stop -> $CODEX_END_CMD"; echo "dry-run: would add Codex UserPromptSubmit -> $CODEX_START_CMD"; }
   exit 0
 fi
 
@@ -54,14 +63,16 @@ mkdir -p "$SKILL_DIR"
 chmod +x "$TOOLS_DIR"/hook_session_end.sh "$TOOLS_DIR"/hook_session_start.sh "$TOOLS_DIR"/hooks.py 2>/dev/null || true
 REL_SRC=$(python3 -c "import os,sys;print(os.path.relpath(sys.argv[1],sys.argv[2]))" "$SKILL_SRC" "$SKILL_DIR" 2>/dev/null || echo "$SKILL_SRC")
 ln -sfn "$REL_SRC" "$SKILL_DIR/learn-skill"
-merge_settings
+if host_enabled claude-code; then
+  merge_settings
+  echo "Installed learn-skill unattended hooks into repo-local .claude."
+  echo "  SessionEnd   -> telemetry scan (append-only)"
+  echo "  SessionStart -> promote/demote/stale nudge (read-only)"
+fi
 
-echo "Installed learn-skill unattended hooks into repo-local .claude."
-echo "  SessionEnd   -> telemetry scan (append-only)"
-echo "  SessionStart -> promote/demote/stale nudge (read-only)"
-
-# Wire Codex too, if this repo has a .codex/skills/learn-skill symlink (from ./install.sh).
-if [ -e "$REPO/.codex/skills/learn-skill" ]; then
+# Wire Codex too, if this repo has a .codex/skills/learn-skill symlink (from ./install.sh)
+# AND codex is one of the requested hosts.
+if [ -e "$REPO/.codex/skills/learn-skill" ] && host_enabled codex; then
   chmod +x "$TOOLS_DIR"/hook_session_end.sh "$TOOLS_DIR"/hook_session_start.sh "$TOOLS_DIR"/hook_codex_stop.sh 2>/dev/null || true
   merge_codex
   echo "Wired Codex hooks (.codex/hooks.json):"
