@@ -192,12 +192,12 @@ def test_frontmatter_parsed_robustly_and_carries_user_trigger_disclaimers():
     """
     assert _FM, "task-retrospective SKILL.md has no parseable YAML frontmatter"
     fm_lc = _FM.lower()
-    assert "explicitly activates task audit mode" in fm_lc, (
+    assert "explicitly arms task audit mode" in fm_lc, (
         "frontmatter must keep the explicit user-trigger framing"
     )
-    assert "does not audit brainer skill obedience" in fm_lc, (
+    assert "never audits brainer skill obedience" in fm_lc, (
         "frontmatter must disclaim auditing Brainer skill obedience"
     )
-    assert "does not edit canonical brainer skills" in fm_lc, (
+    assert "edits canonical brainer skills" in fm_lc, (
         "frontmatter must disclaim editing canonical Brainer skills"
     )

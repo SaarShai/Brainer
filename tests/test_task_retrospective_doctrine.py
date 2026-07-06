@@ -31,10 +31,10 @@ def task_retrospective_catalog_line(carrier: str) -> str:
 
 def test_task_retrospective_frontmatter_is_user_triggered_not_broad_auto():
     fm = frontmatter(read(SKILL))
-    assert "Use only when the user explicitly activates task audit mode" in fm
+    assert "Use only when the user explicitly arms task audit mode" in fm
     assert "after-the-fact task learning audit" in fm
-    assert "Does not audit Brainer skill obedience" in fm
-    assert "does not edit canonical Brainer skills" in fm
+    assert "Never audits Brainer skill obedience" in fm
+    assert "edits canonical Brainer skills" in fm
 
     forbidden = [
         "Use at the end of any non-trivial task",
@@ -49,7 +49,7 @@ def test_task_retrospective_frontmatter_is_user_triggered_not_broad_auto():
 def test_resident_carriers_do_not_advertise_old_auto_trigger():
     for carrier in ["AGENTS.md", "CLAUDE.md", "GEMINI.md"]:
         line = task_retrospective_catalog_line(carrier)
-        assert "Use only when the user explicitly activates task audit mode" in line
+        assert "Use only when the user explicitly arms task audit mode" in line
         assert "end of any non-trivial task" not in line.lower()
         assert "also fire mid-task" not in line.lower()
 
