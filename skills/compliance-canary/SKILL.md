@@ -211,6 +211,6 @@ Codex gets the canary via `.codex/hooks.json` `UserPromptSubmit` (Claude-compati
 ## Known gaps
 
 - Probe detectors are syntactic — they catch keyword/structural signals but miss semantic drift (a paraphrased "done" without claim-word match). A judge-style probe using a tiny LLM is the natural next add (the `llm_judge` kind, currently deferred).
-- `edit_count_per_turn` (lean-execution drift) and `tool_choice_drift` (model picks Write when rule says Edit) are not yet detector kinds. Easy adds when needed.
+- Edit-count thresholds are now expressible: `tool_path_touch` takes optional `min_count` (team-lead's `leader-bulk-edit` uses 3). Still missing: `tool_choice_drift` (model picks Write when rule says Edit) as a detector kind. Easy add when needed.
 - The re-anchor is cadence-based (turn count), not staleness-aware: it re-states rules on schedule even if attention hasn't actually decayed. It yields to probes, but on a quiet long session it still fires every N turns. A true staleness signal would need a cheap per-rule "faded?" probe — none exists yet.
 - The request ledger is one-item-per-prompt and closes by heuristic (most-recent-open, or all on "everything") — it can't map "yes, that one's done" to a specific item, and a single prompt bundling several asks ("do X, Y, and Z") is tracked as one line (the `completion_without_closure` gate is what forces per-item enumeration at wrap-up). It errs toward keeping items open. A semantic ledger (split sub-asks, map closures to items) again wants the deferred `llm_judge`.
