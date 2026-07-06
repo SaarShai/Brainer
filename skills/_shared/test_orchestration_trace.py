@@ -369,6 +369,41 @@ def test_record_lane_event_none_path_uses_default():
             ot.DEFAULT_TRACE_PATH = orig_default
 
 
+def test_record_lane_event_source_live_written():
+    # 2026-07-06 H5a: a caller that explicitly stamps source="live" gets it
+    # written through verbatim, same as any other event field.
+    with tempfile.TemporaryDirectory() as td:
+        path = Path(td) / "lanes.jsonl"
+        ok = ot.record_lane_event(str(path), {"lane": "gpt", "ok": True, "source": "live"})
+        row = json.loads(path.read_text(encoding="utf-8").splitlines()[0])
+        return ok is True and row["source"] == "live"
+
+
+def test_record_lane_event_source_fixture_written():
+    # A fixture/test writer stamps source="fixture" so future audits can
+    # filter lanes.jsonl by provenance — must ride through unchanged, not be
+    # coerced back to "live".
+    with tempfile.TemporaryDirectory() as td:
+        path = Path(td) / "lanes.jsonl"
+        ok = ot.record_lane_event(str(path), {"lane": "gemini", "ok": False, "source": "fixture"})
+        row = json.loads(path.read_text(encoding="utf-8").splitlines()[0])
+        return ok is True and row["source"] == "fixture"
+
+
+def test_record_lane_event_source_absent_defaults_to_live():
+    # Additive default: a caller that never mentions `source` at all (the 26
+    # pre-existing tests above, and every current model_roster.py call site)
+    # must still succeed, and the written line is now labeled "live" — the
+    # caller's own event dict must NOT be mutated in the process.
+    with tempfile.TemporaryDirectory() as td:
+        path = Path(td) / "lanes.jsonl"
+        event = {"lane": "claude", "ok": True}
+        ok = ot.record_lane_event(str(path), event)
+        row = json.loads(path.read_text(encoding="utf-8").splitlines()[0])
+        return (ok is True and row["source"] == ot.DEFAULT_SOURCE == "live"
+                and "source" not in event)
+
+
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
 
 

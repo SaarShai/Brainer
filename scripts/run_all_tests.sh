@@ -65,6 +65,7 @@ run "py-syntax" python3 scripts/check_python_syntax.py
 UNIT_TESTS=(
   skills/_shared/test_model_roster.py
   skills/_shared/test_orchestration_trace.py
+  skills/_shared/test_activation_trace.py
   skills/team-lead/tools/test_team_lead_eval.py
   skills/cache-lint/tools/test_cache_lint.py
   skills/brainer-audit/tools/test_brainer_audit.py

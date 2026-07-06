@@ -346,6 +346,41 @@ def _normalize_events(events: list[dict]) -> list[dict]:
         return events
 
 
+def _record_trigger_matched_activations(fired: list[dict]) -> None:
+    """Best-effort activation telemetry: one "trigger_matched" event per
+    DISTINCT skill whose probe actually matched this turn (`fired` is the
+    subset of discovered probes whose drift condition triggered — the exact
+    "matched", not merely "registered/mentioned in the catalog", signal this
+    hook already computes for its own probe display). source="live" — this
+    is a real session, not a fixture writer.
+
+    This is telemetry, not a drift mechanism: it must NEVER affect drift
+    logic, the ledger, or the re-anchor, and it must NEVER be the thing that
+    breaks the hook's always-exit-0 / <PROBE_TIMEOUT_SECONDS contract.
+    record_activation() itself never raises (fails closed, returns False on
+    any error) — this wrapper is belt-and-suspenders on top of that guarantee,
+    swallowing anything unexpected (a bad import, an unexpected _skill shape)
+    so a telemetry write can never surface past this function."""
+    if not fired:
+        return
+    try:
+        shared = Path(__file__).resolve().parent.parent.parent / "_shared"
+        if str(shared) not in sys.path:
+            sys.path.insert(0, str(shared))
+        import activation_trace
+        seen: set[str] = set()
+        for probe in fired:
+            skill = probe.get("_skill")
+            if not skill or skill in seen:
+                continue
+            seen.add(skill)
+            activation_trace.record_activation(None, {
+                "skill": skill, "phase": "trigger_matched", "source": "live",
+            })
+    except Exception as e:
+        log_err(f"activation-trace-fail err={e!r}")
+
+
 def read_transcript_tail(path: str, cap: int = TRANSCRIPT_LINE_CAP) -> list[dict]:
     """Return up to `cap` most-recent parseable JSONL events from the transcript.
 
@@ -1527,6 +1562,11 @@ def main() -> int:
                         history.append({"probe_id": probe["_probe_id"], "fired_at_turn": turn})
                     state["probe_history"] = history[-50:]
                     save_state(path, state)
+                # Best-effort activation telemetry — ADDS a record only, never
+                # touches drift logic/ledger/re-anchor above or below. Outside
+                # state_lock on purpose: it's an independent append-only sink,
+                # not part of this session's locked state.
+                _record_trigger_matched_activations(fired)
 
     # --- periodic re-anchor (yields to fired probes — no double-nag) -----
     pulse_skills: list[tuple[str, str]] = []

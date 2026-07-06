@@ -79,7 +79,17 @@ DEFAULT_TRACE_PATH = _REPO_ROOT / ".brainer" / "trace" / "lanes.jsonl"
 # Fields record_lane_event accepts verbatim (the whole event, including these,
 # is redacted at serialization — see below). Unknown extra keys are still
 # written through — this is an append-only sink, not a strict schema validator.
-_KNOWN_FIELDS = ("role", "lane", "vendor", "ok", "usage", "latency_ms", "served_model", "task_digest")
+_KNOWN_FIELDS = ("role", "lane", "vendor", "ok", "usage", "latency_ms", "served_model", "task_digest", "source")
+
+# `source` distinguishes real delegation telemetry from fixture/test data
+# written into the same lanes.jsonl (a 2026-07-06 discovery: the file had no
+# way to tell the two apart). Additive: if the caller already sets `source`
+# it passes through untouched (see the caller-set branch in record_lane_event
+# below); if absent, it defaults to "live" so pre-existing callers that never
+# mention `source` keep writing the same telemetry, now just labeled. Callers
+# that write fixtures (tests, eval harnesses) should pass `source: "fixture"`
+# explicitly so audits can filter lanes.jsonl by provenance.
+DEFAULT_SOURCE = "live"
 
 # Depth guard for the coerce-and-redact walk: a structure nested deeper than
 # this is almost certainly pathological (or an unbroken cycle the id-set below
@@ -144,7 +154,15 @@ def record_lane_event(path: "str | os.PathLike[str] | None", event: dict[str, An
 
     `path` defaults to `.brainer/trace/lanes.jsonl` under the repo root when
     None/empty. `event` is the caller-supplied fields (role, lane, vendor, ok,
-    usage, latency_ms, served_model, task_digest, ...).
+    usage, latency_ms, served_model, task_digest, source, ...).
+
+    `source` ("live" | "fixture" | any caller value) distinguishes real
+    delegation telemetry from fixture/test data sharing the same trace file.
+    Additive only: a caller that already sets `source` has it pass through
+    unchanged (same as any other field); a caller that omits it gets
+    `DEFAULT_SOURCE` ("live") filled in here, before the redact walk, so
+    existing callers keep writing exactly as before, just labeled. `event`
+    itself is never mutated — a copy carries the default.
 
     Redaction runs in TWO passes (see module docstring): first a walk that
     coerces every leaf to a raw string and redacts it — plus every dict KEY —
@@ -166,6 +184,11 @@ def record_lane_event(path: "str | os.PathLike[str] | None", event: dict[str, An
     try:
         if _redact_secrets is None:
             return False
+        # Additive `source` default: fill in only when the caller didn't set
+        # one, via a shallow copy so the caller's own dict is never mutated —
+        # rides through the SAME coerce-and-redact walk below as any other key.
+        if isinstance(event, dict) and "source" not in event:
+            event = {**event, "source": DEFAULT_SOURCE}
         # (a) walk + redact BEFORE serialization so the regex sees raw secrets
         # with natural boundaries; (b) serialize with ensure_ascii=False (no
         # \uXXXX re-hiding) and redact the line once more as belt-and-suspenders.
