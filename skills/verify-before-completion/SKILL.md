@@ -13,11 +13,18 @@ Rule: evidence before claims.
 
 The same applies to "done": without a fresh, runnable signal that proves the work is correct, "done" is a guess.
 
+**Verifier independence** ([`LEARNING_CONTRACT §5`](../_shared/LEARNING_CONTRACT.md#5-verifier-independence-is-structural-not-situational)) governs this whole checklist:
+- N repeated elements → N checks; sampling never verifies (§5, step 4 below).
+- Where source ground truth exists, a COMPUTED comparison against it is the
+  non-skippable check — a render or spot-read only corroborates (§5, step 4 below).
+- Every NEW gate ships with a negative test proving it trips (§3;
+  [`tools/verify_artifact.py`](tools/verify_artifact.py) below).
+
 Before any completion/success claim:
 1. Identify the command, inspection, or checklist that proves it.
 2. Run or perform it fresh.
 3. Read the output or result.
-4. Re-read the ORIGINAL ask (or the plan's `done means:` block) and check **each criterion** — code-level green is not goal-level done. Goal-level includes **deliverable shape** (right file count/format, stale prior-version artifacts removed, not merely edits applied) and **every instance of a repeated element** — N files/entries/cases need N checks, never a spot-check of one; an unexplained anomaly or mismatch is never a pass, ask WHY first.
+4. Re-read the ORIGINAL ask (or the plan's `done means:` block) and check **each criterion** — code-level green is not goal-level done. Goal-level includes **deliverable shape** (right file count/format, stale prior-version artifacts removed, not merely edits applied) and **every instance of a repeated element** — N files/entries/cases need N checks, never a spot-check of one (LEARNING_CONTRACT §5: sampling never verifies a repeated element); an unexplained anomaly or mismatch is never a pass, ask WHY first. Where a source ground truth exists (git, a file, a config key), a COMPUTED comparison against it is the non-skippable check — a render or spot-read only corroborates, it doesn't substitute (LEARNING_CONTRACT §5).
 5. Report the verification as a **per-criterion verdict** (criterion → pass/fail → the evidence line that proves it), not prose "done" — a claim with no per-criterion evidence is not a verdict. **Two-pass:** score it once from your own claims, then again from the artifact; any criterion that drops on the second pass is a refuted claim → NOT done (the hallucination signature).
 6. **Visual deliverables get a vision check.** If the artifact is visual — UI, chart, rendered doc, slide, image — render it and verify with vision against the goal (and the prior state, if iterating); a text-only check (DOM/markup/exit code) structurally cannot see the failure mode that matters (layout, overlap, wrong chart shape). **On a vision-less host**, do not silently skip it: route the render to a vision-capable lane (`model_roster` / a subagent that has vision), or report the criterion as **NOT-RUN** with the artifact path so a human checks it — an unverifiable visual is not a passed one.
 
@@ -37,6 +44,11 @@ When dispatching verification to a subagent: a mid-tier model with read-only too
 If verification is impossible, say what was not verified and why.
 
 ### Make the verdict mechanical: `tools/verify_artifact.py`
+
+Any NEW gate you add (here or elsewhere) ships with a negative-test fixture proving
+it trips — a gate that has never failed is unproven
+([`LEARNING_CONTRACT §3`](../_shared/LEARNING_CONTRACT.md#3-mechanism-over-prose)).
+`tools/test.sh` below is the exemplar: every criterion type has a fixture that fails it.
 
 Steps 1–5 above are prose; this tool enforces them so the verdict can't be hand-waved.
 Write the rubric **at task start** (one checkable criterion per line, each naming the

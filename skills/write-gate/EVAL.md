@@ -45,6 +45,27 @@ Status: design + smoke tests shipped; project-local A/B pending the wiki-memory 
 - English-only. Phrase tables would need translation for non-English wikis.
 - No semantic novelty check — a write that scores high but duplicates an existing page still passes the gate. Dedup is `wiki-memory`'s job.
 
+## Failure modes
+
+Premortem ([`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §8):
+
+- **Silent-failure path** — callers write to persistent stores without invoking the gate at
+  all; the gate can't reject a call that never happens. `wiki.py new_page()` closes this for
+  its own path (calls `gate_candidate()` in-code, not by convention), but a hand-edit to
+  `CLAUDE.md`/`AGENTS.md` or a raw `mcp__memory__*` write bypasses the gate entirely with no
+  error surfaced anywhere — the pollution looks identical to a gated write until someone
+  reads it back.
+- **Rot-when-unwatched** — the phrase tables (decision markers, why-clause connectives,
+  filler/speculation regex) are tuned to today's writing style; as skills and users drift
+  toward new phrasing ("landed on X" instead of "chose X"), true decisions silently stop
+  scoring the decision-marker weight and slip through the why-clause requirement unchecked.
+  Nothing currently re-validates the phrase tables against fresh wiki content.
+- **No-hooks host** — write-gate is a CLI invoked in-band (`write_gate.py gate`), not a hook,
+  so it works identically on Codex/Gemini per `docs/HOST_CAPABILITY_MATRIX.md` ("skills are
+  text-portable; tools are plain python3/bash") — the exposure is procedural, not
+  hook-availability: nothing forces the caller to run it before writing except the
+  instruction in this file and the in-code wiring at wiki-memory's own write path.
+
 ## Moved from SKILL.md (2026-06-12 SkillReducer-criteria audit)
 
 _Provenance/rationale below is maintainer context, not runtime instruction — relocated so the lazy-loaded body stays actionable._

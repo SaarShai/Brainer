@@ -80,21 +80,27 @@ python skills/write-gate/tools/write_gate.py gate --kind decision --file ./candi
 
 # a vouched-for atomic fact bypasses the signal floor (--trust, else read from frontmatter)
 python skills/write-gate/tools/write_gate.py gate --kind fact --trust verified --text "The PROMPTER folder is also called alfred."
+
+# SCOPE is mandatory (LEARNING_CONTRACT §1) — missing/invalid --scope rejects outright
+python skills/write-gate/tools/write_gate.py gate --kind fact --scope this-skill --file ./candidate.md
 ```
 
 Exit codes:
-- `0` — gate passed (signal ≥ threshold, why-clause present if decision)
-- `1` — rejected (signal below threshold OR missing why-clause)
+- `0` — gate passed (scope classified, signal ≥ threshold, why-clause present if decision)
+- `1` — rejected (missing/invalid scope OR signal below threshold OR missing why-clause)
 - `2` — bad input / usage error
 
 ## Protocol
 
 Before persistent write:
 
-1. Run `write_gate.py gate --kind <kind> --file <candidate>`.
-2. On exit 0: proceed with write.
-3. On exit 1: read the explanation. Either revise the candidate (add the reason, cite evidence, drop the filler) or drop the write entirely. Do not bypass.
-4. Override is only legitimate when the user explicitly says "save it anyway" or "I know it's thin, save it". Record it as user-directed in the write target or `wiki/log.md`:
+1. **Classify SCOPE first — unclassified = unbanked.** Every candidate gets one of `this-skill` / `cross-skill` / `cross-repo` / `canon` (`scope:` frontmatter or `--scope`) before it can pass; the gate mechanically rejects a missing/invalid scope regardless of signal score. A `cross-skill` or `canon` lesson never lands in a single skill's own notes — it goes to [`LEARNING_CONTRACT.md` §1](../_shared/LEARNING_CONTRACT.md#1-scope-classification-is-mandatory-at-banking-time) (or `ORCHESTRATION.md` if orchestration-shaped), with a pointer left in the skill — §1 has the full table.
+2. **PASS/FAIL lessons need a mechanism, not just a page.** If the candidate is expressible as a PASS/FAIL check, it must land as an executable check (test/probe/lint/gate) or the write must say explicitly why no invariant exists yet. See [LEARNING_CONTRACT §3](../_shared/LEARNING_CONTRACT.md#3-mechanism-over-prose).
+3. **Repo canon beats private memory.** If another host (Codex, Gemini, a future session) needs this to act correctly, it belongs in the repo, not only in a private memory dir. See [LEARNING_CONTRACT §7](../_shared/LEARNING_CONTRACT.md#7-repo-canon-over-private-memory).
+4. Run `write_gate.py gate --kind <kind> --scope <scope> --file <candidate>`.
+5. On exit 0: proceed with write (to the destination step 1 selected).
+6. On exit 1: read the explanation. Either revise the candidate (classify scope, add the reason, cite evidence, drop the filler) or drop the write entirely. Do not bypass.
+7. Override is only legitimate when the user explicitly says "save it anyway" or "I know it's thin, save it". Record it as user-directed in the write target or `wiki/log.md`:
 
 ```json
 {

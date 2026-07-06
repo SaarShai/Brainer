@@ -4,6 +4,8 @@
 Scores candidate text on signal features (decisions / errors / architecture / code /
 numbers / entity overlap) and rejects reasonless decisions (no because… / so that… /
 to avoid…). Sits in front of any persistent write (wiki-memory, CLAUDE.md, etc).
+Also enforces LEARNING_CONTRACT §1: a candidate missing a SCOPE classification
+(this-skill/cross-skill/cross-repo/canon) is rejected outright.
 
 Sources:
   - ogham-mcp/ogham-mcp (signal-score lifecycle, 91.8% QA on LongMemEval)
@@ -123,6 +125,12 @@ CODE_FENCE_PAIR_RE = re.compile(r"```.*?```", re.DOTALL)
 # un-vouched content is unchanged.
 TRUST_BYPASS = {"verified", "user_confirmed"}
 TRUST_RE = re.compile(r"^\s*trust:\s*([a-z_]+)", re.M | re.I)
+
+# SCOPE classification — LEARNING_CONTRACT §1 (skills/_shared/LEARNING_CONTRACT.md):
+# a candidate is unbankable until classified this-skill / cross-skill / cross-repo /
+# canon. Read from `scope:` frontmatter (mirrors extract_trust), or --scope on the CLI.
+SCOPE_VALUES = {"this-skill", "cross-skill", "cross-repo", "canon"}
+SCOPE_RE = re.compile(r"^\s*scope:\s*([a-z_-]+)", re.M | re.I)
 
 NUMBER_RE = re.compile(
     r"\b\d+(?:\.\d+)?\s?(?:%|ms|s|x|ops|qps|rps|MB|GB|KB|TB|tokens?|loc|lines?|"
@@ -279,11 +287,32 @@ def extract_trust(text: str) -> str | None:
     return m.group(1).lower() if m else None
 
 
+def extract_scope(text: str) -> str | None:
+    """Read the `scope:` tier from a candidate page's YAML frontmatter, if any.
+    Limited to the frontmatter block so a body mention of 'scope:' can't spoof it.
+    Mirrors extract_trust."""
+    if text.startswith("---"):
+        end = text.find("\n---", 3)
+        head = text[:end] if end != -1 else text[:2000]
+    else:
+        head = text[:2000]
+    m = SCOPE_RE.search(head)
+    return m.group(1).lower() if m else None
+
+
 def decide(score: Score, kind: str, threshold: float, require_why: bool,
-           trust: str | None = None) -> tuple[bool, str]:
+           trust: str | None = None, scope: str | None = None) -> tuple[bool, str]:
     """Return (passed, reason). `trust` (if 'verified'/'user_confirmed') vouches
     importance and bypasses the signal FLOOR — but never rescues net-negative
-    (filler/speculation) content, and only 'user_confirmed' waives the why-clause."""
+    (filler/speculation) content, and only 'user_confirmed' waives the why-clause.
+
+    `scope` enforces LEARNING_CONTRACT §1: unclassified = unbanked. Checked first —
+    a scope-less candidate never reaches the signal/why checks below."""
+    if scope not in SCOPE_VALUES:
+        return False, (
+            "REJECTED: missing/invalid SCOPE classification (need one of "
+            f"{sorted(SCOPE_VALUES)} — see LEARNING_CONTRACT §1); unclassified = unbanked"
+        )
     if kind in ("decision", "convention") and require_why and not score.has_why \
             and trust != "user_confirmed":
         return False, "REJECTED: decision/convention missing a why-clause (need 'because…', 'so that…', 'to avoid…', etc)"
@@ -389,6 +418,11 @@ def main(argv: list[str]) -> int:
                        choices=["asserted", "corroborated", "verified", "user_confirmed"],
                        help="provenance tier; 'verified'/'user_confirmed' bypass the signal floor. "
                             "If omitted, read from the candidate's `trust:` frontmatter.")
+        p.add_argument("--scope", default=None,
+                       choices=sorted(SCOPE_VALUES),
+                       help="LEARNING_CONTRACT §1 classification (this-skill/cross-skill/"
+                            "cross-repo/canon); mandatory — missing/invalid scope is rejected. "
+                            "If omitted, read from the candidate's `scope:` frontmatter.")
         p.add_argument("--text")
         p.add_argument("--file")
         p.add_argument("--threshold", type=float)
@@ -405,8 +439,9 @@ def main(argv: list[str]) -> int:
         threshold = args.threshold
 
     trust = args.trust or extract_trust(text)
+    scope = args.scope or extract_scope(text)
     s = score_text(text, args.kind, weights)
-    passed, verdict = decide(s, args.kind, threshold, require_why, trust=trust)
+    passed, verdict = decide(s, args.kind, threshold, require_why, trust=trust, scope=scope)
 
     if args.json:
         out = {
@@ -415,6 +450,7 @@ def main(argv: list[str]) -> int:
             "threshold": threshold,
             "kind": args.kind,
             "trust": trust,
+            "scope": scope,
             "has_why": s.has_why,
             "features": {k: round(v, 3) for k, v in s.features.items()},
             "verdict": verdict,
@@ -424,7 +460,7 @@ def main(argv: list[str]) -> int:
         return 0 if passed else 1
 
     if args.cmd == "score":
-        print(f"score: {s.total:.2f}  threshold: {threshold:.2f}  kind: {args.kind}  why_clause: {s.has_why}")
+        print(f"score: {s.total:.2f}  threshold: {threshold:.2f}  kind: {args.kind}  why_clause: {s.has_why}  scope: {scope}")
         return 0
     if args.cmd == "gate":
         return 0 if passed else 1
@@ -432,6 +468,7 @@ def main(argv: list[str]) -> int:
     print(verdict)
     print(f"  total: {s.total:.2f}  threshold: {threshold:.2f}  kind: {args.kind}")
     print(f"  why_clause present: {s.has_why}")
+    print(f"  scope: {scope}")
     if s.reasons:
         print("  features:")
         for r in s.reasons:

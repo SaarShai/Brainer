@@ -6,18 +6,24 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from write_gate import DEFAULT_THRESHOLD, decide, extract_trust, score_text  # noqa: E402
+from write_gate import DEFAULT_THRESHOLD, SCOPE_VALUES, decide, extract_scope, extract_trust, score_text  # noqa: E402
+
+# Existing content-quality tests below exercise signal/why-clause logic, not the
+# SCOPE dimension (LEARNING_CONTRACT §1) — default to a valid classification so
+# those assertions stay isolated to the axis they test. Dedicated scope tests
+# (test_scope_*) below cover the classification gate itself.
+_DEFAULT_TEST_SCOPE = "this-skill"
 
 
-def assert_passes(text: str, kind: str = "fact", msg: str = "") -> None:
+def assert_passes(text: str, kind: str = "fact", msg: str = "", scope: str = _DEFAULT_TEST_SCOPE) -> None:
     s = score_text(text, kind)
-    ok, verdict = decide(s, kind, DEFAULT_THRESHOLD, require_why=True)
+    ok, verdict = decide(s, kind, DEFAULT_THRESHOLD, require_why=True, scope=scope)
     assert ok, f"expected pass: {msg}\n  text={text!r}\n  verdict={verdict}\n  score={s.total:.2f}"
 
 
-def assert_rejects(text: str, kind: str = "fact", msg: str = "") -> None:
+def assert_rejects(text: str, kind: str = "fact", msg: str = "", scope: str = _DEFAULT_TEST_SCOPE) -> None:
     s = score_text(text, kind)
-    ok, verdict = decide(s, kind, DEFAULT_THRESHOLD, require_why=True)
+    ok, verdict = decide(s, kind, DEFAULT_THRESHOLD, require_why=True, scope=scope)
     assert not ok, f"expected reject: {msg}\n  text={text!r}\n  verdict={verdict}\n  score={s.total:.2f}"
 
 
@@ -93,14 +99,14 @@ def test_why_clause_inside_fence_does_not_satisfy_gate() -> None:
     )
     s = score_text(txt, "decision")
     assert not s.has_why, "why-clause inside fence must not count"
-    ok, _ = decide(s, "decision", DEFAULT_THRESHOLD, require_why=True)
+    ok, _ = decide(s, "decision", DEFAULT_THRESHOLD, require_why=True, scope=_DEFAULT_TEST_SCOPE)
     assert not ok, "reasonless decision must reject even with fenced 'because'"
 
     # Prose 'because' still works
     txt2 = "We chose pgvector over Qdrant because dev parity matters."
     s2 = score_text(txt2, "decision")
     assert s2.has_why
-    ok2, _ = decide(s2, "decision", DEFAULT_THRESHOLD, require_why=True)
+    ok2, _ = decide(s2, "decision", DEFAULT_THRESHOLD, require_why=True, scope=_DEFAULT_TEST_SCOPE)
     assert ok2
 
 
@@ -120,7 +126,7 @@ def test_why_clauses_need_word_boundaries() -> None:
     txt = "We chose pgvector over Qdrant. The migration is overdue tomorrow. Reasoning ongoing."
     s = score_text(txt, "decision")
     assert not s.has_why, "boundary-less why-marker fired inside an unrelated word"
-    ok, _ = decide(s, "decision", DEFAULT_THRESHOLD, require_why=True)
+    ok, _ = decide(s, "decision", DEFAULT_THRESHOLD, require_why=True, scope=_DEFAULT_TEST_SCOPE)
     assert not ok, "reasonless decision must reject when no genuine why-clause is present"
 
     # Genuine markers still fire on word boundaries.
@@ -167,14 +173,14 @@ def test_trust_bypass_rescues_vouched_atomic_fact() -> None:
     trust tier vouches its importance and bypasses the signal floor."""
     txt = "The PROMPTER project folder is also called alfred."
     s = score_text(txt, "fact")
-    ok, _ = decide(s, "fact", DEFAULT_THRESHOLD, require_why=True)
+    ok, _ = decide(s, "fact", DEFAULT_THRESHOLD, require_why=True, scope=_DEFAULT_TEST_SCOPE)
     assert not ok, "neutral atomic fact should reject by default (no trust)"
-    ok_v, _ = decide(s, "fact", DEFAULT_THRESHOLD, require_why=True, trust="verified")
+    ok_v, _ = decide(s, "fact", DEFAULT_THRESHOLD, require_why=True, trust="verified", scope=_DEFAULT_TEST_SCOPE)
     assert ok_v, "verified trust must bypass the signal floor"
-    ok_u, _ = decide(s, "fact", DEFAULT_THRESHOLD, require_why=True, trust="user_confirmed")
+    ok_u, _ = decide(s, "fact", DEFAULT_THRESHOLD, require_why=True, trust="user_confirmed", scope=_DEFAULT_TEST_SCOPE)
     assert ok_u, "user_confirmed trust must bypass the signal floor"
     # A weak/low tier must NOT bypass.
-    ok_a, _ = decide(s, "fact", DEFAULT_THRESHOLD, require_why=True, trust="asserted")
+    ok_a, _ = decide(s, "fact", DEFAULT_THRESHOLD, require_why=True, trust="asserted", scope=_DEFAULT_TEST_SCOPE)
     assert not ok_a, "asserted (low tier) must not bypass"
 
 
@@ -184,7 +190,7 @@ def test_trust_does_not_rescue_net_negative_filler() -> None:
     txt = "In summary, basically what we did was some stuff. I think it could maybe work, possibly."
     s = score_text(txt, "fact")
     assert s.total < 0, "filler+speculation should be net-negative"
-    ok, _ = decide(s, "fact", DEFAULT_THRESHOLD, require_why=True, trust="user_confirmed")
+    ok, _ = decide(s, "fact", DEFAULT_THRESHOLD, require_why=True, trust="user_confirmed", scope=_DEFAULT_TEST_SCOPE)
     assert not ok, "trust must not rescue net-negative (filler/speculation) content"
 
 
@@ -193,11 +199,11 @@ def test_user_confirmed_waives_why_but_verified_does_not() -> None:
     (user_confirmed) waives the why-clause; plain 'verified' still demands it."""
     txt = "We decided to go with the repo-local wiki."
     s = score_text(txt, "decision")
-    ok, _ = decide(s, "decision", DEFAULT_THRESHOLD, require_why=True)
+    ok, _ = decide(s, "decision", DEFAULT_THRESHOLD, require_why=True, scope=_DEFAULT_TEST_SCOPE)
     assert not ok, "reasonless decision rejects by default"
-    ok_u, _ = decide(s, "decision", DEFAULT_THRESHOLD, require_why=True, trust="user_confirmed")
+    ok_u, _ = decide(s, "decision", DEFAULT_THRESHOLD, require_why=True, trust="user_confirmed", scope=_DEFAULT_TEST_SCOPE)
     assert ok_u, "user_confirmed waives the why-clause"
-    ok_v, _ = decide(s, "decision", DEFAULT_THRESHOLD, require_why=True, trust="verified")
+    ok_v, _ = decide(s, "decision", DEFAULT_THRESHOLD, require_why=True, trust="verified", scope=_DEFAULT_TEST_SCOPE)
     assert not ok_v, "verified does NOT waive the why-clause for a decision"
 
 
@@ -225,6 +231,52 @@ def test_marker_stuffed_filler_rejected() -> None:
     assert_passes(real, "decision", "genuine specific decision still passes")
 
 
+def test_scopeless_candidate_rejected() -> None:
+    """NEGATIVE TEST (LEARNING_CONTRACT §3: a gate that has never tripped is
+    unproven). A candidate with strong signal but NO scope classification must
+    be rejected outright — unclassified = unbanked (§1), checked before the
+    signal/why-clause checks."""
+    strong = (
+        "The ingestion worker runs on Fly.io and calls the embedding endpoint.\n"
+        "```python\nresult = embed(chunk)\n```\n"
+        "Latency: 120ms p50, 450ms p99."
+    )
+    s = score_text(strong, "fact")
+    assert s.total >= DEFAULT_THRESHOLD, "fixture must carry real signal (proves scope, not signal, causes the reject)"
+    ok, verdict = decide(s, "fact", DEFAULT_THRESHOLD, require_why=True, scope=None)
+    assert not ok, f"scope-less candidate must reject even with strong signal; got: {verdict}"
+    assert "SCOPE" in verdict, f"rejection reason must name SCOPE; got: {verdict}"
+
+    # An invalid/garbage scope value must reject the same way.
+    ok_bad, verdict_bad = decide(s, "fact", DEFAULT_THRESHOLD, require_why=True, scope="whatever")
+    assert not ok_bad, f"invalid scope value must reject; got: {verdict_bad}"
+
+
+def test_classified_candidate_accepted() -> None:
+    """POSITIVE CONTROL for the SCOPE gate: the same strong-signal candidate,
+    once given a valid SCOPE classification, is accepted — proves the gate
+    isn't rejecting on signal, only on missing/invalid scope."""
+    strong = (
+        "The ingestion worker runs on Fly.io and calls the embedding endpoint.\n"
+        "```python\nresult = embed(chunk)\n```\n"
+        "Latency: 120ms p50, 450ms p99."
+    )
+    for scope in sorted(SCOPE_VALUES):
+        s = score_text(strong, "fact")
+        ok, verdict = decide(s, "fact", DEFAULT_THRESHOLD, require_why=True, scope=scope)
+        assert ok, f"valid scope {scope!r} must be accepted; got: {verdict}"
+
+
+def test_extract_scope_reads_only_frontmatter() -> None:
+    """scope must be read from YAML frontmatter, not spoofable from the body
+    (mirrors extract_trust's contract)."""
+    page = "---\nschema_version: 2\nscope: cross-skill\ntype: fact\n---\n# x\nbody text\n"
+    assert extract_scope(page) == "cross-skill"
+    body_only = "no frontmatter here. scope: canon mentioned in prose.\n"
+    assert extract_scope(body_only) is None, "body mention of scope: must not count"
+    assert extract_scope("plain text, no scope at all") is None
+
+
 def main() -> int:
     tests = [
         test_decisions_need_why,
@@ -244,6 +296,9 @@ def main() -> int:
         test_user_confirmed_waives_why_but_verified_does_not,
         test_extract_trust_reads_only_frontmatter,
         test_marker_stuffed_filler_rejected,
+        test_scopeless_candidate_rejected,
+        test_classified_candidate_accepted,
+        test_extract_scope_reads_only_frontmatter,
     ]
     failed = 0
     for t in tests:
