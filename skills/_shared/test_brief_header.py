@@ -75,6 +75,42 @@ def test_list_outputs_known_skill_reminder_line():
             and "beta: keep beta active" in out)
 
 
+def test_default_output_contains_phase0_and_lane_report_blocks():
+    with tempfile.TemporaryDirectory() as root:
+        _write_skill(root, "alpha", "keep alpha active")
+        rc, out, _err = _run(["--skills-root", root, "--task", "check new blocks", "--skills", "alpha"])
+    return (rc == 0
+            and bh.PHASE0_BLOCK in out
+            and bh.LANE_REPORT_BLOCK in out
+            and "PHASE 0" in out
+            and "STATUS: COMPLETE" in out
+            and "READY FOR JUDGING" in out)
+
+
+def test_no_phase0_flag_removes_only_phase0_block():
+    with tempfile.TemporaryDirectory() as root:
+        _write_skill(root, "alpha", "keep alpha active")
+        rc, out, _err = _run(
+            ["--skills-root", root, "--task", "no phase0", "--skills", "alpha", "--no-phase0"]
+        )
+    return (rc == 0
+            and bh.PHASE0_BLOCK not in out
+            and bh.GATE_BLOCK in out
+            and bh.LANE_REPORT_BLOCK in out)
+
+
+def test_no_report_flag_removes_only_lane_report_block():
+    with tempfile.TemporaryDirectory() as root:
+        _write_skill(root, "alpha", "keep alpha active")
+        rc, out, _err = _run(
+            ["--skills-root", root, "--task", "no report", "--skills", "alpha", "--no-report"]
+        )
+    return (rc == 0
+            and bh.LANE_REPORT_BLOCK not in out
+            and bh.PHASE0_BLOCK in out
+            and bh.GATE_BLOCK in out)
+
+
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
 
 
