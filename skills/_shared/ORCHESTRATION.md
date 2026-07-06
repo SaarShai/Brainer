@@ -94,7 +94,12 @@ the strongest model, the typing seat doesn't; reasoning-effort curve: xhigh
 vs high = 88% vs 69% semantic equivalence to human PR, 69% vs 38%
 review-pass, at ~2.2× cost (stet.sh via architect-loop) — buy xhigh for
 unattended work where review-survival matters, tier down effort for
-recipe-shaped work; RouteLLM: 85% cost cut at 95% GPT-4 quality (MT Bench).
+recipe-shaped work; RouteLLM: 85% cost cut at 95% GPT-4 quality (MT Bench) —
+a per-request router for one-shot queries, not a coding-agent topology, cited
+for the cost-routing principle only. These are **external single-source
+anchors**, not reproduced here; the one figure measured on THIS stack is 72.1%
+structural savings on a 17-lane run (team-lead/EVAL.md), which lands inside the
+58–74% anchor. Treat the rest as directional, not settled.
 
 Rules:
 
@@ -146,7 +151,12 @@ Rules:
   fix the input, respawn at the SAME tier; move tier only on a diagnosed
   capability gap, never on failure count or predicted difficulty. A
   merge/file conflict between lanes is a DECOMPOSITION failure (kill the
-  lane, re-split), not a worker failure.
+  lane, re-split), not a worker failure. **Scope:** this governs the
+  team-lead *multi-lane tier decision*. It does NOT override prompt-triage's
+  single-shot gate: a cheap subagent routed for one task that fails its gate
+  twice hands the task back to the main model (two-strike takeover) — that is
+  a per-task routing fallback, not a tier move on the team-lead ladder, and
+  the two rules do not conflict.
 - **Cross-vendor review direction caveat.** One directional study found
   Claude-reviews-GPT helped while GPT-reviews-Claude hurt; treat direction as
   a recorded variable, not settled doctrine (single study).

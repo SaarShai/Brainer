@@ -46,7 +46,7 @@ superseded-by:
 
 **Decision:** isolate strict-scope executors (worktree/clean tree) or explicitly whitelist concurrent diffs. **Applied:** re-grep own edits after any codex run (now standard practice in this session).
 
-**Durability:** recorded in memory for [[propagate]] runs to sibling repos (isolated worktrees mandatory before multi-agent syncs).
+**Durability:** recorded in memory for [`propagate`](../../skills/propagate/SKILL.md) runs to sibling repos (isolated worktrees mandatory before multi-agent syncs).
 
 ## Durable insights
 
@@ -60,7 +60,7 @@ superseded-by:
 - [[concepts/lean-execution]] — measure before adding; enrich existing over create new. Extended here: category-error detection (skill vs harness) is a scope-boundary special case.
 - [[concepts/systematic-debugging-skill-measured-null]] — sibling precedent: article-pitched skill, A/B'd, not built.
 - [[concepts/framework-hardening-adoption]] — earlier article review; same 3-adoption pattern.
-- [[GOAL.md]] — MEASUREMENT_QUEUE item 12 queued for gains measurement on next frontier-model release.
+- [GOAL.md](../../GOAL.md) — MEASUREMENT_QUEUE item 12 queued for gains measurement on next frontier-model release.
 - [[projects/okf-adoption]] — memory-as-hint precedent (article pitch adopted via wiki-refresh reconciliation).
 
 ## Open Questions

@@ -59,7 +59,7 @@ superseded-by: []
 - [[concepts/premortem-and-think-edits-measured]] — article-pitched additions usually confirm/reject, rarely net-new; measured wins and measured rejections on evidence.
 - [[queries/memory-as-a-tool-validation]] — write-gate A/B test showed no improvement (6.62 vs 8.62 ungated); precedent for Layer-2-style mechanism rejection.
 - [[concepts/lean-execution]] — measure before adding; enrich existing over create new.
-- [[skills/loop-engineering/SKILL.md]] — orchestration section now carries the "Foreign diffs are not damage" writer-brief rule.
+- [skills/loop-engineering/SKILL.md](../../skills/loop-engineering/SKILL.md) — orchestration section now carries the "Foreign diffs are not damage" writer-brief rule.
 - [[concepts/systematic-debugging-skill-measured-null]] — sibling precedent: article-pitched skill A/B'd and rejected.
 
 ## Open Questions
