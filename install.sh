@@ -672,4 +672,12 @@ for f in CLAUDE.md AGENTS.md GEMINI.md; do
 done
 
 echo
+# Gate-substrate liveness (LEARNING_CONTRACT.md §4): a dead gate (unparseable
+# drift_probes.json, dangling SKILL.md tool/link reference, broken hooks-map
+# entry) is worse than none. Checks the Brainer checkout itself (repo-wide,
+# host-independent). Non-fatal — install already ran; report so the finding
+# gets fixed, don't abort a completed install over it.
+run "python3 '$REPO_ROOT/skills/_shared/knowledge_liveness.py'" || echo "    [warn] knowledge_liveness found dead-gate findings (see above; non-fatal)"
+
+echo
 echo "done. host(s): $HOSTS_REQUESTED"

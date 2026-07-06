@@ -61,6 +61,12 @@ run "json-valid" bash -c "git ls-files -z '*.json' | xargs -0 -n1 python3 -m jso
 # 4. Python syntax (mirrors CI), compile in memory so the gate writes no .pyc files.
 run "py-syntax" python3 scripts/check_python_syntax.py
 
+# 4b. Gate-substrate liveness (LEARNING_CONTRACT.md §4): drift_probes/lesson_patterns
+# JSON parses, SKILL.md frontmatter + referenced tool paths resolve, markdown links
+# resolve, wiki links resolve, hooks-map entries resolve. A dead gate is worse than none.
+run "knowledge-liveness" python3 skills/_shared/knowledge_liveness.py
+run "unit:test_knowledge_liveness" python3 skills/_shared/test_knowledge_liveness.py
+
 # 5. Per-skill unit tests (plain-python, no pytest dep)
 UNIT_TESTS=(
   skills/_shared/test_model_roster.py
