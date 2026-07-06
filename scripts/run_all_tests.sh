@@ -97,6 +97,7 @@ UNIT_TESTS=(
   skills/wiki-memory/tools/test_config.py
   skills/wiki-refresh/tools/test_staleness.py
   skills/wiki-refresh/tools/test_artifact_guard.py
+  skills/wiki-refresh/tools/test_disuse.py
   skills/wiki-memory/tools/test_wiki_adoption.py
   skills/index-first/tools/test_augment.py
   skills/compliance-canary/tools/test_hook_safety.py

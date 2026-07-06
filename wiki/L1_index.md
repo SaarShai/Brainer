@@ -17,6 +17,7 @@ Compact pointers. Fetch details on demand.
 - projects/okf-adoption (project tags=okf,interop,wiki,decision,sibling-sync) -> `projects/okf-adoption.md`
 - projects/semdiff (project tags=semantic-diff,ast,context-compression) -> `projects/semdiff.md`
 - projects/wiki-search (project tags=retrieval,progressive-disclosure,mcp,wiki) -> `projects/wiki-search.md`
+- queries/covered-verdicts (query tags=covered-verdicts,adoption,index,decision,external-review) -> `queries/covered-verdicts.md`
 - queries/external-validation (decision tags=decision,validation,loop-engineering,external-review) -> `queries/external-validation.md`
 - queries/llm-wiki-compile-on-ingest-adoptions (decision tags=decision,wiki-memory,ingest,provenance,quorum,paper) -> `queries/llm-wiki-compile-on-ingest-adoptions.md`
 - queries/memory-as-a-tool-validation (decision tags=decision,eval,memory,negative-result) -> `queries/memory-as-a-tool-validation.md`

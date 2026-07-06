@@ -64,6 +64,13 @@ How each feeds the five outcomes:
 - **`calibration`** — a page's stored `confidence` vs its actual evidence (sources + inbound corroboration + trust tier + verified-freshness, 0–4). Flags over- and under-confidence → Update the scalar or verify the page. Sharp/low-noise (live: 1 over, 1 under of 42).
 - **`novelty`** — intra-page tautology (page echoes its own headings/schema/refs); a write-gate / refresh signal → Update or Replace.
 - **`claim-ground`** — sentence-granular grounding finer than `audit-refs`; the "does present code still match the prose" judge step for the Update-vs-Replace call.
+- **`disuse`** — a tenth signal, distinct from the nine above: code lives in **wiki-refresh's own** [`tools/disuse.py`](tools/disuse.py), not `wiki.py` (it's read-value, not code-groundedness). Consumes the retrieval-usage ledger (`wiki/.brainer/usage.json`, written by `wiki.py fetch`) as a prune/review candidate signal — a page written but never fetched back out is cost without payoff. Report-only, same posture as the rest of this table: it flags candidates, it does not delete.
+
+```bash
+python3 skills/wiki-refresh/tools/disuse.py report --root wiki   # {page, reads, age_days, candidate} per concepts|queries|patterns page
+```
+
+A page is a `candidate` only when reads are at/below threshold (default 0) **and** it's older than a grace window (default 30 days, via `--grace-days`) — a brand-new page with 0 reads hasn't had a chance to be read yet, so age alone doesn't disuse it. `candidate: true` → route into Delete/Replace review per the gates below; a 0-read page whose domain is still live is a **Keep** or **Update** candidate for discoverability (bad title/tags), not necessarily a Delete. Missing/empty/malformed `usage.json` degrades to an empty signal (every page reports `reads: 0`, gated on age alone), never a crash.
 
 ## Scope
 

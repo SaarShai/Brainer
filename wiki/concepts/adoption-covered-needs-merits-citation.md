@@ -68,4 +68,5 @@ the graph — found only when the reject was re-audited head-to-head. See
 
 - [[concepts/framework-hardening-adoption]] — the adoption matrix this rule guards
 - [[concepts/write-gate-not-truth-filter]] — sibling: verdicts gate on evidence, not phrasing
+- [[queries/covered-verdicts]] — the index this rule feeds: one row per already-settled verdict, so a future session never re-derives one from a catalog line
 - `skills/impact-of-change/tools/impact.py` — the consumer the miss lived in
