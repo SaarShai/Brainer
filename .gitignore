@@ -41,8 +41,6 @@ eval/*/output/
 
 # Per-machine install targets (./install.sh symlinks skills into these)
 .codex/skills/
-.cursor/skills/
-.cursor/rules/
 .gemini/skills/
 
 # cache-lint per-project fingerprint baseline

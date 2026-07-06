@@ -26,7 +26,6 @@ REQUIRED_DOC_PATHS = [
 
 OPTIONAL_OR_LOCAL_DOC_PATHS = [
     ".claude/settings.json",
-    ".cursor/rules/",
     ".codex/skills/",
     ".gemini/skills/",
     ".brainer/",

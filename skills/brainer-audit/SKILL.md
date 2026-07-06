@@ -4,7 +4,7 @@ disable-model-invocation: true
 description: "Use when the user explicitly activates Brainer audit mode, asks to audit this session, audit Brainer use, or track Brainer skill usage. Report-only by default: inspect normalized events or fixtures for Brainer skill-use opportunities, missed triggers, task-retrospective boundary violations, write-gate issues, and unverified completion claims."
 trigger_type: manual
 risk_level: low
-host_support: [claude, codex, cursor, gemini]
+host_support: [claude, codex, gemini]
 side_effects: [reads_repo]
 requires_tools: [read, bash]
 auto-install: false

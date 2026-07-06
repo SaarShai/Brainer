@@ -164,8 +164,6 @@ def detect_agent() -> str:
 
     if host_key_contains("codex"):
         return "codex"
-    if host_key_contains("cursor"):
-        return "cursor"
     if host_key_contains("gemini"):
         return "gemini"
     if host_key_contains("claude"):

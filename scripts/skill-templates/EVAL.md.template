@@ -7,7 +7,7 @@
 
 ## Protocol
 
-- Host: <Claude Code | Codex | Cursor | Gemini>
+- Host: <Claude Code | Codex | Gemini>
 - Model under test: <model>
 - Judge: Xiaomi MiMo-7B (HF inference)
 - N=<n>

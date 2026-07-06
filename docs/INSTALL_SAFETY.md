@@ -4,10 +4,9 @@
 
 ## What install does
 
-- Symlinks each `skills/<name>/` folder into host loader directories such as `.claude/skills/`, `.codex/skills/`, `.cursor/skills/`, and `.gemini/skills/`.
+- Symlinks each `skills/<name>/` folder into host loader directories such as `.claude/skills/`, `.codex/skills/`, and `.gemini/skills/`.
 - Refreshes the generated skills catalog blocks in `CLAUDE.md`, `AGENTS.md`, and `GEMINI.md`.
 - Regenerates `skills/HOOKS_MAP.md` for hook-capable skills.
-- Writes Cursor `.mdc` rule shims under `.cursor/rules/`.
 - Ensures `.gemini/settings.json` points Gemini at `.gemini/skills`.
 - Runs per-skill `tools/install.sh` scripts unless a skill declares `auto-install: false`.
 - Skips `brainer-audit` live hook wiring by default because that skill declares `auto-install: false`; wire it deliberately with `bash skills/brainer-audit/tools/install.sh`.
@@ -34,7 +33,6 @@ Limit scope with:
 ```bash
 ./install.sh --host claude-code
 ./install.sh --host codex
-./install.sh --host cursor
 ./install.sh --host gemini
 ./install.sh --host claude-code,codex
 ```

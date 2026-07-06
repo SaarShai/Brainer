@@ -54,7 +54,7 @@ text, meta = read_smart("foo.py", session_id="s1")
 Unique combo: (a) per-session AST snapshot (b) node-granularity diff on re-read (c) pluggable CLI/MCP.
 
 ## Distribution (built 2026-04-17)
-- **MCP server** at `semdiff_mcp/server.py` — works with Claude Code, Cursor, Cline, Zed, Windsurf, any MCP client.
+- **MCP server** at `semdiff_mcp/server.py` — works with Claude Code, Cline, Zed, Windsurf, any MCP client.
 - Tools exposed: `read_file_smart`, `snapshot_clear`, `snapshot_status`.
 - **Claude Code plugin** wrapper at `plugin/` — one-command install for CC users.
 - Protocol roundtrip tested: initialize, tools/list, tools/call all pass.

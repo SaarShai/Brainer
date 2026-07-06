@@ -11,7 +11,7 @@ Methodology and measured token/context deltas. Updated each time the eval suite 
 
 ## Protocol
 
-- Host under test: Claude Code (`claude --no-interactive`) | Codex | Cursor | Gemini.
+- Host under test: Claude Code (`claude --no-interactive`) | Codex | Gemini.
 - Model under test: <model>.
 - Judge: Xiaomi MiMo-7B (HF inference).
 - Sample size: N=<n>.

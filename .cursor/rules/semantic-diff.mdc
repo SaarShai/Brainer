@@ -1,7 +1,0 @@
----
-description: AST-node-level diff for file re-reads. Use whenever you'd re-read a file you've read before — returns only the changed AST nodes, not the full file (95.5% measured savings). Bash CLI works on every host; optional MCP server. Supports Python, JavaScript, TypeScript, Rust.
-globs: ["**/*"]
-alwaysApply: false
----
-
-@skills/semantic-diff/SKILL.md

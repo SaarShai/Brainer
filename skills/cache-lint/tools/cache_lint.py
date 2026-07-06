@@ -58,7 +58,7 @@ class Report:
 
 # --- Discovery ------------------------------------------------------------
 
-PREFIX_FILES = ("CLAUDE.md", "AGENTS.md", "GEMINI.md", ".cursorrules")
+PREFIX_FILES = ("CLAUDE.md", "AGENTS.md", "GEMINI.md")
 # JSON sources of hook / settings config
 SETTINGS_GLOBS = (
     ".mcp.json",

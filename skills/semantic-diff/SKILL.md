@@ -46,7 +46,7 @@ Use a stable `--session` per working context (e.g. the task or branch). Add
 
 ## Usage — MCP (optional, opt-in)
 
-For a native `read_file_smart` tool (Claude Code, Cursor, etc.) instead of the
+For a native `read_file_smart` tool (Claude Code, etc.) instead of the
 Bash CLI — heavier (`mcp` pulls `cryptography` ~24M):
 
 ```bash

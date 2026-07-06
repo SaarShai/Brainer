@@ -8,7 +8,7 @@ Tools exposed:
   - snapshot_clear(session_id)         → drop session cache
   - snapshot_status(session_id)        → list cached files for a session
 
-Any MCP-compatible client (Claude Code, Cursor, Cline, Zed, Windsurf) can consume this.
+Any MCP-compatible client (Claude Code, Cline, Zed, Windsurf) can consume this.
 """
 from __future__ import annotations
 import sys

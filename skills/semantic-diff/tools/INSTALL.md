@@ -14,7 +14,7 @@ skills/semantic-diff/tools/semdiff-cli read path/to/file.py --session <id>
 skills/semantic-diff/tools/semdiff-cli clear --session <id>
 ```
 
-Works identically on Claude Code, Codex, Cursor, Gemini — anything with a shell.
+Works identically on Claude Code, Codex, Gemini — anything with a shell.
 Requires Python ≥ 3.9.
 
 **Reclaiming space after upgrading from a pre-v1.11 install:** the old fat
@@ -63,7 +63,7 @@ Or add manually to the project-local MCP config supported by your client:
 }
 ```
 
-### Cursor / Cline / Zed / Windsurf / Continue
+### Cline / Zed / Windsurf / Continue
 
 Add to your client's MCP config (format varies slightly per client). All use the
 same `command + args` pattern:

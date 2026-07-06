@@ -1,6 +1,6 @@
 # Brainer
 
-A skill catalog for AI coding agents — Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot — across four pillars:
+A skill catalog for AI coding agents — Claude Code, Codex, Gemini CLI, GitHub Copilot — across four pillars:
 
 1. **Token-use optimization** — tighter output/input per call.
 2. **Context-window optimization & management** — re-reads, compaction survival, routing, retrieval.
@@ -150,9 +150,9 @@ See [eval/results/static_cost.json](eval/results/static_cost.json) for the full 
 |---|---|---|
 | **Claude Code** | **everywhere** (recommended) | `git clone https://github.com/SaarShai/Brainer.git ~/.local/share/brainer && claude plugin install ~/.local/share/brainer/.claude-plugin/marketplace.json` |
 | Claude Code | in one project only | clone into `<project>/.brainer`, then `mkdir -p .claude/skills && ln -sfn ../.brainer/skills/* .claude/skills/` |
-| Codex / Cursor / Gemini CLI | per-project (no plugin format exists for these) | clone into `<project>/.brainer`, then `.brainer/install.sh --host <codex|cursor|gemini>` + symlink — see [Per-project install](#per-project-install-non-claude-code-hosts) |
+| Codex / Gemini CLI | per-project (no plugin format exists for these) | clone into `<project>/.brainer`, then `.brainer/install.sh --host <codex|gemini>` + symlink — see [Per-project install](#per-project-install-non-claude-code-hosts) |
 | Copilot / VS Code | per-project | use the root `AGENTS.md` shim from the Brainer checkout; there is no `install.sh --host copilot` flag |
-| any supported host (inside the brainer clone itself, e.g. contributing) | for that clone only | `./install.sh` (all supported hosts) or `./install.sh --host <claude-code|codex|cursor|gemini>` |
+| any supported host (inside the brainer clone itself, e.g. contributing) | for that clone only | `./install.sh` (all supported hosts) or `./install.sh --host <claude-code|codex|gemini>` |
 
 The plugin (`brainer` v1.13.0) bundles all 22 skills. Its manifest declares the default-on `compliance-canary` hook plus optional `prompt-triage` and `context-keeper` hooks.
 
@@ -162,11 +162,10 @@ The plugin (`brainer` v1.13.0) bundles all 22 skills. Its manifest declares the 
 |---|---|---|---|
 | Claude Code | **Yes** (`.claude-plugin/marketplace.json`) | `.claude/skills/` or the plugin registry | optional hooks declared in the plugin manifest |
 | Codex | No | `.codex/skills/<name>/` | none — SKILL.md auto-discovered |
-| Cursor | No | `.cursor/skills/<name>/` | `.cursor/rules/<name>.mdc` shim per skill (set by `install.sh`) |
 | Gemini CLI | No | `.gemini/skills/<name>/` | `.gemini/settings.json` extension entry (set by `install.sh`) |
 | Copilot / VS Code | No | root `AGENTS.md` shim | auto-discovered by VS Code Copilot |
 
-Plugin packaging is Claude-Code-specific. Other hosts read SKILL.md files directly — there's nothing for them to "plug into," so a Codex/Cursor/Gemini plugin would be a no-op wrapper. Pattern for the fan-out installer is lifted from `amtiYo/agents`.
+Plugin packaging is Claude-Code-specific. Other hosts read SKILL.md files directly — there's nothing for them to "plug into," so a Codex/Gemini plugin would be a no-op wrapper. Pattern for the fan-out installer is lifted from `amtiYo/agents`.
 
 ### `install.sh` flags
 
@@ -190,7 +189,7 @@ mkdir -p .codex/skills
 ln -sfn ../.brainer/.codex/skills/* .codex/skills/
 ```
 
-Repeat the last two lines per host (`.cursor/skills/`, `.gemini/skills/`, etc.). For Claude Code, use the plugin command in the table above — it's cwd-independent and skips the symlink dance entirely.
+Repeat the last two lines per host (`.gemini/skills/`, etc.). For Claude Code, use the plugin command in the table above — it's cwd-independent and skips the symlink dance entirely.
 
 ### Bootstrap wiki-memory in a fresh project
 
@@ -208,14 +207,14 @@ Creates `wiki/{L0_rules.md, L1_index.md, schema.md, L2_facts/, L3_sops/, L4_arch
 The catalog evolves — skills get added, and some get **cut** after measurement (see the changelog above). To bring a project that already has an older set up to date:
 
 - **Claude Code (plugin):** the plugin manifest (`.claude-plugin/marketplace.json`) is the source of truth. Update the plugin and Claude Code syncs the skill list **and** hooks to the current catalog — cut skills disappear, new ones appear, no manual cleanup.
-- **Symlink hosts (Codex / Cursor / Gemini) or a manual install:**
+- **Symlink hosts (Codex / Gemini) or a manual install:**
 
   ```bash
   cd .brainer && git pull        # pull the latest catalog
   ./install.sh                          # re-wire — self-healing (--dry-run to preview)
   ```
 
-  A re-run is **self-healing**: it (re)symlinks the current skills, **prunes broken symlinks** for any cut skill, removes **orphan Cursor `.mdc` rules**, **prunes dead hooks** from `.claude/settings.json` whose script no longer exists, and regenerates the resident catalog (`CLAUDE.md` / `AGENTS.md` / `GEMINI.md`). New skills install on the same pass.
+  A re-run is **self-healing**: it (re)symlinks the current skills, **prunes broken symlinks** for any cut skill, **prunes dead hooks** from `.claude/settings.json` whose script no longer exists, and regenerates the resident catalog (`CLAUDE.md` / `AGENTS.md` / `GEMINI.md`). New skills install on the same pass.
 
 The one thing it deliberately *won't* do is disable a **default-on** hook (`compliance-canary`, `auto-install: true` since v1.7) — its script still exists, so the prune leaves it wired; to turn it off, drop its hook entry from `.claude/settings.json` by hand (or `COMPLIANCE_CANARY_DISABLED=1`).
 
@@ -253,7 +252,7 @@ Built on prior work:
 - [agentskills.io](https://agentskills.io) — open standard, 35+ hosts.
 - [anthropics/skills](https://github.com/anthropics/skills) — canonical SKILL.md and `skill-creator` patterns.
 - [amtiYo/agents](https://github.com/amtiYo/agents) — canonical-source-of-truth + symlink-fanout pattern.
-- [shinpr/sub-agents-skills](https://github.com/shinpr/sub-agents-skills) — `run-agent: codex|claude|cursor-agent|gemini` cross-LLM dispatch.
+- [shinpr/sub-agents-skills](https://github.com/shinpr/sub-agents-skills) — `run-agent: codex|claude|cursor-agent|gemini` cross-LLM dispatch (quoted verbatim from that repo's flag syntax).
 - [muratcankoylan/Agent-Skills-for-Context-Engineering](https://github.com/muratcankoylan/Agent-Skills-for-Context-Engineering) — 15-skill catalog precedent.
 - [coleam00/claude-memory-compiler](https://github.com/coleam00/claude-memory-compiler) — SessionEnd → wiki distillation.
 - [cocoindex-io/cocoindex-code](https://github.com/cocoindex-io/cocoindex-code) — AST MCP code search.
@@ -262,7 +261,7 @@ Built on prior work:
 ## Status
 
 - 22 skills written and lint-clean.
-- 4 hosts wired and verified (Claude Code, Codex, Cursor, Gemini CLI).
+- 3 hosts wired and verified (Claude Code, Codex, Gemini CLI).
 - Static-cost measurements published.
 - Live A/B harness ready; needs a healthy Ollama / explicit `ANTHROPIC_API_KEY` / `HF_TOKEN` to run.
 

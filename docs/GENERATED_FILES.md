@@ -26,7 +26,6 @@ Brainer must not drift. This page defines which files are canonical, which files
 | `.codex/skills/` | Per-machine install target | `skills/*` symlinks | `install.sh` | No | Re-run installer; do not treat symlink fanout as canonical. |
 | `.gemini/settings.json` | Gemini skill-dir config | Installer settings model | `install.sh`, `scripts/check_generated_files.py` | Only intentional host config edits | Keep minimal and valid JSON. |
 | `.gemini/skills/` | Per-machine install target | `skills/*` symlinks | `install.sh` | No | Re-run installer; do not treat symlink fanout as canonical. |
-| `.cursor/rules/` | Cursor rule shims | `skills/*/SKILL.md` descriptions | `install.sh` | No | Re-run installer after skill catalog changes. |
 | `.claude/settings.json` | Repo-local Claude hook state | Per-skill installers and user hook choices | `install.sh`, hook installers | Cautious, host-specific | Back up or dry-run before changing; live hook state may be machine-local. |
 | `.claude-plugin/marketplace.json` | Claude plugin metadata | Skill list and package metadata | `scripts/check_marketplace_sync.py` | Yes, when plugin metadata changes | Keep `skills[]` and prose counts in sync with disk. |
 | `.github/workflows/framework_ci.yml` | CI check carrier | `Makefile` and repo test policy | GitHub Actions, `make check` | Yes | CI must run the same canonical local command. |
@@ -67,7 +66,7 @@ That checker verifies this page covers the high-risk generated or synchronized s
 
 - Host carrier catalogs: `./install.sh --dry-run`, then `./install.sh` when the planned changes are correct.
 - Hook map: `python3 scripts/gen_hooks_map.py`.
-- Per-host symlink/rule fanout: `./install.sh --host <claude-code|codex|cursor|gemini>`.
+- Per-host symlink/rule fanout: `./install.sh --host <claude-code|codex|gemini>`.
 - Wiki indexes: use the `wiki-memory` tooling documented in `docs/MEMORY_MODEL.md`.
 
 ## What not to delete

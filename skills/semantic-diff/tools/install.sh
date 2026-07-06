@@ -4,7 +4,7 @@
 #   bash install.sh          # DEFAULT: slim CLI runtime only (~9-17M).
 #                            #   tree-sitter + 4 grammars, no mcp/cryptography.
 #                            #   Wires the `semdiff-cli` launcher used via Bash —
-#                            #   works on every host (Claude Code, Codex, Cursor,
+#                            #   works on every host (Claude Code, Codex,
 #                            #   Gemini). This is the non-optional default path.
 #   bash install.sh --mcp    # ALSO install the optional MCP server (adds mcp +
 #                            #   cryptography ~24M) and register it with Claude Code.

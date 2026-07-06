@@ -78,7 +78,7 @@ bulk reads).
 
 **Topology default.** The frontier model IS the main loop and routes DOWN
 (plan → delegate → review); every surveyed production coding agent (aider
-architect mode, opusplan, Devin, Cursor) uses strong-leads. A cheap main loop
+architect mode, opusplan, Devin) uses strong-leads. A cheap main loop
 escalates UP only via the prompt-triage escalate-up mode
 (`BRAINER_TRIAGE_ESCALATE_UP=1` → frontier-advisor / frontier-verifier
 subagents) and may only EXECUTE from a frontier-authored plan — never decide

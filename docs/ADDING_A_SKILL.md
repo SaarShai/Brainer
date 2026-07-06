@@ -24,7 +24,7 @@ name: example-skill
 description: Use when a concrete trigger condition applies; say what the skill does in one sentence.
 trigger_type: model
 risk_level: low
-host_support: [claude, codex, cursor, gemini]
+host_support: [claude, codex, gemini]
 side_effects: [none]
 requires_tools: [none]
 ---

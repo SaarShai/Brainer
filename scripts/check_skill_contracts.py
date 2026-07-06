@@ -25,7 +25,7 @@ INDEX_RE = re.compile(r"\|\s*\[([a-z0-9][a-z0-9-]*)\]\(([^)]+/SKILL\.md)\)\s*\|\
 
 TRIGGER_TYPES = {"slash", "model", "hook", "manual"}
 RISK_LEVELS = {"low", "medium", "high"}
-HOST_SUPPORT = {"claude", "codex", "cursor", "gemini", "copilot", "generic"}
+HOST_SUPPORT = {"claude", "codex", "gemini", "copilot", "generic"}
 SIDE_EFFECTS = {
     "none",
     "reads_repo",

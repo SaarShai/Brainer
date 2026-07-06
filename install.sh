@@ -40,7 +40,7 @@ if [ ! -d "$SRC" ]; then
   exit 2
 fi
 
-[ -z "$HOSTS_REQUESTED" ] && HOSTS_REQUESTED="claude-code,codex,cursor,gemini"
+[ -z "$HOSTS_REQUESTED" ] && HOSTS_REQUESTED="claude-code,codex,gemini"
 
 run() {
   if [ "$DRY_RUN" = "1" ]; then echo "DRY: $*"; else eval "$@"; fi
@@ -69,10 +69,10 @@ link() {
 
 # --- Resident skills catalog ---------------------------------------------
 # Skill bodies are lazy-loaded on trigger, which means a freshly booted (or
-# post-compaction) agent doesn't know a model-invokable skill (say `wiki-memory`) even exists —
+# post-compaction) agent doesn't know a model-invokable skill (say `wiki-memory`) even exists
 # so it can't recognize the trigger. We fix this by compiling a 1-line-per-
 # skill catalog and injecting it between sentinels into each host's
-# always-resident doc (CLAUDE.md / AGENTS.md / GEMINI.md / cursor rule).
+# always-resident doc (CLAUDE.md / AGENTS.md / GEMINI.md).
 # Slash-triggered skills (disable-model-invocation: true) get their own
 # section so the agent knows to dispatch on the literal token.
 
@@ -247,7 +247,6 @@ CRAFT
 - **claude-code** — full: hooks (PreCompact/SessionEnd/UserPromptSubmit/SessionStart) + Agent-tool subagents (builder/verifier lanes).
 - **codex** — hooks ported via `.codex/hooks.json` (compaction checkpoint, session archive, canary); NO Agent tool → team-lead lanes go through CLI dispatch (team-lead §2 fallback).
 - **gemini** — hooks are NOT auto-wired by the installer: run `gemini hooks migrate --from-claude` once (move `.claude/settings.local.json` aside first — see context-keeper SKILL) for the PreCompress checkpoint, SessionEnd archive, and BeforeAgent canary/triage; verify on first live session.
-- **cursor** — NO session-lifecycle hooks: no canary, no compaction checkpoint. Re-read the pulse rules at each phase boundary yourself and drop a `/baton` before ending long work.
 - Any host: skills are text-portable; tools are plain python3/bash. If a rule references a hook this host lacks, the RULE still binds — you enforce it manually.
 MATRIX
   cat <<'FOOT'
@@ -514,67 +513,6 @@ install_codex() {
   inject_catalog_into_doc "$REPO_ROOT/AGENTS.md"
 }
 
-install_cursor() {
-  echo "[cursor]"
-  run "mkdir -p '$REPO_ROOT/.cursor/skills' '$REPO_ROOT/.cursor/rules'"
-  prune_stale_skill_links "$REPO_ROOT/.cursor/skills"
-  # Prune orphan rule files for skills removed from the catalog.
-  for mdc in "$REPO_ROOT"/.cursor/rules/*.mdc; do
-    [ -e "$mdc" ] || continue
-    local base; base=$(basename "$mdc" .mdc)
-    [ "$base" = "_brainer-catalog" ] && continue
-    if [ ! -d "$SRC/$base" ]; then
-      if [ "$DRY_RUN" = "1" ]; then echo "DRY: prune orphan $mdc"
-      else rm -f "$mdc"; echo "    [prune] ${base}.mdc (removed from catalog)"; fi
-    fi
-  done
-  for skill in "$SRC"/*/; do
-    name=$(basename "$skill")
-    [ "$name" = "_shared" ] && continue
-    link "$skill" "$REPO_ROOT/.cursor/skills/$name"
-    local mdc="$REPO_ROOT/.cursor/rules/${name}.mdc"
-    if [ "$DRY_RUN" = "1" ]; then
-      echo "DRY: write $mdc"
-    else
-      local desc
-      # `|| true`: a skill with no `description:` line must NOT abort the whole
-      # installer under `set -euo pipefail` (grep no-match exits 1 → pipefail). An
-      # empty description is fine; crashing the run (and skipping every later skill +
-      # the gemini pass) is not. This is why product-images' gemini install stalled.
-      desc=$(grep -m1 '^description:' "$skill/SKILL.md" | sed 's/^description: *//' || true)
-      cat > "$mdc" <<MDC
----
-description: $desc
-globs: ["**/*"]
-alwaysApply: false
----
-
-@$SKILLS_DIR/$name/SKILL.md
-MDC
-      echo "    [write] $mdc"
-    fi
-  done
-  # Always-apply catalog rule — keeps slash-triggers visible in Cursor's
-  # resident context even though individual skill .mdc files are alwaysApply:false.
-  local catalog_mdc="$REPO_ROOT/.cursor/rules/_brainer-catalog.mdc"
-  if [ "$DRY_RUN" = "1" ]; then
-    echo "DRY: write $catalog_mdc"
-  else
-    local body_tmp; body_tmp=$(mktemp)
-    render_skills_catalog > "$body_tmp"
-    {
-      printf -- '---\n'
-      printf -- 'description: Brainer repo-local skills catalog — slash-trigger awareness.\n'
-      printf -- 'globs: ["**/*"]\n'
-      printf -- 'alwaysApply: true\n'
-      printf -- '---\n\n'
-      cat "$body_tmp"
-    } > "$catalog_mdc"
-    rm -f "$body_tmp"
-    echo "    [write] $catalog_mdc"
-  fi
-}
-
 install_gemini() {
   echo "[gemini]"
   run "mkdir -p '$REPO_ROOT/.gemini/skills'"
@@ -605,9 +543,8 @@ for h in "${HOST_LIST[@]}"; do
   case "$h" in
     claude-code) install_claude_code ;;
     codex)       install_codex ;;
-    cursor)      install_cursor ;;
     gemini)      install_gemini ;;
-    *) echo "unknown host: $h (claude-code|codex|cursor|gemini)" >&2; exit 2 ;;
+    *) echo "unknown host: $h (claude-code|codex|gemini)" >&2; exit 2 ;;
   esac
 done
 

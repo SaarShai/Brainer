@@ -20,7 +20,7 @@ Every skill must be: **robust** (survives host quirks, bad input, re-install), *
 
 ## Suite-level definition of done
 
-1. `./install.sh` idempotent + self-healing on all four hosts (claude-code, codex, cursor, gemini); broken links/hooks prune on re-install.
+1. `./install.sh` idempotent + self-healing on all three hosts (claude-code, codex, gemini); broken links/hooks prune on re-install.
 2. One command runs every deterministic test the repo ships; exit code is the verdict.
 3. Model-dependent claims carry ≥2-model-family evidence (local ollama / M1 / M2 / Kaggle) before headline status.
 4. Catalog stays pruned: a skill that is unmeasured AND redundant gets cut, not kept.
