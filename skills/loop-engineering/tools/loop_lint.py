@@ -15,7 +15,8 @@ generator != verifier} is not a loop — it is an open-ended spin. This linter
 refuses such specs BEFORE the loop runs, turning the doctrine into a mechanical
 gate (per Brainer's "no prose rule where a mechanical gate can stand").
 
-It validates a loop spec against three FAIL rules and ten WARN rules:
+It validates a loop spec against three always-FAIL rules, nine WARN rules, and
+one context-scoped rule (R7 — FAIL when unattended, WARN when attended):
 
   R1 NO-GATE          (FAIL) — gate absent, or prose with no machine-checkable
                                pass/fail signal (allowlist: a command / test id /
@@ -29,8 +30,13 @@ It validates a loop spec against three FAIL rules and ten WARN rules:
                                (declare that "no feedback" is intentional).
   R5 FLEET-NO-QUORUM  (WARN) — fleet topology with no aggregation/quorum gate.
   R6 NO-TOPOLOGY      (WARN) — topology not declared (you did not choose a shape).
-  R7 IRREVERSIBLE-NO-HUMAN (WARN) — autonomous loop that merges/deploys/migrates/
-                               charges with no human approval gate (the security tax).
+  R7 IRREVERSIBLE-NO-HUMAN (FAIL if unattended, else WARN) — a loop that merges/
+                               deploys/migrates/charges with no human approval gate
+                               (the security tax). An UNATTENDED loop (scheduled/
+                               event/outer/fleet/long-running — same predicate as
+                               R8/R10/R12b/R13/R14) has no human present to catch it
+                               at runtime, so it is a hard FAIL; an ATTENDED loop
+                               keeps the advisory WARN (a human is there to approve).
   R8 NO-MEMORY-CONTRACT (WARN) — scheduled/fleet/outer loop lacks anchor/read/write
                                state fields, so it will re-derive after context rot.
   R9 FLEET-STATE-NO-CONCURRENCY (WARN) — fleet has shared state with no explicit
@@ -900,17 +906,25 @@ def check_spec(report: Report, spec: Spec, rule_filter: int | None, *, strict_me
     # R7 IRREVERSIBLE-NO-HUMAN — an autonomous loop that merges/deploys/migrates/
     # charges with no human in the loop (the security tax: an unattended loop is an
     # unattended attack surface). A human gate or a human verifier silences it.
+    # Severity is scoped by the SAME unattended predicate as R8/R10/R12b/R13/R14
+    # (needs_memory_contract — scheduled/event/outer/fleet/long-running): an
+    # UNATTENDED loop has no human present to catch the irreversible action at
+    # runtime, so it FAILs. An ATTENDED inner fix loop keeps the advisory WARN — a
+    # human is in the loop to approve before the action runs.
     if want(7):
         # scan each action field SEPARATELY (not the name, and not joined — joining
         # lets a gate's "pytest tests/" bleed into the stop's window and wrongly
         # suppress). A label like "deploy-config-linter" takes no action.
         m = next((mm for mm in (_irreversible_action(f) for f in (stop, gate, generator)) if mm), None)
         if m and not _has_human_gate(gate) and not _HUMAN_TOKEN.search(verifier):
-            report.add(Finding(7, "WARN", f"spec '{label}' takes an irreversible action with no human gate",
+            r7_severity: Severity = "FAIL" if needs_memory_contract else "WARN"
+            report.add(Finding(7, r7_severity, f"spec '{label}' takes an irreversible action with no human gate",
                                src, spec.line_of("gate") or spec.start_line,
                                f"the loop names an irreversible action ({m.group(0)!r}) but no human approves "
                                "before it runs. Require a human sign-off (a human verifier, or an approve/"
-                               "sign-off gate) before merge / deploy / migrate / charge; scope its permissions."))
+                               "sign-off gate) before merge / deploy / migrate / charge; scope its permissions."
+                               + (" This loop is UNATTENDED — no human is present to catch it at runtime, so "
+                                  "this is a hard failure, not an advisory." if needs_memory_contract else "")))
 
     # R8 NO-MEMORY-CONTRACT — context rot starts to matter for loops that are
     # outer, scheduled/event-triggered, long-running, or parallel. Do not fail

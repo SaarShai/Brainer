@@ -10,7 +10,7 @@
         "matcher": "grep|glob",
         "hooks": [
           {
-            "command": "python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/index-first/tools/augment.py\"",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/.gemini/skills/index-first/tools/augment.py\"",
             "type": "command"
           }
         ]
@@ -22,7 +22,7 @@
         "matcher": "*",
         "hooks": [
           {
-            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/prompt-triage/tools/hook.sh\"",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.gemini/skills/prompt-triage/tools/hook.sh\"",
             "type": "command"
           }
         ]
@@ -31,7 +31,7 @@
         "matcher": "*",
         "hooks": [
           {
-            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/compliance-canary/tools/hook.sh\"",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.gemini/skills/compliance-canary/tools/hook.sh\"",
             "type": "command"
           }
         ]
@@ -44,7 +44,7 @@
         "matcher": "*",
         "hooks": [
           {
-            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/learn-skill/tools/hook_session_start.sh\"",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.gemini/skills/learn-skill/tools/hook_session_start.sh\"",
             "type": "command"
           }
         ]
@@ -55,7 +55,7 @@
         "matcher": "*",
         "hooks": [
           {
-            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/context-keeper/tools/archive.sh\"",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.gemini/skills/context-keeper/tools/archive.sh\"",
             "type": "command"
           }
         ]
@@ -64,7 +64,7 @@
         "matcher": "*",
         "hooks": [
           {
-            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/learn-skill/tools/hook_session_end.sh\"",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.gemini/skills/learn-skill/tools/hook_session_end.sh\"",
             "type": "command"
           }
         ]
@@ -75,7 +75,7 @@
         "matcher": "*",
         "hooks": [
           {
-            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/context-keeper/tools/hook.sh\"",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.gemini/skills/context-keeper/tools/hook.sh\"",
             "type": "command"
           }
         ]

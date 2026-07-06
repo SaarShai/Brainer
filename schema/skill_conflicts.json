@@ -42,6 +42,12 @@
       "status": "accepted",
       "risk": "Both use audit language; an agent could confuse Brainer skill-use audit with project task learning.",
       "resolution": "Default 'activate audit mode' to brainer-audit unless the user uses task/project-learning language. task-retrospective writes only project learnings; brainer-audit is report-only by default and proposes Brainer improvements."
+    },
+    {
+      "skills": ["team-lead", "prompt-triage"],
+      "status": "accepted",
+      "risk": "prompt-triage (per-prompt model routing) and team-lead (per-task lane decomposition) can both fire, and running both on one small ask adds delegation ceremony that costs more than the task.",
+      "resolution": "Triage wins for a single-shot task, team-lead for genuinely decomposable multi-lane work — don't run both on one small ask."
     }
   ]
 }

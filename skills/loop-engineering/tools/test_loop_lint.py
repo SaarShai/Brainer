@@ -410,6 +410,28 @@ def test_deploy_word_in_path_no_false_r7():
     assert not _has(spec, 7, "WARN"), _rules(spec)
 
 
+def test_irreversible_unattended_fails_r7():
+    # an UNATTENDED loop (scheduled/event/outer/fleet/long-running — the same
+    # predicate R8/R10/R12b/R13/R14 use) that names an irreversible action with no
+    # human gate has no human present to catch it at runtime: hard FAIL, not WARN.
+    spec = (CLEAN.replace("topology: closed · inner · single", "topology: scheduled")
+            .replace("stop: all target tests green", "stop: deploys to prod when tests pass"))
+    assert _has(spec, 7, "FAIL"), _rules(spec)
+    assert not _has(spec, 7, "WARN"), _rules(spec)
+    assert _exit_for(spec) == 2
+
+
+def test_irreversible_attended_still_warns_r7():
+    # the SAME irreversible action on an ATTENDED loop (closed · inner · single,
+    # no scheduled/fleet/outer/long-running signal) stays an advisory WARN — a
+    # human is present to approve before it runs. Proves the FAIL escalation is
+    # scoped to unattended loops, not a blanket promotion of R7.
+    spec = CLEAN.replace("stop: all target tests green", "stop: deploys to prod when tests pass")
+    assert _has(spec, 7, "WARN"), _rules(spec)
+    assert not _has(spec, 7, "FAIL"), _rules(spec)
+    assert _exit_for(spec) == 1
+
+
 # --- R4 OPEN-NO-ACK -------------------------------------------------------
 
 def test_open_loop_without_ack_warns():

@@ -21,8 +21,10 @@ CODEX_HOOKS="$REPO/.codex/hooks.json"
 # Run-time-expanded project root, not cwd-relative './' (which breaks on cwd drift).
 HOOK_CMD='bash "${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/context-keeper/tools/hook.sh"'
 ARCHIVE_CMD='bash "${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/context-keeper/tools/archive.sh"'
-# Same portable run-time-expanded form (.codex/hooks.json is committed). Reuse the .claude skill symlink.
-CODEX_ARCHIVE_CMD='bash "${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/context-keeper/tools/codex_archive.sh"'
+# Same portable run-time-expanded form (.codex/hooks.json is committed). Codex resolves
+# its own skills dir (.codex/skills/<name> symlink), not .claude's — cross-host paths
+# dangle on a codex-only install (harness H3a).
+CODEX_ARCHIVE_CMD='bash "${CLAUDE_PROJECT_DIR:-$PWD}/.codex/skills/context-keeper/tools/codex_archive.sh"'
 
 merge_settings() {
   python3 - "$SETTINGS" "$HOOK_CMD" "$ARCHIVE_CMD" <<'PY'
