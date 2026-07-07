@@ -84,6 +84,12 @@ every gate inert). Therefore:
 - Done-claim pressure is prevented in briefs (executor contract: READY FOR
   JUDGING, never "done"), because hooks do not fire inside subagents
   (failure #12).
+- Knowledge-layer writes by a DELEGATE (wiki page, memory entry, EVAL
+  numbers) are fact-checked against ground truth by the briefing context
+  before commit — delegates confabulate plausible detail (observed
+  2026-07-06: a wiki subagent invented file names, tests, and attack rounds
+  from an accurate brief, at confidence 0.95). Liveness lints catch dead
+  links, never invented facts; only the context holding ground truth can.
 
 ## §6 Improvement work IS production work
 
