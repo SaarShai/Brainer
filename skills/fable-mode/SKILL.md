@@ -92,6 +92,7 @@ Any one of these: stop, go back to that gate.
 ## Notes
 
 - This is a method skill, not a workflow. It changes how you execute the current task; it produces no files of its own.
+- Companion to [`think`](../think/SKILL.md): `/think` is the **diverge/approach** phase (framing, ideation, first-principles), invoked deliberately and manual-only; fable-mode is the **converge/execute** phase, auto-firing on hard tasks. They stack — think at the start, fable throughout — and are deliberately NOT merged (opposite invocation models). Gate 1 scope, gate 3 adversarial, and gate 5 no-fabricate overlap think's define-the-goal / falsify / no-flatter rules; do it once.
 - It stacks with task-specific skills (`verify-before-completion`, `impact-of-change`, `eval-gate`, `/code-review`). Those are the "how to check" tools; this is the discipline of when to reach for them.
 - Don't apply to trivial work. Forcing all five gates onto a two-minute edit is its own failure mode.
 - If a task keeps failing under this discipline, that's the signal to escalate to a stronger seat — a frontier-tier consult, a cold cross-vendor verifier, or the user — not to loosen the process. Keep the discipline either way.

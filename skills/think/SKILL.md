@@ -10,6 +10,8 @@ pulse_reminder: think first-principles; reduce/simplify before adding; research 
 
 How to think and approach problems. **Manual-only** — invoke with `/think` (a literal token recognised across hosts, even where no such command is installed); it does not auto-fire. Use it when you judge the task benefits from deliberate method: ideation, root-causing, pre-mortems, an open-ended or high-stakes problem. The user may add to this over time.
 
+`/think` governs the **diverge/approach** phase (frame the problem, generate approaches, pick one); [`fable-mode`](../fable-mode/SKILL.md) governs the **converge/execute** phase (scope → evidence → adversarial → verify → report) and auto-fires on hard tasks. They stack: think at the start, fable throughout. Where they touch — falsify-your-approach, don't-fabricate/flatter, define-the-real-goal — perform it once; don't restate the other's rules here.
+
 ## How to apply this
 
 Written for the **weakest model that will load it.** A strong model may already do much of this — do it anyway, explicitly.
