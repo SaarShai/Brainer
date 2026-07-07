@@ -47,6 +47,7 @@ Compact pointers. Fetch details on demand.
 - concepts/karpathy-wiki (concept tags=wiki,memory,retrieval) -> `concepts/karpathy-wiki.md`
 - concepts/kv-cache-eviction (concept tags=kv-cache,long-context) -> `concepts/kv-cache-eviction.md`
 - concepts/lean-execution (concept tags=lean,planning,delegation,context,process-rot) -> `concepts/lean-execution.md`
+- concepts/learning-loop-hardening-2026-07 (concept tags=learning,hardening,failures,skills,write-gate,compliance-canary,eval-gate,lifecycle-testing,propagate,e3) -> `concepts/learning-loop-hardening-2026-07.md`
 - concepts/llmlingua (concept tags=compression,llmlingua) -> `concepts/llmlingua.md`
 - concepts/local-model-setup (concept tags=infra,devices,models,routing,harnesses) -> `concepts/local-model-setup.md`
 - concepts/measure-triggers-by-decision-marker (concept tags=eval-methodology,triggers,measurement) -> `concepts/measure-triggers-by-decision-marker.md`
