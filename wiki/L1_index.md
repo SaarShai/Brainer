@@ -40,10 +40,13 @@ Compact pointers. Fetch details on demand.
 - concepts/demote-vs-description-tax (concept tags=eval-methodology,skills,description-tax,cost) -> `concepts/demote-vs-description-tax.md`
 - concepts/devices-inventory (concept tags=infra,devices,inventory,compute) -> `concepts/devices-inventory.md`
 - concepts/e2-prose-rules-measured-2026-07 (concept tags=eval-methodology,ab-test,negative-result,eval-gate,loop-engineering,measured) -> `concepts/e2-prose-rules-measured-2026-07.md`
+- concepts/fable-mode-probe-firing-rate-2026-07 (concept tags=fable-mode,drift-probe,firing-rate,measurement,domain-data,false-positive-calibration) -> `concepts/fable-mode-probe-firing-rate-2026-07.md`
+- concepts/fable-mode-probe-message-overclaim-lesson (lesson tags=fable-mode,drift-probe,failure-diagnosis,message-calibration,overclaim,failure-lesson,compliance-canary) -> `concepts/fable-mode-probe-message-overclaim-lesson.md`
 - concepts/framework-hardening-adoption (concept tags=framework,adoption,retrieval,memory,routing,skills) -> `concepts/framework-hardening-adoption.md`
 - concepts/frontier-routing-topology-2026-07 (decision tags=orchestration,routing,topology,decision,measured,cost,frontier-model) -> `concepts/frontier-routing-topology-2026-07.md`
 - concepts/harness-article-adoption-2026-07 (concept tags=skills,harness,article-adoption,tool-scoping,error-taxonomy,negative-result) -> `concepts/harness-article-adoption-2026-07.md`
 - concepts/hook-path-fragility (concept tags=hooks,install,cwd-drift,lockout,pretooluse,claude-project-dir,fail-open,hard-rule) -> `concepts/hook-path-fragility.md`
+- concepts/honest-rebaseline-byte-budget-procedure (procedure tags=byte-budget,gate-first,re-baseline,measurement,process-integrity,framework-hardening) -> `concepts/honest-rebaseline-byte-budget-procedure.md`
 - concepts/karpathy-wiki (concept tags=wiki,memory,retrieval) -> `concepts/karpathy-wiki.md`
 - concepts/kv-cache-eviction (concept tags=kv-cache,long-context) -> `concepts/kv-cache-eviction.md`
 - concepts/lean-execution (concept tags=lean,planning,delegation,context,process-rot) -> `concepts/lean-execution.md`
