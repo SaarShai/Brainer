@@ -64,8 +64,22 @@ def check_h1a() -> tuple[str, str, bool, str]:
     further safe relocation is being left on the table" rather than
     rewarding a cut that could only be reached by degrading trigger recall
     or always-on behavior.
+
+    Re-baseline (2026-07-07): between the 2026-07-06 floor (26 skill lines,
+    6964B) and now, one new skill shipped (fable-mode) and two descriptions
+    grew to describe real added capability (compliance-canary's correction-
+    ledger clause; propagate's harvest clause). Byte-accounting proved this
+    is the ENTIRE delta: splitting the block into skill-description lines vs
+    everything else (headers, intros, memory blurb, code-craft rules, matrix
+    pointer) shows the non-description bucket unchanged to the byte between
+    the two commits — zero new relocation opportunity exists; 100% of the
+    +448B is immutable description growth. BUDGET_BYTES re-tuned 7220 ->
+    7668 (new measured floor 7412B + the same 256B margin) — a documented-
+    floor correction for legitimate skill growth, not a loosened target.
+    Standing bar for ANY future re-baseline: repeat the description-vs-
+    structure byte split; only description growth justifies a bump.
     """
-    BUDGET_BYTES = 7220  # measured floor (6964B, 2026-07-06) + 256B margin
+    BUDGET_BYTES = 7668  # measured floor (7412B, 2026-07-07) + 256B margin
     claude_md = REPO / "CLAUDE.md"
     if not claude_md.exists():
         return ("H1a", "token", False, "CLAUDE.md not found")
@@ -80,7 +94,7 @@ def check_h1a() -> tuple[str, str, bool, str]:
     size = len(block.encode("utf-8"))
     ok = size <= BUDGET_BYTES
     return ("H1a", "token", ok,
-            f"resident block {size}B vs budget {BUDGET_BYTES}B (measured floor 6964B + 256B margin, "
+            f"resident block {size}B vs budget {BUDGET_BYTES}B (measured floor 7412B + 256B margin, "
             f"down from 7990B pre-diet baseline via safe relocation, not trigger/rule cuts)")
 
 
