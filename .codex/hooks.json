@@ -1,10 +1,52 @@
 {
   "hooks": {
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/skills/brainer-audit/tools/hook.py\" --host codex --event PostCompact",
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/skills/brainer-audit/tools/hook.py\" --host codex --event PostToolUse",
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      }
+    ],
     "PreCompact": [
       {
         "hooks": [
           {
             "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.codex/skills/context-keeper/tools/hook.sh\"",
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      },
+      {
+        "hooks": [
+          {
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/skills/brainer-audit/tools/hook.py\" --host codex --event PreCompact",
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/skills/brainer-audit/tools/hook.py\" --host codex --event PreToolUse",
             "type": "command"
           }
         ],
@@ -24,6 +66,15 @@
         "hooks": [
           {
             "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.codex/skills/learn-skill/tools/hook_codex_stop.sh\"",
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      },
+      {
+        "hooks": [
+          {
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/skills/brainer-audit/tools/hook.py\" --host codex --event Stop",
             "type": "command"
           }
         ],
@@ -52,6 +103,15 @@
         "hooks": [
           {
             "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.codex/skills/compliance-canary/tools/hook.sh\"",
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      },
+      {
+        "hooks": [
+          {
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/skills/brainer-audit/tools/hook.py\" --host codex --event UserPromptSubmit",
             "type": "command"
           }
         ],

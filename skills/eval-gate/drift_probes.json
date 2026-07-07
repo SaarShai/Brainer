@@ -22,5 +22,14 @@
     "pattern": "(?i)\\b(?:lower|drop|reduce|loosen|relax|weaken|soften|down-?grade)(?:ing|ed)? (?:the )?(?:threshold|tolerance|gate|bar|criteria|cut-?off|pass[- ]?mark|standard|assertion|expectation)s?\\b|\\b(?:threshold|tolerance|cut-?off)\\b[^.?!\\n]{0,25}\\bso (?:it|they|that|the (?:test|check|gate))\\b[^.?!\\n]{0,15}\\bpass",
     "message": "you appear to be WEAKENING a gate to make it pass — don't. A tolerance / threshold / expectation change needs explicit human sign-off, never mid-run to convert FAIL→PASS. Raise the bar, never lower it to wave work through.",
     "severity": "warn"
+  },
+  {
+    "id": "feedback-ask-without-rubric",
+    "kind": "forbidden_regex",
+    "pattern": "(?i)\\b(?:what do you think|which (?:do you|one do you) prefer|prefer\\b|judge (?:this|it|these)|feedback on (?:this|these|it|the \\w+)|which (?:one|version|option)?\\s*(?:passes|wins|is better|looks best|looks better)|review this|feels off|favorite|thoughts on)\\b",
+    "unless_pattern": "(?i)(?:\\b(?:scoring guide|acceptance|done means|pass if|threshold|must have|measuring|success means|judge it by)\\b|\\bcriteri(?:a|on)\\b[^.\\n]{0,10}[:=](?!\\s*(?:TBD|TBA|none|n/?a|later|pending|\\?+)\\b)|\\brubric\\b[^.\\n]{0,12}[:=](?!\\s*(?:TBD|TBA|none|n/?a|later|pending|\\?+)\\b))",
+    "message": "asking the user to judge/review an artifact with no stated criterion nearby — live incident: 'here's the compare board — which do you prefer?' gave the user nothing to measure against. Broadened to catch review this/feels off/looks best/prefer/favorite/thoughts-on asks too. A bare mention of the word 'criteria'/'criterion'/'rubric' (e.g. a file name, or 'no criteria yet', or 'rubric file is attached for naming only') does NOT suppress this — only an actual stated criterion (scoring guide:, acceptance:, done means:, pass if, threshold, must have, or 'criteria/criterion:'/'rubric:' followed by a definition) does. A definition-shape match (criteria:/rubric: followed by a colon or equals) does NOT suppress when the value right after it is a placeholder ('TBD', 'TBA', 'none', 'n/a', 'later', 'pending', or bare '?'/'??') — so 'rubric: TBD; which wins?' and 'criteria: none yet; which looks best?' still fire; a placeholder is not a stated criterion. State the judging criterion (measuring X, success means Y, judge it by Z) before or alongside the ask, or run eval-gate against a written rubric instead of outsourcing the grading to eyeballing.",
+    "severity": "warn",
+    "_note": "ADVISORY heuristic over unbounded natural language — observed-incident phrasings + common variants are covered and regression-tested (3 adversarial rounds); paraphrase false-negatives and topic-collision false-positives remain possible by design and are accepted (LEARNING_CONTRACT §3: heuristic banked with scope of validity)."
   }
 ]

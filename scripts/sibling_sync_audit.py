@@ -85,10 +85,17 @@ def skill_files(root: Path) -> list[Path]:
     for p in (root / "skills").rglob("*"):
         if not p.is_file():
             continue
-        if any(part in SKIP for part in p.relative_to(root).parts):
+        rel = p.relative_to(root)
+        if any(part in SKIP for part in rel.parts):
             continue
-        out.append(p.relative_to(root))
-    return out
+        out.append(rel)
+    # A gitignored path (e.g. a canary's `.brainer/` runtime-state JSON) is
+    # never canonical source. Filtering it out HERE — the single enumeration
+    # every consumer (classify/audit/apply) shares — means none of them can
+    # see a phantom absent/differs row for it; the copy-time guards below
+    # remain as defense-in-depth, not the only line of defense.
+    ignored = _canon_gitignored([str(p) for p in out])
+    return [p for p in out if str(p) not in ignored]
 
 
 def skill_names(root: Path) -> set[str]:
@@ -178,6 +185,28 @@ def classify_differs(sib: Path, differs: list[str]) -> dict:
         else:
             stale.append(rel)
     return {"stale": stale, "customized": customized, "local_lines": local_lines}
+
+
+def _canon_gitignored(rels: list[str]) -> set[str]:
+    """Batch-classify which of `rels` (paths relative to BRAINER) are gitignored
+    in the canonical repo — via one `git check-ignore --stdin` call rather than
+    per-file spawning. A gitignored path is runtime state (e.g. a canary's
+    `.brainer/` state JSON), never canonical source, and must never be copied
+    into a sibling by --apply-absent/--apply-stale/--adopt-new-skills.
+
+    Uses `-z` (NUL-delimited, both directions): plain newline-delimited
+    `--stdin` breaks on two path shapes git otherwise mangles — a non-ASCII
+    filename comes back C-style-quoted (`"...\\303\\251.json"`), and a
+    filename containing an embedded newline splits into two bogus entries.
+    `-z` disables that quoting and delimits on NUL instead, so both round-trip
+    byte-exact."""
+    if not rels:
+        return set()
+    payload = ("\x00".join(rels) + "\x00").encode("utf-8", "surrogateescape")
+    out = subprocess.run(["git", "check-ignore", "--stdin", "-z"], cwd=BRAINER,
+                          input=payload, capture_output=True)
+    return {p.decode("utf-8", "surrogateescape")
+            for p in out.stdout.split(b"\x00") if p}
 
 
 def _optout_skills(sib: Path) -> set[str]:
@@ -390,7 +419,10 @@ def main() -> int:
                 for ln in cl["local_lines"].get(f, [])[:6]:
                     print(f"          local: {ln[:100]}")
             if args.apply_stale:
+                ignored = _canon_gitignored(cl["stale"])
                 for f in cl["stale"]:
+                    if f in ignored:
+                        continue  # gitignored = runtime state, never canonical source
                     shutil.copy2(BRAINER / f, DOCS / s["repo"] / f)
                     print(f"      applied     {f}")
                 if cl["stale"]:
@@ -407,7 +439,10 @@ def main() -> int:
                 for ln in acl["local_lines"].get(f, [])[:6]:
                     print(f"          local: {ln[:100]}")
             if args.apply_stale:
+                ignored = _canon_gitignored(acl["stale"])
                 for f in acl["stale"]:
+                    if f in ignored:
+                        continue  # gitignored = runtime state, never canonical source
                     shutil.copy2(BRAINER / f, DOCS / s["repo"] / f)
                     print(f"      applied           {f}")
                 if acl["stale"]:
@@ -417,7 +452,10 @@ def main() -> int:
         if args.apply_absent and s.get("absent"):
             sib = DOCS / s["repo"]
             applied = 0
+            ignored = _canon_gitignored(s["absent"])
             for f in s["absent"]:
+                if f in ignored:
+                    continue  # gitignored = runtime state, never canonical source
                 rel = Path(f)
                 # skills/<file> rides with the skills/ tree itself; deeper paths
                 # require the sibling to have adopted that skill's dir.
@@ -436,8 +474,17 @@ def main() -> int:
             for name in s["new_skills"]:
                 src = BRAINER / "skills" / name
                 dst = sib / "skills" / name
-                shutil.copytree(src, dst, dirs_exist_ok=True,
-                                ignore=shutil.ignore_patterns(*SKIP))
+                skill_rels = [str(p) for p in skill_files(BRAINER)
+                              if p.parts[:2] == ("skills", name)]
+                ignored_rels = _canon_gitignored(skill_rels)
+
+                def _ignore(cur_dir, names, _ignored=ignored_rels):
+                    skip = set(shutil.ignore_patterns(*SKIP)(cur_dir, names))
+                    rel_dir = Path(cur_dir).resolve().relative_to(BRAINER)
+                    skip |= {n for n in names if str(rel_dir / n) in _ignored}
+                    return skip
+
+                shutil.copytree(src, dst, dirs_exist_ok=True, ignore=_ignore)
                 print(f"      adopted     skills/{name}/")
             print(f"\n  {len(s['new_skills'])} new skill(s) adopted into "
                   f"{s['repo']}. NOW: re-run {s['repo']}/install.sh (wires the "

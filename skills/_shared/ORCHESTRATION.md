@@ -183,6 +183,13 @@ Rules:
   rogue revert's blast radius is one wave, not the session. (Harvested from
   screenery-lean failure #18 — independently re-derived there and in Brainer's
   own fleet incident the same day.)
+- **Leader-side mechanical twin of the no-git rule** (hooks don't fire inside
+  lanes, so the guard can't live there): run
+  [`lane_guard.py snapshot`](../../scripts/lane_guard.py) before dispatching a
+  multi-lane wave, then `lane_guard.py check` after EACH lane returns — a
+  stash created, HEAD moved, or a dirty file reverted-to-HEAD is a FAIL that
+  quarantines that lane's report until the tree is reconciled (never
+  self-absorbed as "looks fine").
 
 (Adapted from DannyMac180/fable-advisor, MIT — generalized from concrete
 models to tiers.)

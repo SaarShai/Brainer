@@ -1499,6 +1499,233 @@ PYEOF
 out=$(call_p cesc skesc "$TESC" "$SESC" 'continue')
 if echo "$out" | grep -q 'ESCALATION' && echo "$out" | grep -q 'closeout-blocking gate'; then ok "escalation surfaces in hook output"; else no "escalation missing from output" "got: $(echo "$out"|head -c200)"; fi
 
+# ======================================================================
+# Live-monitoring drift probes (3 new probes, canary Mechanism 5 follow-up):
+# requirements-ledger "assumption-self-close", eval-gate
+# "feedback-ask-without-rubric", baton "grabbed-baton-not-consulted". Each
+# has a positive (bad exemplar) and negative (clean near-miss) test.
+# ======================================================================
+
+echo "[97] requirements-ledger assumption-self-close: bad exemplar fires"
+RLPROBES='[{"id":"assumption-self-close","kind":"forbidden_regex","pattern":"(?i)\\b(?:done|complete|finished|closed)\\b[^\\n]{0,110}?(?:user\\s+will\\b|user\\s+(?!agrees\\b|confirms\\b|approves\\b|accepts\\b|acknowledges\\b|signs\\b)\\w+s\\b|you.?ll\\b|you\\s+will\\b|you\\s+(?!agrees\\b|confirms\\b|approves\\b|accepts\\b|acknowledges\\b|signs\\b)\\w+s\\b|saar\\s+will\\b|saar\\s+(?!agrees\\b|confirms\\b|approves\\b|accepts\\b|acknowledges\\b|signs\\b)\\w+s\\b|\\bassuming\\b|\\blater\\b|\\bafterwards\\b|\\bsubsequently\\b)","unless_pattern":"(?i)\\b(?:done|complete|finished|closed)\\b(?![^\\n]*\\b(?:tomorrow|next)\\b)[^\\n]{0,110}?\\b(?:verified|\\d+\\s*/\\s*\\d+|render(?:ed)?|tests?\\b|matched|manifest)\\b[^\\n]{0,110}?(?:user\\s+will\\b|user\\s+\\w+s\\b|you.?ll\\b|you\\s+will\\b|you\\s+\\w+s\\b|saar\\s+will\\b|saar\\s+\\w+s\\b|\\bassuming\\b|\\blater\\b|\\bafterwards\\b|\\bsubsequently\\b)","message":"self-closed on an unconfirmed assumption"}]'
+make_skill_with_probes sk97 requirements-ledger "$RLPROBES"
+TX="$TRANSCRIPT_DIR/t97.jsonl"
+write_transcript "$TX" "$(assistant_text 'done — byte-identical copy (scaffold; Saar sorts out art)' u97)"
+out=$(call cc97 sk97 "$TX" s97)
+if emitted "$out" && echo "$out" | grep -q 'requirements-ledger \[forbidden_regex\]: self-closed on an unconfirmed assumption'; then ok "assumption-self-close fires on bad exemplar"; else no "assumption-self-close fires on bad exemplar" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[98] requirements-ledger assumption-self-close: clean near-miss (verified done) stays silent"
+TX="$TRANSCRIPT_DIR/t98.jsonl"
+write_transcript "$TX" "$(assistant_text 'done — verified 31/31 via manifest (render attached)' u98)"
+out=$(call cc98 sk97 "$TX" s98)
+if [ -z "$out" ]; then ok "verified-done clean near-miss stays silent"; else no "verified-done clean near-miss stays silent" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[99] eval-gate feedback-ask-without-rubric: bad exemplar fires"
+EGPROBES='[{"id":"feedback-ask-without-rubric","kind":"forbidden_regex","pattern":"(?i)\\b(?:what do you think|which (?:do you|one do you) prefer|prefer\\b|judge (?:this|it|these)|feedback on (?:this|these|it|the \\w+)|which (?:one|version|option)?\\s*(?:passes|wins|is better|looks best|looks better)|review this|feels off|favorite|thoughts on)\\b","unless_pattern":"(?i)(?:\\b(?:scoring guide|acceptance|done means|pass if|threshold|must have|measuring|success means|judge it by)\\b|\\bcriteri(?:a|on)\\b[^.\\n]{0,10}[:=](?!\\s*(?:TBD|TBA|none|n/?a|later|pending|\\?+)\\b)|\\brubric\\b[^.\\n]{0,12}[:=](?!\\s*(?:TBD|TBA|none|n/?a|later|pending|\\?+)\\b))","message":"no judging criterion stated"}]'
+make_skill_with_probes sk99 eval-gate "$EGPROBES"
+TX="$TRANSCRIPT_DIR/t99.jsonl"
+write_transcript "$TX" "$(assistant_text "here's the compare board — which do you prefer?" u99)"
+out=$(call cc99 sk99 "$TX" s99)
+if emitted "$out" && echo "$out" | grep -q 'eval-gate \[forbidden_regex\]: no judging criterion stated'; then ok "feedback-ask-without-rubric fires on bad exemplar"; else no "feedback-ask-without-rubric fires on bad exemplar" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[100] eval-gate feedback-ask-without-rubric: clean near-miss (criterion stated) stays silent"
+TX="$TRANSCRIPT_DIR/t100.jsonl"
+write_transcript "$TX" "$(assistant_text "here's the compare board — judging criterion: sharpness lapvar ratio >1.5, no plastic texture; which passes?" u100)"
+out=$(call cc100 sk99 "$TX" s100)
+if [ -z "$out" ]; then ok "criterion-stated clean near-miss stays silent"; else no "criterion-stated clean near-miss stays silent" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[101] baton grabbed-baton-not-consulted: bad exemplar (where-is prompt) fires"
+BPROBES='[{"kind":"prompt_intent","id":"grabbed-baton-not-consulted","pattern":"(?i)(?=.*\\b(?:file|folder|dir|directory|path|export|output|render|asset|minis?|miniatures?|version|docs?|document|image|deliverable)\\b)(?=(?:(?!\\b(?:regex|assertion|function|stack trace|variable|import|class|unit test)\\b).)*$|.*\\b(?:I generated|we made|I created|earlier|yesterday|before the|last session)\\b)\\b(?:where (?:is|are|'"'"'?s)|which file (?:has|had|contains)|which (?:folder|dir|directory) (?:holds|contains)|what was the|can(?:'"'"'|no)t find|cannot find|couldn'"'"'?t find|where did (?:we|i|you) (?:put|leave|save|store))\\b","message":"re-consult the active baton before answering from memory"}]'
+make_skill_with_probes sk101 baton "$BPROBES"
+TX="$TRANSCRIPT_DIR/t101.jsonl"
+write_transcript "$TX" "$(assistant_text 'previous turn context' u101)"
+out=$(call_p cc101 sk101 "$TX" s101 'where are the washington miniatures?!')
+if emitted "$out" && echo "$out" | grep -q 'baton \[prompt_intent\]: re-consult the active baton'; then ok "grabbed-baton-not-consulted fires on where-is prompt"; else no "grabbed-baton-not-consulted fires on where-is prompt" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[102] baton grabbed-baton-not-consulted: clean near-miss (ordinary prompt) stays silent"
+out=$(call_p cc102 sk101 "$TX" s102 'add a retry cap to the loop and a test for it')
+if [ -z "$out" ]; then ok "ordinary prompt clean near-miss stays silent"; else no "ordinary prompt clean near-miss stays silent" "got: $(echo "$out" | head -c200)"; fi
+
+# ======================================================================
+# 17 confirmed codex attack findings against probes 1-3 above (2026-07-07
+# hardening pass). Each becomes a regression test asserting the CORRECT
+# fire/silent behavior directly against the drift_probes.json PROBES
+# strings already re-declared in [97]/[99]/[101] above (sk97/sk99/sk101).
+# ======================================================================
+
+echo "[97a] assumption-self-close ATTACK: MISS — no-parens phrasing now fires"
+TX="$TRANSCRIPT_DIR/t97a.jsonl"
+write_transcript "$TX" "$(assistant_text 'done — byte-identical copy; Saar sorts out art' u97a)"
+out=$(call cc97a sk97 "$TX" s97a)
+if emitted "$out" && echo "$out" | grep -q 'requirements-ledger \[forbidden_regex\]'; then ok "no-parens self-close fires"; else no "no-parens self-close fires" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[97b] assumption-self-close ATTACK: MISS — generalized third-person verb + 'later' deferral fires"
+TX="$TRANSCRIPT_DIR/t97b.jsonl"
+write_transcript "$TX" "$(assistant_text 'done — byte-identical copy (scaffold; user handles art later)' u97b)"
+out=$(call cc97b sk97 "$TX" s97b)
+if emitted "$out" && echo "$out" | grep -q 'requirements-ledger \[forbidden_regex\]'; then ok "generalized verb + later fires"; else no "generalized verb + later fires" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[97c] assumption-self-close ATTACK: MISS — 'complete' done-claim synonym fires"
+TX="$TRANSCRIPT_DIR/t97c.jsonl"
+write_transcript "$TX" "$(assistant_text 'complete — byte-identical copy (scaffold; Saar sorts out art)' u97c)"
+out=$(call cc97c sk97 "$TX" s97c)
+if emitted "$out" && echo "$out" | grep -q 'requirements-ledger \[forbidden_regex\]'; then ok "'complete' done-synonym fires"; else no "'complete' done-synonym fires" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[97d] assumption-self-close ATTACK: MISS — crossing one sentence boundary fires"
+TX="$TRANSCRIPT_DIR/t97d.jsonl"
+write_transcript "$TX" "$(assistant_text 'done — byte-identical copy. (scaffold; Saar sorts out art)' u97d)"
+out=$(call cc97d sk97 "$TX" s97d)
+if emitted "$out" && echo "$out" | grep -q 'requirements-ledger \[forbidden_regex\]'; then ok "sentence-boundary-crossing self-close fires"; else no "sentence-boundary-crossing self-close fires" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[97e] assumption-self-close ATTACK: FALSE-POS — quoted 'user will' phrase alongside verified/N-of-N evidence stays silent"
+TX="$TRANSCRIPT_DIR/t97e.jsonl"
+write_transcript "$TX" "$(assistant_text 'done — verified 31/31 via manifest (literal phrase user will was covered by the negative test)' u97e)"
+out=$(call cc97e sk97 "$TX" s97e)
+if [ -z "$out" ]; then ok "quoted-mention + evidence stays silent"; else no "quoted-mention + evidence stays silent" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[97f] assumption-self-close ATTACK: FALSE-POS — 'Saar sorts' alongside verified/manifest/matched evidence stays silent"
+TX="$TRANSCRIPT_DIR/t97f.jsonl"
+write_transcript "$TX" "$(assistant_text 'done — verified 31/31 via manifest (Saar sorts column matched the source)' u97f)"
+out=$(call cc97f sk97 "$TX" s97f)
+if [ -z "$out" ]; then ok "attribution-phrase + evidence stays silent"; else no "attribution-phrase + evidence stays silent" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[99a] feedback-ask-without-rubric ATTACK: MISS — 'review this'/'feels off' asks fire"
+TX="$TRANSCRIPT_DIR/t99a.jsonl"
+write_transcript "$TX" "$(assistant_text 'Can you review this and tell me what feels off?' u99a)"
+out=$(call cc99a sk99 "$TX" s99a)
+if emitted "$out" && echo "$out" | grep -q 'eval-gate \[forbidden_regex\]'; then ok "review-this/feels-off ask fires"; else no "review-this/feels-off ask fires" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[99b] feedback-ask-without-rubric ATTACK: MISS — 'looks best' ask fires"
+TX="$TRANSCRIPT_DIR/t99b.jsonl"
+write_transcript "$TX" "$(assistant_text 'Which version looks best to you?' u99b)"
+out=$(call cc99b sk99 "$TX" s99b)
+if emitted "$out" && echo "$out" | grep -q 'eval-gate \[forbidden_regex\]'; then ok "looks-best ask fires"; else no "looks-best ask fires" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[99c] feedback-ask-without-rubric ATTACK: FALSE-POS — 'scoring guide: ...; which wins?' stays silent"
+TX="$TRANSCRIPT_DIR/t99c.jsonl"
+write_transcript "$TX" "$(assistant_text 'scoring guide: sharpness >1.5; which wins?' u99c)"
+out=$(call cc99c sk99 "$TX" s99c)
+if [ -z "$out" ]; then ok "scoring-guide-stated ask stays silent"; else no "scoring-guide-stated ask stays silent" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[99d] feedback-ask-without-rubric ATTACK: FALSE-POS — 'acceptance: ...; feedback on this' stays silent"
+TX="$TRANSCRIPT_DIR/t99d.jsonl"
+write_transcript "$TX" "$(assistant_text 'acceptance: must render without artifacts; feedback on this' u99d)"
+out=$(call cc99d sk99 "$TX" s99d)
+if [ -z "$out" ]; then ok "acceptance-stated ask stays silent"; else no "acceptance-stated ask stays silent" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[99e] feedback-ask-without-rubric ATTACK: BYPASS — negated-criteria phrase ('no criteria yet') still fires"
+TX="$TRANSCRIPT_DIR/t99e.jsonl"
+write_transcript "$TX" "$(assistant_text 'I do not have criteria yet; what do you think?' u99e)"
+out=$(call cc99e sk99 "$TX" s99e)
+if emitted "$out" && echo "$out" | grep -q 'eval-gate \[forbidden_regex\]'; then ok "negated-criteria phrase does not suppress — fires"; else no "negated-criteria phrase must still fire" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[99f] feedback-ask-without-rubric ATTACK: BYPASS — bare 'criteria.txt' filename mention still fires"
+TX="$TRANSCRIPT_DIR/t99f.jsonl"
+write_transcript "$TX" "$(assistant_text 'criteria.txt is attached only for file naming; which one is better?' u99f)"
+out=$(call cc99f sk99 "$TX" s99f)
+if emitted "$out" && echo "$out" | grep -q 'eval-gate \[forbidden_regex\]'; then ok "bare criteria.txt mention does not suppress — fires"; else no "bare criteria.txt mention must still fire" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[101a] grabbed-baton-not-consulted ATTACK: MISS — 'which folder holds' fires"
+TX="$TRANSCRIPT_DIR/t101a.jsonl"
+write_transcript "$TX" "$(assistant_text 'previous turn context' u101a)"
+out=$(call_p cc101a sk101 "$TX" s101a 'which folder holds the washington miniatures?')
+if emitted "$out" && echo "$out" | grep -q 'baton \[prompt_intent\]'; then ok "which-folder-holds fires"; else no "which-folder-holds fires" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[101b] grabbed-baton-not-consulted ATTACK: MISS — 'what was the path to...' fires"
+out=$(call_p cc101b sk101 "$TX" s101b 'what was the path to the baton handoff?')
+if emitted "$out" && echo "$out" | grep -q 'baton \[prompt_intent\]'; then ok "what-was-the fires"; else no "what-was-the fires" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[101c] grabbed-baton-not-consulted ATTACK: MISS — \"can't find the minis\" fires"
+out=$(call_p cc101c sk101 "$TX" s101c "can't find the minis")
+if emitted "$out" && echo "$out" | grep -q 'baton \[prompt_intent\]'; then ok "can't-find fires"; else no "can't-find fires" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[101d] grabbed-baton-not-consulted ATTACK: FALSE-POS — 'which file contains the regex?' stays silent"
+out=$(call_p cc101d sk101 "$TX" s101d 'which file contains the regex?')
+if [ -z "$out" ]; then ok "code-debug-noun 'regex' question stays silent"; else no "code-debug-noun 'regex' question stays silent" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[101e] grabbed-baton-not-consulted ATTACK: FALSE-POS — stack-trace/assertion debug question stays silent"
+out=$(call_p cc101e sk101 "$TX" s101e 'where is the failing assertion in the current stack trace?')
+if [ -z "$out" ]; then ok "code-debug-noun 'assertion/stack trace' question stays silent"; else no "code-debug-noun 'assertion/stack trace' question stays silent" "got: $(echo "$out" | head -c200)"; fi
+
+# ======================================================================
+# Round-2 hardening (2026-07-07): 5 confirmed breaks fixed in the 3 probes
+# above. Each gets a dedicated regression test against the freshly updated
+# RLPROBES/EGPROBES/BPROBES mirrors declared in [97]/[99]/[101] above.
+# ======================================================================
+
+echo "[97g] assumption-self-close FIX 1: FIRE — trailing evidence AFTER the assumption clause does NOT suppress (position-bound)"
+TX="$TRANSCRIPT_DIR/t97g.jsonl"
+write_transcript "$TX" "$(assistant_text 'done — byte-identical copy; Saar sorts out art; tests pass' u97g)"
+out=$(call cc97g sk97 "$TX" s97g)
+if emitted "$out" && echo "$out" | grep -q 'requirements-ledger \[forbidden_regex\]'; then ok "trailing evidence does not suppress — fires"; else no "trailing evidence does not suppress — must fire" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[97h] assumption-self-close FIX 1: SILENT (regression) — evidence BETWEEN done and assumption still suppresses"
+TX="$TRANSCRIPT_DIR/t97h.jsonl"
+write_transcript "$TX" "$(assistant_text 'done — verified 31/31 via manifest (Saar sorts column matched the source)' u97h)"
+out=$(call cc97h sk97 "$TX" s97h)
+if [ -z "$out" ]; then ok "positioned evidence still suppresses"; else no "positioned evidence still suppresses" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[97i] assumption-self-close FIX 2: SILENT — 'user agrees this is complete' (present-confirmation verb excluded)"
+TX="$TRANSCRIPT_DIR/t97i.jsonl"
+write_transcript "$TX" "$(assistant_text 'done — user agrees this is complete' u97i)"
+out=$(call cc97i sk97 "$TX" s97i)
+if [ -z "$out" ]; then ok "'user agrees' stays silent"; else no "'user agrees' must stay silent" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[97j] assumption-self-close FIX 2: SILENT — 'Saar confirms receipt' (present-confirmation verb excluded)"
+TX="$TRANSCRIPT_DIR/t97j.jsonl"
+write_transcript "$TX" "$(assistant_text 'done — Saar confirms receipt' u97j)"
+out=$(call cc97j sk97 "$TX" s97j)
+if [ -z "$out" ]; then ok "'Saar confirms' stays silent"; else no "'Saar confirms' must stay silent" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[99g] feedback-ask-without-rubric FIX 5: FIRE — bare 'rubric' mention (no definition shape) still fires"
+TX="$TRANSCRIPT_DIR/t99g.jsonl"
+write_transcript "$TX" "$(assistant_text 'rubric file is attached for naming only; which wins?' u99g)"
+out=$(call cc99g sk99 "$TX" s99g)
+if emitted "$out" && echo "$out" | grep -q 'eval-gate \[forbidden_regex\]'; then ok "bare rubric mention does not suppress — fires"; else no "bare rubric mention must still fire" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[101f] grabbed-baton-not-consulted FIX 3+4: FIRE — past-work marker lifts the debug-noun exclusion"
+out=$(call_p cc101f sk101 "$TX" s101f 'where is the export I generated before the regex refactor?')
+if emitted "$out" && echo "$out" | grep -q 'baton \[prompt_intent\]'; then ok "past-work marker + debug noun still fires"; else no "past-work marker + debug noun must fire" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[101g] grabbed-baton-not-consulted FIX 3+4: SILENT — debug noun + past-marker-shaped phrase without a real past marker stays silent"
+out=$(call_p cc101g sk101 "$TX" s101g 'which file contains the generated helper that parses the canary transcript state before matching the regex?')
+if [ -z "$out" ]; then ok "no genuine past-work marker + debug noun stays silent"; else no "no genuine past-work marker + debug noun must stay silent" "got: $(echo "$out" | head -c200)"; fi
+
+# ======================================================================
+# Round-3 hardening (2026-07-07): 3 high-severity finds fixed in the same
+# 3 probes above. Each gets a FIRE test against the freshly updated
+# RLPROBES/EGPROBES/BPROBES mirrors, plus the keep-silent counterpart the
+# brief specifies (where one is specified).
+# ======================================================================
+
+echo "[97k] assumption-self-close ROUND-3 FIX: FIRE — deferral marker 'tomorrow' overrides evidence-token suppression"
+TX="$TRANSCRIPT_DIR/t97k.jsonl"
+write_transcript "$TX" "$(assistant_text 'done — tests pass; Saar sorts out art tomorrow' u97k)"
+out=$(call cc97k sk97 "$TX" s97k)
+if emitted "$out" && echo "$out" | grep -q 'requirements-ledger \[forbidden_regex\]'; then ok "'tomorrow' deferral overrides evidence suppression — fires"; else no "'tomorrow' deferral must override evidence suppression — must fire" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[97l] assumption-self-close ROUND-3: SILENT (keep-silent counterpart) — no deferral marker, evidence present, stays silent"
+TX="$TRANSCRIPT_DIR/t97l.jsonl"
+write_transcript "$TX" "$(assistant_text 'done — verified 31/31 via manifest (Saar sorts column matched the source)' u97l)"
+out=$(call cc97l sk97 "$TX" s97l)
+if [ -z "$out" ]; then ok "no-deferral-marker verified-done stays silent"; else no "no-deferral-marker verified-done must stay silent" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[99h] feedback-ask-without-rubric ROUND-3 FIX: FIRE — 'rubric: TBD; which wins?' placeholder value does not suppress"
+TX="$TRANSCRIPT_DIR/t99h.jsonl"
+write_transcript "$TX" "$(assistant_text 'rubric: TBD; which wins?' u99h)"
+out=$(call cc99h sk99 "$TX" s99h)
+if emitted "$out" && echo "$out" | grep -q 'eval-gate \[forbidden_regex\]'; then ok "'rubric: TBD' placeholder does not suppress — fires"; else no "'rubric: TBD' placeholder must not suppress — must fire" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[99i] feedback-ask-without-rubric ROUND-3 FIX: FIRE — 'criteria: none yet; which looks best?' placeholder value does not suppress"
+TX="$TRANSCRIPT_DIR/t99i.jsonl"
+write_transcript "$TX" "$(assistant_text 'criteria: none yet; which looks best?' u99i)"
+out=$(call cc99i sk99 "$TX" s99i)
+if emitted "$out" && echo "$out" | grep -q 'eval-gate \[forbidden_regex\]'; then ok "'criteria: none yet' placeholder does not suppress — fires"; else no "'criteria: none yet' placeholder must not suppress — must fire" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[101h] grabbed-baton-not-consulted ROUND-3 FIX: FIRE — 'where did we put the minis?' recall shape"
+out=$(call_p cc101h sk101 "$TX" s101h 'where did we put the minis?')
+if emitted "$out" && echo "$out" | grep -q 'baton \[prompt_intent\]'; then ok "'where did we put' recall shape fires"; else no "'where did we put' recall shape must fire" "got: $(echo "$out" | head -c200)"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then

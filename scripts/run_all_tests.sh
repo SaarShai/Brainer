@@ -127,6 +127,7 @@ UNIT_TESTS=(
   scripts/test_gen_hooks_map.py
   scripts/test_mine_transcripts.py
   scripts/test_sibling_sync_audit.py
+  scripts/test_sibling_sync_gitignore.py
   eval/harness_acceptance/test_run.py
 )
 # semantic-diff needs tree-sitter; SKIP (not FAIL) where the dep is absent

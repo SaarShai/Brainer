@@ -155,6 +155,9 @@ lanes) or leaves the how to the worker (frontier lanes).
   guarantee, applied at the output edge: a `.filter(Boolean)` that removes a
   dead lane must still be reported as "lane X produced nothing").
 - Ledger: a lane is OPEN until its verification passes.
+- **Mechanical no-git check, not just the prose rule.** Run
+  `lane_guard.py check` (ORCHESTRATION §6) after EVERY lane returns — a FAIL
+  quarantines that lane's report until reconciled.
 
 ## 5. Leader keystroke budget
 
