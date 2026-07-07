@@ -79,7 +79,14 @@ same-model-judging hole for outputs that are hard to reverse.
 `"source": "spec"|"canon"|"frozen-before-generation"`; any other value (e.g.
 `"executor-claims"`) is rejected, and `--require-provenance` also rejects a
 missing `source` — [`LEARNING_CONTRACT §5`](../_shared/LEARNING_CONTRACT.md#5-verifier-independence-is-structural-not-situational)
-(judge criteria never derive from the executor's own claims).
+(judge criteria never derive from the executor's own claims). `--require-provenance`
+also rejects a bare-list payload outright (exit 2: "bare-list criteria carry no
+provenance; wrap in a dict with source per LEARNING_CONTRACT §5") — a bare list has
+no `source` field to declare, so it would otherwise dodge the check by unwrapping
+the dict back to its `criteria` list. **Trust boundary:** `source` is a self-declared
+string, not a verified artifact — nothing checks that a payload claiming `"spec"`
+actually came from one; the flag only closes the bare-list bypass, it does not add
+provenance where none is proven.
 
 **Per-criterion mode** (`--criteria-file` / `--criteria-json`) turns one holistic
 `0-5` into a list of `{id, description, weight, required}` criteria judged

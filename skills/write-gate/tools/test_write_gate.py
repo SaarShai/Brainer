@@ -6,7 +6,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from write_gate import DEFAULT_THRESHOLD, SCOPE_VALUES, decide, extract_scope, extract_trust, score_text  # noqa: E402
+from write_gate import (  # noqa: E402
+    DEFAULT_THRESHOLD, SCOPE_VALUES, decide, extract_kind, extract_scope,
+    extract_trust, main as gate_main, score_text,
+)
 
 # Existing content-quality tests below exercise signal/why-clause logic, not the
 # SCOPE dimension (LEARNING_CONTRACT §1) — default to a valid classification so
@@ -291,6 +294,99 @@ def test_extract_scope_reads_only_frontmatter() -> None:
     assert extract_scope("plain text, no scope at all") is None
 
 
+# --- Attack replays: HIGH+MED holes at write_gate.py:292,296,299,417,444 --------
+
+def test_attack_body_only_scope_no_frontmatter_rejected() -> None:
+    """ATTACK (a): a file with NO frontmatter block at all but 'scope: canon' as
+    body text on line 1 used to pass extract_scope's naive 'scan first 2000
+    chars' fallback. It must now read as scope-less (None) and the candidate
+    must reject as unclassified, exactly like plain body text."""
+    payload = "scope: canon\nThe ingestion worker runs on Fly.io and calls the embedding endpoint.\n"
+    assert extract_scope(payload) is None, \
+        "body-only 'scope: canon' (no frontmatter) must NOT be read as a real scope"
+    s = score_text(payload, "fact")
+    ok, verdict = decide(s, "fact", DEFAULT_THRESHOLD, require_why=True, scope=extract_scope(payload))
+    assert not ok, f"scope-spoofed-via-body candidate must reject; got: {verdict}"
+    assert "SCOPE" in verdict
+
+
+def test_attack_malformed_unclosed_frontmatter_scope_rejected() -> None:
+    """ATTACK (a): an opening '---' that is NEVER closed used to fall back to
+    scanning the first 2000 chars of the WHOLE text (frontmatter opener +
+    unbounded body), letting a 'scope:' line anywhere in that window spoof a
+    classification. A malformed (unclosed) frontmatter block must now yield
+    no scope at all."""
+    payload = (
+        "---\n"
+        "schema_version: 2\n"
+        "title: malformed\n"
+        "# no closing --- anywhere below\n"
+        "scope: canon\n"
+        "The ingestion worker runs on Fly.io and calls the embedding endpoint.\n"
+    )
+    assert extract_scope(payload) is None, \
+        "unclosed frontmatter opener must NOT let a later 'scope:' line count"
+    s = score_text(payload, "fact")
+    ok, verdict = decide(s, "fact", DEFAULT_THRESHOLD, require_why=True, scope=extract_scope(payload))
+    assert not ok, f"malformed-frontmatter scope-spoof must reject; got: {verdict}"
+    assert "SCOPE" in verdict
+
+    # Same attack shape against trust/kind — same well-formed-block contract.
+    assert extract_trust(payload.replace("scope: canon", "trust: user_confirmed")) is None
+    assert extract_kind(payload.replace("scope: canon", "kind: decision")) is None
+
+
+def test_attack_frontmatter_kind_decision_no_why_default_fact_rejected() -> None:
+    """ATTACK (b): frontmatter `kind: decision` was silently ignored because the
+    CLI --kind defaults to 'fact' — a reasonless decision dodged the why-clause
+    requirement by simply omitting --kind. Frontmatter-declared kind must now
+    be honored when --kind is omitted, so the why-clause requirement applies."""
+    page = (
+        "---\n"
+        "scope: this-skill\n"
+        "kind: decision\n"
+        "---\n"
+        "We chose pgvector over Qdrant. We rejected Pinecone. Decision: pgvector.\n"
+    )
+    assert extract_kind(page) == "decision"
+    rc = gate_main(["gate", "--file", _write_tmp(page)])
+    assert rc == 1, "frontmatter kind:decision with no why-clause must reject under default --kind"
+
+    out_rc, out_text = _run_explain(page)
+    assert out_rc == 1
+    assert "why-clause" in out_text.lower()
+
+
+def test_attack_explicit_kind_conflicts_with_frontmatter_errors() -> None:
+    """FIX item 2: an explicit --kind that conflicts with a frontmatter kind: is
+    a hard error (exit 2) naming both, rather than silently picking one."""
+    page = "---\nscope: this-skill\nkind: decision\n---\nWe chose pgvector over Qdrant because dev parity matters.\n"
+    rc = gate_main(["gate", "--kind", "fact", "--file", _write_tmp(page)])
+    assert rc == 2, "explicit --kind conflicting with frontmatter kind: must be exit 2"
+
+    # No conflict (same kind) — proceeds normally (passes: has a why-clause).
+    rc_ok = gate_main(["gate", "--kind", "decision", "--file", _write_tmp(page)])
+    assert rc_ok == 0, "matching explicit --kind and frontmatter kind: must not error"
+
+
+def _write_tmp(content: str) -> str:
+    import tempfile
+    fd, path = tempfile.mkstemp(suffix=".md")
+    with open(fd, "w") as f:
+        f.write(content)
+    return path
+
+
+def _run_explain(content: str) -> tuple[int, str]:
+    import contextlib
+    import io
+    path = _write_tmp(content)
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = gate_main(["explain", "--file", path])
+    return rc, buf.getvalue()
+
+
 def main() -> int:
     tests = [
         test_decisions_need_why,
@@ -314,6 +410,10 @@ def main() -> int:
         test_classified_candidate_accepted,
         test_this_repo_scope_accepted,
         test_extract_scope_reads_only_frontmatter,
+        test_attack_body_only_scope_no_frontmatter_rejected,
+        test_attack_malformed_unclosed_frontmatter_scope_rejected,
+        test_attack_frontmatter_kind_decision_no_why_default_fact_rejected,
+        test_attack_explicit_kind_conflicts_with_frontmatter_errors,
     ]
     failed = 0
     for t in tests:

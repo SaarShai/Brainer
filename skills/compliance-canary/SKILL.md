@@ -146,22 +146,71 @@ Lifecycle (per-session state under `COMPLIANCE_CANARY_STATE_DIR`, key
 
 - **Open.** Every fired `user_correction` probe (any skill's) opens an OPEN
   item `{id, turn, text}` — unconditional capture, the same no-opt-out posture
-  as Mechanism 3.
+  as Mechanism 3. This is unconditional even when `COMPLIANCE_CANARY_PROBE_SKILLS`
+  scopes DISPLAY to a different allowlist: the allowlist filters which fired
+  probes are shown in the drift-signal block, but every discovered
+  `user_correction` probe is still evaluated for ledger OPENING regardless of
+  that filter — an allowlist that happens to exclude a skill's `user_correction`
+  probe must never silently prevent its corrections from ever entering the
+  ledger (this was a confirmed hole; fixed by evaluating `user_correction`
+  probes on a path the allowlist doesn't reach, see `hook.py`'s `ledger_probes`).
 - **Surface.** Unlike the request ledger (which waits for a wrap-up turn or
   drift coupling), an open correction is surfaced **every turn** it is
   non-empty — "closeout-blocking" means it does not wait for the agent to
   believe it is done.
 - **Close.** An item leaves the ledger when (a) a Bash tool call banking the
   lesson is observed — `write_gate.py` (the quality gate §2 requires) or
-  `wiki.py new|update` (materializing the durable artifact) — which resolves
+  `wiki.py new` (materializing the durable artifact; `wiki.py` has no `update`
+  subcommand — `new` is the only page-writing verb it exposes) — **actually
+  ran and produced a passing execution-evidence signature**, which resolves
   ALL open corrections, or (b) the user explicitly closes it (the same closure
   phrasing as Mechanism 3: "close it", "that's all", …), for a correction the
   agent judges already handled outside the banking tools.
 
 **The hook never judges whether the banked lesson is any good** — only whether
-a banking tool call happened. There is no auto-resolve on the mere passage of
-turns: an unbanked correction stays OPEN indefinitely until one of the two
+a banking tool call ACTUALLY RAN. There is no auto-resolve on the mere passage
+of turns: an unbanked correction stays OPEN indefinitely until one of the two
 close paths above fires.
+
+**Bank-resolution requires EXECUTION EVIDENCE, not just command text.** Two
+prior fix attempts were each defeated adversarially:
+
+1. A bare substring match let `echo write_gate.py`, `wiki.py new --help`, and
+   `grep write_gate.py x` all falsely resolve a closeout-blocking correction —
+   none of them ran the gate. Fixed by requiring **command-position invocation
+   shape** (the matched token must be the thing actually invoked in a shell
+   segment split on `&&`/`||`/`;`/`|`, after stripping leading
+   env-assignments/`sudo`, optionally behind a `python`/`python3`/`bash`/`sh`
+   interpreter; a segment containing `--help`/`-h` is rejected).
+2. Invocation shape alone is still **text-trust**: `CMD="python3
+   .../write_gate.py gate --text x"` (a bare shell variable assignment — the
+   command string matches, but nothing executes) and `false && python3
+   .../write_gate.py gate ...` (a short-circuited compound — the second
+   segment still "looks like" an invocation even though `&&` guarantees it
+   never runs) both resolved a correction without the gate ever running.
+   Command-string matching cannot tell a typed-but-never-run command from a
+   genuine one.
+
+The fix: the hook now requires the SAME Bash `tool_use` to have a **paired
+`tool_result`** (correlated by `tool_use_id`, the same id every real Claude
+Code transcript carries — confirmed against a live transcript fixture) whose
+content carries a real execution signature:
+
+- `write_gate.py score`/`explain` (or any subcommand with `--json`) prints a
+  `PASSED: …` / `REJECTED: …` verdict (JSON: the `"verdict"` field). **`gate`
+  alone (no `--json`) prints nothing to stdout — only an exit code** — so a
+  banking call must use `--json` or `score`/`explain` for the hook to see a
+  verdict at all; a bare `gate` invocation carries no signature to detect,
+  banked or not.
+- `wiki.py new` prints JSON with a `"created": "<path>"` key on success, or
+  `"refused": "REFUSED: …"` on a write-gate/overlap refusal.
+
+A `REJECTED`/`REFUSED` result is **not** a bank signature — the gate ran but
+refused the candidate, so the correction stays OPEN (a rejected banking
+attempt is not a successful banking). A command with matching invocation shape
+but no observed `tool_result` in the transcript window never resolves anything
+either — invocation shape narrows which Bash calls are worth checking, but
+shape alone no longer resolves the ledger.
 
 ## Install
 

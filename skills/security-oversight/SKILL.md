@@ -232,8 +232,9 @@ sink (`curl|sh` inside a string, `bash -c` argv — the raw-scan path).
 no network, 10/10). Per catalog policy it earns trust on real diffs before any
 default promotion — target: catching introduced secrets/sinks/untrusted-deps and
 correctly escalating business-logic authz to a human, at a false-positive rate low
-enough not to be ignored. **Promotion-time follow-up:** add a `compliance-canary`
-drift probe (fires when a security-sensitive diff heads for commit without a
-security pass) so it fires mechanically rather than by description — the same way
-the canary enforces other gates. Until then it is invoked manually / on trigger,
+enough not to be ignored. **Promotion-time follow-up: done** — `drift_probes.json`
+ships a `prompt_intent` probe (`security-oversight-ship-intent`) that fires
+mechanically on ship/commit-intent prompts ("is this safe to ship?", "commit
+this", "did I leak a secret?") to remind the security triage gate, the same way
+the canary enforces other gates. It remains invoked manually / on trigger otherwise,
 like impact-of-change.

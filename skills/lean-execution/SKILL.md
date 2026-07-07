@@ -41,6 +41,8 @@ Maximize work not done. Keep only steps that reduce risk, gather needed facts, i
 
 Do not use "lean" to skip necessary context, tests, user approval for risky choices, or docs that prevent recurrence.
 
+Mechanical backstop: `drift_probes.json` ships `dependency-manifest-changed` (flags a new/changed dependency manifest so a new dep is justified, not just added) and `reformat-only-hunk` (flags an Edit that changed only whitespace/formatting) — the canary hook enforces these two rules without relying on the model remembering them.
+
 ## Autonomy — keep going unless you truly need me
 
 Pause for the user ONLY when the work genuinely requires it: a **destructive or irreversible** action (delete / overwrite / publish / send / merge / migrate / charge), a **real scope change**, or **input only the user can provide**. Otherwise proceed through routine, reversible, in-scope steps and report back when done — don't stop to ask permission for work you can safely do and undo. Over-pausing wastes a turn; so does bundling a genuine risk into "just proceeding". (The `early_stop` probe backstops the opposite failure — narrating the next step instead of doing it.)

@@ -134,6 +134,14 @@ TRUST_RE = re.compile(r"^\s*trust:\s*([a-z_]+)", re.M | re.I)
 SCOPE_VALUES = {"this-skill", "this-repo", "cross-skill", "cross-repo", "canon"}
 SCOPE_RE = re.compile(r"^\s*scope:\s*([a-z_-]+)", re.M | re.I)
 
+# KIND classification — mirrors SCOPE/TRUST: read from `kind:` frontmatter
+# when present, same well-formed-block-only contract. A `kind: decision`
+# candidate is a reasonless-decision dodge if left unread: the CLI's --kind
+# defaults to "fact", so silently ignoring frontmatter kind let a decision
+# with no why-clause slip through under the default (weaker) fact kind.
+KIND_VALUES = {"fact", "decision", "convention", "error", "sop"}
+KIND_RE = re.compile(r"^\s*kind:\s*([a-z_-]+)", re.M | re.I)
+
 NUMBER_RE = re.compile(
     r"\b\d+(?:\.\d+)?\s?(?:%|ms|s|x|ops|qps|rps|MB|GB|KB|TB|tokens?|loc|lines?|"
     r"events?/s(?:ec)?|req/s(?:ec)?|/min|/hour|/day|sec|min|hour|day|"
@@ -277,28 +285,58 @@ def score_text(text: str, kind: str, weights: dict[str, float] | None = None) ->
 
 # --- Decision -------------------------------------------------------------
 
+def _frontmatter_block(text: str) -> str | None:
+    """Return the WELL-FORMED leading YAML frontmatter block (between the
+    opening `---\\n` and its closing `\\n---`), or None if the text has no
+    such block. A well-formed block requires BOTH:
+      - the text starts with `---` immediately followed by a newline
+      - a closing `\\n---` exists after that
+
+    Deliberately strict (no silent fallback to scanning the raw body): a body
+    with no frontmatter at all, or a frontmatter opener with no closer
+    (malformed/truncated), yields None rather than treating the first 2000
+    chars of the whole text as if it were frontmatter — that leniency let
+    plain body text ('scope: canon' on line 1, no frontmatter) or an unclosed
+    '---' opener spoof a scope/trust/kind classification. Callers fall back to
+    the explicit CLI flag when this returns None."""
+    if not text.startswith("---\n"):
+        return None
+    end = text.find("\n---", 4)
+    if end == -1:
+        return None
+    return text[4:end]
+
+
 def extract_trust(text: str) -> str | None:
     """Read the `trust:` tier from a candidate page's YAML frontmatter, if any.
-    Limited to the frontmatter block so a body mention of 'trust:' can't spoof it."""
-    if text.startswith("---"):
-        end = text.find("\n---", 3)
-        head = text[:end] if end != -1 else text[:2000]
-    else:
-        head = text[:2000]
+    Limited to a WELL-FORMED leading frontmatter block so a body mention of
+    'trust:' (or an unclosed '---' opener) can't spoof it."""
+    head = _frontmatter_block(text)
+    if head is None:
+        return None
     m = TRUST_RE.search(head)
     return m.group(1).lower() if m else None
 
 
 def extract_scope(text: str) -> str | None:
     """Read the `scope:` tier from a candidate page's YAML frontmatter, if any.
-    Limited to the frontmatter block so a body mention of 'scope:' can't spoof it.
-    Mirrors extract_trust."""
-    if text.startswith("---"):
-        end = text.find("\n---", 3)
-        head = text[:end] if end != -1 else text[:2000]
-    else:
-        head = text[:2000]
+    Limited to a WELL-FORMED leading frontmatter block so a body mention of
+    'scope:' (or an unclosed '---' opener) can't spoof it. Mirrors extract_trust."""
+    head = _frontmatter_block(text)
+    if head is None:
+        return None
     m = SCOPE_RE.search(head)
+    return m.group(1).lower() if m else None
+
+
+def extract_kind(text: str) -> str | None:
+    """Read the `kind:` classification from a candidate page's YAML frontmatter,
+    if any. Limited to a WELL-FORMED leading frontmatter block, same contract
+    as extract_scope/extract_trust."""
+    head = _frontmatter_block(text)
+    if head is None:
+        return None
+    m = KIND_RE.search(head)
     return m.group(1).lower() if m else None
 
 
@@ -414,8 +452,13 @@ def main(argv: list[str]) -> int:
 
     for name in ("score", "gate", "explain"):
         p = sub.add_parser(name)
-        p.add_argument("--kind", default="fact",
-                       choices=["fact", "decision", "convention", "error", "sop"])
+        p.add_argument("--kind", default=None,
+                       choices=sorted(KIND_VALUES),
+                       help="content classification (fact/decision/convention/error/sop); "
+                            "defaults to 'fact'. If omitted, read from the candidate's "
+                            "`kind:` frontmatter (so a frontmatter `kind: decision` isn't "
+                            "silently ignored). An explicit --kind that conflicts with "
+                            "frontmatter `kind:` is a hard error (exit 2).")
         p.add_argument("--trust", default=None,
                        choices=["asserted", "corroborated", "verified", "user_confirmed"],
                        help="provenance tier; 'verified'/'user_confirmed' bypass the signal floor. "
@@ -443,15 +486,25 @@ def main(argv: list[str]) -> int:
 
     trust = args.trust or extract_trust(text)
     scope = args.scope or extract_scope(text)
-    s = score_text(text, args.kind, weights)
-    passed, verdict = decide(s, args.kind, threshold, require_why, trust=trust, scope=scope)
+    fm_kind = extract_kind(text)
+    if args.kind is not None and fm_kind is not None and args.kind != fm_kind:
+        print(
+            f"error: --kind {args.kind!r} conflicts with frontmatter `kind: {fm_kind}` "
+            "— resolve the discrepancy (fix the frontmatter or the flag) rather than "
+            "picking one silently.",
+            file=sys.stderr,
+        )
+        return 2
+    kind = args.kind or fm_kind or "fact"
+    s = score_text(text, kind, weights)
+    passed, verdict = decide(s, kind, threshold, require_why, trust=trust, scope=scope)
 
     if args.json:
         out = {
             "passed": passed,
             "score": round(s.total, 3),
             "threshold": threshold,
-            "kind": args.kind,
+            "kind": kind,
             "trust": trust,
             "scope": scope,
             "has_why": s.has_why,
@@ -463,13 +516,13 @@ def main(argv: list[str]) -> int:
         return 0 if passed else 1
 
     if args.cmd == "score":
-        print(f"score: {s.total:.2f}  threshold: {threshold:.2f}  kind: {args.kind}  why_clause: {s.has_why}  scope: {scope}")
+        print(f"score: {s.total:.2f}  threshold: {threshold:.2f}  kind: {kind}  why_clause: {s.has_why}  scope: {scope}")
         return 0
     if args.cmd == "gate":
         return 0 if passed else 1
     # explain
     print(verdict)
-    print(f"  total: {s.total:.2f}  threshold: {threshold:.2f}  kind: {args.kind}")
+    print(f"  total: {s.total:.2f}  threshold: {threshold:.2f}  kind: {kind}")
     print(f"  why_clause present: {s.has_why}")
     print(f"  scope: {scope}")
     if s.reasons:

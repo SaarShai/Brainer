@@ -54,7 +54,22 @@ Premortem ([`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §8):
   its own path (calls `gate_candidate()` in-code, not by convention), but a hand-edit to
   `CLAUDE.md`/`AGENTS.md` or a raw `mcp__memory__*` write bypasses the gate entirely with no
   error surfaced anywhere — the pollution looks identical to a gated write until someone
-  reads it back.
+  reads it back. (Distinct from the frontmatter-spoofing hole below: this bullet is about the
+  gate never running at all, not about a run being fooled.)
+- **Frontmatter-spoofing (fixed 2026-07-06)** — `extract_scope`/`extract_trust`/`extract_kind`
+  used to fall back to scanning the first 2000 chars of the RAW TEXT whenever the leading
+  `---` frontmatter block wasn't well-formed (no frontmatter at all, or an opener with no
+  closer). That let a body line like `scope: canon` on line 1 of a frontmatter-less file, or
+  a `scope:`/`trust:`/`kind:` line stuffed after an unclosed `---` opener, spoof a
+  classification the gate never actually validated. Now each extractor requires a
+  WELL-FORMED leading block (`---\n` ... `\n---`) and returns `None` otherwise — a candidate
+  with no real frontmatter falls back to the explicit `--scope`/`--trust`/`--kind` CLI flag
+  (or the "fact"/unclassified default), same as before frontmatter reading existed. Separately,
+  frontmatter `kind:` is now actually honored when `--kind` is omitted (previously the CLI's
+  `--kind` default of `"fact"` silently overrode a declared `kind: decision`, letting a
+  reasonless decision dodge the why-clause requirement); an explicit `--kind` that conflicts
+  with frontmatter `kind:` is a hard error (exit 2) rather than a silent pick. See
+  `test_write_gate.py`'s `test_attack_*` regression tests for the exact replayed attacks.
 - **Rot-when-unwatched** — the phrase tables (decision markers, why-clause connectives,
   filler/speculation regex) are tuned to today's writing style; as skills and users drift
   toward new phrasing ("landed on X" instead of "chose X"), true decisions silently stop

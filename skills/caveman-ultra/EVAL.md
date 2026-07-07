@@ -35,4 +35,18 @@ Raw: [`eval/results/caveman-ultra.json`](../../eval/results/caveman-ultra.json)
 
 ## Failure modes
 
-To be filled in after analysis of result outputs (see raw JSON for individual trial outputs).
+Premortem ([`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §8):
+
+- **Silent-failure path** — this is an `output_style`, applied to the model's own
+  emitted prose with no external checker; a response that slides back into
+  pleasantries or hedging still renders fine to the user, so there is no error, no
+  broken build, nothing to notice the style lapsed mid-session.
+- **Rot-when-unwatched** — the forbidden-phrase list (filler, hedging, soft closings)
+  is a fixed enumeration; a model drifts toward new filler phrasings the list never
+  anticipated ("happy to help further" today, something else next quarter), and the
+  style silently degrades toward baseline verbosity with no mechanism re-checking the
+  list against current output.
+- **No-hooks host** — `compliance-canary`'s `caveman-ultra [forbidden_regex]` probe is
+  what actually re-detects a lapse mid-session; on a host with no `UserPromptSubmit`
+  hook wired, caveman-ultra is pure instruction-following with nothing watching for
+  regression back to verbose defaults.

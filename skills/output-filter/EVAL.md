@@ -36,7 +36,21 @@ Raw: [`eval/results/output-filter.json`](../../eval/results/output-filter.json)
 
 ## Failure modes
 
-To be filled in after analysis of result outputs (see raw JSON for individual trial outputs).
+Premortem ([`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §8):
+
+- **Silent-failure path** — the filter's job is to preserve error lines verbatim
+  while dropping everything else; if a future log format buries a failure signal in
+  a line shape the `ERROR`/`FAILED` matcher doesn't recognize, that line gets
+  collapsed as noise along with the progress-bar redraws, and the agent sees a
+  clean, quiet stream instead of the buried failure.
+- **Rot-when-unwatched** — the ANSI-stripping and dedup patterns are tuned against
+  today's CI/build tool output shapes; as build tools change their progress-bar
+  escape sequences or logging framework, the filter keeps running and keeps
+  producing SOME reduction, masking the fact that its actual signal/noise split
+  against the new format has drifted from the measured 88.8%/5-of-5 baseline.
+- **No-hooks host** — output-filter is "wire as a shell pipe or PostToolUse hook,"
+  not auto-installed; on a host where that wiring step was skipped, Bash stdout
+  reaches the agent raw and unfiltered, with no fallback path narrowing it.
 
 ## Measured gain (2026-06-13, `eval/gains.py`)
 

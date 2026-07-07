@@ -159,8 +159,19 @@ def analyze_redundancy(skills: dict[str, list[str]], thresh: float = 0.7) -> lis
     # Skip file-tree / code-comment boilerplate (├── └── │  install.sh # ...): it
     # is incidentally identical across skills but is not a directive.
     boiler = re.compile(r"[├└│]|^\S+\.\w+\s+#|^#|`{3}")
+    # Skip pure canon-pointer lines: LEARNING_CONTRACT §1 mandates skills carry
+    # POINTERS to _shared canon rather than restating it, so an identical
+    # one-line link into LEARNING_CONTRACT.md/ORCHESTRATION.md appearing in N
+    # skills is the sanctioned pattern, not a consolidation candidate. Only a
+    # line that is essentially just the pointer is exempt — restated canon
+    # PROSE around a link still counts toward redundancy.
+    canon_ptr = re.compile(
+        r"\(\.\./_shared/(?:LEARNING_CONTRACT|ORCHESTRATION)\.md[^)]*\)")
+    def _is_pure_pointer(u: str) -> bool:
+        return bool(canon_ptr.search(u)) and len(_norm_tokens(canon_ptr.sub("", u))) < 8
     items = [(name, u, _norm_tokens(u)) for name, uu in skills.items() for u in uu
-             if len(_norm_tokens(u)) >= 5 and not boiler.search(u)]
+             if len(_norm_tokens(u)) >= 5 and not boiler.search(u)
+             and not _is_pure_pointer(u)]
     clusters: list[dict] = []
     used = set()
     for i in range(len(items)):

@@ -63,6 +63,11 @@ Premortem ([`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §8):
   discriminate ("is this good") produces a passing score that reads as a real gate-pass
   rather than judge noise — the agreement metric (judge vs human label) is the only thing
   that would surface either failure, and it only runs when someone deliberately measures it.
+  The same self-attestation gap sits inside `--require-provenance` itself: a criteria payload's
+  `"source": "spec"` is a self-declared string with no artifact behind it, so a caller can type
+  `"spec"` over criteria it actually wrote itself — the flag only forces a *declaration* to
+  exist (and blocks the bare-list bypass that skipped declaring one at all), it does not verify
+  the declaration is true.
 - **Rot-when-unwatched** — the case-set (`add-case`'s ratchet) only grows when a failure is
   actively caught and banked; if nobody feeds it new flagged-bad outputs, the regression
   suite silently stops reflecting current failure modes and `suite` keeps passing against an

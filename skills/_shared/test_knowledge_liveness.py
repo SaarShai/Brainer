@@ -25,7 +25,10 @@ import knowledge_liveness as kl  # noqa: E402
 def _make_min_repo(root: Path) -> None:
     """Smallest repo skeleton the checks need: skills/ dir, scripts/ dir with
     the two delegate scripts knowledge_liveness imports (check_wiki_hygiene,
-    gen_hooks_map) so those checks don't fail merely for being absent."""
+    gen_hooks_map) so those checks don't fail merely for being absent, plus a
+    stand-in compliance-canary/tools/hook.py exposing a DETECTORS dict so the
+    [gate-schema] kind-liveness check has a set to validate against instead
+    of failing merely because the fixture has no real canary hook."""
     (root / "skills").mkdir(parents=True)
     (root / "scripts").mkdir(parents=True)
     # Minimal stand-in check_wiki_hygiene.py: no wiki dir in these fixtures,
@@ -38,6 +41,20 @@ def _make_min_repo(root: Path) -> None:
     # these fixtures).
     (root / "scripts" / "gen_hooks_map.py").write_text(
         "def skill_hook_inventory():\n    return []\n", encoding="utf-8"
+    )
+    # Minimal stand-in compliance-canary hook.py exposing the same DETECTORS
+    # shape the real hook.py builds (dict[str, callable]), covering every
+    # kind used by the real repo's drift_probes.json fixtures below.
+    canary_tools = root / "skills" / "compliance-canary" / "tools"
+    canary_tools.mkdir(parents=True)
+    (canary_tools / "hook.py").write_text(
+        "def _noop(*a, **k):\n    return None\n\n"
+        "DETECTORS = {\n"
+        "    'forbidden_regex': _noop,\n"
+        "    'word_count_per_message': _noop,\n"
+        "    'claim_without_evidence': _noop,\n"
+        "}\n",
+        encoding="utf-8",
     )
 
 
@@ -71,6 +88,125 @@ def test_clean_drift_probes_json_does_not_trip():
         assert not any("[gate-json]" in e for e in errors), errors
         assert code == 0, (code, errors)
         print("ok test_clean_drift_probes_json_does_not_trip")
+
+
+# --- (a2) [gate-schema] probe-kind liveness (MED HOLE fix) ------------------
+# hook.py's run_probes() does `if kind not in DETECTORS: continue` — a probe
+# with an unknown/typo'd kind parses as valid JSON but is silently skipped at
+# runtime. This is the exact attack that broke the gate: prove it trips.
+
+def test_unknown_probe_kind_trips_gate_schema():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _make_min_repo(root)
+        skill = root / "skills" / "typo-kind"
+        skill.mkdir()
+        (skill / "drift_probes.json").write_text(
+            '[{"id": "oops", "kind": "no_such_detector", "pattern": "x"}]',
+            encoding="utf-8",
+        )
+        code, errors, _warnings = _run(root)
+        assert code == 2, (code, errors)
+        assert any(
+            "[gate-schema]" in e and "no_such_detector" in e and "oops" in e
+            for e in errors
+        ), errors
+        print("ok test_unknown_probe_kind_trips_gate_schema")
+
+
+def test_known_probe_kind_does_not_trip_gate_schema():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _make_min_repo(root)
+        skill = root / "skills" / "real-kind"
+        skill.mkdir()
+        (skill / "drift_probes.json").write_text(
+            '[{"id": "fine", "kind": "forbidden_regex", "pattern": "x"}]',
+            encoding="utf-8",
+        )
+        code, errors, _warnings = _run(root)
+        assert not any("[gate-schema]" in e for e in errors), errors
+        assert code == 0, (code, errors)
+        print("ok test_known_probe_kind_does_not_trip_gate_schema")
+
+
+def test_missing_canary_hook_trips_gate_schema():
+    # If the canary hook itself is gone/unloadable, the schema check cannot
+    # confirm any probe kind is live — must surface loudly, not silently
+    # skip the check.
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _make_min_repo(root)
+        (root / "skills" / "compliance-canary" / "tools" / "hook.py").unlink()
+        code, errors, _warnings = _run(root)
+        assert code == 2, (code, errors)
+        assert any(
+            "[gate-schema]" in e and "could not derive detector kind set" in e
+            for e in errors
+        ), errors
+        print("ok test_missing_canary_hook_trips_gate_schema")
+
+
+# --- (f) broadened skills/*/tools/*.json parse-check ------------------------
+
+def test_malformed_tools_json_trips_gate_json():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _make_min_repo(root)
+        tools_dir = root / "skills" / "some-gate" / "tools"
+        tools_dir.mkdir(parents=True)
+        (tools_dir / "criteria.json").write_text("{not valid json,,,", encoding="utf-8")
+        code, errors, _warnings = _run(root)
+        assert code == 2, (code, errors)
+        assert any(
+            "[gate-json]" in e and "criteria.json" in e for e in errors
+        ), errors
+        print("ok test_malformed_tools_json_trips_gate_json")
+
+
+def test_clean_tools_json_does_not_trip():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _make_min_repo(root)
+        tools_dir = root / "skills" / "some-gate" / "tools"
+        tools_dir.mkdir(parents=True)
+        (tools_dir / "criteria.json").write_text('[{"id": "correct"}]', encoding="utf-8")
+        code, errors, _warnings = _run(root)
+        assert not any("[gate-json]" in e for e in errors), errors
+        assert code == 0, (code, errors)
+        print("ok test_clean_tools_json_does_not_trip")
+
+
+def test_malformed_nested_tools_json_trips_gate_json():
+    # CONFIRMED HOLE: skills/*/tools/*.json is a one-level glob — malformed
+    # JSON at skills/<x>/tools/nested/criteria.json was silently skipped.
+    # Same attack as test_malformed_tools_json_trips_gate_json above, one
+    # directory deeper.
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _make_min_repo(root)
+        nested_dir = root / "skills" / "some-gate" / "tools" / "nested"
+        nested_dir.mkdir(parents=True)
+        (nested_dir / "criteria.json").write_text("{not valid json,,,", encoding="utf-8")
+        code, errors, _warnings = _run(root)
+        assert code == 2, (code, errors)
+        assert any(
+            "[gate-json]" in e and "nested" in e and "criteria.json" in e for e in errors
+        ), errors
+        print("ok test_malformed_nested_tools_json_trips_gate_json")
+
+
+def test_clean_nested_tools_json_does_not_trip():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _make_min_repo(root)
+        nested_dir = root / "skills" / "some-gate" / "tools" / "nested"
+        nested_dir.mkdir(parents=True)
+        (nested_dir / "criteria.json").write_text('[{"id": "correct"}]', encoding="utf-8")
+        code, errors, _warnings = _run(root)
+        assert not any("[gate-json]" in e for e in errors), errors
+        assert code == 0, (code, errors)
+        print("ok test_clean_nested_tools_json_does_not_trip")
 
 
 # --- (b) SKILL.md frontmatter + referenced tool paths ----------------------

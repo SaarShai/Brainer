@@ -54,6 +54,31 @@ print(json.dumps({'type':'assistant',
 " "$1" "$2"
 }
 
+assistant_tool_use_with_id() {
+  # emit one JSONL line for an assistant tool_use CARRYING a tool_use id — the
+  # correlation key recent_bash_tool_results() needs to pair it with its
+  # tool_result (a real Claude Code transcript always carries this id; see
+  # hook.py's recent_bash_tool_results docstring).
+  python3 -c "
+import json,sys
+name=sys.argv[1]; inp=json.loads(sys.argv[2]); tid=sys.argv[3]
+print(json.dumps({'type':'assistant',
+                  'message':{'role':'assistant','content':[{'type':'tool_use','id':tid,'name':name,'input':inp}]}}))
+" "$1" "$2" "$3"
+}
+
+user_tool_result_for() {
+  # emit one JSONL line for a user-event tool_result PAIRED to a given
+  # tool_use id (execution evidence — the actual output the tool printed).
+  python3 -c "
+import json,sys
+tid=sys.argv[1]; text=sys.argv[2]; is_error=sys.argv[3] == '1'
+print(json.dumps({'type':'user',
+                  'message':{'role':'user','content':[{'type':'tool_result','tool_use_id':tid,
+                    'is_error':is_error,'content':text}]}}))
+" "$1" "$2" "$3"
+}
+
 call() {
   # call <state_sub> <skills_sub> <transcript_file> <session_id> [env_overrides...]
   local state_sub="$1" skills_sub="$2" tx="$3" sid="$4"; shift 4
@@ -462,9 +487,11 @@ if emitted "$out" && echo "$out" | grep -q 'user_correction'; then ok "user_corr
 # ======================================================================
 # Mechanism 4 — correction ledger (LEARNING_CONTRACT §2): a fired
 # user_correction probe opens a closeout-blocking OPEN item that is surfaced
-# every turn until a banking tool call (write_gate.py / wiki.py new|update) is
-# observed, or the user explicitly closes it. Reuses the sk34/PROBES fixture
-# above (the user_correction probe from test [34]).
+# every turn until a banking tool call (write_gate.py / wiki.py new) is
+# observed to have ACTUALLY RUN (a Bash tool_use with matching invocation
+# shape AND a paired tool_result carrying a passing execution signature), or
+# the user explicitly closes it. Reuses the sk34/PROBES fixture above (the
+# user_correction probe from test [34]).
 # ======================================================================
 
 call34() {
@@ -497,14 +524,15 @@ else
   no "unrelated turn wrongly resolved the correction" "got: $(echo "$out" | head -c220)"
 fi
 
-echo "[34c] a write_gate.py Bash call resolves the correction ledger (banked)"
+echo "[34c] a write_gate.py Bash call WITH a PASSED result resolves the correction ledger (banked)"
 TX34C="$TRANSCRIPT_DIR/t34c.jsonl"
 write_transcript "$TX34C" \
   "$(assistant_text 'banking the lesson' u34c)" \
-  "$(assistant_tool_use Bash '{"command":"python3 skills/write-gate/tools/write_gate.py gate --text lesson"}')"
+  "$(assistant_tool_use_with_id Bash '{"command":"python3 skills/write-gate/tools/write_gate.py score --json --text lesson"}' tu34c)" \
+  "$(user_tool_result_for tu34c '{"verdict": "PASSED: signal score 5.00"}' 0)"
 out=$(call34 cc34a "$TX34C" s34a 'go ahead')
 if echo "$out" | grep -q 'resolved 1 correction' && ! echo "$out" | grep -qi 'still OPEN'; then
-  ok "write_gate.py bank call resolves the correction ledger"
+  ok "write_gate.py bank call (with PASSED result) resolves the correction ledger"
 else
   no "write_gate.py bank should resolve" "got: $(echo "$out" | head -c220)"
 fi
@@ -537,6 +565,179 @@ if [ "$lifecycle" = "open" ]; then
   ok "unbanked correction stays OPEN across turns (no auto-resolve)"
 else
   no "unbanked correction must never auto-resolve" "got: $lifecycle"
+fi
+
+# ======================================================================
+# Correction-ledger bank-resolver hole #1 (adversarially confirmed): a bare
+# substring match let 'echo write_gate.py', 'wiki.py new --help', and
+# 'grep write_gate.py x' all falsely RESOLVE a closeout-blocking correction —
+# none of them ran the gate. Fix requires COMMAND-POSITION invocation shape
+# (necessary, but — see hole #2 below — not by itself sufficient).
+# ======================================================================
+
+echo "[34f] ATTACK: 'echo write_gate.py' does NOT resolve the correction ledger"
+TX34F="$TRANSCRIPT_DIR/t34f.jsonl"
+write_transcript "$TX34F" \
+  "$(assistant_text 'noting the tool name' u34f)" \
+  "$(assistant_tool_use Bash '{"command":"echo write_gate.py"}')"
+out=$(call34 cc34f "$TX34F" s34f 'no, I said use spaces')
+out2=$(call34 cc34f "$TX34F" s34f 'go ahead')
+if echo "$out2" | grep -qi 'still OPEN' && ! echo "$out2" | grep -q 'resolved 1 correction'; then
+  ok "echo write_gate.py does NOT resolve (attack blocked)"
+else
+  no "echo write_gate.py must NOT resolve" "got: $(echo "$out2" | head -c220)"
+fi
+
+echo "[34g] ATTACK: 'wiki.py new --help' does NOT resolve the correction ledger"
+TX34G="$TRANSCRIPT_DIR/t34g.jsonl"
+write_transcript "$TX34G" \
+  "$(assistant_text 'checking usage' u34g)" \
+  "$(assistant_tool_use Bash '{"command":"python3 skills/wiki-memory/tools/wiki.py new --help"}')"
+out=$(call34 cc34g "$TX34G" s34g 'no, I said use spaces')
+out2=$(call34 cc34g "$TX34G" s34g 'go ahead')
+if echo "$out2" | grep -qi 'still OPEN' && ! echo "$out2" | grep -q 'resolved 1 correction'; then
+  ok "wiki.py new --help does NOT resolve (attack blocked)"
+else
+  no "wiki.py new --help must NOT resolve" "got: $(echo "$out2" | head -c220)"
+fi
+
+echo "[34h] ATTACK: 'grep write_gate.py foo' does NOT resolve the correction ledger"
+TX34H="$TRANSCRIPT_DIR/t34h.jsonl"
+write_transcript "$TX34H" \
+  "$(assistant_text 'searching for references' u34h)" \
+  "$(assistant_tool_use Bash '{"command":"grep write_gate.py foo"}')"
+out=$(call34 cc34h "$TX34H" s34h 'no, I said use spaces')
+out2=$(call34 cc34h "$TX34H" s34h 'go ahead')
+if echo "$out2" | grep -qi 'still OPEN' && ! echo "$out2" | grep -q 'resolved 1 correction'; then
+  ok "grep write_gate.py foo does NOT resolve (attack blocked)"
+else
+  no "grep write_gate.py foo must NOT resolve" "got: $(echo "$out2" | head -c220)"
+fi
+
+echo "[34i] a real 'python3 .../write_gate.py score --json ...' invocation WITH a PASSED result DOES resolve the correction ledger"
+# Single call, mirroring [34c]'s pattern: the correction fires AND the banking
+# Bash tool_use (WITH its paired tool_result) are both visible in the same
+# transcript/turn, so open + resolve happen together (same as a real session
+# where the agent bank-calls right after the correction lands, before the
+# next user turn). Uses `score --json` (not bare `gate`): verified live
+# (2026-07-06) that `write_gate.py gate` alone prints NOTHING to stdout — only
+# an exit code — so a bare `gate` invocation carries no verdict signature for
+# the hook to observe at all; `--json` (or score/explain) is what actually
+# prints the PASSED:/REJECTED: line this resolver requires.
+TX34I="$TRANSCRIPT_DIR/t34i.jsonl"
+write_transcript "$TX34I" \
+  "$(assistant_text 'banking the lesson' u34i)" \
+  "$(assistant_tool_use_with_id Bash '{"command":"cd /repo && python3 skills/write-gate/tools/write_gate.py score --json --text lesson"}' tu34i)" \
+  "$(user_tool_result_for tu34i '{"verdict": "PASSED: signal score 5.00"}' 0)"
+out=$(call34 cc34i "$TX34I" s34i 'no, I said use spaces')
+# NOTE: this same prompt also opens an UNRELATED Mechanism-3 request-ledger
+# item ("no, I said use spaces" is itself captured as a trackable request),
+# whose own "N request(s) still open" text would collide with a bare 'still
+# OPEN' substring check — assert on the CORRECTION ledger's specific phrasing
+# ("correction(s) still OPEN") instead, mirroring [34c]/[34d]'s narrower checks.
+if echo "$out" | grep -q 'resolved 1 correction' && ! echo "$out" | grep -qi 'correction(s) still OPEN'; then
+  ok "real write_gate.py invocation (with PASSED result) DOES resolve"
+else
+  no "real write_gate.py invocation (with PASSED result) should resolve" "got: $(echo "$out" | head -c220)"
+fi
+
+# ======================================================================
+# Bank-resolver hole #2 (adversarially confirmed, distinct from the ledger-
+# OPENING allowlist hole referenced below as "HOLE #2" in [34j] — that one
+# predates this fix and is unrelated): invocation shape alone is still
+# TEXT-TRUST — a bare shell variable assignment, or a short-circuited
+# compound, both present a matching command STRING while the tool never
+# actually runs. Fix requires a paired tool_result carrying a passing
+# execution-evidence signature (PASSED:/"created": for a wiki.py new).
+# ======================================================================
+
+echo "[34k] ATTACK: a bare variable ASSIGNMENT ('CMD=\"...write_gate.py gate...\"') does NOT resolve the correction ledger"
+TX34K="$TRANSCRIPT_DIR/t34k.jsonl"
+write_transcript "$TX34K" \
+  "$(assistant_text 'setting up the command' u34k)" \
+  "$(assistant_tool_use_with_id Bash '{"command":"CMD=\"python3 skills/write-gate/tools/write_gate.py gate --text x\""}' tu34k)"
+out=$(call34 cc34k "$TX34K" s34k 'no, I said use spaces')
+out2=$(call34 cc34k "$TX34K" s34k 'go ahead')
+if echo "$out2" | grep -qi 'correction(s) still OPEN' && ! echo "$out2" | grep -q 'resolved 1 correction'; then
+  ok "bare variable assignment does NOT resolve (attack blocked)"
+else
+  no "bare variable assignment must NOT resolve" "got: $(echo "$out2" | head -c220)"
+fi
+
+echo "[34l] ATTACK: a short-circuited 'false && python3 .../write_gate.py gate ...' does NOT resolve the correction ledger"
+TX34L="$TRANSCRIPT_DIR/t34l.jsonl"
+write_transcript "$TX34L" \
+  "$(assistant_text 'running the guarded command' u34l)" \
+  "$(assistant_tool_use_with_id Bash '{"command":"false && python3 skills/write-gate/tools/write_gate.py gate --text x"}' tu34l)"
+out=$(call34 cc34l "$TX34L" s34l 'no, I said use spaces')
+out2=$(call34 cc34l "$TX34L" s34l 'go ahead')
+if echo "$out2" | grep -qi 'correction(s) still OPEN' && ! echo "$out2" | grep -q 'resolved 1 correction'; then
+  ok "short-circuited && does NOT resolve (attack blocked)"
+else
+  no "short-circuited && must NOT resolve" "got: $(echo "$out2" | head -c220)"
+fi
+
+echo "[34m] a genuine invocation whose result is REJECTED does NOT resolve — a rejected banking attempt is not a successful banking"
+TX34M="$TRANSCRIPT_DIR/t34m.jsonl"
+write_transcript "$TX34M" \
+  "$(assistant_text 'attempting to bank' u34m)" \
+  "$(assistant_tool_use_with_id Bash '{"command":"python3 skills/write-gate/tools/write_gate.py score --json --text x"}' tu34m)" \
+  "$(user_tool_result_for tu34m '{"verdict": "REJECTED: signal score 0.00 < threshold 3.00"}' 0)"
+out=$(call34 cc34m "$TX34M" s34m 'no, I said use spaces')
+out2=$(call34 cc34m "$TX34M" s34m 'go ahead')
+if echo "$out2" | grep -qi 'correction(s) still OPEN' && ! echo "$out2" | grep -q 'resolved 1 correction'; then
+  ok "REJECTED gate result stays OPEN (rejected banking attempt is not a banking)"
+else
+  no "REJECTED gate result must stay OPEN" "got: $(echo "$out2" | head -c220)"
+fi
+
+echo "[34n] a genuine 'wiki.py new' invocation whose result shows \"created\": DOES resolve"
+# Both the correction (fired by this turn's prompt) and the banking Bash call
+# (with its paired tool_result) are visible in the SAME transcript/turn —
+# mirroring [34c]/[34i] — so open + resolve happen together on turn 1; assert
+# on `out`, not a second turn (which would find the ledger already empty).
+TX34N="$TRANSCRIPT_DIR/t34n.jsonl"
+write_transcript "$TX34N" \
+  "$(assistant_text 'materializing the page' u34n)" \
+  "$(assistant_tool_use_with_id Bash '{"command":"python3 skills/wiki-memory/tools/wiki.py new --template decision --title x"}' tu34n)" \
+  "$(user_tool_result_for tu34n '{"created": "queries/x.md", "template": "decision"}' 0)"
+out=$(call34 cc34n "$TX34N" s34n 'no, I said use spaces')
+if echo "$out" | grep -q 'resolved 1 correction' && ! echo "$out" | grep -qi 'correction(s) still OPEN'; then
+  ok "wiki.py new with \"created\" result DOES resolve"
+else
+  no "wiki.py new with \"created\" result should resolve" "got: $(echo "$out" | head -c220)"
+fi
+
+echo "[34o] a genuine 'wiki.py new' invocation whose result shows \"refused\": does NOT resolve"
+TX34O="$TRANSCRIPT_DIR/t34o.jsonl"
+write_transcript "$TX34O" \
+  "$(assistant_text 'attempting to materialize the page' u34o)" \
+  "$(assistant_tool_use_with_id Bash '{"command":"python3 skills/wiki-memory/tools/wiki.py new --template page --title x"}' tu34o)" \
+  "$(user_tool_result_for tu34o '{"refused": "REFUSED: low-signal candidate"}' 0)"
+out=$(call34 cc34o "$TX34O" s34o 'no, I said use spaces')
+out2=$(call34 cc34o "$TX34O" s34o 'go ahead')
+if echo "$out2" | grep -qi 'correction(s) still OPEN' && ! echo "$out2" | grep -q 'resolved 1 correction'; then
+  ok "wiki.py new with \"refused\" result stays OPEN"
+else
+  no "wiki.py new with \"refused\" result must stay OPEN" "got: $(echo "$out2" | head -c220)"
+fi
+
+echo "[34j] allowlist excluding user_correction's owning skill still OPENS a ledger item"
+# COMPLIANCE_CANARY_PROBE_SKILLS scoped to an UNRELATED skill: the sk34
+# user_correction probe (skill 'cv') is excluded from DISPLAY, but ledger
+# OPENING must still happen (capture is unconditional, HOLE #2).
+TX34J="$TRANSCRIPT_DIR/t34j.jsonl"
+write_transcript "$TX34J" "$(assistant_text 'ok, using tabs' u34j)"
+payload34j=$(python3 -c "
+import json,sys
+print(json.dumps({'session_id':sys.argv[1],'transcript_path':sys.argv[2],'hook_event_name':'UserPromptSubmit','prompt':sys.argv[3]}))
+" s34j "$TX34J" 'no, I said use spaces not tabs')
+out=$(printf '%s' "$payload34j" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc34j" \
+  COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk34" COMPLIANCE_CANARY_PROBE_SKILLS=some-other-skill "${HOOK[@]}")
+if echo "$out" | grep -qi 'still OPEN' && echo "$out" | grep -q '§2'; then
+  ok "allowlist excluding user_correction's skill still opens the correction ledger"
+else
+  no "allowlist must not block ledger OPENING" "got: $(echo "$out" | head -c220)"
 fi
 
 echo "[35] claim_without_evidence: incidental substring ('cat' inside 'category') does NOT count as verification"

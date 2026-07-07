@@ -31,7 +31,8 @@ tools/
 
 ## Failure modes
 
-Premortem (LEARNING_CONTRACT.md §8) — answer before shipping:
+<!-- Link below is relative to this template's DESTINATION (skills/<name>/SKILL.md), not scripts/skill-templates/ — it resolves correctly once instantiated. Do not "fix" it to ../../skills/_shared/... -->
+Premortem ([LEARNING_CONTRACT §8](../_shared/LEARNING_CONTRACT.md#8-anticipate-at-ship-time--premortem-lifecycle-gauntlet)) — answer before shipping:
 - How does this fail silently?
 - What rots when nobody looks?
 - What happens on a host without hooks?

@@ -45,7 +45,21 @@ Raw: [`eval/results/context-keeper.json`](../../eval/results/context-keeper.json
 
 ## Failure modes
 
-To be filled in after analysis of result outputs (see raw JSON for individual trial outputs).
+Premortem ([`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §8):
+
+- **Silent-failure path** — the hook must always exit 0 (a failing `PreCompact` hook
+  blocks compaction), so a bug that produces a wrong or empty sidecar behaves
+  identically to a correct run: no error surfaces, compaction proceeds, and the only
+  evidence is a checkpoint file nobody re-reads until a lost fact is needed.
+- **Rot-when-unwatched** — the regex-based extractors (`PATH_RE`, `IMPERATIVE_RE`) are
+  tuned against the transcript shapes seen in the 2026-05-23 sample; as Claude Code's
+  own transcript schema shifts (new tool_result block types, new event fields), the
+  patterns keep running and keep producing SOME output, which looks like success even
+  as recall against the current format quietly degrades.
+- **No-hooks host** — `PreCompact`/`SessionEnd` are Claude-Code-specific lifecycle
+  events; on Codex/Gemini or any host lacking that hook surface, context-keeper never
+  fires at all and the session falls back to whatever generic `/compact` summarizer
+  the host has, with none of the structured-extraction guarantee this skill exists for.
 
 ## 2026-05-23 — hook revival + quality fixes
 

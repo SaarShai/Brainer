@@ -1,0 +1,9 @@
+[
+  {
+    "id": "security-oversight-ship-intent",
+    "kind": "prompt_intent",
+    "pattern": "(?i)(?:\\b(?:is this|is it)\\s+safe\\s+to\\s+ship\\b|\\bready\\s+to\\s+ship\\b|\\bship\\s+(?:this|it)\\b|\\bdid\\s+i\\s+leak\\s+a\\s+secret\\b|\\b(?:commit|push)\\s+(?:this|it|these\\s+changes)\\b|\\bgit\\s+commit\\b|\\bmerge\\s+this\\b)",
+    "message": "this prompt carries ship/commit intent — before committing or claiming work done, run the security-oversight triage (python3 skills/security-oversight/tools/security_scan.py --repo . --diff working) to surface the introduced attack surface (secrets/dangerous sinks/new deps/authz-sensitive logic) so verify-before-completion knows what to check. Report-only; absence of a finding is not proof of safety.",
+    "severity": "warn"
+  }
+]

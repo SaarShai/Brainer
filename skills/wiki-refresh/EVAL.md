@@ -37,4 +37,23 @@ python3 eval/judge.py eval/results/wiki-refresh.json --model mimo-v2-flash --bac
 
 ## Failure modes
 
-To be filled in after analysis of result outputs.
+Premortem ([`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §8):
+
+- **Silent-failure path** — reconcile is invoked manually or via the opt-in
+  `staleness.py nudge` `SessionStart` hook; a repo where that hook was never wired
+  gets no reminder at all, so pages can drift for months against renamed/deleted
+  code with nothing surfacing the gap until an unrelated task happens to touch the
+  same file and notices the citation is wrong.
+- **Rot-when-unwatched** — `audit-refs` and `claim-ground` catch a cited path going
+  missing, but a page whose cited path still exists yet whose *behavior* changed
+  underneath it (same filename, rewritten implementation) passes the refs check
+  clean while the prose is now actively wrong — the Update-vs-Replace judgment call
+  depends on a human/agent reading the diff, not a mechanical check.
+- **No-hooks host** — the `disuse` signal (a tenth quality-scan lens, distinct from
+  the code-groundedness nine) is **detection-only by design**: it flags a
+  zero-read page as a prune/review candidate but never deletes, per
+  [`LEARNING_CONTRACT §8`](../_shared/LEARNING_CONTRACT.md)'s requirement that a
+  detection-only control name why no prevention twin exists — a page's future
+  read-value can't be verified at write time, so gating writes on predicted disuse
+  would block legitimate pages; the deletion call stays a human or a scheduled
+  `wiki-refresh` run's decision, never automatic.

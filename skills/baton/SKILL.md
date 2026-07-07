@@ -137,6 +137,24 @@ in it.
 - Grab side: before acting, re-run `git status` and confirm or flag drift from
   the baton's State of Play.
 
+## Failure modes
+
+Premortem ([`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §8):
+
+- **Silent-failure path** — dropping a baton is a manual, model-invoked write with
+  `disable-model-invocation: true` (slash-only); a session that runs out of context
+  before anyone types `/baton` ends with zero handoff and nothing anywhere flags
+  that the next agent is about to start from scratch on in-progress work.
+- **Rot-when-unwatched** — batons are meant to be retired on land (deleted or
+  promoted via write-gate), but nothing enforces that; an agent that grabs a stale
+  baton without checking its date against current `git log` can act on dead-ends or
+  a State of Play that no longer matches the repo, because the retirement step is a
+  convention in this file, not a check any tool runs.
+- **No-hooks host** — this skill is pure markdown-file convention with no hook and
+  `auto-install: false`; on any host, a baton only gets written or read if a human
+  or agent remembers the slash trigger, so the entire mechanism depends on
+  attention rather than automatic enforcement.
+
 <!-- Rationale (why this earns a skill) — scored by write-gate before commit:
 Baton earns a skill because Brainer has no forward-handoff procedure: context-keeper is mechanical PreCompact/SessionEnd extraction, but nothing captures curated intent + dead-ends + literal-next-step when passing unfinished work to a fresh session, another window, or codex — so that the next agent doesn't re-derive ruled-out approaches (memory notes record codex fire-and-forget and subagent-handoff failures as recurring pain). Decision: vendor blader/baton (MIT, prompt-only, reviewed 2026-07-01, dedup verdict CREATE) rather than author from scratch, because its Iron Rule (verify State of Play against `git status`, never chat narrative) and its dead-ends-with-why section are field-tested phrasing we'd otherwise reinvent. Adapted to `.brainer/baton/` and retirement-via-write-gate→wiki so scratch never pollutes the durable store. Error avoided: a confidently-wrong handoff built from chat narrative sends the next runner the wrong way with false confidence — worse than no handoff.
 -->

@@ -106,21 +106,62 @@ Propagation is not one-directional. Each sibling accumulates its own lessons
 (bugs it hit, gotchas it worked around) that Brainer never sees unless
 someone reads them back. Per sibling repo:
 
-1. **Scan for lesson artifacts**, three shapes:
+1. **Scan for lesson artifacts, then pre-scan for already-harvested IDs.**
+   Three artifact shapes:
    - `docs/*brainer*learn*` failure-report files
    - `.brainer/` lesson/baton notes
    - wiki pages tagged `for-brainer`
-2. **SCOPE-classify each** per
+
+   Each artifact may hold multiple lesson blocks (one artifact ≠ one lesson),
+   so identify lessons at the **block** level. **Block boundaries:** a lesson
+   block runs from its markdown heading (or the artifact's first line, when
+   headerless) to the next same-or-higher-level heading or end of file;
+   fenced code inside stays part of the block. **Per-lesson ID:** when the
+   block has a stable section heading, the ID is `<source file> + <section
+   heading>`; otherwise the ID is a content hash — trim leading/trailing
+   whitespace from the lesson block, normalize all line endings to `\n`, take
+   the sha256 of the result, and truncate to the first 12 hex chars.
+   **Marker hygiene:** a `harvested:` line only counts if it appears OUTSIDE
+   a code fence and matches the exact grammar `harvested: <ISO-date> <sha>
+   <lesson-id>` (any other shape — inside a fence, missing a field, extra
+   trailing text — is not a valid marker and is ignored). Parse every valid
+   `harvested:` line in the artifact into a consumed-ID set **before** doing
+   anything else. If more than one marker line names the same lesson-id and
+   they disagree (different sha and/or date), the strictest reading wins:
+   treat that lesson-id as **NOT** harvested, re-run step 4's verification
+   for it, and on success rewrite the artifact to hold a single clean marker
+   for that ID (replacing the conflicting lines). Skip any lesson block
+   whose ID is already in the (deduplicated, non-conflicting) consumed set —
+   this is what makes a re-run over the same artifact a no-op instead of a
+   double-harvest. A lesson block appended to an artifact **after** it was
+   marked gets a fresh ID (new heading/new hash) and is **not** in the
+   consumed set, so it IS harvested on this pass — append-only artifacts
+   never get stuck at "fully marked, nothing more to see."
+2. **SCOPE-classify each unconsumed lesson** per
    [LEARNING_CONTRACT §1](../_shared/LEARNING_CONTRACT.md#1-scope-classification-is-mandatory-at-banking-time)
    — `this-skill` / `this-repo` / `cross-skill` / `cross-repo` / `canon`. A
    this-repo-only lesson stays in that sibling; nothing to harvest.
 3. **Land cross-repo/canon lessons in Brainer**: canon doc or skill, plus an
    executable check per
    [LEARNING_CONTRACT §3](../_shared/LEARNING_CONTRACT.md#3-mechanism-over-prose)
-   (mechanism over prose — never prose-only).
-4. **Mark the source artifact consumed**: append a `harvested: <ISO date>
-   <brainer commit sha>` line so a re-run over the same artifact is an
-   idempotent no-op.
+   (mechanism over prose — never prose-only). Record the repo-relative
+   `<landed-path>` (canon doc / skill file / test) per landed lesson — step 4
+   greps exactly that file.
+4. **Verify before marking, then mark per lesson, not per file.** `git show
+   <sha>:<path>` only proves a *snapshot* once contained the rule — it says
+   nothing about whether that rule survived. Verify **survival at current
+   Brainer HEAD** instead: run `git show HEAD:<landed-path>` and grep it for
+   the rule text (or rule ID) from step 3. A lesson that landed and was
+   later reverted (present in the old sha's snapshot, absent from HEAD) MUST
+   fail this check, remain unmarked, and be re-harvested next pass — the sha
+   in the marker records *when* it landed, never *whether it still holds*.
+   Only after HEAD confirms survival, append one `harvested: <ISO date>
+   <brainer commit sha> <lesson-id>` line per harvested lesson (not one
+   blanket line per artifact), placed outside any code fence and matching
+   the grammar in step 1 exactly — this is what lets a partially-harvested
+   artifact (some blocks consumed, one still this-repo-only, one newly
+   appended) be marked correctly without falsely covering lessons it didn't
+   land.
 
 ## Failure modes
 
@@ -148,7 +189,8 @@ left K customized (list) · install.sh ok/fail · verify counts (incl. ag-new 0)
 post-check result · adjacent tests run + outcome`. A propagation without step 4-6
 evidence is not done.
 
-**Harvest fields (per sibling):** `artifacts scanned N · lessons found L ·
-SCOPE breakdown (this-skill/this-repo/cross-skill/cross-repo/canon counts) ·
-landed-where + commit sha · marked-consumed count`, or `skipped: <reason>`
-if the harvest lane did not run.
+**Harvest fields (per sibling):** `artifacts scanned N · lessons found L
+(skipped already-harvested X) · SCOPE breakdown
+(this-skill/this-repo/cross-skill/cross-repo/canon counts) · landed-where +
+commit sha (verified via git show) · newly-marked-consumed count`, or
+`skipped: <reason>` if the harvest lane did not run.

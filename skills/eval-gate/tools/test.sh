@@ -153,8 +153,39 @@ printf 'cand' | "${EG[@]}" score --criteria-json '{"criteria":[{"id":"a","descri
 chk $? 2 "provenance: dict-wrapped criteria with missing source fails ONLY with --require-provenance"
 printf 'cand' | "${EG[@]}" score --criteria-json '{"criteria":[{"id":"a","description":"d"}]}' --stub-criteria '{"a":"pass"}' >/dev/null 2>&1
 chk $? 0 "provenance: same dict-wrapped payload passes WITHOUT --require-provenance"
-printf 'cand' | "${EG[@]}" score --criteria-json '[{"id":"a","description":"d"}]' --require-provenance --stub-criteria '{"a":"pass"}' >/dev/null 2>&1
-chk $? 0 "provenance: bare-list criteria stay backward-compatible (pass even with the flag)"
+printf 'cand' | "${EG[@]}" score --criteria-json '[{"id":"a","description":"d"}]' --stub-criteria '{"a":"pass"}' >/dev/null 2>&1
+chk $? 0 "provenance: bare-list criteria stay backward-compatible (pass WITHOUT the flag)"
+# HIGH-hole regression: --require-provenance used to be a no-op on bare-list criteria
+# (unwrap a dict payload back to its bare "criteria" list and the provenance check
+# returned before ever running) — must now be REJECTED, not silently accepted.
+out=$(printf 'cand' | "${EG[@]}" score --criteria-json '[{"id":"a","description":"d"}]' --require-provenance --stub-criteria '{"a":"pass"}' 2>&1)
+rc=$?; chk "$rc" 2 "provenance: bare-list criteria + --require-provenance now REJECTED (exit 2, was the bypass)"
+echo "$out" | grep -q "bare-list" && echo "$out" | grep -q "§5" >/dev/null 2>&1; chk $? 0 "provenance: bare-list rejection message names the bypass + cites §5"
+printf 'cand' | "${EG[@]}" score --criteria-json '{"criteria":[{"id":"a","description":"d"}],"source":"spec"}' --require-provenance --stub-criteria '{"a":"pass"}' >/dev/null 2>&1
+chk $? 0 "provenance: dict-wrapped + valid source=spec + --require-provenance passes"
+
+# ADVERSARIAL: source as non-string JSON must exit 2 cleanly, never an uncaught
+# TypeError traceback (source not in _VALID_PROVENANCE, a set, raises on an
+# unhashable list/dict without a type check first).
+out=$(printf 'cand' | "${EG[@]}" score --criteria-json '{"criteria":[{"id":"a","description":"d"}],"source":["spec"]}' --stub-criteria '{"a":"pass"}' 2>&1)
+rc=$?; chk "$rc" 2 "provenance: list-typed source -> exit 2 (no traceback)"
+echo "$out" | grep -qi "traceback"; chk $? 1 "provenance: list-typed source output has no traceback"
+out=$(printf 'cand' | "${EG[@]}" score --criteria-json '{"criteria":[{"id":"a","description":"d"}],"source":{"x":1}}' --stub-criteria '{"a":"pass"}' 2>&1)
+rc=$?; chk "$rc" 2 "provenance: dict-typed source -> exit 2 (no traceback)"
+echo "$out" | grep -qi "traceback"; chk $? 1 "provenance: dict-typed source output has no traceback"
+# ADVERSARIAL: duplicate "source" keys must not launder an invalid provenance
+# past the last-value-wins default of json.loads -> exit 2, not a silent pass.
+out=$(printf 'cand' | "${EG[@]}" score --criteria-json '{"criteria":[{"id":"a","description":"d"}],"source":"executor-claims","source":"spec"}' --stub-criteria '{"a":"pass"}' 2>&1)
+rc=$?; chk "$rc" 2 "provenance: duplicate source keys -> exit 2 (not laundered to the last value)"
+echo "$out" | grep -qi "traceback"; chk $? 1 "provenance: duplicate source keys output has no traceback"
+echo "$out" | grep -q "duplicate"; chk $? 0 "provenance: duplicate source keys message names the duplication"
+
+# ADVERSARIAL: source declared but null must exit 2 even WITHOUT the flag —
+# a declared-null source is invalid provenance, not a legacy no-provenance
+# payload (only a fully ABSENT key gets the backward-compat path).
+out=$(printf 'cand' | "${EG[@]}" score --criteria-json '{"criteria":[{"id":"a","description":"d"}],"source":null}' --stub-criteria '{"a":"pass"}' 2>&1)
+rc=$?; chk "$rc" 2 "provenance: null source (declared, no flag) -> exit 2, not silent pass"
+echo "$out" | grep -qi "traceback"; chk $? 1 "provenance: null source output has no traceback"
 
 echo
 [ "$fail" = "0" ] && echo "ALL PASS" || echo "FAILURES ABOVE"

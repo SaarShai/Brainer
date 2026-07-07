@@ -31,14 +31,16 @@ Raw: [`eval/results/prompt-triage.json`](../../eval/results/prompt-triage.json)
 ## Methodology
 
 - Sample size: N=3-10 local smoke; N≥50 on Kaggle T4 for any >20% savings claim.
-- Tasks: 3–5 representative prompts in `eval/tasks/prompt-triage.yaml`.
+- Tasks: 3–5 representative prompts in `eval/tasks/prompt-triage-corpus.yaml`.
 - Backends supported: `ollama`, `anthropic`, `mimo`, `mlx` (`--backend` arg).
 - Judge: Xiaomi MiMo via `https://api.xiaomimimo.com/v1` (preferred for quality) or local Ollama.
 - Rubric: per-task rubric embedded in the YAML.
 
 ## Failure modes
 
-To be filled in after analysis of result outputs (see raw JSON for individual trial outputs).
+- **Hardcoded-tag rotation rot** (2026-06-12 incident): the classifier's tag/rule set drifts stale as new prompt shapes appear in production, silently misrouting until a corpus replay catches it — mitigated by periodic replay against real history (`scripts/replay_triage.py`), not a one-time tune.
+- **Directive override cost**: the directive is advisory — the main model can (and sometimes should) override it. A directive the main model must override costs MORE than no directive, so every guard is tuned to err toward silence rather than false-positive routing.
+- **Context-blind misroute**: a subagent dispatched off a cheap-tier verdict cannot answer questions that require the current session/conversation state (e.g. "summarize what this suite of skills does") — fixed by a context-guard that short-circuits such prompts to hard/none before the classifier runs, but new phrasings can still slip through until observed.
 
 ## Moved from SKILL.md (2026-06-12 SkillReducer-criteria audit)
 

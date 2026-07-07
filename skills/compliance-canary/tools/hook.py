@@ -502,6 +502,59 @@ def _tool_result_text(content) -> str:
     return str(content or "")
 
 
+def recent_bash_tool_results(events: list[dict], n: int = 10) -> list[dict]:
+    """Return up to n most-recent Bash tool_use blocks PAIRED with their
+    tool_result (correlated by `tool_use_id`), oldest-first. Each:
+    {"command": str, "result_text": str, "is_error": bool|None, "has_result": bool}.
+
+    Mechanism 4's bank-resolver needs EXECUTION EVIDENCE, not just invocation
+    shape (adversarially confirmed: `CMD="...write_gate.py gate..."` — a bare
+    variable assignment — and `false && python3 .../write_gate.py gate ...` — a
+    short-circuited command — both present a matching command STRING while
+    never actually running the tool; text-only matching cannot tell the
+    difference). This walks assistant tool_use blocks (which carry `id` in a
+    real transcript) and the following user-event tool_result blocks (which
+    carry the same id as `tool_use_id`) to attach the ACTUAL output each Bash
+    call produced — same shape mechanism-3-style detectors already read via
+    `recent_tool_uses`/`recent_tool_errors`, just correlated by id instead of
+    scanned independently. `has_result=False` means no tool_result was found
+    in this transcript window for that tool_use (e.g. it's still running, or
+    fell outside the tail cap) — callers must treat that as "no evidence",
+    never as an error."""
+    tool_uses: list[tuple[str, dict]] = []  # (id, {"command":...})
+    results_by_id: dict[str, dict] = {}
+    for e in events:
+        msg = e.get("message") or {}
+        content = msg.get("content")
+        if not isinstance(content, list):
+            continue
+        if e.get("type") == "assistant":
+            for b in content:
+                if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("name") == "Bash":
+                    inp = b.get("input") or {}
+                    tid = b.get("id")
+                    if tid:
+                        tool_uses.append((tid, {"command": str(inp.get("command", ""))}))
+        elif e.get("type") == "user":
+            for b in content:
+                if isinstance(b, dict) and b.get("type") == "tool_result":
+                    tid = b.get("tool_use_id")
+                    if tid:
+                        results_by_id[tid] = {
+                            "result_text": _tool_result_text(b.get("content")),
+                            "is_error": bool(b.get("is_error")),
+                        }
+    out: list[dict] = []
+    for tid, tu in tool_uses[-n:] if len(tool_uses) > n else tool_uses:
+        r = results_by_id.get(tid)
+        if r is None:
+            out.append({"command": tu["command"], "result_text": "", "is_error": None, "has_result": False})
+        else:
+            out.append({"command": tu["command"], "result_text": r["result_text"],
+                        "is_error": r["is_error"], "has_result": True})
+    return out[-n:]
+
+
 def recent_tool_errors(events: list[dict], n: int = 30) -> list[str]:
     """Return up to n most-recent is_error tool_result texts, oldest-first.
     Tool errors live in user-type events (content blocks {type: tool_result,
@@ -1176,33 +1229,148 @@ CORRECTION_LEDGER_SHOW_MAX = 8        # max items surfaced in one reminder
 CORRECTION_LEDGER_TEXT_CAP = 140      # chars kept per remembered correction
 
 # A Bash call that BANKS a lesson: write-gate's score/gate/explain (the quality
-# gate §2 requires before a durable write) or wiki.py new|update (materializing
-# the durable artifact itself). Matched against the Bash `command` string —
-# same detection style as `_LEDGER_MAINT_PATH_DEFAULT` above (path/command
-# substring, not an AST parse).
-_CORRECTION_BANK_TOOL_RE = re.compile(
-    r"(?:^|[\s/])write_gate\.py\b|(?:^|[\s/])wiki\.py\b[^\n]*\b(?:new|update)\b"
+# gate §2 requires before a durable write) or wiki.py new (materializing the
+# durable artifact itself — `wiki.py` has no `update` subcommand; `new` is the
+# only page-writing verb it exposes). Matched against the Bash `command`
+# string — same detection style as `_LEDGER_MAINT_PATH_DEFAULT` above
+# (path/command substring, not an AST parse) — BUT the token must be in
+# COMMAND POSITION (the thing actually being invoked in a shell segment), AND
+# the paired tool_result must carry an EXECUTION-EVIDENCE signature (below).
+#
+# HOLE #1 (adversarially confirmed, pre-fix): a bare substring match let
+# `echo write_gate.py`, `wiki.py new --help`, and `grep write_gate.py x` all
+# falsely RESOLVE a closeout-blocking correction — none of them ran the gate.
+# Command-position invocation shape (this section) closes that hole.
+#
+# HOLE #2 (adversarially confirmed): invocation SHAPE alone is still
+# text-trust, not execution proof — two attacks resolve a correction without
+# the gate ever running:
+#   (a) `CMD="python3 skills/write-gate/tools/write_gate.py gate --text x"` —
+#       a bare shell variable ASSIGNMENT. The command string contains a
+#       matching invocation shape, but nothing executes; `CMD` is just a
+#       string sitting in an env var.
+#   (b) `false && python3 .../write_gate.py gate ...` — a short-circuited
+#       compound command. Splitting on `&&`/`||`/`;`/`|` (the HOLE #1 fix)
+#       checks each segment independently, so the second segment still
+#       "looks like" an invocation even though `&&` guarantees it never runs.
+# Neither can be told apart from a genuine invocation by matching the command
+# STRING — only by checking what actually happened. Fix: require the SAME
+# Bash tool_use to also have a `tool_result` whose content carries a real
+# write_gate.py/wiki.py execution signature (see `_WRITE_GATE_VERDICT_RE` /
+# `_WIKI_NEW_CREATED_RE` / `_WIKI_NEW_REFUSED_RE` below) — invocation shape is
+# still required (narrows which Bash calls we even look at), but shape alone
+# no longer resolves anything.
+_CORRECTION_BANK_SEGMENT_SPLIT_RE = re.compile(r"&&|\|\||[;|]")
+_CORRECTION_BANK_LEADING_RE = re.compile(
+    r"^\s*(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:sudo\s+)?"
 )
+_CORRECTION_BANK_INVOKE_RE = re.compile(
+    r"^(?:(?:python3?|bash|sh)\s+)?(?:\S*/)?"
+    r"(?P<tool>write_gate\.py|wiki\.py)\b(?P<rest>.*)$"
+)
+_CORRECTION_BANK_HELP_RE = re.compile(r"(?:^|\s)(?:--help|-h)\b")
+_CORRECTION_BANK_WIKI_SUBCMD_RE = re.compile(r"^\s*new\b")
+
+# Execution-evidence signatures — the REAL output shapes each tool prints,
+# verified by running both live (2026-07-06):
+#   write_gate.py {score,gate,explain} --json  → prints a JSON object whose
+#     "verdict" field is "PASSED: ..." or "REJECTED: ...".
+#   write_gate.py {score,explain} (no --json)   → prints "PASSED: ..." /
+#     "REJECTED: ..." as the first line.
+#   write_gate.py gate (no --json, no subcommand text)  → prints NOTHING to
+#     stdout, only an exit code — so `gate` alone carries no verdict signature
+#     in the tool_result at all; a banking call must use `--json` or `score`/
+#     `explain` for the hook to see a verdict.
+#   wiki.py new (success)  → JSON with a "created": "<relative/path.md>" key.
+#   wiki.py new (refused)  → JSON with a "refused": "REFUSED: ..." key.
+_WRITE_GATE_VERDICT_RE = re.compile(r'(?im)(?:^|"verdict"\s*:\s*")\s*(PASSED|REJECTED):')
+_WIKI_NEW_CREATED_RE = re.compile(r'"created"\s*:\s*"')
+_WIKI_NEW_REFUSED_RE = re.compile(r'"refused"\s*:\s*"REFUSED:')
+
+
+def _command_has_bank_invocation_shape(command: str) -> bool:
+    """True iff `command` contains a shell segment that DIRECTLY invokes
+    write_gate.py (any subcommand) or wiki.py new, in command position — not
+    merely as a substring/argument, and not a --help/-h invocation. Necessary
+    but NOT sufficient: this is invocation SHAPE only (text), narrowing which
+    Bash calls are even worth checking for execution evidence. See
+    `_bash_call_banks_correction` for the full (shape + evidence) gate."""
+    for segment in _CORRECTION_BANK_SEGMENT_SPLIT_RE.split(command):
+        seg = _CORRECTION_BANK_LEADING_RE.sub("", segment).strip()
+        m = _CORRECTION_BANK_INVOKE_RE.match(seg)
+        if not m:
+            continue
+        rest = m.group("rest")
+        if _CORRECTION_BANK_HELP_RE.search(rest):
+            continue  # --help/-h → never banks
+        if m.group("tool") == "wiki.py" and not _CORRECTION_BANK_WIKI_SUBCMD_RE.match(rest):
+            continue  # wiki.py without a `new` subcommand → not a bank call
+        return True
+    return False
+
+
+def _result_has_bank_signature(result_text: str) -> bool:
+    """True iff a Bash tool_result's text carries a real write_gate.py verdict
+    line or a wiki.py new outcome key — the ACTUAL execution evidence, not the
+    command that was typed. A REJECTED verdict or a REFUSED wiki write is NOT a
+    bank signature: the gate ran but refused the candidate, so the correction
+    stays open (a rejected banking attempt is not a successful banking)."""
+    if not result_text:
+        return False
+    m = _WRITE_GATE_VERDICT_RE.search(result_text)
+    if m:
+        return m.group(1) == "PASSED"
+    if _WIKI_NEW_CREATED_RE.search(result_text):
+        return True
+    if _WIKI_NEW_REFUSED_RE.search(result_text):
+        return False
+    return False
+
+
+def _bash_call_banks_correction(command: str, result_text: str, has_result: bool) -> bool:
+    """True iff a Bash tool_use both (a) has bank invocation shape and (b) its
+    PAIRED tool_result carries a passing execution-evidence signature. Shape
+    without a result (has_result=False — no tool_result observed in this
+    transcript window) or shape with a non-passing/absent signature never
+    resolves anything — text-trust alone is not enough (HOLE #2 above)."""
+    if not _command_has_bank_invocation_shape(command):
+        return False
+    if not has_result:
+        return False
+    return _result_has_bank_signature(result_text)
 
 
 def _correction_ledger_make_id(turn: int, text: str) -> str:
     return f"c{turn}-" + hashlib.sha256(text.encode("utf-8", "replace")).hexdigest()[:6]
 
 
-def update_correction_ledger(ledger: list, fired_probes: list[dict], tool_uses: list[dict],
+def update_correction_ledger(ledger: list, fired_probes: list[dict], bash_results: list[dict],
                              prompt: str, turn: int) -> tuple[list, list, str]:
     """Pure mechanical lifecycle, same shape as `update_ledger`. Returns
     (new_ledger, closed_items, action). NEVER judges whether the banked lesson
-    is any good — only whether a banking tool call appears in recent history.
+    is any good — only whether a banking tool call ACTUALLY RAN (execution
+    evidence), not merely whether its command text looks like one.
 
     Open: one item per `user_correction` probe that fired THIS turn (fired_probes
     is the subset `run_probes` already computed — no extra transcript scan).
-    Close: (a) a recent Bash tool_use matching `_CORRECTION_BANK_TOOL_RE`
-    (banked — resolves ALL open items, mirroring "close all"), or (b) the user's
-    prompt matches the same explicit-closure phrasing Mechanism 3 uses ("close
-    it", "that's all", ...) — an explicit user override for a correction the
-    agent judges already handled outside the banking tools. Absent either, the
-    item stays OPEN indefinitely (no auto-resolve on the mere passage of turns).
+    Close: (a) a recent Bash call satisfying `_bash_call_banks_correction` —
+    invocation shape AND a passing execution-evidence signature in its PAIRED
+    tool_result (banked — resolves ALL open items, mirroring "close all"), or
+    (b) the user's prompt matches the same explicit-closure phrasing Mechanism 3
+    uses ("close it", "that's all", ...) — an explicit user override for a
+    correction the agent judges already handled outside the banking tools.
+    Absent either, the item stays OPEN indefinitely (no auto-resolve on the
+    mere passage of turns).
+
+    `bash_results` is `recent_bash_tool_results()`'s output: each Bash tool_use
+    paired with its tool_result (if one was observed in this transcript
+    window). A command with matching invocation shape but NO paired result, or
+    a result that doesn't carry a PASSED/created signature (REJECTED/REFUSED,
+    or unrelated output), does not resolve anything — this is the fix for the
+    text-trust hole (a bare `CMD="...write_gate.py gate..."` assignment, or a
+    short-circuited `false && python3 .../write_gate.py gate ...`, both present
+    a matching command STRING while never executing the tool; only a real
+    tool_result can distinguish "ran" from "was merely typed").
 
     Actions: open · bank-resolved · user-resolved · none."""
     ledger = list(ledger)
@@ -1223,9 +1391,9 @@ def update_correction_ledger(ledger: list, fired_probes: list[dict], tool_uses: 
 
     if ledger:
         banked = any(
-            tu.get("name") == "Bash" and _CORRECTION_BANK_TOOL_RE.search(
-                str((tu.get("input") or {}).get("command", "")))
-            for tu in (tool_uses or [])
+            _bash_call_banks_correction(r.get("command", ""), r.get("result_text", ""),
+                                        bool(r.get("has_result")))
+            for r in (bash_results or [])
         )
         if banked:
             closed = ledger
@@ -1601,25 +1769,55 @@ def main() -> int:
 
     # --- symptomatic probes (every turn) --------------------------------
     fired: list[dict] = []
-    probes = discover_probes(skills_root())
+    all_probes = discover_probes(skills_root())
+    probes = all_probes
     # C4 — scope probes to a deployment's ACTIVE skills. Default (unset) = every
     # discovered skill's probes run, exactly as before (no regression). Set
     # COMPLIANCE_CANARY_PROBE_SKILLS=a,b,c to fire ONLY those skills' probes — so a
     # session that never invoked caveman-ultra's terse style isn't nagged by its
     # filler/word-count probes. Mirrors COMPLIANCE_CANARY_PULSE_SKILLS (re-anchor).
+    #
+    # EXCEPTION: `user_correction` probes are exempt from this filter for LEDGER
+    # OPENING (Mechanism 4) — display/nagging may still be filtered, but ledger
+    # capture is unconditional (HOLE, adversarially confirmed: an allowlist that
+    # excludes a skill's `user_correction` probe silently prevented its
+    # corrections from EVER opening a closeout-blocking item). `ledger_probes`
+    # below always includes every discovered `user_correction` probe regardless
+    # of the allowlist; `probes` (display-filtered) still governs `fired`/output.
     _probe_allow = {s.strip() for s in
                     os.environ.get("COMPLIANCE_CANARY_PROBE_SKILLS", "").split(",") if s.strip()}
     if _probe_allow:
         probes = [p for p in probes if p.get("_skill") in _probe_allow]
+    ledger_probes = [p for p in all_probes if p.get("kind") == "user_correction"]
     # One transcript read feeds the probes, the ledger's wrap-up check, and the
-    # correction ledger's bank-resolution check (needs recent Bash tool_uses even
-    # on a turn where no NEW correction fires).
+    # correction ledger's bank-resolution check (needs recent Bash tool_uses
+    # PAIRED with their tool_results — execution evidence, not just command
+    # text — even on a turn where no NEW correction fires).
     events: list[dict] = []
     tool_uses: list[dict] = []
-    if probes or ledger or correction_ledger:
+    bash_results: list[dict] = []
+    if probes or ledger_probes or ledger or correction_ledger:
         events = read_transcript_tail(transcript_path)
-        if events and not probes:
-            tool_uses = recent_tool_uses(events, n=10)
+        if events:
+            bash_results = recent_bash_tool_results(events, n=10)
+            if not probes:
+                tool_uses = recent_tool_uses(events, n=10)
+    # Ledger-opening exemption: run any `user_correction` probes the allowlist
+    # excluded from `probes` on their own (cheap — the detector only needs
+    # user_prompt, no messages/tool_uses/traj_stats). Their results feed ONLY
+    # the correction ledger below, never `fired`/`build_output` (display stays
+    # allowlist-scoped; capture does not).
+    ledger_only_probes = [p for p in ledger_probes if p not in probes]
+    ledger_only_fired: list[dict] = []
+    if ledger_only_probes and prompt_text_user:
+        try:
+            with probe_time_limit(PROBE_TIMEOUT_SECONDS):
+                ledger_only_fired = run_probes(
+                    ledger_only_probes, [], [], set(), None,
+                    user_prompt=prompt_text_user, traj_stats=None)
+        except _ProbeBudgetExceeded:
+            log_err(f"probe-budget-exceeded: skipped ledger-only probes (>{PROBE_TIMEOUT_SECONDS}s)")
+            ledger_only_fired = []
     if probes:
         if events:
             # Fetch enough messages for the LARGEST declared word_count window.
@@ -1713,9 +1911,12 @@ def main() -> int:
     # probe, persisted across turns, surfaced EVERY turn it is non-empty (closeout-
     # blocking — unlike the request ledger, this does not wait for a wrap-up turn
     # or drift coupling, since a banked-but-forgotten correction must not go quiet).
+    # `fired + ledger_only_fired`: ledger OPENING sees every fired user_correction
+    # probe regardless of COMPLIANCE_CANARY_PROBE_SKILLS (the allowlist scopes
+    # DISPLAY only — `fired` alone still drives `build_output`/nagging).
     correction_closed_now, correction_action = [], "none"
     correction_ledger, correction_closed_now, correction_action = update_correction_ledger(
-        correction_ledger, fired, tool_uses, prompt_text_user, turn)
+        correction_ledger, fired + ledger_only_fired, bash_results, prompt_text_user, turn)
     if correction_action != "none":
         with state_lock(path):
             state = load_state(path)

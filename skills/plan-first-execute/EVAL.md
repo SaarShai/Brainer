@@ -40,4 +40,18 @@ before making a stronger behavioral claim.
 
 ## Failure modes
 
-To be filled in after analysis of result outputs (see raw JSON for individual trial outputs).
+Premortem ([`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §8):
+
+- **Silent-failure path** — the skill is a description-triggered prompt, not a hook; a
+  model under time pressure can skip straight to editing a >3-step task and nothing
+  anywhere records that the spec-first checkpoint was bypassed, so the omission is
+  invisible until a downstream break traces back to a plan that never existed.
+- **Rot-when-unwatched** — the trigger heuristics ("more than 3 steps, unclear scope,
+  multiple files") are fixed thresholds written once; as the agent's own task mix
+  shifts toward larger single-file refactors or smaller multi-file edits, the same
+  numbers stop matching the tasks that actually need a plan, and nothing re-tunes them
+  against current usage.
+- **No-hooks host** — on a host without a `pulse_reminder`/re-anchor mechanism the
+  confidence pre-flight and spec-first checkpoint are pure text convention with no
+  enforcement; a host that drops mid-session context (long tool loop, compaction) can
+  lose the plan discipline entirely with no reminder firing to restate it.

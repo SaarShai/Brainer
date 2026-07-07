@@ -531,6 +531,11 @@ def _check_provenance(raw, require: bool):
                 "bare-list criteria carry no provenance; wrap in a dict with "
                 "source per LEARNING_CONTRACT §5")
         return
+    if "source" in raw and raw["source"] is None:
+        raise ValueError(
+            "provenance \"source\" is declared but null — a declared source "
+            "must be a valid value (LEARNING_CONTRACT §5); omit the key "
+            "entirely for legacy no-provenance payloads")
     source = raw.get("source")
     if source is None:
         if require:
@@ -540,6 +545,11 @@ def _check_provenance(raw, require: bool):
                 "criteria must derive from the spec/canon, never the "
                 "executor's claims)")
         return
+    if not isinstance(source, str):
+        raise ValueError(
+            f"provenance \"source\" must be a string, got {type(source).__name__} "
+            f"({source!r}) — LEARNING_CONTRACT §5: judge criteria must derive "
+            "from the spec/canon, never the executor's claims")
     if source not in _VALID_PROVENANCE:
         raise ValueError(
             f"invalid provenance source {source!r} — must be one of "
@@ -548,13 +558,35 @@ def _check_provenance(raw, require: bool):
             "claims)")
 
 
+def _no_dup_keys_top(pairs):
+    """object_pairs_hook: reject any JSON object with a repeated key. json.loads's
+    default dict-building silently keeps the LAST value for a repeated key
+    ({"source":"executor-claims","source":"spec"} parses to {"source":"spec"}) —
+    laundering an invalid provenance value past _check_provenance, which only
+    ever sees the winning last one. The top-level object of the criteria
+    payload is where "source"/"criteria" are read (LEARNING_CONTRACT §5 checks
+    raw.get("source") there), so catching it there is sufficient for the hole
+    this closes; the hook fires on every nested object too (json.loads calls it
+    for each), which is a strictly stricter — and harmless, since a duplicate
+    key is never valid JSON either way — superset."""
+    keys = [k for k, _ in pairs]
+    dupes = {k for k in keys if keys.count(k) > 1}
+    if dupes:
+        raise ValueError(
+            f"duplicate JSON key(s) {sorted(dupes)} in criteria payload — "
+            "ambiguous/laundered provenance is rejected outright "
+            "(LEARNING_CONTRACT §5)")
+    return dict(pairs)
+
+
 def _load_criteria(args):
     """Return a normalized criteria list, or None for holistic mode. Raises
     ValueError on a malformed criteria spec (caller maps that to exit 2)."""
     if getattr(args, "criteria_json", None):
-        raw = json.loads(args.criteria_json)
+        raw = json.loads(args.criteria_json, object_pairs_hook=_no_dup_keys_top)
     elif getattr(args, "criteria_file", None):
-        raw = json.loads(Path(args.criteria_file).read_text(encoding="utf-8"))
+        raw = json.loads(Path(args.criteria_file).read_text(encoding="utf-8"),
+                         object_pairs_hook=_no_dup_keys_top)
     else:
         return None
     _check_provenance(raw, bool(getattr(args, "require_provenance", False)))

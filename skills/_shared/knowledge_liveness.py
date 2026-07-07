@@ -7,7 +7,15 @@ built on it stayed inert). This lint makes gate-substrate parse-ability and
 reference-liveness a CHECKED invariant instead of an assumed one:
 
   (a) every skills/*/drift_probes.json and other machine-gate JSON
-      (lesson_patterns.json etc.) parses as JSON.
+      (lesson_patterns.json etc.) parses as JSON, AND every probe's "kind"
+      is a member of the detector set compliance-canary's hook.py actually
+      implements (DETECTORS registry) — a probe with an unknown/typo'd kind
+      parses fine but is silently skipped at runtime by
+      `if kind not in DETECTORS: continue` (hook.py run_probes()) = an
+      alive-looking dead gate. The valid-kind set is derived dynamically by
+      loading hook.py as a module and reading DETECTORS.keys() — never
+      hand-copied, since a hard-coded mirror is exactly the kind of drift
+      this lint exists to catch.
   (b) every skills/*/SKILL.md frontmatter parses, and any tool path it
       references (tools/*.py, other relative script links) exists.
   (c) markdown links inside skills/**/SKILL.md and skills/_shared/*.md
@@ -20,6 +28,10 @@ reference-liveness a CHECKED invariant instead of an assumed one:
       scripts/gen_hooks_map.py's own inventory reports must exist on disk.
       Reuses gen_hooks_map.skill_hook_inventory() rather than re-deriving
       hook-path discovery.
+  (f) every skills/*/tools/**/*.json, recursive (gate substrate beyond
+      drift_probes.json/lesson_patterns.json — e.g. eval-gate's
+      criteria*.json, including any nested under tools/) parses as JSON.
+      Parse-check only; no schema opinion on non-probe files.
 
 Exit codes: 0 clean, 1 warn (checker hit a non-fatal internal snag but could
 still complete, e.g. an optional dependency subsystem is unavailable — no
@@ -41,6 +53,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 SKILLS = REPO / "skills"
 SCRIPTS = REPO / "scripts"
+CANARY_HOOK = SKILLS / "compliance-canary" / "tools" / "hook.py"
 
 MD_LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 
@@ -72,16 +85,85 @@ def _strip_fenced_code_blocks(text: str) -> str:
     return re.sub(r"```.*?```", "", text, flags=re.DOTALL)
 
 
+def _derive_detector_kinds() -> set[str] | None:
+    """The set of probe "kind" values compliance-canary's hook.py actually
+    dispatches on, read straight from its DETECTORS registry (never
+    hand-copied — a hard-coded mirror is exactly the drift this lint exists
+    to catch). Loads hook.py as a module (same _load_module mechanism this
+    file already uses for gen_hooks_map.py/check_wiki_hygiene.py); hook.py
+    guards its stdin-reading main() behind `if __name__ == "__main__"`, so
+    importing it as a library runs no I/O beyond building DETECTORS.
+
+    Returns None (not an empty set) if hook.py is missing/unloadable or
+    exposes no DETECTORS dict, so callers can distinguish "derivation
+    failed, skip schema check" from "derivation succeeded, zero kinds"."""
+    if not CANARY_HOOK.exists():
+        return None
+    try:
+        hook = _load_module(CANARY_HOOK, "compliance_canary_hook")
+        detectors = getattr(hook, "DETECTORS", None)
+        if not isinstance(detectors, dict) or not detectors:
+            return None
+        return set(detectors.keys())
+    except Exception:
+        return None
+
+
 def check_gate_json(errors: list[str]) -> None:
-    """(a) every skills/*/drift_probes.json and other machine-gate JSON parses."""
+    """(a) every skills/*/drift_probes.json and other machine-gate JSON
+    parses, and every drift_probes.json entry's "kind" is a member of the
+    detector set compliance-canary's hook.py actually implements
+    (DETECTORS). An unknown/typo'd kind parses fine as JSON but is silently
+    skipped at runtime by hook.py's run_probes() — an alive-looking dead
+    gate ([gate-schema])."""
+    kinds = _derive_detector_kinds()
+    if kinds is None:
+        errors.append(
+            f"[gate-schema] could not derive detector kind set from "
+            f"{CANARY_HOOK.relative_to(REPO)} — schema check skipped, cannot "
+            f"confirm probe kinds are live"
+        )
+
     patterns = ("drift_probes.json", "lesson_patterns.json")
     for pattern in patterns:
         for path in sorted(SKILLS.glob(f"*/{pattern}")):
             rel = path.relative_to(REPO)
             try:
-                json.loads(path.read_text(encoding="utf-8"))
+                data = json.loads(path.read_text(encoding="utf-8"))
             except Exception as exc:
                 errors.append(f"[gate-json] {rel}: {type(exc).__name__}: {exc}")
+                continue
+            if kinds is None or pattern != "drift_probes.json" or not isinstance(data, list):
+                continue
+            for entry in data:
+                if not isinstance(entry, dict) or "kind" not in entry:
+                    continue
+                kind = entry["kind"]
+                if kind not in kinds:
+                    probe_id = entry.get("id", "?")
+                    errors.append(
+                        f"[gate-schema] {rel}: probe {probe_id!r} has kind "
+                        f"{kind!r} not implemented by any DETECTORS entry in "
+                        f"{CANARY_HOOK.relative_to(REPO)} — dead at runtime "
+                        f"(silently skipped by run_probes)"
+                    )
+
+
+def check_tools_json_parses(errors: list[str]) -> None:
+    """(f) every skills/*/tools/**/*.json parses as JSON — gate substrate
+    beyond drift_probes.json/lesson_patterns.json (e.g. eval-gate's
+    criteria*.json). Recursive (tools/**/*.json), not just tools/*.json: a
+    one-level glob silently skips nested gate substrate like
+    tools/nested/criteria.json — an alive-looking dead gate identical in kind
+    to the ones (a)/(b)/(c) already guard against. Parse-check only; the two
+    special-cased filenames keep their deeper [gate-schema] check in
+    check_gate_json above."""
+    for path in sorted(SKILLS.glob("*/tools/**/*.json")):
+        rel = path.relative_to(REPO)
+        try:
+            json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            errors.append(f"[gate-json] {rel}: {type(exc).__name__}: {exc}")
 
 
 def _parse_skill_frontmatter(text: str) -> tuple[dict, str] | None:
@@ -210,6 +292,7 @@ def check_hooks_map_liveness(errors: list[str], warnings: list[str]) -> None:
 
 CHECKS = (
     ("gate-json", check_gate_json),
+    ("tools-json", check_tools_json_parses),
     ("skill-md-tool-paths", check_skill_md_and_tool_paths),
     ("markdown-links", check_markdown_links),
 )
@@ -218,14 +301,16 @@ CHECKS = (
 def run(repo_root: Path | None = None) -> tuple[int, list[str], list[str]]:
     """Run all checks against repo_root (default: this repo). Returns
     (exit_code, errors, warnings)."""
-    global REPO, SKILLS, SCRIPTS
+    global REPO, SKILLS, SCRIPTS, CANARY_HOOK
     if repo_root is not None:
         REPO, SKILLS, SCRIPTS = repo_root, repo_root / "skills", repo_root / "scripts"
+        CANARY_HOOK = SKILLS / "compliance-canary" / "tools" / "hook.py"
 
     errors: list[str] = []
     warnings: list[str] = []
 
     check_gate_json(errors)
+    check_tools_json_parses(errors)
     check_skill_md_and_tool_paths(errors)
     check_markdown_links(errors)
     check_wiki_liveness(errors, warnings)

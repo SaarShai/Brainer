@@ -118,3 +118,21 @@ time this harness is run against a live team-lead session.
 | date | session/task | total tokens | leader-share | delegate-share | accepted / rejected lanes | cost_per_accepted_change | savings% vs counterfactual | notes |
 |---|---|---|---|---|---|---|---|---|
 | 2026-07-05 | architect-loop review + frontier-routing build (Fable 5 leader, 17 Agent lanes: 7 build, 5 verify, 2 research, 1 glm-extract, 1 codex-xhigh, 1 frontier-verify) | 1,033,224 (delegate) | UNMEASURED — leader context not in trace; record leader events to close this | 100% of traced | 16 / 1 (rejected: fetch lane returned summaries not verbatim — caught by shape-invariant check) | $0.2164 | 72.1% (inside the 58–74% external anchor) | manual CSV from Agent-tool per-lane totals; tiers: builders/verifiers=mid (sonnet-pinned defs), research-lite=small (haiku-pinned), glm=glm, codex-xhigh + frontier-verifier(inherit)=frontier; token-parity caveat applies |
+
+## Failure modes
+
+Premortem ([`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §8):
+
+- **Silent-failure path** — a builder subagent has Bash and can commit or self-verify
+  its own lane; if it does so without the leader's cold-verify step, the protocol
+  violation produces a normal-looking accepted lane in the trace with no marker
+  distinguishing "leader reviewed this" from "builder waved itself through."
+- **Rot-when-unwatched** — the `$/Mtok` pricing table is a hardcoded placeholder that
+  a vendor repricing or new model tier makes stale the day it ships; nobody re-runs
+  `team_lead_eval.py` against a fresh price sheet on a cadence, so `savings%` silently
+  drifts from the real dollar figure while still reporting a confident percentage.
+- **No-hooks host** — briefs dispatched to subagents carry no shared hook state, so a
+  builder on a host where `pulse_reminder` never fires has nothing re-stating "one
+  worker one lane, don't type keystrokes on other lanes" mid-task; the discipline
+  survives only if the original brief text was self-contained enough to cover the
+  whole lane.

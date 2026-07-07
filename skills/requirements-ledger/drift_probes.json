@@ -6,7 +6,8 @@
     "grace_turns": 3,
     "substantive_turns": 2,
     "maintenance_path_pattern": "(?i)(?:(?:^|/)\\.brainer/ledger/[^/\\n]+\\.md$|(?:^|/)(?:requirements[ _-]?)?ledger[^/\\n]*\\.md$)",
-    "message": "you have open user requests this session but no sign of maintaining the visible ledger (no Edit/Write/NotebookEdit to .brainer/ledger/<sid>.md and no TaskCreate/TaskUpdate) in the recent window — materialize or refresh .brainer/ledger/<sid>.md (the file is authoritative; native tasks mirror it) so an item the user raised is not silently dropped. Decompose each user message into ATOMIC rows; never delete a row, only re-status.",
-    "severity": "warn"
+    "message": "you have open user requests this session but no sign of maintaining the visible ledger (no Edit/Write/NotebookEdit to .brainer/ledger/<sid>.md and no TaskCreate/TaskUpdate) in the recent window — materialize or refresh .brainer/ledger/<sid>.md (the file is authoritative; native tasks mirror it) so an item the user raised is not silently dropped. Decompose each user message into ATOMIC rows. NEVER DELETE A ROW — only re-status (open/doing/done/deferred); a row that vanishes between edits is the same silent-drop failure this probe exists to catch.",
+    "severity": "warn",
+    "_note": "SKILL.md's 'never delete a row — only re-status' rule has no dedicated drift probe: none of hook.py's implemented DETECTORS kinds can diff ledger content ACROSS turns to notice a row disappearing (forbidden_regex/claim_without_evidence etc. only see current-window text, not a structural diff of a markdown table over time). Rather than invent an unimplemented kind (the canary hook would silently skip it — an alive-looking-dead gate), the rule is folded into this probe's message so at least the maintenance-absence case still surfaces it. Honest degradation, not full mechanical coverage."
   }
 ]
