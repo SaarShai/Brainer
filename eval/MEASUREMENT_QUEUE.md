@@ -80,3 +80,12 @@ catalog mention with use (resident CLAUDE.md catalogs make every skill appear in
 ~15/15 sessions). Only true zero-signals: impact-of-change, security-oversight
 (both opt-in). **Decision: no per-repo trims on this evidence** — queue item 4
 first, then revisit `.brainer-sync-optout` profiles with real firing data.
+
+**fable-mode A/B status** (2026-07-07): blind k=3 x 2 arms (qwen3.6:35b subjects,
+gemma4:26b cold grader, rubric+ground-truth pre-registered): A=4.67 B=5.00,
+directional +0.33 (+7%), NOT conclusive; cumulative with the earlier n=1 null,
+"significant difference" remains unsupported. Dominant finding = ceiling effect
+(modern 35B already resists the red-herring class); the one differentiating
+point was exactly Gate-4 behavior (demonstrate-the-fix). Next test needs harder
+vignettes + larger k; screenery live-session accrual continues (sid e08c397).
+Raw artifacts: session f7a80a14 scratchpad fable_ab/.
