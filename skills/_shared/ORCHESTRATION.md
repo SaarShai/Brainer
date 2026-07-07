@@ -163,6 +163,16 @@ Rules:
 - **Lane returns are digests, not dumps.** Compact-return target ≈2,500
   tokens against the artifact paths; payloads go to disk, conclusions to
   context.
+- **No state-changing git inside a lane; stand down by hunks.** A worker lane
+  NEVER runs `git checkout`/`restore`/`reset`/`clean`/`stash`/`add -A`/`commit`
+  on the shared tree — one `git checkout -- <paths>` for a "clean baseline"
+  wiped 5 concurrent lanes' uncommitted work (2026-07-06). Inline this in every
+  brief (`brief_header.py`). When a lane must discard its OWN edits it removes
+  ONLY its own hunks, never a whole file a sibling may share. The leader
+  checkpoint-commits each verified lane BEFORE the next parallel wave, so a
+  rogue revert's blast radius is one wave, not the session. (Harvested from
+  screenery-lean failure #18 — independently re-derived there and in Brainer's
+  own fleet incident the same day.)
 
 (Adapted from DannyMac180/fable-advisor, MIT — generalized from concrete
 models to tiers.)
