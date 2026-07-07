@@ -124,6 +124,16 @@ Rules:
   the orchestrator is the sub-agent's user, and it owns the sub-agent's whole
   context (inlined directives = global, injected precomputed facts = project,
   the brief = task — a subagent starts context-empty and sees nothing else).
+- **User-supplied literals pass VERBATIM.** Any concrete value the user gave —
+  an absolute path, filename, ID, threshold, URL — is copied into the brief
+  character-for-character, never elided ("…", "..."), abbreviated, or
+  paraphrased. A subagent starts context-empty: an elided literal forces it to
+  re-discover (wasted calls) or guess (wrong target). Observed live 2026-07-07
+  (screenery "Baton": brief carried `'…/FINAL production/birthday …'` for a
+  path the user had given in full → the lane went hunting for the folder →
+  user rage "i gave you the path!"). `brief_header.py --lint-brief` refuses
+  briefs with elision markers next to path-like fragments — run it on every
+  composed brief, not only the header it renders.
 - **Commitment boundaries, not only stuckness:** before an architecture choice,
   migration, API shape, or wide-blast-radius refactor — take a read-only,
   context-fresh skeptic verdict (advisor role, preferably cross-vendor; short:

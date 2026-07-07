@@ -101,6 +101,12 @@ MAX ITERATIONS: 2, then stop and report blockers.
 REPORT contract by default; the worker must state plan + disagreements with
 file evidence before editing — silent compliance is a lane defect.
 
+**User-supplied literals go in VERBATIM** (ORCHESTRATION §6): every concrete
+value the user gave — path, filename, ID, threshold — is pasted
+character-for-character; never elide ("…"), abbreviate, or paraphrase it. Gate
+the composed brief with `python3 skills/_shared/brief_header.py --lint-brief -`
+(exit 1 = elided literal found; fix before dispatch).
+
 Brief altitude follows ORCHESTRATION §6: spec-shaped for cheap lanes,
 goal-shaped for frontier lanes. The template above is altitude-neutral — GOAL,
 boundaries, DONE MEANS, and the report contract apply to every lane; what

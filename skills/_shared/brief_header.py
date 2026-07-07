@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import sys
 from dataclasses import dataclass
 
@@ -138,6 +139,29 @@ def render_header(args: argparse.Namespace, root: str) -> str:
     return "\n".join(lines)
 
 
+# --- brief lint: user-supplied literals must be VERBATIM (ORCHESTRATION §6) --
+# Observed live 2026-07-07 (screenery "Baton"): a judge brief carried
+# `'…/FINAL production/birthday …'` for a path the user had given in FULL —
+# the lane burned calls re-discovering the folder. An elision marker adjacent
+# to a path-like fragment means the composer summarized a literal instead of
+# pasting it; a context-empty subagent cannot un-elide it.
+_ELISION_RE = re.compile(
+    r"(?:…|\.\.\.)\s*/"          # '…/' or '.../' — elided path prefix
+    r"|/[\w ()+.-]+(?:…|/\.\.\.)"  # '/dir…' or '/dir/...' — elided tail
+    r"|(?:<|\[)(?:path|dir|folder|file)(?:>|\])",  # '<path>' / '[folder]' stubs
+    re.IGNORECASE)
+
+
+def lint_brief(text: str) -> list[str]:
+    findings = []
+    for m in _ELISION_RE.finditer(text):
+        start = max(0, m.start() - 40)
+        findings.append(
+            f"elided literal at char {m.start()}: ...{text[start:m.end()+20]!r}... "
+            f"— paste the user-supplied value VERBATIM (ORCHESTRATION §6)")
+    return findings
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--task", help="one-line goal for the subagent")
@@ -148,6 +172,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--list", action="store_true", help="list discoverable skill reminders and exit")
     p.add_argument("--no-phase0", action="store_true", help="omit the PHASE 0 disagreement-gate block")
     p.add_argument("--no-report", action="store_true", help="omit the LANE REPORT block")
+    p.add_argument("--lint-brief", metavar="FILE", nargs="?", const="-",
+                   help="lint a composed brief (file or '-' for stdin) for elided "
+                        "user literals; exit 1 on findings")
     return p
 
 
@@ -165,6 +192,15 @@ def main(argv: list[str] | None = None) -> int:
         for r in discover(root):
             print(f"{r.name}: {r.reminder}")
         return 0
+
+    if args.lint_brief:
+        text = (sys.stdin.read() if args.lint_brief == "-"
+                else open(args.lint_brief, encoding="utf-8").read())
+        findings = lint_brief(text)
+        for f in findings:
+            print(f"LINT: {f}")
+        print("brief lint: " + ("FAIL" if findings else "clean"))
+        return 1 if findings else 0
 
     if not args.task:
         parser.error("--task is required unless --list is used")
