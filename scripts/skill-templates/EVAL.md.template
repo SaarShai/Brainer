@@ -27,7 +27,10 @@ python eval/runner.py --task <skill-name> --n <n> --judge mimo
 
 ## Failure modes
 
-- ...
+Premortem (LEARNING_CONTRACT.md §8) — answer before shipping:
+- How does this fail silently?
+- What rots when nobody looks?
+- What happens on a host without hooks?
 
 ## Notes
 

@@ -114,6 +114,64 @@ def test_force_overrides_refusal():
     assert res["gate"]["forced"] is True
 
 
+def test_default_scope_classification_is_never_stripped():
+    """LEARNING_CONTRACT §1: a write with no `scope=` passed still gets a
+    valid classification by page kind (this-repo for an ordinary L2 fact
+    page) — classification cannot be skipped by simply omitting the arg."""
+    s = _store()
+    res = s.new_page("page", _GOOD_TITLE, domain="experiments",
+                     body=_GOOD_BODY, reason="so that long generations don't abort",
+                     tags=_GOOD_TAGS)
+    assert res["gate"]["accept"] is True
+    # gate_candidate() classified the omitted scope; verify it landed on a
+    # real value, not None/empty (the classify-or-reject contract).
+    scope_seen = s.gate_candidate(_GOOD_TITLE, body=_GOOD_BODY,
+                                  reason="so that long generations don't abort",
+                                  target_dir="concepts")["signal"]["scope"]
+    assert scope_seen == "this-repo", f"expected default this-repo classification, got {scope_seen!r}"
+
+
+def test_scopeless_write_rejected_end_to_end():
+    """NEGATIVE TEST (LEARNING_CONTRACT §3: a gate that has never tripped is
+    unproven). A candidate whose classification is stripped — an explicit
+    invalid/garbage `scope=` passed through the public `new_page` entrypoint —
+    must be REFUSED end-to-end (WikiWriteRejected) with no file written, even
+    though the candidate otherwise carries strong signal + a why-clause.
+    Covers both the normal path (write-gate importable) and, directly via
+    gate_candidate, the degrade path (write-gate NOT importable) — §1 binds
+    either way."""
+    s = _store()
+    before = {p.id for p in s.pages()}
+    try:
+        s.new_page("page", _GOOD_TITLE, domain="experiments",
+                   body=_GOOD_BODY, reason="so that long generations don't abort",
+                   tags=_GOOD_TAGS, scope="not-a-real-scope")
+        raised = False
+    except WikiWriteRejected as e:
+        raised = True
+        assert e.report["signal"]["pass"] is False
+        assert "SCOPE" in str(e) or "scope" in str(e).lower()
+    assert raised, "scope-stripped/invalid-scope write should have been refused"
+    after = {p.id for p in s.pages()}
+    assert after == before, "no file should be written on a scope-rejected candidate"
+
+    # Degrade path: write-gate module not importable — classification must
+    # still be enforced (this is the gap the reconciled diff closed: without
+    # this check, an invalid scope silently passed when the scorer was absent).
+    import wiki as wiki_mod
+    saved = wiki_mod._load_write_gate
+    wiki_mod._load_write_gate = lambda: None
+    try:
+        gate = s.gate_candidate(_GOOD_TITLE, body=_GOOD_BODY,
+                                reason="so that long generations don't abort",
+                                scope="also-not-real", target_dir="L2_facts")
+        assert gate["accept"] is False, "degrade path must still reject an invalid scope"
+        assert gate["signal"]["available"] is False
+        assert "SCOPE" in gate["signal"]["reason"] or "scope" in gate["signal"]["reason"].lower()
+    finally:
+        wiki_mod._load_write_gate = saved
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     for fn in fns:

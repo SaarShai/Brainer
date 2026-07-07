@@ -140,6 +140,22 @@ PY
 )
 case "$pres2" in PARSE2_OK*) chk 0 0 "_parse_criteria handles bullets/tokens/fail-safe";; *) echo "  FAIL: $pres2"; fail=1;; esac
 
+# --- provenance gate (LEARNING_CONTRACT §5) ---
+HERE_TOOLS="$HERE"
+out=$(printf 'cand' | "${EG[@]}" score --criteria-file "$HERE_TOOLS/criteria.executor_claims.example.json" \
+  --stub-criteria '{"correct":"pass","complete":"pass","concise":"pass","safe":"pass"}' 2>&1)
+rc=$?; chk "$rc" 2 "provenance: bad fixture (executor-claims) rejected -> exit 2"
+echo "$out" | grep -q "provenance" && echo "$out" | grep -q "§5" >/dev/null 2>&1; chk $? 0 "provenance: rejection message cites §5"
+printf 'cand' | "${EG[@]}" score --criteria-file "$HERE_TOOLS/criteria.provenance_valid.example.json" --require-provenance \
+  --stub-criteria '{"correct":"pass","complete":"pass","concise":"pass","safe":"pass"}' >/dev/null 2>&1
+chk $? 0 "provenance: valid fixture (source=spec) passes with --require-provenance"
+printf 'cand' | "${EG[@]}" score --criteria-json '{"criteria":[{"id":"a","description":"d"}]}' --require-provenance --stub-criteria '{"a":"pass"}' >/dev/null 2>&1
+chk $? 2 "provenance: dict-wrapped criteria with missing source fails ONLY with --require-provenance"
+printf 'cand' | "${EG[@]}" score --criteria-json '{"criteria":[{"id":"a","description":"d"}]}' --stub-criteria '{"a":"pass"}' >/dev/null 2>&1
+chk $? 0 "provenance: same dict-wrapped payload passes WITHOUT --require-provenance"
+printf 'cand' | "${EG[@]}" score --criteria-json '[{"id":"a","description":"d"}]' --require-provenance --stub-criteria '{"a":"pass"}' >/dev/null 2>&1
+chk $? 0 "provenance: bare-list criteria stay backward-compatible (pass even with the flag)"
+
 echo
 [ "$fail" = "0" ] && echo "ALL PASS" || echo "FAILURES ABOVE"
 exit $fail

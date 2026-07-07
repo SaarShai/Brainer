@@ -82,7 +82,11 @@ Default interpretation: "activate audit mode" means **Brainer audit mode** unles
 4. **Decide durable writes** — choose the narrowest project-owned target or decide to write nothing.
 5. **Persist** — only if the lesson is accepted, project-specific, and gate-clean.
 6. **Read back** — prove the update exists before claiming it was persisted.
-7. **Close** — deliver a task-retrospective report.
+7. **Close** — deliver a task-retrospective report. Banking any user correction as a
+   durable rule + gate + exemplar is required per
+   [`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §2 whether or not
+   task-retrospective was armed for this task; arming governs the full
+   retrospective (steps 1-6, this report), not the §2 banking requirement itself.
 
 A successful run may conclude: **No durable project lesson found.** That is not a failure.
 

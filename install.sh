@@ -595,6 +595,151 @@ for tool_installer in "$SRC"/*/tools/install.sh; do
   fi
 done
 
+# --- --project: wire hooks into the CONSUMER project, not just $REPO_ROOT ---
+# Every per-skill tools/install.sh above derives its target root from ITS OWN
+# script location ($TOOLS_DIR/../../..), not from an argument or env var — so
+# the loop above, even when run via a --project invocation, only ever wires
+# hooks into $REPO_ROOT/.claude/settings.json. A consumer project got the
+# skill symlinks + CLAUDE.md catalog but NONE of the drift/liveness hooks
+# (compliance-canary, context-keeper, prompt-triage, brainer-audit, learn-skill,
+# index-first) — LEARNING_CONTRACT §4's "gate silently dead" class, in our own
+# installer (found by the E3 gauntlet). None of those installers expose a
+# retarget parameter, and adding one to six scripts is surgery beyond this
+# fix's scope — so instead we wire the known single-command/single-event
+# non-opt-in hook skills (compliance-canary, context-keeper, prompt-triage)
+# directly here, extracting each one's own already-portable *_CMD shell
+# string (run-time-expanded, no machine-specific path) from its installer
+# source and reusing the exact same idempotent JSON-merge idiom every
+# per-skill installer already uses (hooks.setdefault(event, []).append a
+# {matcher:"*", hooks:[{type:"command", command:cmd}]} rule; never touch a
+# non-Brainer hook; never overwrite a corrupt settings.json). Opt-in skills
+# (brainer-audit, learn-skill, index-first) and any future hook skill this
+# table doesn't yet name are reported via a loud [warn], never silently
+# skipped.
+# claude-code only (--host constrains): the .codex/hooks.json / .gemini
+# equivalents follow the same script-location limitation and are named in the
+# loud warn below rather than silently skipped.
+project_wire_skill_hooks() {
+  if [ "$DRY_RUN" = "1" ]; then
+    echo "    DRY: wire per-skill hooks into $DEST_ROOT/.claude/settings.json (claude-code)"
+    return 0
+  fi
+  case ",$HOSTS_REQUESTED," in *",claude-code,"*) ;; *)
+    echo "    [warn] --project + --host without claude-code: skipping consumer hook-wiring (only claude-code is supported by this generic pass)"
+    return 0 ;;
+  esac
+  SRC="$SRC" DEST_ROOT="$DEST_ROOT" python3 - <<'PY'
+import json, os, re, sys
+from pathlib import Path
+
+src = Path(os.environ["SRC"])
+dest_root = Path(os.environ["DEST_ROOT"])
+settings_path = dest_root / ".claude" / "settings.json"
+
+def skill_is_optin(skill_md_text):
+    return bool(re.search(r'^auto-install:\s*false', skill_md_text, re.M))
+
+# Declarative (skill, event, *_CMD var name) table for every non-opt-in skill
+# whose own tools/install.sh wires a SINGLE claude-code command/event pair
+# into .claude/settings.json (hand-verified against each installer's source —
+# see the shell VARNAME='...' assignment named below — not re-derived by a
+# generic glob/regex, which previously mis-wired hook.py directly alongside
+# hook.sh for skills that ship hook.py only as a thin exit-0-safety internal
+# used BY hook.sh, e.g. compliance-canary/context-keeper). Skills with no
+# single-command claude-code hook this generic pass can safely reconstruct
+# (brainer-audit, learn-skill: opt-in; index-first: opt-in) are excluded here
+# and named in the loud warn the caller prints either way.
+KNOWN_HOOK_INSTALLERS = {
+    # skill_name: [(event, shell_var_name_in_that_installer), ...]
+    "compliance-canary": [("UserPromptSubmit", "HOOK_CMD")],
+    "context-keeper":    [("PreCompact", "HOOK_CMD"), ("SessionEnd", "ARCHIVE_CMD")],
+    "prompt-triage":     [("UserPromptSubmit", "HOOK_CMD")],
+}
+
+def extract_cmd(installer_text, var_name):
+    m = re.search(r"^%s='([^']*)'" % re.escape(var_name), installer_text, re.M)
+    return m.group(1) if m else None
+
+wired = []
+skipped_optin = []
+skipped_unknown = []
+for skill_dir in sorted(src.iterdir()):
+    tools = skill_dir / "tools"
+    if not skill_dir.is_dir() or not tools.is_dir():
+        continue
+    hook_files = [f for f in tools.iterdir() if f.name in ("hook.sh", "hook.py")]
+    if not hook_files:
+        continue
+    skill_md = skill_dir / "SKILL.md"
+    md_text = skill_md.read_text(encoding="utf-8", errors="replace") if skill_md.exists() else ""
+    if skill_is_optin(md_text):
+        skipped_optin.append(skill_dir.name)
+        continue
+    spec = KNOWN_HOOK_INSTALLERS.get(skill_dir.name)
+    if not spec:
+        skipped_unknown.append(skill_dir.name)
+        continue
+    installer = tools / "install.sh"
+    installer_text = installer.read_text(encoding="utf-8", errors="replace") if installer.exists() else ""
+    for event, var_name in spec:
+        cmd = extract_cmd(installer_text, var_name)
+        if cmd is None:
+            skipped_unknown.append("%s (%s not found — installer changed shape)" % (skill_dir.name, var_name))
+            continue
+        wired.append((skill_dir.name, event, cmd))
+
+if not wired:
+    print("    [warn] no known hook-shipping skills discovered under %s — nothing to wire" % src)
+    if skipped_unknown:
+        print("    [warn] unrecognized hook installer shape, not wired: %s" % ", ".join(skipped_unknown))
+    sys.exit(0)
+
+if settings_path.exists():
+    try:
+        data = json.loads(settings_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        print("    [warn] %s exists but is not valid JSON (%s) — leaving consumer hooks untouched" % (settings_path, e))
+        sys.exit(0)
+else:
+    data = {}
+
+hooks = data.setdefault("hooks", {})
+for name, event, cmd in wired:
+    rules = hooks.setdefault(event, [])
+    for rule in rules:
+        if rule.get("matcher") != "*":
+            continue
+        existing = rule.get("hooks", [])
+        if any(h.get("type") == "command" and h.get("command") == cmd for h in existing):
+            break
+    else:
+        rules.append({"matcher": "*", "hooks": [{"type": "command", "command": cmd}]})
+
+settings_path.parent.mkdir(parents=True, exist_ok=True)
+settings_path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+for name, event, cmd in wired:
+    print("    [hook] %s: %s -> %s" % (name, event, cmd))
+if skipped_optin:
+    print("    [skip] opt-in (auto-install: false), not wired: %s" % ", ".join(skipped_optin))
+if skipped_unknown:
+    print("    [warn] unrecognized hook installer shape, not wired: %s" % ", ".join(skipped_unknown))
+PY
+}
+
+if [ -n "$PROJECT_DIR" ]; then
+  echo
+  echo "[project-hooks] wiring per-skill hooks into consumer project ($DEST_ROOT/.claude/settings.json)"
+  project_wire_skill_hooks
+  echo "    NOTE: only the claude-code UserPromptSubmit/SessionStart/PreCompact/... hooks this"
+  echo "    generic pass can discover are wired. Every per-skill tools/install.sh derives its target"
+  echo "    root from ITS OWN script path (\$TOOLS_DIR/../../..), not an argument or env var — so it"
+  echo "    ALWAYS targets the Brainer checkout, even if you cd into $DEST_ROOT first or symlink the"
+  echo "    script there. Anything beyond a single command/event (e.g. .codex/hooks.json merges, MCP"
+  echo "    server registration, prompt-triage's agents/*.md copy) is NOT retargeted by this pass and"
+  echo "    has no safe manual workaround short of editing that skill's install.sh to accept a target"
+  echo "    root — do that only for the specific skill you need in the consumer project."
+fi
+
 install_graphify() {
   # Best-effort install of the `graphify` CLI. Paired by default with
   # `index-first` and `wiki-memory` per the recommended stack (see README.md).
@@ -678,6 +823,51 @@ echo
 # host-independent). Non-fatal — install already ran; report so the finding
 # gets fixed, don't abort a completed install over it.
 run "python3 '$REPO_ROOT/skills/_shared/knowledge_liveness.py'" || echo "    [warn] knowledge_liveness found dead-gate findings (see above; non-fatal)"
+
+# --project: also run the PORTABLE subset of knowledge_liveness's checks
+# against the CONSUMER's installed skills/ tree (gate-json parse, SKILL.md
+# frontmatter + tool paths, markdown links) — the same gap this whole
+# --project retarget fix closes for hooks. --project installs only
+# .claude/skills/ (+ root docs), never scripts/ or wiki/, so the full
+# knowledge_liveness.run() would spuriously fail on the wiki/hooks-map
+# extensions that depend on scripts/*.py the consumer never received; those
+# two checks are Brainer-repo-only by design (see knowledge_liveness.py's own
+# CHECKS tuple vs. its wiki/hooks-map extensions) — same reasoning
+# scripts/e3_gauntlet.py's check_c_substrate_liveness already documents.
+# Module-import (not a new CLI flag): knowledge_liveness.py stays untouched,
+# same approach e3_gauntlet.py uses to avoid touching a file outside this
+# fix's scope.
+if [ -n "$PROJECT_DIR" ] && [ "$DRY_RUN" != "1" ]; then
+  echo
+  echo "[project-liveness] portable substrate liveness check on consumer tree ($DEST_ROOT/.claude/skills)"
+  KL_PATH="$REPO_ROOT/skills/_shared/knowledge_liveness.py" DEST_ROOT="$DEST_ROOT" python3 - <<'PY'
+import importlib.util, os, sys
+from pathlib import Path
+
+kl_path = Path(os.environ["KL_PATH"])
+dest_root = Path(os.environ["DEST_ROOT"])
+
+spec = importlib.util.spec_from_file_location("brainer_install_knowledge_liveness", kl_path)
+kl = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(kl)
+
+kl.REPO = dest_root
+kl.SKILLS = dest_root / ".claude" / "skills"
+kl.SCRIPTS = dest_root / "scripts"  # not installed by --project; unused by the portable subset
+
+errors = []
+for _label, fn in kl.CHECKS:
+    fn(errors)
+
+if errors:
+    print("    [warn] consumer substrate liveness: %d finding(s) (non-fatal):" % len(errors))
+    for e in errors:
+        print("    - %s" % e)
+    sys.exit(1)
+print("    consumer substrate liveness: clean — %d portable checks (gate-json, skill-md-tool-paths, markdown-links)" % len(kl.CHECKS))
+PY
+  [ $? -eq 0 ] || echo "    [warn] consumer knowledge_liveness found dead-gate findings (see above; non-fatal)"
+fi
 
 echo
 echo "done. host(s): $HOSTS_REQUESTED"

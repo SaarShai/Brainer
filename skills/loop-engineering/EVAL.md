@@ -129,14 +129,28 @@ loop. Every enforcement *reflex* is delegated by link, not re-implemented.
 
 ## Failure modes
 
-- **Over-orchestration** — designing a fleet where a one-shot would do. Mitigated by
-  the front-loaded "Do you even need a loop?" gate (defers to `lean-execution`) + the
-  `ONE SHOT` override.
-- **R1 prose-gate boundary** — the machine-token allowlist is regex-based; tune against
-  `test_loop_lint.py` fixtures, not in prod. (Allowlist, not denylist: absence of a
-  machine token FAILs, so "the reviewer agrees" is caught.)
-- **Redundancy drift** — a future edit restating the verify/plan/learn/restraint reflexes
-  instead of linking them. Guarded by `suite-health`'s prose-vs-code reconcile.
+Premortem ([`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §8):
+
+- **Silent-failure path** — a loop gets designed and run in prose without ever being passed
+  through `loop_lint.py`; the spec's gate/stop/budget/verifier fields are never checked, so a
+  self-grading or unbounded loop ships with no non-zero exit anywhere to flag it — the
+  over-orchestration case (designing a fleet where a one-shot would do) is the milder version
+  of the same gap, held down only by the front-loaded "Do you even need a loop?" question and
+  the `ONE SHOT` override, neither of which is enforced by the linter.
+- **Rot-when-unwatched** — a future edit to this skill (or a sibling) restates the
+  verify/plan/learn/restraint reflexes inline instead of linking to their owning skills,
+  forking doctrine the way LEARNING_CONTRACT.md's own header warns against; guarded only by
+  `suite-health`'s prose-vs-code reconcile, which must be run, not something that fires on its
+  own. Separately, the R1 machine-token allowlist (regex-based) needs re-tuning against
+  `test_loop_lint.py` fixtures as new legitimate gate phrasing appears, or it starts rejecting
+  valid specs as prose-only.
+- **No-hooks host** — `loop_lint.py`/`loop_run_monitor.py` are CLIs, so the closed-loop
+  gate-refuses-bad-specs mechanism runs identically on Codex/Gemini per
+  `docs/HOST_CAPABILITY_MATRIX.md` ("tools are plain python3/bash"); what's host-shaped is the
+  **subagent** case this file already documents — hooks/probes never fire inside a subagent on
+  any host, so a fleet worker told "don't touch files" can violate it invisibly unless the
+  brief inlines the active directives and the outer loop re-verifies in the main context where
+  probes do fire.
 
 ## Lineage
 

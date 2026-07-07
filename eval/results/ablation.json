@@ -4,42 +4,42 @@
       "skill": "write-gate",
       "n": 60,
       "acc_reliable": true,
-      "baseline_acc": 0.9667,
+      "baseline_acc": 0.5167,
       "rules": [
         {
           "rule": "weight:decision",
-          "flips": 8,
-          "acc_delta": -0.1333
+          "flips": 0,
+          "acc_delta": 0.0
         },
         {
           "rule": "weight:error",
-          "flips": 4,
-          "acc_delta": -0.0667
+          "flips": 0,
+          "acc_delta": 0.0
         },
         {
           "rule": "weight:architecture",
-          "flips": 9,
-          "acc_delta": -0.15
+          "flips": 0,
+          "acc_delta": 0.0
         },
         {
           "rule": "weight:code_block",
-          "flips": 1,
-          "acc_delta": -0.0167
+          "flips": 0,
+          "acc_delta": 0.0
         },
         {
           "rule": "weight:numbers",
-          "flips": 5,
-          "acc_delta": -0.0833
+          "flips": 0,
+          "acc_delta": 0.0
         },
         {
           "rule": "weight:why_clause",
-          "flips": 5,
-          "acc_delta": -0.0833
+          "flips": 0,
+          "acc_delta": 0.0
         },
         {
           "rule": "weight:procedure",
-          "flips": 2,
-          "acc_delta": -0.0333
+          "flips": 0,
+          "acc_delta": 0.0
         },
         {
           "rule": "weight:entity_overlap",
@@ -48,18 +48,23 @@
         },
         {
           "rule": "weight:filler",
-          "flips": 1,
-          "acc_delta": -0.0167
+          "flips": 0,
+          "acc_delta": 0.0
         },
         {
           "rule": "weight:speculation",
-          "flips": 1,
-          "acc_delta": -0.0167
+          "flips": 0,
+          "acc_delta": 0.0
+        },
+        {
+          "rule": "weight:vague",
+          "flips": 0,
+          "acc_delta": 0.0
         },
         {
           "rule": "why_gate(require_why)",
-          "flips": 5,
-          "acc_delta": -0.0833
+          "flips": 0,
+          "acc_delta": 0.0
         }
       ]
     },
@@ -67,7 +72,7 @@
       "skill": "prompt-triage",
       "n": 48,
       "acc_reliable": false,
-      "baseline_acc": 0.6667,
+      "baseline_acc": 0.5417,
       "baseline_note": "acc indicative only \u2014 corpus schema predates current guards",
       "rules": [
         {
@@ -121,7 +126,51 @@
   "dead": [
     [
       "write-gate",
+      "weight:decision"
+    ],
+    [
+      "write-gate",
+      "weight:error"
+    ],
+    [
+      "write-gate",
+      "weight:architecture"
+    ],
+    [
+      "write-gate",
+      "weight:code_block"
+    ],
+    [
+      "write-gate",
+      "weight:numbers"
+    ],
+    [
+      "write-gate",
+      "weight:why_clause"
+    ],
+    [
+      "write-gate",
+      "weight:procedure"
+    ],
+    [
+      "write-gate",
       "weight:entity_overlap"
+    ],
+    [
+      "write-gate",
+      "weight:filler"
+    ],
+    [
+      "write-gate",
+      "weight:speculation"
+    ],
+    [
+      "write-gate",
+      "weight:vague"
+    ],
+    [
+      "write-gate",
+      "why_gate(require_why)"
     ],
     [
       "prompt-triage",

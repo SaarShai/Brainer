@@ -80,7 +80,7 @@ Use for: any tool error the agent keeps re-triggering after the native error mes
 
 ### `user_correction` *(v1.7)*
 
-Matches the user's CURRENT prompt (not the transcript) against correction patterns ("no, use X", "that's wrong", "I said …"). It surfaces the correction at the exact turn it lands; if task-retrospective is armed, record it as evidence, and if persistence is explicitly selected, route the lesson through write-gate. Lineage: BayramAnnakov/claude-reflect; ships in `wiki-memory/drift_probes.json`.
+Matches the user's CURRENT prompt (not the transcript) against correction patterns ("no, use X", "that's wrong", "I said …"). It surfaces the correction at the exact turn it lands; if task-retrospective is armed, record it as evidence, and if persistence is explicitly selected, route the lesson through write-gate. Every fire ALSO opens a correction-ledger item (Mechanism 4, LEARNING_CONTRACT §2) — closeout-blocking until a `write_gate.py` / `wiki.py new|update` bank call is observed or the user explicitly closes it; see `hook.py`'s `update_correction_ledger`. Lineage: BayramAnnakov/claude-reflect; ships in `wiki-memory/drift_probes.json`.
 
 ```json
 {

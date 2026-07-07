@@ -97,7 +97,11 @@ def make_page(c: Candidate) -> str:
 
 def gate_decision(c: Candidate) -> bool:
     s = score_text(c.body, c.kind)
-    ok, _ = decide(s, c.kind, DEFAULT_THRESHOLD, require_why=True)
+    # SCOPE (LEARNING_CONTRACT §1) is orthogonal to the pipeline behavior under
+    # test here (signal/why-clause gating -> wiki write -> decay); these
+    # candidates land as L2_facts pages, i.e. this-repo scoped, so pass that
+    # explicitly rather than let the scope gate confound the phase-1 gate check.
+    ok, _ = decide(s, c.kind, DEFAULT_THRESHOLD, require_why=True, scope="this-repo")
     return ok
 
 

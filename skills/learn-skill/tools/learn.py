@@ -538,11 +538,14 @@ def cmd_patch(args) -> int:
         print("FAIL: --old text is not unique; add surrounding context to disambiguate.")
         return 1
 
-    # GATE 1: rationale must clear write-gate.
+    # GATE 1: rationale must clear write-gate. Learned-skill artifacts default to
+    # this-skill scope (LEARNING_CONTRACT §1: tied to one skill's own tools/SKILL.md);
+    # --scope lets the caller classify otherwise (e.g. a repo-wide lesson).
     rg = subprocess.run(
         [sys.executable, str(Path(__file__).resolve().parents[1].parent
                               / "write-gate" / "tools" / "write_gate.py"),
-         "gate", "--kind", "sop", "--text", args.rationale],
+         "gate", "--kind", "sop", "--text", args.rationale,
+         "--scope", getattr(args, "scope", "this-skill")],
         capture_output=True, text=True)
     if rg.returncode != 0:
         print("REFUSED: patch rationale did not clear write-gate (add the reason / evidence).")
@@ -645,6 +648,10 @@ def main(argv=None) -> int:
     pa.add_argument("--old", required=True)
     pa.add_argument("--new", required=True)
     pa.add_argument("--rationale", required=True)
+    pa.add_argument("--scope", default="this-skill",
+                     help="LEARNING_CONTRACT §1 SCOPE classification for the patch rationale "
+                          "(default this-skill: a learned-skill artifact tied to one skill's "
+                          "own tools/SKILL.md). Pass explicitly to override.")
     pa.set_defaults(func=cmd_patch)
 
     args = p.parse_args(argv)

@@ -58,7 +58,11 @@ def run_real_corpus() -> dict:
         kind = kind_from_frontmatter(fm)
         body = text[text.find("\n---\n", 4) + 5:] if fm else text
         s = score_text(body, kind)
-        ok, _ = decide(s, kind, DEFAULT_THRESHOLD, require_why=True)
+        # SCOPE (LEARNING_CONTRACT §1) is orthogonal to what this pass measures
+        # (signal/why-clause calibration) — real wiki pages are this-repo scoped
+        # per wiki-memory's classification default; pass it explicitly so the
+        # scope gate doesn't confound the calibration being measured here.
+        ok, _ = decide(s, kind, DEFAULT_THRESHOLD, require_why=True, scope="this-repo")
         rows.append({
             "path": str(p.relative_to(wiki)),
             "kind": kind,
@@ -218,7 +222,10 @@ def run_labeled() -> dict:
     tp = tn = fp = fn = 0
     for kind, text, expected, label in LABELED:
         s = score_text(text, kind)
-        actual, verdict = decide(s, kind, DEFAULT_THRESHOLD, require_why=True)
+        # Same rationale as run_real_corpus: this corpus measures signal/why-clause
+        # accuracy, not SCOPE classification — supply a valid scope so it doesn't
+        # confound the axis under test.
+        actual, verdict = decide(s, kind, DEFAULT_THRESHOLD, require_why=True, scope="this-repo")
         correct = actual == expected
         if expected and actual:    tp += 1
         if not expected and not actual: tn += 1

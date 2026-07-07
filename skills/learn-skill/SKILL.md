@@ -53,7 +53,9 @@ durable *fact* (→ `wiki-memory` + `write-gate`). `/learn` produces a *procedur
    `Procedure` / `Pitfalls` / `Verification`. No invented commands (only cite tools that
    exist). Frame steps around real tools. `description ≤60 chars` is **advisory** — Brainer
    uses long rich descriptions for model-invocation triggering, and a proposed skill is
-   slash-only, so a short description is fine until promotion.
+   slash-only, so a short description is fine until promotion. A skill is unshipped until
+   its failure modes are declared, and — if it ships a machine gate — until that gate has a
+   negative test (LEARNING_CONTRACT.md §8 / §3).
 
 4. **Gate the rationale.** The "why does this earn a skill" block must clear write-gate:
    ```bash

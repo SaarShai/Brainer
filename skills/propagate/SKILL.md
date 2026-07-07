@@ -1,10 +1,10 @@
 ---
 name: propagate
-description: "Use when the user asks to propagate, sync, roll out, or push Brainer skill changes to the sibling/consumer repos (screenery-lean, product images repo, farey-hecke, PROMPTER, …) after work in the canonical Brainer repo. Runs the classify → apply → reinstall → verify → post-check sequence per sibling, one repo at a time; never blind-copies; CUSTOMIZED files are flagged for manual merge, never overwritten."
+description: "Use when the user asks to propagate, sync, roll out, or push Brainer skill changes to the sibling/consumer repos (screenery-lean, product images repo, farey-hecke, PROMPTER, …) after work in the canonical Brainer repo, or asks to harvest lessons, reap lessons, or bring learnings back from a sibling. Runs the classify → apply → reinstall → verify → post-check sequence per sibling, one repo at a time; never blind-copies; CUSTOMIZED files are flagged for manual merge, never overwritten."
 effort: low
 tools: [Bash, Read]
 auto-install: true
-pulse_reminder: propagation is per-sibling and sequential — classify first, fast-forward only STALE, never overwrite CUSTOMIZED, adopt new skills AND agent-defs (--adopt-agents, else team-lead's roster ships inert), re-run the sibling's install.sh, verify with --repo, then --post-check. Canonical must be committed BEFORE apply.
+pulse_reminder: propagation is per-sibling and sequential — classify first, fast-forward only STALE, never overwrite CUSTOMIZED, adopt new skills AND agent-defs (--adopt-agents, else team-lead's roster ships inert), re-run the sibling's install.sh, verify with --repo, then --post-check. Canonical must be committed BEFORE apply. A run that only pushes and skips the harvest (reverse) lane is INCOMPLETE unless you state why.
 ---
 
 # propagate — push canonical skill changes to the sibling repos
@@ -100,9 +100,55 @@ they ever diverge, fix the `skills/prompt-triage/tools/agents/` source.
 - commit inside a sibling repo — leave changes uncommitted for that repo's
   owner/session to review
 
+## Harvest (reverse) lane
+
+Propagation is not one-directional. Each sibling accumulates its own lessons
+(bugs it hit, gotchas it worked around) that Brainer never sees unless
+someone reads them back. Per sibling repo:
+
+1. **Scan for lesson artifacts**, three shapes:
+   - `docs/*brainer*learn*` failure-report files
+   - `.brainer/` lesson/baton notes
+   - wiki pages tagged `for-brainer`
+2. **SCOPE-classify each** per
+   [LEARNING_CONTRACT §1](../_shared/LEARNING_CONTRACT.md#1-scope-classification-is-mandatory-at-banking-time)
+   — `this-skill` / `this-repo` / `cross-skill` / `cross-repo` / `canon`. A
+   this-repo-only lesson stays in that sibling; nothing to harvest.
+3. **Land cross-repo/canon lessons in Brainer**: canon doc or skill, plus an
+   executable check per
+   [LEARNING_CONTRACT §3](../_shared/LEARNING_CONTRACT.md#3-mechanism-over-prose)
+   (mechanism over prose — never prose-only).
+4. **Mark the source artifact consumed**: append a `harvested: <ISO date>
+   <brainer commit sha>` line so a re-run over the same artifact is an
+   idempotent no-op.
+
+## Failure modes
+
+Premortem ([`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §8):
+
+- **Silent-failure path** — a builder edits Brainer canonical `skills/` but never runs this
+  skill; nothing forces propagation, so siblings quietly diverge from canonical with no
+  error anywhere until someone happens to diff them. Even when run, `install.sh` failing
+  inside a sibling (step 3) can leave that sibling's carriers half-rewired while the
+  classifier (step 4) still reports counts, unless its exit code is actually checked.
+- **Rot-when-unwatched** — `.brainer-sync-optout` entries accumulate and are never revisited:
+  a sibling opts out of a skill for a reason that stopped applying months ago, and nothing
+  re-prompts "does this opt-out still make sense" — the classifier just keeps treating that
+  skill as deliberately absent forever.
+- **No-hooks host** — propagation is a manually-invoked CLI sequence (`sibling_sync_audit.py`
+  + each sibling's `install.sh`), not a hook, so it behaves identically on Codex/Gemini per
+  `docs/HOST_CAPABILITY_MATRIX.md`; the real exposure is that nothing on ANY host schedules
+  or reminds a builder to propagate — it fires only when a human/agent remembers to invoke
+  `/propagate` or this skill's trigger phrase.
+
 ## Report (per sibling)
 
 `repo · applied N stale · added M absent · adopted S skills + A agent-defs ·
 left K customized (list) · install.sh ok/fail · verify counts (incl. ag-new 0) ·
 post-check result · adjacent tests run + outcome`. A propagation without step 4-6
 evidence is not done.
+
+**Harvest fields (per sibling):** `artifacts scanned N · lessons found L ·
+SCOPE breakdown (this-skill/this-repo/cross-skill/cross-repo/canon counts) ·
+landed-where + commit sha · marked-consumed count`, or `skipped: <reason>`
+if the harvest lane did not run.

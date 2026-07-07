@@ -267,6 +267,20 @@ def test_classified_candidate_accepted() -> None:
         assert ok, f"valid scope {scope!r} must be accepted; got: {verdict}"
 
 
+def test_this_repo_scope_accepted() -> None:
+    """`this-repo` (LEARNING_CONTRACT §1: repo-scoped fact/lesson not tied to one
+    skill — wiki-memory L2 fact / L3 SOP) is a valid classification, same as any
+    other SCOPE_VALUES member."""
+    assert "this-repo" in SCOPE_VALUES
+    txt = (
+        "The ingest worker lives in services/ingest/ and calls the embedding API "
+        "at /embed. Latency: 120ms p50, 450ms p99."
+    )
+    s = score_text(txt, "fact")
+    ok, verdict = decide(s, "fact", DEFAULT_THRESHOLD, require_why=True, scope="this-repo")
+    assert ok, f"this-repo scope must be accepted; got: {verdict}"
+
+
 def test_extract_scope_reads_only_frontmatter() -> None:
     """scope must be read from YAML frontmatter, not spoofable from the body
     (mirrors extract_trust's contract)."""
@@ -298,6 +312,7 @@ def main() -> int:
         test_marker_stuffed_filler_rejected,
         test_scopeless_candidate_rejected,
         test_classified_candidate_accepted,
+        test_this_repo_scope_accepted,
         test_extract_scope_reads_only_frontmatter,
     ]
     failed = 0

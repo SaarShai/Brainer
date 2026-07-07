@@ -782,6 +782,40 @@ def _load_write_gate():
         return None
 
 
+# SCOPE classification default for wiki-memory candidates — LEARNING_CONTRACT §1
+# (skills/_shared/LEARNING_CONTRACT.md): every write-gate candidate needs a scope
+# or it is unbankable. wiki-memory pages are, by definition, repo-scoped facts/SOPs
+# not tied to one skill ("this-repo" per the canon table) — L2 facts, L3 SOPs, and
+# timeline/log entries all default there. The one exception is L0 rules: those are
+# cross-skill canon (every skill reads L0 at boot), so a candidate destined for
+# L0_rules.md defaults to "cross-skill" instead. Callers may always pass an
+# explicit `scope=` to override either default — this is a DEFAULT, not a lock-in.
+_DEFAULT_SCOPE = "this-repo"
+
+# Mirror of write_gate.SCOPE_VALUES (LEARNING_CONTRACT §1) for the one path
+# where the write-gate module itself isn't importable (_load_write_gate()
+# returns None — skill not installed alongside): gate_candidate must still
+# reject an invalid/garbage scope end-to-end rather than silently accept it
+# just because the scorer that normally validates it is absent. When write-gate
+# IS loaded, its own SCOPE_VALUES is used instead (single source of truth).
+_FALLBACK_SCOPE_VALUES = {"this-skill", "this-repo", "cross-skill", "cross-repo", "canon"}
+
+
+def _default_wiki_scope(target_dir: str | None = None) -> str:
+    """Default SCOPE for a wiki-memory write candidate, by page kind.
+
+    `target_dir` is the template_map destination directory (e.g. "L2_facts",
+    "queries", "concepts") when known. L0_rules is a singleton file (not a
+    `new_page` template destination) — a candidate targeting it is matched by
+    directory name here (an "L0"-prefixed target_dir) and defaults to
+    "cross-skill"; every other destination (L2 facts, L3 SOPs, decisions,
+    concepts, timeline/log entries) defaults to "this-repo". Callers may
+    always pass an explicit `scope=` to override either default."""
+    if target_dir and target_dir.strip("/").upper().startswith("L0"):
+        return "cross-skill"
+    return _DEFAULT_SCOPE
+
+
 class WikiStore:
     def __init__(self, root: str | Path):
         self.root = Path(root).expanduser().resolve()
@@ -2983,17 +3017,35 @@ class WikiStore:
             "suggested_snippet": None if passed else self.DISCOVERABILITY_SNIPPET,
         }
 
+    # Template -> (template file, target dir). Shared by new_page (which needs
+    # target_dir both to default the write-gate SCOPE before gating and to place
+    # the rendered file) and gate_candidate (scope default only).
+    _TEMPLATE_MAP = {
+        "page": ("templates/page.template.md", "concepts"),
+        "decision": ("templates/decision.template.md", "queries"),
+        "handoff": ("templates/handoff.template.md", "L2_facts"),
+        "source-summary": ("templates/source-summary.template.md", "raw"),
+        "import-manifest": ("templates/import-manifest.template.md", "raw"),
+    }
+
     def gate_candidate(self, title: str, body: str = "", reason: str = "",
                        tags: list[str] | None = None, kind: str = "fact",
-                       k: int = 5) -> dict[str, Any]:
+                       k: int = 5, scope: str | None = None,
+                       target_dir: str | None = None) -> dict[str, Any]:
         """Score a candidate page against the memory-file contract BEFORE a write.
 
-        Two mechanical checks, both report-only here (new_page enforces):
+        Three mechanical checks, all report-only here (new_page enforces):
           1. write-gate signal scoring on (title + reason + body): a low-signal /
              reasonless candidate fails (`signal_pass` False) with the gate's own
              reason surfaced. write-gate is the same scorer used by every other
              persistent-memory write, so the bar is consistent.
-          2. overlap() INTER-document near-dup: a `high`-band match means an
+          2. write-gate SCOPE classification (LEARNING_CONTRACT §1): every
+             candidate needs a scope or it is unbanked. `scope`, if given, is
+             used as-is (explicit caller classification always wins); otherwise
+             it defaults by page kind via `_default_wiki_scope(target_dir)` —
+             this-repo for L2 facts/L3 SOPs/timeline entries, cross-skill for
+             L0 rules.
+          3. overlap() INTER-document near-dup: a `high`-band match means an
              existing page already covers this subject — steer to update-not-create
              and surface the overlapping page.
 
@@ -3002,25 +3054,37 @@ class WikiStore:
         `high`.
         """
         gate_text = "\n\n".join(part for part in (title, reason, body) if part and part.strip())
+        effective_scope = scope or _default_wiki_scope(target_dir)
         wg = _load_write_gate()
         if wg is not None:
             threshold, require_why, weights = wg.load_config()
             score = wg.score_text(gate_text, kind, weights)
-            signal_pass, signal_reason = wg.decide(score, kind, threshold, require_why)
+            signal_pass, signal_reason = wg.decide(score, kind, threshold, require_why,
+                                                    scope=effective_scope)
             signal = {
                 "available": True,
                 "pass": signal_pass,
                 "score": round(score.total, 3),
                 "threshold": threshold,
                 "has_why": score.has_why,
+                "scope": effective_scope,
                 "reason": signal_reason,
                 "features": [r for r in score.reasons],
             }
+        elif effective_scope not in _FALLBACK_SCOPE_VALUES:
+            # write-gate not installed alongside, so the scorer that normally
+            # validates SCOPE is absent — but LEARNING_CONTRACT §1 still binds:
+            # unclassified = unbanked, end-to-end, with or without the scorer.
+            signal_pass = False
+            signal = {"available": False, "pass": False, "scope": effective_scope,
+                      "reason": ("REJECTED: missing/invalid SCOPE classification (need one "
+                                 f"of {sorted(_FALLBACK_SCOPE_VALUES)} — see LEARNING_CONTRACT "
+                                 "§1); unclassified = unbanked")}
         else:
             # write-gate not installed alongside: do NOT silently accept — degrade
             # to overlap-only and say so, so the gap is visible rather than hidden.
             signal_pass = True
-            signal = {"available": False, "pass": True,
+            signal = {"available": False, "pass": True, "scope": effective_scope,
                       "reason": "write-gate scorer not found; overlap-only check applied"}
 
         ov = self.overlap(title, body=body, tags=tags, k=k)
@@ -3036,14 +3100,22 @@ class WikiStore:
 
     def new_page(self, template: str, title: str, domain: str = "framework", slug: str | None = None,
                  trust: str = DEFAULT_TRUST, body: str = "", reason: str = "",
-                 tags: list[str] | None = None, force: bool = False) -> dict[str, Any]:
+                 tags: list[str] | None = None, force: bool = False,
+                 scope: str | None = None) -> dict[str, Any]:
         # Mechanically enforce the memory-file contract BEFORE committing the
         # write (Codex flag: `new` skipped write-gate + overlap, leaving it
         # honor-system). Run both gates on the candidate; refuse a low-signal /
         # reasonless write, and steer a near-duplicate to update-not-create.
         # `force=True` is the explicit escape hatch for deliberate
         # scaffold-then-fill flows (template stub now, content later).
-        gate = self.gate_candidate(title, body=body, reason=reason, tags=tags)
+        if template not in self._TEMPLATE_MAP:
+            raise KeyError(f"unknown template: {template}")
+        template_rel, target_dir = self._TEMPLATE_MAP[template]
+        # `scope`, if the caller passed one, overrides the by-kind default
+        # (LEARNING_CONTRACT §1: classification is mandatory, but callers may
+        # classify explicitly rather than take the page-kind default).
+        gate = self.gate_candidate(title, body=body, reason=reason, tags=tags,
+                                    scope=scope, target_dir=target_dir)
         if not force and not gate["accept"]:
             if gate["overlap_blocks"]:
                 bm = gate["overlap"].get("best_match") or {}
@@ -3057,16 +3129,6 @@ class WikiStore:
                        f"concrete content, or pass force=True to override.")
             raise WikiWriteRejected(msg, gate)
         self.init()
-        template_map = {
-            "page": ("templates/page.template.md", "concepts"),
-            "decision": ("templates/decision.template.md", "queries"),
-            "handoff": ("templates/handoff.template.md", "L2_facts"),
-            "source-summary": ("templates/source-summary.template.md", "raw"),
-            "import-manifest": ("templates/import-manifest.template.md", "raw"),
-        }
-        if template not in template_map:
-            raise KeyError(f"unknown template: {template}")
-        template_rel, target_dir = template_map[template]
         template_path = self.root / template_rel
         if not template_path.exists():
             template_path = Path(__file__).resolve().parents[1] / template_rel
@@ -3391,6 +3453,11 @@ def _cli_main(argv: list[str] | None = None) -> int:
     sp.add_argument("--tags", default="", help="Comma-separated tags (used by the overlap near-dup check).")
     sp.add_argument("--force", action="store_true",
                     help="Override a write-gate / overlap refusal (deliberate scaffold-then-fill).")
+    sp.add_argument("--scope", default=None,
+                    help="LEARNING_CONTRACT §1 SCOPE classification (this-skill/this-repo/"
+                         "cross-skill/cross-repo/canon). Defaults by page kind if omitted "
+                         "(this-repo for most templates, cross-skill for L0 rules) — pass "
+                         "this to classify explicitly instead of taking the default.")
 
     sp = sub.add_parser("ingest", help="Add a source (file path or URL) to raw/.")
     sp.add_argument("source")
@@ -3547,7 +3614,8 @@ def _cli_dispatch(args, store, root) -> int:
         try:
             _cli_print(store.new_page(args.template, args.title,
                                       domain=args.domain, slug=args.slug, trust=args.trust,
-                                      body=body, reason=args.reason, tags=tags, force=args.force))
+                                      body=body, reason=args.reason, tags=tags, force=args.force,
+                                      scope=args.scope))
         except WikiWriteRejected as e:
             # Surface the reason + evidence; exit non-zero so the refusal is a
             # real gate, not a swallowed warning.

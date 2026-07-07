@@ -72,6 +72,26 @@ A 5-agent read-only refuter workflow attacked each feature; it found and we fixe
 Each fix ships a regression test reproducing the exact scenario the passing tests missed
 (learn 20 · telemetry 11 · nomination 7 · hooks 5 = 43).
 
+## Failure modes
+
+Premortem ([`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §8):
+
+- **Silent-failure path** — a workflow gets captured by hand-writing a SKILL.md instead of
+  going through `/learn`'s `dedup` → `write-gate` → `scaffold` pipeline; the resulting skill
+  never gets `status: proposed` + a `learned_at` stamp, so it's invisible to the whole
+  telemetry/promotion/staleness lifecycle described below — it just sits there, permanently
+  un-vetted, with nothing flagging that it skipped the gate.
+- **Rot-when-unwatched** — a skill's `source:` (a repo path or URL) drifts out of sync with
+  what it was learned from; `learn.py staleness` catches this only when it's actually run,
+  and for a URL source it can't even fetch to check — it can only age-flag, leaving the real
+  re-verification to an agent that has to remember to re-`WebFetch` it.
+- **No-hooks host** — the SessionEnd/SessionStart telemetry hooks are opt-in
+  (`install.sh`) and Claude-Code-shaped; Codex has no SessionStart/SessionEnd, so the
+  installer substitutes Stop + UserPromptSubmit with `--defer-trailing` scanning per
+  `docs/HOST_CAPABILITY_MATRIX.md`, and a host with neither wired at all silently drops to
+  **zero usage telemetry** — `learn.py promote` then has nothing to gate on, so a learned
+  skill can neither earn trust nor get flagged for demotion; it just stays `proposed` forever.
+
 ## Provenance
 Design = two doc sweeps of the Hermes skills page + two GLM-5.2 review rounds (design, then
 this build plan). GLM edits folded: promote cut, body-aware dedup, PATCH=abort-not-merge,

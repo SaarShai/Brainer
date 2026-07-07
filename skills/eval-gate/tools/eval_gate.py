@@ -505,6 +505,49 @@ def _rubric_needs_task(rubric_text: str) -> bool:
     return bool(_GROUNDING_RE.search(rubric_text or ""))
 
 
+# LEARNING_CONTRACT §5: judge criteria must derive from the FULL spec + canon
+# gates, never from the executor's claims or a rubric co-authored with the
+# work. A dict-wrapped criteria payload may declare its provenance via
+# "source"; anything outside this set (e.g. "executor-claims") names exactly
+# the failure §5 exists to prevent and is rejected, not silently accepted.
+_VALID_PROVENANCE = {"spec", "canon", "frozen-before-generation"}
+
+
+def _check_provenance(raw, require: bool):
+    """Validate a dict-wrapped criteria payload's declared "source" against
+    LEARNING_CONTRACT §5. Raises ValueError (caller maps that to exit 2) when:
+      - a declared source is present but not in _VALID_PROVENANCE (case-sensitive
+        match — "SPEC" or "executor-claims" both reject),
+      - --require-provenance was passed and no source is declared at all, or
+      - --require-provenance was passed and the payload is a bare list (no dict
+        wrapper at all): a bare list carries no "source" field to declare, so it
+        would otherwise sail past the check below un-audited — the exact bypass
+        of unwrapping a dict payload back to its bare "criteria" list to dodge
+        --require-provenance. Without the flag, a bare list is untouched here
+        (backward compatible)."""
+    if not isinstance(raw, dict):
+        if require:
+            raise ValueError(
+                "bare-list criteria carry no provenance; wrap in a dict with "
+                "source per LEARNING_CONTRACT §5")
+        return
+    source = raw.get("source")
+    if source is None:
+        if require:
+            raise ValueError(
+                "criteria payload declares no provenance \"source\" and "
+                "--require-provenance was set (LEARNING_CONTRACT §5: judge "
+                "criteria must derive from the spec/canon, never the "
+                "executor's claims)")
+        return
+    if source not in _VALID_PROVENANCE:
+        raise ValueError(
+            f"invalid provenance source {source!r} — must be one of "
+            f"{sorted(_VALID_PROVENANCE)} (LEARNING_CONTRACT §5: judge "
+            "criteria must derive from the spec/canon, never the executor's "
+            "claims)")
+
+
 def _load_criteria(args):
     """Return a normalized criteria list, or None for holistic mode. Raises
     ValueError on a malformed criteria spec (caller maps that to exit 2)."""
@@ -514,6 +557,7 @@ def _load_criteria(args):
         raw = json.loads(Path(args.criteria_file).read_text(encoding="utf-8"))
     else:
         return None
+    _check_provenance(raw, bool(getattr(args, "require_provenance", False)))
     crit = raw.get("criteria") if isinstance(raw, dict) else raw
     if not isinstance(crit, list) or not crit:
         raise ValueError("criteria must be a non-empty list")
@@ -783,6 +827,10 @@ def _add_judge_args(p):
     p.add_argument("--criteria-file", help="JSON file: list of {id, description, weight?, "
                    "required?} -> per-criterion rubric mode")
     p.add_argument("--criteria-json", help="inline JSON criteria list (per-criterion mode)")
+    p.add_argument("--require-provenance", action="store_true",
+                   help="reject a dict-wrapped criteria payload with no declared "
+                   "\"source\" (LEARNING_CONTRACT §5); bare-list criteria are "
+                   "unaffected either way")
     p.add_argument("--stub-criteria", help="skip the model; per-criterion verdicts as inline "
                    "JSON, @path, or path: {id: \"pass\"|\"fail\"} (testing / CI)")
 

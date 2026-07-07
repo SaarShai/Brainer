@@ -6,7 +6,14 @@
 # eval/longrun) are NOT here — they need ollama/GPU and live behind their
 # own runners.
 #
-# Usage: bash scripts/run_all_tests.sh [--quiet] [--group core|tail|all]
+# Usage: bash scripts/run_all_tests.sh [--quiet] [--group core|tail|all|e3]
+#
+# --group e3 is NON-CORE and opt-in only: it runs scripts/e3_gauntlet.py +
+# scripts/test_e3_gauntlet.py, which each do a REAL `install.sh --project`
+# (git init + symlinks + hook-merge) into a fresh temp project — a few
+# seconds per run, too slow for the default core/tail/all path and never
+# folded into --group all. Run it explicitly: bash scripts/run_all_tests.sh
+# --group e3.
 set -uo pipefail
 export PYTHONDONTWRITEBYTECODE=1
 export BRAINER_CHECK_NO_WRITE="${BRAINER_CHECK_NO_WRITE:-1}"
@@ -25,8 +32,8 @@ while [ "$#" -gt 0 ]; do
   shift || true
 done
 case "$GROUP" in
-  core|tail|all) ;;
-  *) echo "unknown group: $GROUP (core|tail|all)" >&2; exit 2 ;;
+  core|tail|all|e3) ;;
+  *) echo "unknown group: $GROUP (core|tail|all|e3)" >&2; exit 2 ;;
 esac
 PASS=0; FAIL=0
 declare -a FAILED
@@ -186,6 +193,18 @@ if ls ~/.claude/projects/-Users-za-Documents-Brainer/*.jsonl >/dev/null 2>&1; th
 else
   echo "SKIP triage replay audit (no local transcripts)"
 fi
+
+fi
+
+if [ "$GROUP" = "e3" ]; then
+
+# E3 lifecycle gauntlet (LEARNING_CONTRACT.md §8): a lesson banked in Brainer
+# must be VISIBLE AND ENFORCED in a fresh consuming repo after install.sh, not
+# just inside the Brainer checkout. NON-CORE / opt-in only — each of these does
+# a real `install.sh --project` (git init + symlinks + hook-merge) into a fresh
+# temp project, too slow for the default core/tail/all path.
+run "e3:gauntlet" python3 scripts/e3_gauntlet.py
+run "e3:selftest" python3 scripts/test_e3_gauntlet.py
 
 fi
 

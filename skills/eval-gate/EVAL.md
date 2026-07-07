@@ -56,11 +56,23 @@ specificity moves agreement.
 
 ## Failure modes
 
-- Rubric too vague → low judge–human agreement (the score is noise). Mitigation:
-  specificity; the agreement metric above surfaces it.
-- Judge model too small → inconsistent scores. Use a 7B+ instruct model or MiMo.
-- Self-judging (same model generates + judges) can run lenient; temp 0 + an
-  external rubric mitigate but don't eliminate.
+Premortem ([`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §8):
+
+- **Silent-failure path** — a caller ships output without ever invoking `score`/`suite`; the
+  exit-code gate can't refuse a call that never happens, and a rubric too vague to
+  discriminate ("is this good") produces a passing score that reads as a real gate-pass
+  rather than judge noise — the agreement metric (judge vs human label) is the only thing
+  that would surface either failure, and it only runs when someone deliberately measures it.
+- **Rot-when-unwatched** — the case-set (`add-case`'s ratchet) only grows when a failure is
+  actively caught and banked; if nobody feeds it new flagged-bad outputs, the regression
+  suite silently stops reflecting current failure modes and `suite` keeps passing against an
+  increasingly outdated bar. A judge model swapped out from under the rubric (smaller/
+  cheaper backend) degrades scoring consistency with no version-pin check catching it.
+- **No-hooks host** — `eval-gate` is a CLI (`score`/`suite`/`add-case`), so it runs
+  identically on Codex/Gemini per `docs/HOST_CAPABILITY_MATRIX.md` ("tools are plain
+  python3/bash"); the exposure is that nothing forces the gate into the ship path on any
+  host — it's an opt-in step the caller must remember to run, same as write-gate's
+  silent-failure path above it.
 
 ## Lineage / sources
 

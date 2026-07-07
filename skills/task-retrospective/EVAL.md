@@ -75,15 +75,27 @@ theater):
 
 ## Failure modes
 
-- **Ceremony creep** — activating task audit mode for one-off work or persisting too many lessons. Mitigated by explicit user activation, the ≤3 candidate cap, and the blessed null exit. Not mechanically gated once the user deliberately asks for the mode.
-- **Probe false positives** — `harvest-claimed-not-written` fires on phrasing without a real write.
-  Kept sober (narrow `claim_pattern`, broad `verify_keywords`); tested clean on "harvesting crops" and
-  claims-with-a-write. Tune via compliance-canary's `measure.py` evidence if noisy.
-- **Pattern-tag rot (known false-negative)** — a recurring failure whose log entry carries no `pattern:`
-  signature (or no registry-matching text) is invisible to the Measure scan, which then reports
-  *HOLDING* — a confidence-vs-evidence inversion (asserts the fix held when it just couldn't see the
-  recurrence). Instructed in Part C step 6 but **not mechanically gated**; the real fix is a write-time
-  `wiki.py lint` check that every banked lesson page carries a `pattern:` tag. **Open follow-up.**
+Premortem ([`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §8):
+
+- **Silent-failure path** — this skill is `disable-model-invocation: true` (slash/explicit-arm
+  only); a repeatable task that ends without the user saying "/retro" or the trigger phrases
+  simply never gets audited, and nothing detects the missed arm — the lesson that would have
+  been banked is gone with no trace, distinct from an armed-but-empty run (which correctly
+  reports "no durable project lesson found").
+- **Rot-when-unwatched** — a recurring failure whose log entry carries no `pattern:` signature
+  (or no registry-matching text) is invisible to `audit_lessons.py`'s Measure scan, which then
+  reports *HOLDING* — a confidence-vs-evidence inversion asserting the fix held when the scan
+  just couldn't see the recurrence. Instructed in Part C step 6 but **not mechanically
+  gated**; the real fix is a write-time `wiki.py lint` check that every banked lesson page
+  carries a `pattern:` tag. **Open follow-up.** Ceremony creep (over-arming for one-off work)
+  is the inverse drift, held down only by explicit user activation + the ≤3 candidate cap —
+  not mechanically gated once the user deliberately asks for the mode.
+- **No-hooks host** — the `drift_probes.json` corrective (`harvest-claimed-not-written`) needs
+  `compliance-canary`'s hook wired to fire at all; on Codex/Gemini this needs the explicit
+  hook-porting step in `docs/HOST_CAPABILITY_MATRIX.md`. Absent that wiring, the probe's
+  false-positive guard (narrow `claim_pattern`, broad `verify_keywords` — tested clean on
+  "harvesting crops") is moot because the probe never runs; the arm/observe/review/persist
+  ritual itself is prose and portable to any host, but its one mechanical backstop is not.
 
 ## Known gaps (surfaced by the test workflow's completeness critic — not yet covered)
 

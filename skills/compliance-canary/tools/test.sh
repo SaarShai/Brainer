@@ -459,6 +459,86 @@ print(json.dumps({'session_id':'s34','transcript_path':sys.argv[1],'hook_event_n
 out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc34" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk34" "${HOOK[@]}")
 if emitted "$out" && echo "$out" | grep -q 'user_correction'; then ok "user_correction fires with no assistant prose"; else no "user_correction fires with no assistant prose" "got: $(echo "$out" | head -c150)"; fi
 
+# ======================================================================
+# Mechanism 4 — correction ledger (LEARNING_CONTRACT §2): a fired
+# user_correction probe opens a closeout-blocking OPEN item that is surfaced
+# every turn until a banking tool call (write_gate.py / wiki.py new|update) is
+# observed, or the user explicitly closes it. Reuses the sk34/PROBES fixture
+# above (the user_correction probe from test [34]).
+# ======================================================================
+
+call34() {
+  # call34 <state_sub> <transcript_file> <session_id> <prompt>
+  local state_sub="$1" tx="$2" sid="$3" prompt="$4"
+  local payload
+  payload=$(python3 -c "
+import json,sys
+print(json.dumps({'session_id':sys.argv[1],'transcript_path':sys.argv[2],'hook_event_name':'UserPromptSubmit','prompt':sys.argv[3]}))
+" "$sid" "$tx" "$prompt")
+  printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/$state_sub" \
+    COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk34" "${HOOK[@]}"
+}
+
+echo "[34a] correction ledger: a fired user_correction opens an item citing LEARNING_CONTRACT §2"
+TX34A="$TRANSCRIPT_DIR/t34a.jsonl"
+write_transcript "$TX34A" "$(assistant_text 'ok, using tabs' u34a)"
+out=$(call34 cc34a "$TX34A" s34a 'no, I said use spaces')
+if emitted "$out" && echo "$out" | grep -q '§2' && echo "$out" | grep -qi 'still OPEN'; then
+  ok "correction opens item citing §2"
+else
+  no "correction opens item citing §2" "got: $(echo "$out" | head -c220)"
+fi
+
+echo "[34b] NEGATIVE — an unrelated later turn (no banking tool call) keeps the correction OPEN"
+out=$(call34 cc34a "$TX34A" s34a 'thanks, looks fine')
+if echo "$out" | grep -qi 'still OPEN'; then
+  ok "unrelated later turn keeps correction OPEN"
+else
+  no "unrelated turn wrongly resolved the correction" "got: $(echo "$out" | head -c220)"
+fi
+
+echo "[34c] a write_gate.py Bash call resolves the correction ledger (banked)"
+TX34C="$TRANSCRIPT_DIR/t34c.jsonl"
+write_transcript "$TX34C" \
+  "$(assistant_text 'banking the lesson' u34c)" \
+  "$(assistant_tool_use Bash '{"command":"python3 skills/write-gate/tools/write_gate.py gate --text lesson"}')"
+out=$(call34 cc34a "$TX34C" s34a 'go ahead')
+if echo "$out" | grep -q 'resolved 1 correction' && ! echo "$out" | grep -qi 'still OPEN'; then
+  ok "write_gate.py bank call resolves the correction ledger"
+else
+  no "write_gate.py bank should resolve" "got: $(echo "$out" | head -c220)"
+fi
+
+echo "[34d] user 'close it' resolves an OPEN correction without a banking tool call"
+TX34D="$TRANSCRIPT_DIR/t34d_open.jsonl"
+write_transcript "$TX34D" "$(assistant_text 'noted' u34d)"
+out=$(call34 cc34d "$TX34D" s34d 'no, I said use spaces')
+if ! echo "$out" | grep -qi 'still OPEN'; then no "setup: correction should open first" "got: $(echo "$out" | head -c220)"; fi
+TX34D2="$TRANSCRIPT_DIR/t34d_close.jsonl"
+write_transcript "$TX34D2" "$(assistant_text 'ok' u34d2)"
+out=$(call34 cc34d "$TX34D2" s34d 'close it')
+if echo "$out" | grep -q 'resolved 1 correction' && ! echo "$out" | grep -qi 'still OPEN'; then
+  ok "user 'close it' resolves the open correction"
+else
+  no "explicit user close should resolve" "got: $(echo "$out" | head -c220)"
+fi
+
+echo "[34e] lifecycle direct-assert: an unbanked correction never auto-resolves on the mere passage of turns"
+lifecycle=$(python3 -c "
+import sys; sys.path.insert(0,'$TOOLS_DIR'); import hook
+probe = {'kind':'user_correction','_result':{'snippet':'no, use spaces'}}
+ledger, closed, action = [], [], None
+for turn in range(1, 6):
+    fired = [probe] if turn == 1 else []
+    ledger, closed, action = hook.update_correction_ledger(ledger, fired, [], 'next', turn)
+print('open' if ledger and not closed else 'wrongly-resolved')
+")
+if [ "$lifecycle" = "open" ]; then
+  ok "unbanked correction stays OPEN across turns (no auto-resolve)"
+else
+  no "unbanked correction must never auto-resolve" "got: $lifecycle"
+fi
+
 echo "[35] claim_without_evidence: incidental substring ('cat' inside 'category') does NOT count as verification"
 # Word-boundary fix: short verify keywords (cat, ls, build) must not match
 # inside unrelated words. Bash ran 'mkdir category' — the keyword 'cat' is a

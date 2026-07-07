@@ -8,9 +8,13 @@ Checks:
   - trigger keywords in first sentence of description
   - body has at least one section (## heading)
   - if EVAL.md is referenced, file exists
+  - premortem contract (LEARNING_CONTRACT.md §8): a skill shipping a machine
+    gate (tools/*.py or drift_probes.json) declares its failure modes and
+    ships a negative test. WARN by default; --strict promotes to hard issues.
 """
 from __future__ import annotations
 
+import argparse
 import os
 import re
 import sys
@@ -30,6 +34,19 @@ REQUIRED_FIELDS = ("name", "description")
 TRIGGER_HINTS = (
     "use when", "use on", "use at", "use for", "use whenever", "use before", "use after", "use opt-in",
     "trigger", "fires on", "run on", "applies when",
+)
+
+# LEARNING_CONTRACT.md §8 — premortem is part of shipping: a skill that ships
+# a machine gate (tools/*.py or drift_probes.json) must declare how it fails
+# silently, and a gate that never tripped is unproven (§3, negative test
+# first). NEGATIVE_TEST_HINTS is a content signal, not a filename convention —
+# the file must actually assert a known-bad/reject/adversarial case, not just
+# be named test*.
+FAILURE_MODES_HEADING_RE = re.compile(r"^##\s*failure modes\s*$", re.I | re.M)
+PREMORTEM_MENTION_RE = re.compile(r"premortem", re.I)
+NEGATIVE_TEST_HINTS = (
+    "reject", "adversarial", "known-bad", "known bad", "should_fail", "should fail",
+    "must_fail", "must fail", "bad case", "bad_case", "negative test", "negative_test",
 )
 
 
@@ -64,13 +81,51 @@ def parse_frontmatter(text: str) -> tuple[dict, str, str | None]:
     return fm, body, fm_block
 
 
-def lint_one(path: Path) -> list[str]:
+def _ships_machine_gate(skill_dir: Path) -> bool:
+    """A skill ships a machine gate if it has tools/*.py or drift_probes.json."""
+    if (skill_dir / "drift_probes.json").exists():
+        return True
+    tools_dir = skill_dir / "tools"
+    if tools_dir.is_dir():
+        return any(tools_dir.glob("*.py"))
+    return False
+
+
+def _has_failure_modes_note(skill_dir: Path) -> bool:
+    """§8: a declared failure-modes note — '## Failure modes' heading or a
+    'premortem' mention — in SKILL.md or EVAL.md."""
+    for name in ("SKILL.md", "EVAL.md"):
+        p = skill_dir / name
+        if not p.exists():
+            continue
+        text = p.read_text()
+        if FAILURE_MODES_HEADING_RE.search(text) or PREMORTEM_MENTION_RE.search(text):
+            return True
+    return False
+
+
+def _has_negative_test(skill_dir: Path) -> bool:
+    """§3: a negative-test artifact — tools/test*.py or test*.sh whose content
+    signals a known-bad/reject/adversarial case."""
+    tools_dir = skill_dir / "tools"
+    if not tools_dir.is_dir():
+        return False
+    candidates = list(tools_dir.glob("test*.py")) + list(tools_dir.glob("test*.sh"))
+    for f in candidates:
+        text_lc = f.read_text().lower()
+        if any(h in text_lc for h in NEGATIVE_TEST_HINTS):
+            return True
+    return False
+
+
+def lint_one(path: Path, strict: bool = False) -> tuple[list[str], list[str]]:
     issues: list[str] = []
+    warnings: list[str] = []
     text = path.read_text()
     fm, body, fm_block = parse_frontmatter(text)
     if not fm:
         issues.append("missing YAML frontmatter")
-        return issues
+        return issues, warnings
     # Strict YAML gate: when PyYAML is importable, the frontmatter MUST parse
     # with the SAME parser GitHub/agentskills.io use. This is the check the old
     # hand-rolled `partition(":")` could never do — it is why 7 SKILL.md files
@@ -82,10 +137,10 @@ def lint_one(path: Path) -> list[str]:
         except yaml.YAMLError as exc:  # type: ignore[union-attr]
             first = str(exc).splitlines()[0] if str(exc) else exc.__class__.__name__
             issues.append(f"frontmatter is not valid YAML (yaml.safe_load: {first})")
-            return issues
+            return issues, warnings
         if not isinstance(loaded, dict):
             issues.append("frontmatter YAML did not parse to a mapping")
-            return issues
+            return issues, warnings
     for k in REQUIRED_FIELDS:
         if k not in fm:
             issues.append(f"missing required field: {k}")
@@ -115,12 +170,44 @@ def lint_one(path: Path) -> list[str]:
     # and restructuring a measured artifact to satisfy lint inverts priorities.
     if "##" not in body and len(body.splitlines()) > 40:
         issues.append("body has no `## section` headings (long body benefits from sections)")
-    return issues
+    # Premortem contract (LEARNING_CONTRACT.md §8): a skill shipping a machine
+    # gate must declare its failure modes and ship a negative test. WARN by
+    # default so the repo stays green; --strict promotes both to hard issues.
+    skill_dir = path.parent
+    if _ships_machine_gate(skill_dir):
+        findings: list[str] = []
+        if not _has_failure_modes_note(skill_dir):
+            findings.append(
+                "ships a machine gate (tools/*.py or drift_probes.json) but has no "
+                "declared failure-modes note (a case-insensitive '## Failure modes' "
+                "heading or a 'premortem' mention in SKILL.md or EVAL.md) — see "
+                "LEARNING_CONTRACT.md §8"
+            )
+        if not _has_negative_test(skill_dir):
+            findings.append(
+                "ships a machine gate (tools/*.py or drift_probes.json) but has no "
+                "negative-test artifact (a tools/test*.py or test*.sh whose content "
+                "signals a known-bad/reject/adversarial case) — see "
+                "LEARNING_CONTRACT.md §3"
+            )
+        if strict:
+            issues.extend(findings)
+        else:
+            warnings.extend(findings)
+    return issues, warnings
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) < 2:
-        print("usage: lint.py <SKILL.md> [...]", file=sys.stderr)
+    parser = argparse.ArgumentParser(prog="lint.py", add_help=False)
+    parser.add_argument("files", nargs="*")
+    parser.add_argument(
+        "--strict", action="store_true",
+        help="promote premortem-contract findings (LEARNING_CONTRACT.md §8) from "
+             "warnings to hard issues",
+    )
+    args = parser.parse_args(argv[1:])
+    if not args.files:
+        print("usage: lint.py [--strict] <SKILL.md> [...]", file=sys.stderr)
         return 2
     # In CI the strict-YAML gate (lines ~76) is the whole point — silently
     # degrading to the dependency-free path there would let malformed frontmatter
@@ -130,20 +217,24 @@ def main(argv: list[str]) -> int:
               "validation, but it is not installed.", file=sys.stderr)
         return 2
     rc = 0
-    for arg in argv[1:]:
+    for arg in args.files:
         p = Path(arg)
         if not p.exists():
             print(f"{arg}: not found")
             rc = 1
             continue
-        issues = lint_one(p)
+        issues, warnings = lint_one(p, strict=args.strict)
         if issues:
             rc = 1
             print(f"{arg}: {len(issues)} issue(s)")
             for i in issues:
                 print(f"  - {i}")
-        else:
+        elif not warnings:
             print(f"{arg}: ok")
+        if warnings:
+            print(f"{arg}: {len(warnings)} warning(s)")
+            for w in warnings:
+                print(f"  - [warn] {w}")
     return rc
 
 

@@ -5,7 +5,7 @@ Scores candidate text on signal features (decisions / errors / architecture / co
 numbers / entity overlap) and rejects reasonless decisions (no because… / so that… /
 to avoid…). Sits in front of any persistent write (wiki-memory, CLAUDE.md, etc).
 Also enforces LEARNING_CONTRACT §1: a candidate missing a SCOPE classification
-(this-skill/cross-skill/cross-repo/canon) is rejected outright.
+(this-skill/this-repo/cross-skill/cross-repo/canon) is rejected outright.
 
 Sources:
   - ogham-mcp/ogham-mcp (signal-score lifecycle, 91.8% QA on LongMemEval)
@@ -127,9 +127,11 @@ TRUST_BYPASS = {"verified", "user_confirmed"}
 TRUST_RE = re.compile(r"^\s*trust:\s*([a-z_]+)", re.M | re.I)
 
 # SCOPE classification — LEARNING_CONTRACT §1 (skills/_shared/LEARNING_CONTRACT.md):
-# a candidate is unbankable until classified this-skill / cross-skill / cross-repo /
-# canon. Read from `scope:` frontmatter (mirrors extract_trust), or --scope on the CLI.
-SCOPE_VALUES = {"this-skill", "cross-skill", "cross-repo", "canon"}
+# a candidate is unbankable until classified this-skill / this-repo / cross-skill /
+# cross-repo / canon. Read from `scope:` frontmatter (mirrors extract_trust), or
+# --scope on the CLI. `this-repo` = repo-scoped fact/lesson not tied to one skill
+# (wiki-memory L2 fact / L3 SOP).
+SCOPE_VALUES = {"this-skill", "this-repo", "cross-skill", "cross-repo", "canon"}
 SCOPE_RE = re.compile(r"^\s*scope:\s*([a-z_-]+)", re.M | re.I)
 
 NUMBER_RE = re.compile(
@@ -420,9 +422,10 @@ def main(argv: list[str]) -> int:
                             "If omitted, read from the candidate's `trust:` frontmatter.")
         p.add_argument("--scope", default=None,
                        choices=sorted(SCOPE_VALUES),
-                       help="LEARNING_CONTRACT §1 classification (this-skill/cross-skill/"
-                            "cross-repo/canon); mandatory — missing/invalid scope is rejected. "
-                            "If omitted, read from the candidate's `scope:` frontmatter.")
+                       help="LEARNING_CONTRACT §1 classification (this-skill/this-repo/"
+                            "cross-skill/cross-repo/canon); mandatory — missing/invalid scope "
+                            "is rejected. If omitted, read from the candidate's `scope:` "
+                            "frontmatter.")
         p.add_argument("--text")
         p.add_argument("--file")
         p.add_argument("--threshold", type=float)

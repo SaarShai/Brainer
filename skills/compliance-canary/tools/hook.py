@@ -1161,6 +1161,107 @@ def build_ledger_lines(open_items: list, closed_now: list, completion_claim: boo
     return lines
 
 
+# ---- Mechanism 4: correction ledger (LEARNING_CONTRACT §2) -------------------
+# A user correction is closeout-blocking (skills/_shared/LEARNING_CONTRACT.md §2):
+# it must become a durable artifact — rule + gate + exemplar — before the task
+# closes, unconditionally (not opt-in, not "if a retrospective is armed"). This
+# mirrors the request-ledger (Mechanism 3) shape exactly: every fired
+# `user_correction` probe opens an OPEN item that is surfaced every turn until a
+# banking tool call is observed OR the user explicitly closes it. The hook never
+# judges whether the banking was GOOD — only whether a banking tool call
+# happened — the same "mechanical tracker, model does the semantics" split as
+# Mechanism 3.
+CORRECTION_LEDGER_STORE_CAP = 50      # hard cap on stored items (bound state-file size)
+CORRECTION_LEDGER_SHOW_MAX = 8        # max items surfaced in one reminder
+CORRECTION_LEDGER_TEXT_CAP = 140      # chars kept per remembered correction
+
+# A Bash call that BANKS a lesson: write-gate's score/gate/explain (the quality
+# gate §2 requires before a durable write) or wiki.py new|update (materializing
+# the durable artifact itself). Matched against the Bash `command` string —
+# same detection style as `_LEDGER_MAINT_PATH_DEFAULT` above (path/command
+# substring, not an AST parse).
+_CORRECTION_BANK_TOOL_RE = re.compile(
+    r"(?:^|[\s/])write_gate\.py\b|(?:^|[\s/])wiki\.py\b[^\n]*\b(?:new|update)\b"
+)
+
+
+def _correction_ledger_make_id(turn: int, text: str) -> str:
+    return f"c{turn}-" + hashlib.sha256(text.encode("utf-8", "replace")).hexdigest()[:6]
+
+
+def update_correction_ledger(ledger: list, fired_probes: list[dict], tool_uses: list[dict],
+                             prompt: str, turn: int) -> tuple[list, list, str]:
+    """Pure mechanical lifecycle, same shape as `update_ledger`. Returns
+    (new_ledger, closed_items, action). NEVER judges whether the banked lesson
+    is any good — only whether a banking tool call appears in recent history.
+
+    Open: one item per `user_correction` probe that fired THIS turn (fired_probes
+    is the subset `run_probes` already computed — no extra transcript scan).
+    Close: (a) a recent Bash tool_use matching `_CORRECTION_BANK_TOOL_RE`
+    (banked — resolves ALL open items, mirroring "close all"), or (b) the user's
+    prompt matches the same explicit-closure phrasing Mechanism 3 uses ("close
+    it", "that's all", ...) — an explicit user override for a correction the
+    agent judges already handled outside the banking tools. Absent either, the
+    item stays OPEN indefinitely (no auto-resolve on the mere passage of turns).
+
+    Actions: open · bank-resolved · user-resolved · none."""
+    ledger = list(ledger)
+    closed: list = []
+    action = "none"
+
+    corrections = [p for p in (fired_probes or []) if p.get("kind") == "user_correction"]
+    for probe in corrections:
+        result = probe.get("_result") or {}
+        text = result.get("snippet") or result.get("matched") or (prompt or "")
+        item = {
+            "id": _correction_ledger_make_id(turn, text),
+            "turn": turn,
+            "text": str(text)[:CORRECTION_LEDGER_TEXT_CAP],
+        }
+        ledger = (ledger + [item])[-CORRECTION_LEDGER_STORE_CAP:]
+        action = "open"
+
+    if ledger:
+        banked = any(
+            tu.get("name") == "Bash" and _CORRECTION_BANK_TOOL_RE.search(
+                str((tu.get("input") or {}).get("command", "")))
+            for tu in (tool_uses or [])
+        )
+        if banked:
+            closed = ledger
+            ledger = []
+            action = "bank-resolved"
+        elif _LEDGER_CLOSE_RE.search((prompt or "").strip()):
+            closed = ledger
+            ledger = []
+            action = "user-resolved"
+
+    return ledger, closed, action
+
+
+def build_correction_ledger_lines(open_items: list, closed_now: list, turn: int) -> list[str]:
+    lines: list[str] = []
+    if closed_now:
+        tail = f"; {len(open_items)} still open." if open_items else " — correction ledger now empty."
+        lines.append(
+            f"compliance-canary correction ledger (turn {turn}): resolved {len(closed_now)} "
+            f"correction(s){tail}"
+        )
+    if open_items:
+        lines.append(
+            f"compliance-canary correction ledger (turn {turn}): {len(open_items)} user "
+            f"correction(s) still OPEN — closeout-blocking per LEARNING_CONTRACT §2 "
+            f"(skills/_shared/LEARNING_CONTRACT.md). Bank each as a durable rule + gate + "
+            f"exemplar, SCOPE-classified per §1, before this task closes:"
+        )
+        for it in open_items[:CORRECTION_LEDGER_SHOW_MAX]:
+            lines.append(f"- [turn {it.get('turn','?')}] {it.get('text','')}")
+        extra = len(open_items) - CORRECTION_LEDGER_SHOW_MAX
+        if extra > 0:
+            lines.append(f"- (+{extra} more still open)")
+    return lines
+
+
 # Detector for the requirements-ledger skill: fire when the user has raised
 # trackable requests but the agent shows no sign of MATERIALIZING the visible
 # ledger (no Edit/Write to a *ledger*.md and no TaskCreate/TaskUpdate). The
@@ -1367,12 +1468,15 @@ def format_one_probe(probe: dict) -> str:
 
 
 def build_output(fired: list[dict], pulse_skills: list[tuple[str, str]], turn: int,
-                 ledger_lines: list[str] | None = None) -> str:
+                 ledger_lines: list[str] | None = None,
+                 correction_ledger_lines: list[str] | None = None) -> str:
     """One <system-reminder> carrying whichever mechanism(s) produced output.
     Symptomatic correctives lead (higher signal); the request-ledger section
     follows (it does NOT yield at a wrap-up turn — surfacing open requests as the
-    agent closes is the whole point); the periodic re-anchor comes last and only
-    when no probe fired this turn (it yields — see main)."""
+    agent closes is the whole point); the correction ledger (LEARNING_CONTRACT
+    §2) comes next — also non-yielding, closeout-blocking; the periodic
+    re-anchor comes last and only when no probe fired this turn (it yields —
+    see main)."""
     lines = ["<system-reminder>"]
     if fired:
         lines.append(
@@ -1383,6 +1487,8 @@ def build_output(fired: list[dict], pulse_skills: list[tuple[str, str]], turn: i
             lines.append(format_one_probe(probe))
     if ledger_lines:
         lines.extend(ledger_lines)
+    if correction_ledger_lines:
+        lines.extend(correction_ledger_lines)
     if pulse_skills:
         lines.append(
             f"compliance-canary re-anchor (turn {turn}): these active skills' rules remain "
@@ -1442,6 +1548,9 @@ def main() -> int:
     ledger: list = []
     ledger_action = "none"
     substantive_add_count = 0
+    # Mechanism 4 — correction ledger, persisted from prior turns (opened below,
+    # once `fired` is known). Read here so the transcript-read gate can see it.
+    correction_ledger: list = []
     prompt_text = str(payload.get("prompt") or "")
     # Ledger + prompt-scanning probes see only user-AUTHORED text; harness
     # injections (task-notifications, command transcripts) are stripped.
@@ -1460,6 +1569,7 @@ def main() -> int:
         if ledger_action == "add":
             state["substantive_add_count"] = _as_int(state.get("substantive_add_count"), 0) + 1
         substantive_add_count = _as_int(state.get("substantive_add_count"), 0)
+        correction_ledger = state.get("correction_ledger", [])
         # Persist counter + ledger early — if any later step errors, we still progress
         save_state(path, state)
 
@@ -1501,10 +1611,15 @@ def main() -> int:
                     os.environ.get("COMPLIANCE_CANARY_PROBE_SKILLS", "").split(",") if s.strip()}
     if _probe_allow:
         probes = [p for p in probes if p.get("_skill") in _probe_allow]
-    # One transcript read feeds both the probes and the ledger's wrap-up check.
+    # One transcript read feeds the probes, the ledger's wrap-up check, and the
+    # correction ledger's bank-resolution check (needs recent Bash tool_uses even
+    # on a turn where no NEW correction fires).
     events: list[dict] = []
-    if probes or ledger:
+    tool_uses: list[dict] = []
+    if probes or ledger or correction_ledger:
         events = read_transcript_tail(transcript_path)
+        if events and not probes:
+            tool_uses = recent_tool_uses(events, n=10)
     if probes:
         if events:
             # Fetch enough messages for the LARGEST declared word_count window.
@@ -1593,10 +1708,26 @@ def main() -> int:
         if show:
             ledger_lines = build_ledger_lines(ledger, closed_now, completion_claim, turn)
 
-    if not fired and not pulse_skills and not ledger_lines:
+    # --- Mechanism 4: correction ledger (LEARNING_CONTRACT §2) ------------
+    # UNCONDITIONAL, same as Mechanism 3: opens on every fired `user_correction`
+    # probe, persisted across turns, surfaced EVERY turn it is non-empty (closeout-
+    # blocking — unlike the request ledger, this does not wait for a wrap-up turn
+    # or drift coupling, since a banked-but-forgotten correction must not go quiet).
+    correction_closed_now, correction_action = [], "none"
+    correction_ledger, correction_closed_now, correction_action = update_correction_ledger(
+        correction_ledger, fired, tool_uses, prompt_text_user, turn)
+    if correction_action != "none":
+        with state_lock(path):
+            state = load_state(path)
+            state["correction_ledger"] = correction_ledger
+            save_state(path, state)
+    correction_ledger_lines: list[str] = build_correction_ledger_lines(
+        correction_ledger, correction_closed_now, turn)
+
+    if not fired and not pulse_skills and not ledger_lines and not correction_ledger_lines:
         return 0
 
-    sys.stdout.write(build_output(fired, pulse_skills, turn, ledger_lines))
+    sys.stdout.write(build_output(fired, pulse_skills, turn, ledger_lines, correction_ledger_lines))
     sys.stdout.write("\n")
     return 0
 

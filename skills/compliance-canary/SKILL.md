@@ -1,6 +1,6 @@
 ---
 name: compliance-canary
-description: "Use when a long session drifts — the single always-on drift watcher: one UserPromptSubmit hook combining symptomatic per-skill drift probes (filler creep, verbosity growth, unverified done-claims, looping tool errors), a periodic skill-rule re-anchor, and a request ledger that keeps every user request OPEN until completed or user-closed. Tune/disable via COMPLIANCE_CANARY_* env vars."
+description: "Use when a long session drifts — the single always-on drift watcher: one UserPromptSubmit hook combining symptomatic per-skill drift probes (filler creep, verbosity growth, unverified done-claims, looping tool errors), a periodic skill-rule re-anchor, a request ledger that keeps every user request OPEN until completed or user-closed, and a correction ledger that keeps every user correction OPEN (LEARNING_CONTRACT §2) until it is banked or user-closed. Tune/disable via COMPLIANCE_CANARY_* env vars."
 model: haiku
 effort: low
 tools: [Bash, Read, Write]
@@ -13,21 +13,26 @@ pulse_reminder: drift detectors are watching — your recent reply is scanned ea
 # compliance-canary — the drift watcher
 
 The single, non-optional drift defense for long sessions. One `UserPromptSubmit`
-hook runs **three orthogonal mechanisms** in one process (skill-pulse was folded
+hook runs **four orthogonal mechanisms** in one process (skill-pulse was folded
 in here 2026-06-16 — the leaner "one reactive hook instead of two" the eval
-notes had flagged; the request ledger was added 2026-06-17):
+notes had flagged; the request ledger was added 2026-06-17; the correction
+ledger closes the LEARNING_CONTRACT §2 gap — a user correction must become a
+durable artifact before the task closes):
 
 | # | Mechanism | When it speaks | Covers |
 |---|---|---|---|
 | 1 | **Symptomatic probes** | only when a drift symptom appears | filler, verbosity creep, unverified done-claims, self-closing without asking, looping tool errors, error-rate spikes |
 | 2 | **Periodic re-anchor** | every Nth turn, unconditionally | rules that *fade* before any symptom shows — incl. rules with no probe |
 | 3 | **Request ledger** | at wrap-up turns (+ on cadence) | a user request silently dropped before it was completed or the user closed it |
+| 4 | **Correction ledger** | every turn it is non-empty | a user correction closed out without being banked as a durable rule + gate + exemplar (LEARNING_CONTRACT §2) |
 
-All three emit into **one** `<system-reminder>` with a shared budget. On a turn
+All four emit into **one** `<system-reminder>` with a shared budget. On a turn
 where a probe fires, the periodic re-anchor **yields** (symptom correction is
 higher-signal and itself re-anchors attention) — so the two never stack into
-consecutive nags. The ledger does NOT yield at a wrap-up turn: surfacing still-open
-requests precisely as the agent moves to close is the whole point.
+consecutive nags. The request ledger does NOT yield at a wrap-up turn: surfacing
+still-open requests precisely as the agent moves to close is the whole point.
+The correction ledger likewise does not yield — it is closeout-blocking, so it
+surfaces every turn it holds an open item.
 
 Emergency off-switch: `COMPLIANCE_CANARY_DISABLED=1` (kills both). This is a
 safety valve, not an install option — the skill is default-on (`auto-install:
@@ -49,7 +54,7 @@ Each kind is the JSON shape an author writes in their skill's `drift_probes.json
 - **`word_count_per_message`** — avg words/msg over a window → terseness drift (caveman-ultra creep, explanation bloat).
 - **`claim_without_evidence`** — a claim word with no verify-style tool call in recent history → [verify-before-completion](../verify-before-completion/SKILL.md) drift.
 - **`repeated_tool_error`** *(v1.7)* — a recurring `is_error` signature → a tool error the agent keeps re-triggering.
-- **`user_correction`** *(v1.7)* — current prompt matches a correction pattern → surface it so it isn't ignored (route the lesson through [write-gate](../write-gate/SKILL.md) only when persistence is explicitly selected).
+- **`user_correction`** *(v1.7)* — current prompt matches a correction pattern → surface it so it isn't ignored (route the lesson through [write-gate](../write-gate/SKILL.md)) and open a closeout-blocking correction-ledger item (Mechanism 4, LEARNING_CONTRACT §2) until it is banked or user-closed.
 - **`trajectory_drift`** *(v1.8)* — session tool-error RATE over the tail → thrashing (retry loops, schema-mismatch storms).
 - **`prompt_intent`** *(v1.11)* — current prompt matches a governed situation → a PRE-TASK skill nudge (spontaneous Skill invocation is unreliable, so fire mechanically).
 - **`early_stop`** *(v1.11)* — last turn is a forward-looking promise with no tool/claim/question → the anti-early-stop reflex ([verify-before-completion](../verify-before-completion/SKILL.md)).
@@ -126,6 +131,38 @@ is the whole-hook `COMPLIANCE_CANARY_DISABLED=1`. Stored items are
 capped at `LEDGER_STORE_CAP=50`, surfaced at `LEDGER_SHOW_MAX=8` (with "+N more
 open").
 
+## Mechanism 4 — correction ledger
+
+[`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §2: a user correction is
+**closeout-blocking** — it must become a durable artifact (rule + gate +
+exemplar, SCOPE-classified per §1) before the task closes, unconditionally, not
+only "if a retrospective is armed". The `user_correction` probe (Mechanism 1)
+already detects the correction at the turn it lands; the correction ledger is
+the stateful guard that keeps it from being forgotten — mirroring the request
+ledger's shape exactly, one mechanism level up.
+
+Lifecycle (per-session state under `COMPLIANCE_CANARY_STATE_DIR`, key
+`correction_ledger`):
+
+- **Open.** Every fired `user_correction` probe (any skill's) opens an OPEN
+  item `{id, turn, text}` — unconditional capture, the same no-opt-out posture
+  as Mechanism 3.
+- **Surface.** Unlike the request ledger (which waits for a wrap-up turn or
+  drift coupling), an open correction is surfaced **every turn** it is
+  non-empty — "closeout-blocking" means it does not wait for the agent to
+  believe it is done.
+- **Close.** An item leaves the ledger when (a) a Bash tool call banking the
+  lesson is observed — `write_gate.py` (the quality gate §2 requires) or
+  `wiki.py new|update` (materializing the durable artifact) — which resolves
+  ALL open corrections, or (b) the user explicitly closes it (the same closure
+  phrasing as Mechanism 3: "close it", "that's all", …), for a correction the
+  agent judges already handled outside the banking tools.
+
+**The hook never judges whether the banked lesson is any good** — only whether
+a banking tool call happened. There is no auto-resolve on the mere passage of
+turns: an unbanked correction stays OPEN indefinitely until one of the two
+close paths above fires.
+
 ## Install
 
 Claude Code (project-local):
@@ -134,7 +171,7 @@ Claude Code (project-local):
 bash skills/compliance-canary/tools/install.sh --project
 ```
 
-Wires `tools/hook.sh` into `.claude/settings.json` under `UserPromptSubmit` — a single hook running all three mechanisms. (`prompt-triage` may also wire `UserPromptSubmit`; the hooks fire in sequence, each independent.)
+Wires `tools/hook.sh` into `.claude/settings.json` under `UserPromptSubmit` — a single hook running all four mechanisms. (`prompt-triage` may also wire `UserPromptSubmit`; the hooks fire in sequence, each independent.)
 
 ## How a skill opts in
 
@@ -190,9 +227,9 @@ Env vars (all optional). `SKILL_PULSE_*` names are honored as back-compat aliase
 ```
 tools/
 ├── hook.sh        # UserPromptSubmit shell shim
-├── hook.py        # probes + periodic re-anchor + request ledger + state (one process)
+├── hook.py        # probes + periodic re-anchor + request ledger + correction ledger + state (one process)
 ├── install.sh     # wires UserPromptSubmit into project-local .claude/
-├── test.sh        # regression suite (80 cases: probes + re-anchor + ledger + hardening)
+├── test.sh        # regression suite (108 cases: probes + re-anchor + ledger + correction ledger + hardening)
 └── measure.py     # standalone offline probe analyzer
 ```
 

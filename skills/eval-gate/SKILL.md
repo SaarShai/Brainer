@@ -75,6 +75,12 @@ majority; any disagreement exits 1 with per-member verdicts. Fewer than 3 reacha
 members → loud warning + single-judge fallback, never a fabricated quorum. Closes the
 same-model-judging hole for outputs that are hard to reverse.
 
+**Provenance-gated criteria.** A dict-wrapped criteria payload may declare
+`"source": "spec"|"canon"|"frozen-before-generation"`; any other value (e.g.
+`"executor-claims"`) is rejected, and `--require-provenance` also rejects a
+missing `source` — [`LEARNING_CONTRACT §5`](../_shared/LEARNING_CONTRACT.md#5-verifier-independence-is-structural-not-situational)
+(judge criteria never derive from the executor's own claims).
+
 **Per-criterion mode** (`--criteria-file` / `--criteria-json`) turns one holistic
 `0-5` into a list of `{id, description, weight, required}` criteria judged
 independently. Output carries a per-criterion `pass`/`reason` breakdown,

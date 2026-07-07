@@ -29,6 +29,13 @@ tools/
 └── INSTALL.md
 ```
 
+## Failure modes
+
+Premortem (LEARNING_CONTRACT.md §8) — answer before shipping:
+- How does this fail silently?
+- What rots when nobody looks?
+- What happens on a host without hooks?
+
 ## Lineage
 
 - <inspiration sources, papers, licensed code>
