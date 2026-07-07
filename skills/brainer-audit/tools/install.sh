@@ -13,8 +13,16 @@ CODEX_HOOKS="$REPO/.codex/hooks.json"
 # keeps a host without the var working from the repo root. (Codex doesn't set the
 # var, so it falls back to $PWD; .codex/hooks.json is committed/portable so we keep
 # the same form rather than baking a machine-specific absolute path.)
-CLAUDE_CMD='python3 "${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/brainer-audit/tools/hook.py" --host claude'
-CODEX_CMD='python3 "${CLAUDE_PROJECT_DIR:-$PWD}/.codex/skills/brainer-audit/tools/hook.py" --host codex'
+# Path is derived from where THIS installer actually lives relative to the
+# repo root — NOT a hard-coded .claude/skills/... path. Incident 2026-07-07
+# (screenery-lean, twice): the wired .claude/skills/brainer-audit symlink
+# either never existed or was wiped by the repo's own install.sh symlink
+# rebuild; a missing hook file exits 2, and exit 2 on UserPromptSubmit/
+# PreToolUse BLOCKS every prompt/tool → all sessions unresponsive. The real
+# vendored tree (skills/... or wherever this file sits) survives rebuilds.
+REL="${TOOLS_DIR#"$REPO"/}"   # e.g. skills/brainer-audit/tools
+CLAUDE_CMD='python3 "${CLAUDE_PROJECT_DIR:-$PWD}/'"$REL"'/hook.py" --host claude'
+CODEX_CMD='python3 "${CLAUDE_PROJECT_DIR:-$PWD}/'"$REL"'/hook.py" --host codex'
 
 # Host-scoping: root install.sh exports BRAINER_HOSTS with the requested host
 # list before running per-skill installers, so a single-host run doesn't also
@@ -47,9 +55,20 @@ def add_hook(data, event, command):
     hooks = data.setdefault("hooks", {})
     rules = hooks.setdefault(event, [])
     cmd = f"{command} --event {event}"
+    # Migrate: drop any stale brainer-audit wiring whose command differs from
+    # the freshly derived path (e.g. a dead .claude/skills/... path from an
+    # older install — the 2026-07-07 session-wedge incident).
     for rule in rules:
         existing = rule.setdefault("hooks", [])
-        if any(item.get("type") == "command" and item.get("command") == cmd for item in existing):
+        existing[:] = [
+            item for item in existing
+            if not (item.get("type") == "command"
+                    and "brainer-audit/tools/hook.py" in str(item.get("command", ""))
+                    and item.get("command") != cmd)
+        ]
+    rules[:] = [r for r in rules if r.get("hooks")]
+    for rule in rules:
+        if any(item.get("type") == "command" and item.get("command") == cmd for item in rule.get("hooks", [])):
             return
     rules.append({"matcher": "*", "hooks": [{"type": "command", "command": cmd}]})
 
@@ -69,6 +88,21 @@ if codex_path is not None:
         add_hook(codex, event, codex_cmd)
     write(codex_path, codex)
 PY
+
+# --- post-wire self-test (LEARNING_CONTRACT §4: a wired-but-dead hook is ---
+# worse than none — exit 2 on UserPromptSubmit/PreToolUse blocks the session).
+# Run the exact wired command once; any failure is a LOUD install failure.
+if [ -n "$CLAUDE_ARG" ]; then
+  for ev in UserPromptSubmit PreToolUse Stop; do
+    if ! echo '{"session_id":"install-selftest","hook_event_name":"'"$ev"'"}' \
+        | CLAUDE_PROJECT_DIR="$REPO" bash -c "$CLAUDE_CMD --event $ev" >/dev/null 2>&1; then
+      echo "FATAL: wired brainer-audit hook FAILED self-test for $ev (command: $CLAUDE_CMD --event $ev)" >&2
+      echo "       a failing UserPromptSubmit/PreToolUse hook BLOCKS every session prompt — fix before use" >&2
+      exit 1
+    fi
+  done
+  echo "brainer-audit: post-wire self-test OK (hook executes cleanly for UserPromptSubmit/PreToolUse/Stop)."
+fi
 
 if [ -n "$CLAUDE_ARG" ] && [ -n "$CODEX_ARG" ]; then
   echo "Installed optional brainer-audit hooks for Claude and Codex."
