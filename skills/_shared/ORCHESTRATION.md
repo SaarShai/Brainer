@@ -185,7 +185,7 @@ Rules:
   own fleet incident the same day.)
 - **Leader-side mechanical twin of the no-git rule** (hooks don't fire inside
   lanes, so the guard can't live there): run
-  [`lane_guard.py snapshot`](../../scripts/lane_guard.py) before dispatching a
+  [`lane_guard.py snapshot`](../../skills/_shared/lane_guard.py) before dispatching a
   multi-lane wave, then `lane_guard.py check` after EACH lane returns — a
   stash created, HEAD moved, or a dirty file reverted-to-HEAD is a FAIL that
   quarantines that lane's report until the tree is reconciled (never
