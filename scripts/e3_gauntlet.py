@@ -41,6 +41,15 @@ What it does:
            (every per-skill tools/install.sh derives its target root from its
            own script location, so the hook-merge step silently only ever
            touched the Brainer checkout's own .claude/settings.json).
+       (f) named-probe liveness  — beyond (d)'s "parses as JSON": imports the
+           INSTALLED compliance-canary hook.py, runs its own discover_probes()
+           against the consumer's installed skills, asserts the fable-mode
+           fable-repeated-failure probe is discoverable by its qualified id,
+           and asserts DETECTORS['repeated_tool_error'] actually fires on 3
+           synthetic matching tool_errors and stays silent on 2. Added after
+           a real gap: (d) proved every drift_probes.json parses but never
+           proved any SPECIFIC probe is discoverable or that its detector
+           fires — a probe could parse clean and still be dead on arrival.
   4. Prints PASS/FAIL per sub-check + an overall summary.
 
 Exit codes: 0 all sub-checks pass, 1 usage error, 2 any sub-check FAILs.
@@ -297,6 +306,56 @@ def check_e_hook_wiring(project: Path) -> SubCheck:
     return c
 
 
+def check_f_named_probe_detector_live(project: Path) -> SubCheck:
+    """(f) named-probe firing check — closes an adversarially-found gap in
+    check (d): parsing drift_probes.json as JSON proves nothing about whether
+    a specific NAMED probe is actually discoverable and its detector fires.
+    This imports the INSTALLED consumer copy of compliance-canary's hook.py
+    (never Brainer's own copy — same cross-repo discipline as check (b)),
+    runs its own discover_probes() against the fresh project's installed
+    .claude/skills, asserts the fable-mode fable-repeated-failure probe is
+    among them by its qualified id, and asserts DETECTORS['repeated_tool_error']
+    actually fires on 3 synthetic matching tool_errors and stays silent on 2
+    (min_count boundary) — proving the probe is live, not just well-formed
+    JSON."""
+    c = SubCheck("(f) named probe fable-mode:fable-repeated-failure discoverable + detector fires")
+    hook_path = project / ".claude" / "skills" / "compliance-canary" / "tools" / "hook.py"
+    if not hook_path.exists():
+        c.fail(f"installed compliance-canary hook.py not found at {hook_path}")
+        return c
+    try:
+        canary_hook = _load_module(hook_path, "e3_gauntlet_canary_hook")
+    except Exception as exc:
+        c.fail(f"failed to import installed hook.py: {type(exc).__name__}: {exc}")
+        return c
+    link_dir = project / ".claude" / "skills"
+    probes = canary_hook.discover_probes(link_dir)
+    named = [p for p in probes if p.get("_probe_id") == "fable-mode:fable-repeated-failure"]
+    if not named:
+        c.fail("fable-mode:fable-repeated-failure not discovered among installed probes")
+        return c
+    probe = named[0]
+    detector = canary_hook.DETECTORS.get("repeated_tool_error")
+    if detector is None:
+        c.fail("DETECTORS['repeated_tool_error'] not registered in installed hook.py")
+        return c
+    matching_errors = [
+        "Segmentation fault (core dumped)",
+        "Error: ENOENT no such file",
+        "Timed out after 30s",
+    ]
+    fires = detector(probe, [], [], matching_errors)
+    silent = detector(probe, [], [], matching_errors[:2])
+    if fires is None:
+        c.fail(f"detector did not fire on 3 synthetic matching tool_errors (got {fires!r})")
+        return c
+    if silent is not None:
+        c.fail(f"detector fired on only 2 synthetic tool_errors, expected silent (got {silent!r})")
+        return c
+    c.ok("probe discovered by qualified id; detector fires on 3 matching errors, silent on 2")
+    return c
+
+
 def run_gauntlet(scratch_root: Path, keep: bool) -> tuple[int, list[SubCheck], Path, str]:
     project = make_fresh_project(scratch_root, keep)
     install_rc, install_out = run_install(project)
@@ -307,7 +366,7 @@ def run_gauntlet(scratch_root: Path, keep: bool) -> tuple[int, list[SubCheck], P
         # summary shape stays constant.
         for fn in (check_a_installed_skill_set, check_b_write_gate_cross_repo,
                    check_c_substrate_liveness, check_d_drift_probes_parse,
-                   check_e_hook_wiring):
+                   check_e_hook_wiring, check_f_named_probe_detector_live):
             c = fn(project)
             if c.passed is None:
                 c.fail("install.sh --project failed; nothing installed to check")
@@ -316,7 +375,7 @@ def run_gauntlet(scratch_root: Path, keep: bool) -> tuple[int, list[SubCheck], P
 
     for fn in (check_a_installed_skill_set, check_b_write_gate_cross_repo,
                check_c_substrate_liveness, check_d_drift_probes_parse,
-               check_e_hook_wiring):
+               check_e_hook_wiring, check_f_named_probe_detector_live):
         checks.append(fn(project))
 
     exit_code = 2 if any(c.passed is False for c in checks) else 0

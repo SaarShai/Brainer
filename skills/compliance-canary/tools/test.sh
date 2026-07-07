@@ -1726,6 +1726,81 @@ echo "[101h] grabbed-baton-not-consulted ROUND-3 FIX: FIRE — 'where did we put
 out=$(call_p cc101h sk101 "$TX" s101h 'where did we put the minis?')
 if emitted "$out" && echo "$out" | grep -q 'baton \[prompt_intent\]'; then ok "'where did we put' recall shape fires"; else no "'where did we put' recall shape must fire" "got: $(echo "$out" | head -c200)"; fi
 
+# ======================================================================
+# fable-mode fable-repeated-failure: probe-specific regression against the
+# REAL shipped skills/fable-mode/drift_probes.json (not an inline copy, and
+# not the generic repeated_tool_error smoke test at [24]-[26] — an
+# adversarial review found those only exercised the DETECTOR via a narrow
+# literal pattern ["File has not been read yet"], never THIS probe's actual
+# pattern file). Mirrors [91]'s "load the real team-lead drift_probes.json"
+# style. Detector semantics are COUNT, not same-signature: 3 DISTINCT
+# failure classes must fire exactly like 3 of the same class would, and the
+# message must say only "stalling" — never assert same-signature semantics
+# (locked lesson: an earlier draft claimed "the same class of failure
+# recurred — stop retrying variations", which is false on 3 distinct
+# errors).
+# ======================================================================
+REAL_FABLE_PROBES="$(cat "$TOOLS_DIR/../../fable-mode/drift_probes.json")"
+mkdir -p "$SKILLS_ROOT/fm/fable-mode"
+printf '%s\n' "$REAL_FABLE_PROBES" > "$SKILLS_ROOT/fm/fable-mode/drift_probes.json"
+
+echo "[103a] fable-repeated-failure: 3 DISTINCT failure classes (not same signature) → fires (count semantics)"
+TX="$TRANSCRIPT_DIR/t103a.jsonl"
+write_transcript "$TX" \
+  "$(assistant_text 'running the build' u103a1)" \
+  "$(user_tool_error 'Segmentation fault (core dumped)')" \
+  "$(assistant_text 'retrying a different way' u103a2)" \
+  "$(user_tool_error 'Error: ENOENT no such file')" \
+  "$(assistant_text 'trying yet another approach' u103a3)" \
+  "$(user_tool_error 'Timed out after 30s')"
+out=$(call cc103a fm "$TX" s103a)
+if emitted "$out" && echo "$out" | grep -q 'fable-mode \[repeated_tool_error\]'; then ok "3 distinct failure classes fire (count semantics, not same-signature)"; else no "3 distinct failure classes should fire" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[103b] fable-repeated-failure: 2 matching errors → silent (min_count=3 boundary)"
+TX="$TRANSCRIPT_DIR/t103b.jsonl"
+write_transcript "$TX" \
+  "$(assistant_text 'running the build' u103b1)" \
+  "$(user_tool_error 'Segmentation fault (core dumped)')" \
+  "$(assistant_text 'retrying' u103b2)" \
+  "$(user_tool_error 'Error: ENOENT no such file')"
+out=$(call cc103b fm "$TX" s103b)
+if [ -z "$out" ]; then ok "2 matching errors stay silent (below min_count=3)"; else no "2 matching errors should stay silent" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[103c] fable-repeated-failure: 3 benign non-error tool_results mentioning 'errors' (plural) → silent (only is_error results are counted)"
+user_tool_result_ok() {
+  python3 -c "
+import json,sys
+print(json.dumps({'type':'user',
+                  'message':{'role':'user','content':[{'type':'tool_result','is_error':False,'content':sys.argv[1]}]}}))
+" "$1"
+}
+TX="$TRANSCRIPT_DIR/t103c.jsonl"
+write_transcript "$TX" \
+  "$(assistant_text 'summarizing the run' u103c1)" \
+  "$(user_tool_result_ok '3 errors were found in the log but all were handled gracefully')" \
+  "$(assistant_text 'more detail' u103c2)" \
+  "$(user_tool_result_ok 'no failures here — just some errors logged for visibility')" \
+  "$(assistant_text 'final note' u103c3)" \
+  "$(user_tool_result_ok 'errors, errors, errors — all benign, non-fatal')"
+out=$(call cc103c fm "$TX" s103c)
+if [ -z "$out" ]; then ok "benign non-error tool_results with 'errors' stay silent (is_error=False excluded from the count)"; else no "benign non-error tool_results should stay silent" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[103d] fable-repeated-failure: emitted message says 'stalling', and never asserts the retracted same-signature claim"
+TX="$TRANSCRIPT_DIR/t103d.jsonl"
+write_transcript "$TX" \
+  "$(assistant_text 'running the build' u103d1)" \
+  "$(user_tool_error 'Segmentation fault (core dumped)')" \
+  "$(assistant_text 'retrying a different way' u103d2)" \
+  "$(user_tool_error 'Error: ENOENT no such file')" \
+  "$(assistant_text 'trying yet another approach' u103d3)" \
+  "$(user_tool_error 'Timed out after 30s')"
+out=$(call cc103d fm "$TX" s103d)
+if emitted "$out" && echo "$out" | grep -qi 'stalling' && ! echo "$out" | grep -qi 'same class' && ! echo "$out" | grep -qi 'STOP retrying variations'; then
+  ok "message says 'stalling' and omits the retracted same-signature claim"
+else
+  no "message must say 'stalling' and must NOT claim same-signature semantics" "got: $(echo "$out" | head -c400)"
+fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then
