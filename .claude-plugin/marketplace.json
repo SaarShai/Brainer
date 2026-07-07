@@ -2,7 +2,7 @@
   "$schema": "https://claude.com/schemas/plugin-marketplace.json",
   "name": "brainer",
   "version": "1.13.0",
-  "description": "Token/context-efficient skills for AI coding agents. 26 skills across output style, planning, lean execution, verification, wiki memory (write-gate / wiki-refresh / provenance trust), prompt triage, PreCompact extraction, semantic AST diff, output filtering, retrieval indexing, user-triggered task retrospectives, report-only Brainer audits, loop/verifier-gate design, LLM-as-judge output gating, source-to-skill learning (learn-skill: /learn + telemetry-gated promotion), a visible requirements ledger (no user request dropped), and drift mitigation (one always-on watcher: periodic re-anchor + symptomatic probes). Measured per-skill savings range from ~-20% (routing) to ~-97% (re-reads / compaction) depending on skill type; see eval/FINDINGS.md.",
+  "description": "Token/context-efficient skills for AI coding agents. 27 skills across output style, planning, lean execution, verification, wiki memory (write-gate / wiki-refresh / provenance trust), prompt triage, PreCompact extraction, semantic AST diff, output filtering, retrieval indexing, user-triggered task retrospectives, report-only Brainer audits, loop/verifier-gate design, LLM-as-judge output gating, source-to-skill learning (learn-skill: /learn + telemetry-gated promotion), a visible requirements ledger (no user request dropped), and drift mitigation (one always-on watcher: periodic re-anchor + symptomatic probes). Measured per-skill savings range from ~-20% (routing) to ~-97% (re-reads / compaction) depending on skill type; see eval/FINDINGS.md.",
   "homepage": "https://github.com/SaarShai/Brainer",
   "license": "MIT",
   "author": "Saar Shai",
@@ -10,7 +10,7 @@
     {
       "name": "brainer",
       "version": "1.14.0",
-      "description": "All 26 skills bundled; compliance-canary (the single drift watcher \u2014 periodic re-anchor + symptomatic probes, formerly two skills) auto-wires its UserPromptSubmit hook (auto-install: true, default-on since v1.7) and now also enforces requirements-ledger (no user request silently dropped) and hosts learn-skill's workflow_nomination detector; loop-engineering, eval-gate, and brainer-audit ship deterministic local gates. brainer-audit live hooks are opt-in.",
+      "description": "All 27 skills bundled; compliance-canary (the single drift watcher — periodic re-anchor + symptomatic probes, formerly two skills) auto-wires its UserPromptSubmit hook (auto-install: true, default-on since v1.7) and now also enforces requirements-ledger (no user request silently dropped) and hosts learn-skill's workflow_nomination detector; loop-engineering, eval-gate, and brainer-audit ship deterministic local gates. brainer-audit live hooks are opt-in.",
       "source": {
         "type": "git-subdirectory",
         "directory": "skills/"
@@ -24,6 +24,7 @@
         "compliance-canary",
         "context-keeper",
         "eval-gate",
+        "fable-mode",
         "impact-of-change",
         "index-first",
         "lean-execution",

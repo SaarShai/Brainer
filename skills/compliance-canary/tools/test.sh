@@ -1454,6 +1454,51 @@ print('ok' if r2 is None and r3 is not None and r3.get('min_count') == 3 else f'
 " 2>&1)
 if [ "$p5b" = ok ]; then ok "valid min_count:3 unaffected (2 hits quiet, 3 hits fires)"; else no "valid min_count:3 regressed" "got: $p5b"; fi
 
+# ======================================================================
+# Mechanism 5: probe escalation (advisory→blocking after 3 uncorrected fires)
+# Stateless from probe_history; clears after 3 silent turns. Direct-asserts.
+# ======================================================================
+ESC_PY='import sys; sys.path.insert(0,"'"$TOOLS_DIR"'"); import hook
+def esc(hist, turn): return hook.build_probe_escalation_lines(hist, turn)
+def H(pid, *turns): return [{"probe_id": pid, "fired_at_turn": t} for t in turns]'
+
+echo "[96a] escalation trips: 3 fires, last one recent → blocking lines name the probe"
+r=$(python3 -c "$ESC_PY
+L=esc(H('vision:claim-without-render',2,5,8), 9)
+print('yes' if L and 'ESCALATION' in L[0] and any('vision:claim-without-render' in x and '3 fires' in x for x in L) else 'no:'+repr(L)[:120])")
+if [ "$r" = yes ]; then ok "3 recent fires escalate"; else no "escalation did not trip" "$r"; fi
+
+echo "[96b] negative: 2 fires never escalate (threshold is 3)"
+r=$(python3 -c "$ESC_PY
+print('yes' if esc(H('x:p',5,8), 9)==[] else 'no')")
+if [ "$r" = yes ]; then ok "2 fires stay advisory"; else no "under-threshold escalated"; fi
+
+echo "[96c] clears on observed correction: 3 fires but silent >=3 turns → no lines"
+r=$(python3 -c "$ESC_PY
+print('yes' if esc(H('x:p',2,5,8), 11)==[] and esc(H('x:p',2,5,8), 10)!=[] else 'no')")
+if [ "$r" = yes ]; then ok "silence clears at exactly +$((3)) turns"; else no "clear boundary wrong"; fi
+
+echo "[96d] independence: only the repeat offender escalates, not co-firing probes"
+r=$(python3 -c "$ESC_PY
+L=esc(H('bad:p',3,6,9)+H('ok:p',9), 9)
+print('yes' if any('bad:p' in x for x in L) and not any('ok:p' in x for x in L) else 'no')")
+if [ "$r" = yes ]; then ok "per-probe isolation"; else no "co-firing probe wrongly escalated"; fi
+
+echo "[96e] end-to-end: escalation line reaches hook stdout via build_output path"
+SESC="sesc"; TESC="$TRANSCRIPT_DIR/tesc.jsonl"; write_transcript "$TESC" "$(assistant_text 'ok.' uesc)"
+COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cesc" python3 - <<PYEOF
+import json, os, sys
+sys.path.insert(0, "$TOOLS_DIR"); import hook
+p = hook.state_path("$SESC")
+os.makedirs(os.path.dirname(p), exist_ok=True)
+st = hook.load_state(p)
+st["turn_count"] = 8
+st["probe_history"] = [{"probe_id":"vision:claim-without-render","fired_at_turn":t} for t in (2,5,8)]
+hook.save_state(p, st)
+PYEOF
+out=$(call_p cesc skesc "$TESC" "$SESC" 'continue')
+if echo "$out" | grep -q 'ESCALATION' && echo "$out" | grep -q 'closeout-blocking gate'; then ok "escalation surfaces in hook output"; else no "escalation missing from output" "got: $(echo "$out"|head -c200)"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then

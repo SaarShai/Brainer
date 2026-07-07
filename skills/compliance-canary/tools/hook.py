@@ -1430,6 +1430,59 @@ def build_correction_ledger_lines(open_items: list, closed_now: list, turn: int)
     return lines
 
 
+# --- Mechanism 5: probe escalation (LEARNING_CONTRACT §8, detection→prevention) --
+# Live evidence 2026-07-07 (screenery-lean + product-images monitoring): the same
+# advisory probe fired 3-5x uncorrected while the defect shipped — advisory
+# reminders lose to speed pressure. After ESCALATION_THRESHOLD fires with the
+# latest fire still recent, the probe stops being advice and becomes a
+# closeout-blocking directive. Stateless by design: derived from probe_history
+# every turn, so it clears itself only when the probe goes silent for
+# ESCALATION_CLEAR_TURNS consecutive turns (observed correction) — there is no
+# flag to forget and no state to rot.
+ESCALATION_THRESHOLD = 3      # fires (within the capped history) that trip escalation
+ESCALATION_CLEAR_TURNS = 3    # consecutive silent turns that prove correction
+ESCALATION_SHOW_MAX = 4       # max escalated probes surfaced per reminder
+
+
+def build_probe_escalation_lines(history: list, turn: int) -> list[str]:
+    counts: dict[str, int] = {}
+    last_fired: dict[str, int] = {}
+    for h in history:
+        if not isinstance(h, dict):
+            continue
+        pid = str(h.get("probe_id", ""))
+        if not pid:
+            continue
+        counts[pid] = counts.get(pid, 0) + 1
+        ft = _as_int(h.get("fired_at_turn"), 0)
+        if ft > last_fired.get(pid, 0):
+            last_fired[pid] = ft
+    escalated = sorted(
+        (pid for pid, n in counts.items()
+         if n >= ESCALATION_THRESHOLD
+         and turn - last_fired.get(pid, 0) < ESCALATION_CLEAR_TURNS),
+        key=lambda p: -counts[p])
+    if not escalated:
+        return []
+    lines = [
+        f"compliance-canary ESCALATION (turn {turn}): {len(escalated)} drift probe(s) "
+        f"fired {ESCALATION_THRESHOLD}+ times UNCORRECTED — advisory reminders have "
+        f"failed; each named rule is now a closeout-blocking gate (LEARNING_CONTRACT "
+        f"§8: detection is not prevention). Before ANY further progress or done-claim, "
+        f"perform the named rule's required action THIS turn and show its evidence "
+        f"(render/test/ledger write). Clears only after {ESCALATION_CLEAR_TURNS} "
+        f"consecutive turns without a re-fire:"
+    ]
+    for pid in escalated[:ESCALATION_SHOW_MAX]:
+        lines.append(
+            f"- {pid}: {counts[pid]} fires, last at turn {last_fired[pid]} — act now, "
+            f"do not acknowledge-and-continue")
+    extra = len(escalated) - ESCALATION_SHOW_MAX
+    if extra > 0:
+        lines.append(f"- (+{extra} more escalated)")
+    return lines
+
+
 # Detector for the requirements-ledger skill: fire when the user has raised
 # trackable requests but the agent shows no sign of MATERIALIZING the visible
 # ledger (no Edit/Write to a *ledger*.md and no TaskCreate/TaskUpdate). The
@@ -1924,6 +1977,13 @@ def main() -> int:
             save_state(path, state)
     correction_ledger_lines: list[str] = build_correction_ledger_lines(
         correction_ledger, correction_closed_now, turn)
+
+    # --- Mechanism 5: probe escalation (advisory → closeout-blocking) -----
+    # Reload state so this turn's just-appended fires are included; stateless
+    # derivation from probe_history — see build_probe_escalation_lines.
+    escalation_lines: list[str] = build_probe_escalation_lines(
+        load_state(path).get("probe_history", []), turn)
+    correction_ledger_lines = escalation_lines + correction_ledger_lines
 
     if not fired and not pulse_skills and not ledger_lines and not correction_ledger_lines:
         return 0
