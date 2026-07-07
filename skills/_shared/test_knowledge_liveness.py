@@ -262,6 +262,28 @@ def test_existing_tool_path_does_not_trip():
         print("ok test_existing_tool_path_does_not_trip")
 
 
+def test_repo_root_tool_path_does_not_trip():
+    # Consumer domain skills reference a shared top-level tools/ tree
+    # (repo-root-relative), not skills/<name>/tools/. screenery-lean hit 35
+    # false positives on this, 2026-07-07 — resolution must try BOTH bases.
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _make_min_repo(root)
+        (root / "tools" / "render").mkdir(parents=True)
+        (root / "tools" / "render" / "render.py").write_text("# real\n", encoding="utf-8")
+        skill = root / "skills" / "domain-skill"
+        skill.mkdir()
+        (skill / "SKILL.md").write_text(
+            "---\nname: domain-skill\ndescription: test fixture\n---\n\n"
+            "Render via `tools/render/render.py` then judge.\n",
+            encoding="utf-8",
+        )
+        code, errors, _warnings = _run(root)
+        assert not any("[skill-md]" in e and "render.py" in e for e in errors), errors
+        assert code == 0, (code, errors)
+        print("ok test_repo_root_tool_path_does_not_trip")
+
+
 # --- (c) markdown link liveness --------------------------------------------
 
 def test_dangling_markdown_link_in_skill_md_trips():
@@ -419,6 +441,28 @@ def test_real_hook_entry_path_does_not_trip():
         assert not any("[hooks-map]" in e for e in errors), errors
         assert code == 0, (code, errors)
         print("ok test_real_hook_entry_path_does_not_trip")
+
+
+def test_forked_hooks_map_without_inventory_warns_not_fails():
+    # Consumer repos legitimately fork gen_hooks_map.py for their own repo
+    # shape without skill_hook_inventory() (screenery-lean, 2026-07-07). That
+    # must surface as a VISIBLE warning, never a FAIL.
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _make_min_repo(root)
+        (root / "scripts" / "gen_hooks_map.py").write_text(
+            "# consumer fork: builds its table from .claude/settings.json\n"
+            "def build_table_from_settings():\n    return []\n",
+            encoding="utf-8",
+        )
+        code, errors, warnings = _run(root)
+        assert not any("[hooks-map]" in e for e in errors), errors
+        # warnings yield exit 1 by design; only exit 2 / errors would be a FAIL
+        assert code != 2 and not errors, (code, errors, warnings)
+        assert any(
+            "[hooks-map]" in w and "customized fork" in w for w in warnings
+        ), warnings
+        print("ok test_forked_hooks_map_without_inventory_warns_not_fails")
 
 
 # --- clean repo sanity: the real repo itself passes ------------------------

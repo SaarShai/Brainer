@@ -197,8 +197,12 @@ def check_skill_md_and_tool_paths(errors: list[str]) -> None:
         # `tools/...` mentions in prose/backticks that aren't necessarily
         # inside a [text](link) construct).
         for m in re.finditer(r"`(tools/[\w./-]+)`", body):
-            candidate = skill_dir / m.group(1)
-            if not candidate.exists():
+            # A backticked tools/ path may be skill-relative (canonical layout:
+            # skills/<name>/tools/…) OR repo-root-relative (consumer domain
+            # skills referencing a shared top-level tools/ tree — screenery-lean
+            # tripped 35 false positives here, 2026-07-07). Dead only if BOTH
+            # bases miss.
+            if not (skill_dir / m.group(1)).exists() and not (REPO / m.group(1)).exists():
                 errors.append(f"[skill-md] {rel}: referenced tool path does not exist: {m.group(1)}")
 
 
@@ -277,9 +281,24 @@ def check_hooks_map_liveness(errors: list[str], warnings: list[str]) -> None:
         return
     try:
         gen = _load_module(gen_path, "gen_hooks_map")
-        inventory = gen.skill_hook_inventory()
     except Exception as exc:
         errors.append(f"[hooks-map] failed to import scripts/gen_hooks_map.py: {type(exc).__name__}: {exc}")
+        return
+    if not hasattr(gen, "skill_hook_inventory"):
+        # Consumer repos legitimately fork gen_hooks_map.py for their own repo
+        # shape (screenery-lean's reads .claude/settings.json ground truth and
+        # has no skill_hook_inventory, 2026-07-07). A fork we can't introspect
+        # is not a dead gate — but say so visibly instead of failing.
+        warnings.append(
+            "[hooks-map] scripts/gen_hooks_map.py is a customized fork without "
+            "skill_hook_inventory(); hooks-map liveness not auditable here — "
+            "verify hook wiring via this repo's own generator"
+        )
+        return
+    try:
+        inventory = gen.skill_hook_inventory()
+    except Exception as exc:
+        errors.append(f"[hooks-map] skill_hook_inventory() raised: {type(exc).__name__}: {exc}")
         return
     for row in inventory:
         for entry in row.get("entry", []):
