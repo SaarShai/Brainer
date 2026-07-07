@@ -1,0 +1,11 @@
+[
+  {
+    "id": "fable-repeated-failure",
+    "kind": "repeated_tool_error",
+    "pattern": "(?i)(?:\\berror\\b|\\bfailed\\b|\\bfailure\\b|\\bexception\\b|traceback|assert(?:ion)?\\b|not\\s+found|no\\s+such|cannot\\b|could\\s+not|non-?zero\\s+exit|exit\\s+code\\s+[1-9]|command\\s+not\\s+found)",
+    "min_count": 3,
+    "message": "the same class of execution failure has recurred >=3x in the recent window without the approach changing — this is fable-mode's own trigger (\"debugging where the first theory might be wrong\", \"a task keeps failing or stalling\"). STOP retrying variations. Apply the five-gate loop: (1) restate the goal/scope, (2) re-gather evidence about WHY it fails (read the tool's contract, the actual state, the exact error), (3) adversarially falsify your current theory before the next attempt — assume the first theory is wrong and look for the disconfirming fact, (4) verify the fix fresh, (5) report. Load skills/fable-mode/SKILL.md if not already applied.",
+    "severity": "warn",
+    "_note": "H2a mechanical-evidence probe for the default-on fable-mode skill (the flagship auto-firing skill previously had SKILL.md only — description-triggered, zero mechanical firing signal; this closes that gap per the banked lesson 'make skills fire via mechanical probes, not description tuning'). DELIBERATELY complementary to compliance-canary's always-on trajectory_drift (which fires on error RATE errs/calls>=0.25 over >=8 calls): this fires on same-signature-class COUNT (>=3 matching errors) regardless of total call volume, so 3 recurring 'not found' errors inside 20 calls (rate 0.13, below trajectory_drift's floor) still surface. HONEST DEGRADATION (LEARNING_CONTRACT §3): a regex over tool-error text cannot detect fable-mode's OTHER trigger clauses ('a task has many layers / multiple dependent steps / unknowns that could change the approach') — those are semantic, not error-signature, phenomena and remain description-triggered only. This probe covers the failure/stall clause mechanically; the many-layers clause is accepted as description-only coverage, not full mechanical parity. ADVISORY heuristic: a broad error-word pattern can over-count unrelated errors (false-positive) or miss a paraphrased failure (false-negative); accepted per §3, scope-of-validity documented here."
+  }
+]
