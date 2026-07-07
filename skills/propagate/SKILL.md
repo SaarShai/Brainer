@@ -12,7 +12,8 @@ pulse_reminder: propagation is per-sibling and sequential — classify first, fa
 Brainer is the canonical source; siblings vendor **forked copies** (they
 customize legitimately). Propagation is therefore classify-then-apply, never
 copy-everything. Full topology + landmines:
-[`wiki/concepts/brainer-multi-repo-topology.md`](../../wiki/concepts/brainer-multi-repo-topology.md).
+`wiki/concepts/brainer-multi-repo-topology.md` (in the canonical Brainer
+checkout — deliberately not a link: consumer repos don't vendor `wiki/`).
 
 ## Preconditions (hard)
 

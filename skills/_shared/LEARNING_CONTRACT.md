@@ -66,6 +66,12 @@ every gate inert). Therefore:
 - A rule must live ON the read path of the decision it governs (router
   output, gate, tool `--help`) — not at line 388 of a skill nobody re-reads
   (failure #8). Dangling references and orphan rules are lint findings.
+- Skill files link only paths that travel WITH the skill (`skills/**`,
+  `_shared`); references to Brainer-repo-external material (`wiki/`,
+  `docs/`, `scripts/`) are plain text naming the canonical checkout —
+  consumer repos don't vendor those trees, so a markdown link there is a
+  guaranteed dead link in every consumer (caught live by
+  `knowledge_liveness` in the first consumer install, 2026-07-06).
 
 ## §5 Verifier independence is structural, not situational
 
