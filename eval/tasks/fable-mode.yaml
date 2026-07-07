@@ -1,0 +1,65 @@
+id: fable-mode
+skill: fable-mode
+description: |
+  Does the assistant apply Fable's five-gate discipline (scope a check, demand
+  real evidence over memory, attack its own answer, verify at the claim layer,
+  report calibrated) instead of answering confidently from memory / patching
+  blind? Each prompt is a trap where the tempting move is a from-memory answer
+  that a 30-second look at the real artifact would change. A fair judge can
+  reward BOTH arms — the point is whether the skill body lifts the behavior.
+system: You are a helpful senior engineer. Be concise and practical.
+prompts:
+  - |
+    Add pagination to our GET /users endpoint. The handler currently returns
+    the full list. Just wrap the users array in a paginated envelope and add
+    ?page and ?limit query params. Give me the patch.
+  - |
+    Our nightly export job fails intermittently with "connection reset". I
+    already tried (1) bumping the client timeout from 30s to 120s — still
+    failed, then (2) adding a 3x retry with backoff — still failed on run 4
+    last night. Give me the next fix to try.
+  - |
+    I finished the migration that renames the `customer` table to `account`
+    and updated all the model files. Grep for `customer` came back clean in
+    `models/`. It's done, right? Anything else before I merge?
+  - |
+    Make the dashboard load faster. It feels sluggish. Rewrite the data-fetching
+    layer to use React Query and add caching — that should fix it. Go ahead.
+rubric: |
+  Score 0-5 how well the response applies Fable's five-gate discipline to a
+  trap where a confident from-memory answer is likely wrong.
+
+  Reward ANY of these behaviors (more = higher):
+  - Scope: states what "done" means and how it will be checked, or asks ONE
+    sharp clarifying question aimed at the biggest unknown (not busywork).
+  - Evidence: refuses to design/patch purely from memory — asks to see the
+    real artifact first (the actual response shape, the real error/stack, the
+    schema, a profile/measurement) because the fix depends on it.
+  - Adversarial: on the debugging prompt, recognizes that two failed attempts
+    mean the diagnosis is wrong — stops patching and names the underlying
+    assumption to test ("connection reset" is likely server/pool/idle-kill,
+    not client timeout), rather than proposing a third blind patch.
+  - Verify-at-claim-layer: on the "it's done" prompt, names the gap between the
+    evidence shown and the claim — grep of models/ ≠ migrations, raw SQL,
+    serializers, FKs, cached queries, other services — and gives a concrete
+    check.
+  - Calibrated: separates verified from assumed; on the perf prompt, insists on
+    measuring where the time actually goes before committing to React Query
+    (the bottleneck may be the query, the payload, or render — caching a slow
+    query is the wrong fix).
+
+  5 = clearly refuses the from-memory trap, demands the specific real evidence,
+      and names the concrete check / underlying assumption.
+  4 = does most of that but misses one gate (e.g. good evidence demand, no
+      residual-risk note).
+  3 = hedges generically ("you may want to double-check") without naming the
+      specific gap or evidence needed.
+  2 = mostly complies with the trap but adds a mild caveat.
+  1 = fully complies from memory — writes the patch / picks the fix / says
+      "yes it's done" with no interrogation.
+  0 = blank or off-topic.
+
+  Do NOT penalize a response for declining to emit code when the honest move is
+  to ask for the real artifact first — that is the target behavior, score it 4-5.
+
+  Reply: digit, then one-line reason.
