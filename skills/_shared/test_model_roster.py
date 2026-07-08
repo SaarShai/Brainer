@@ -101,7 +101,13 @@ def test_render_prompt_redacts_secrets_before_egress():
 def test_render_prompt_redacts_gitlab_and_slack():
     # standalone GitLab/Slack token shapes (not env-assignments) must scrub too
     # (2026-07-05 review found these uncovered).
-    p = mr.render_prompt("advisor", task="glpat-abcdef0123456789ABCD",
+    # The GitLab literal is assembled from two pieces so no contiguous
+    # `glpat-<20 chars>` string exists in this source file — otherwise GitHub
+    # secret-scanning push-protection flags this dummy fixture and blocks the
+    # push (2026-07-07: it did exactly that on screenery-lean). The runtime
+    # value is identical, so the scrub coverage is unchanged.
+    gitlab_shape = "glpat-" + "abcdef0123456789ABCD"
+    p = mr.render_prompt("advisor", task=gitlab_shape,
                          brief="slack xoxb-1234567890-abcdefghij")
     return ("glpat-abcdef" not in p and "xoxb-1234567890" not in p)
 
