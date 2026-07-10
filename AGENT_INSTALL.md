@@ -31,11 +31,11 @@ If the host is not one of these, stop and explain the limitation rather than
 pretending that the skills were installed. Copilot/VS Code can consume the
 root `AGENTS.md` guidance, but it has no dedicated installer flag.
 
-## 2. Clone Brainer or update the existing checkout
+## 2. Clone Brainer or safely update its checkout
 
 Keep the Brainer checkout at `<project>/.brainer`. Never overwrite local
-changes in that checkout. If it is dirty, report the files and ask before
-continuing.
+changes in that checkout. A clean checkout can fast-forward to the current
+catalog before the next step classifies the target project's host-skill state.
 
 ```bash
 PROJECT_DIR="${PROJECT_DIR:-$PWD}"
@@ -56,9 +56,28 @@ else
 fi
 ```
 
-## 3. Install or update the skills in the consumer project
+## 3. Preflight the consumer project
 
-Run the installer from the Brainer checkout and target the consumer project:
+This read-only command classifies the current Brainer state as `INSTALL`,
+`UPDATE`, or `STOP`. It checks the `.brainer` checkout, canonical skill links,
+customized files, foreign links, broken links, and the relevant host config.
+
+```bash
+HOST="codex"  # replace with claude-code or gemini when appropriate
+python3 "$BRAINER_DIR/scripts/project_install_preflight.py" \
+  --project "$PROJECT_DIR" \
+  --host "$HOST"
+```
+
+Only continue on exit code `0` (`INSTALL` or `UPDATE`). If it returns `2`
+(`STOP`), do not run the installer: report the listed local state and ask the
+user whether to merge, replace, or preserve it. The preflight never edits the
+consumer project.
+
+## 4. Install after a successful preflight
+
+Run the installer from the current Brainer checkout and target the consumer
+project:
 
 ```bash
 HOST="codex"  # replace with claude-code or gemini when appropriate
@@ -82,7 +101,7 @@ consumer-side Claude hooks. Codex and Gemini receive their skill directories
 and resident catalog; this installer does not claim to retarget every
 host-specific hook or optional tool into those hosts.
 
-## 4. Verify the result
+## 5. Verify the result
 
 Run the dry-run once to confirm the target and host, then verify the expected
 skill directory and resident catalog. Do not claim success unless these checks
@@ -114,9 +133,10 @@ project's decision; preserve existing files and settings.
 
 ## Updating later
 
-Repeat sections 2–4. The update is a fast-forward-only `git pull` followed by
-the same `install.sh --project` command. Do not manually edit generated catalog
-sections between `brainer:skills-catalog:start` and
+Repeat sections 2–5. The clean-check and fast-forward update happen before the
+preflight; the preflight must pass before the same `install.sh --project`
+command. Do not manually edit generated catalog sections between
+`brainer:skills-catalog:start` and
 `brainer:skills-catalog:end`; rerun the installer instead.
 
 ## Maintainer checks before publishing Brainer changes

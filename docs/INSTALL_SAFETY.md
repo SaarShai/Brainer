@@ -26,6 +26,22 @@ Preview with:
 
 Dry-run prints planned top-level file, symlink, and dependency actions. For per-skill installers it prints the installer command that would run; run that skill installer directly with `--dry-run` when you need byte-level hook details. Dry-run should not mutate repo files or global host config.
 
+## Existing consumer projects
+
+Before updating an existing consumer project, classify its current state:
+
+```bash
+python3 .brainer/scripts/project_install_preflight.py \
+  --project "$PWD" \
+  --host codex
+```
+
+The preflight is read-only. `INSTALL` and `UPDATE` (exit `0`) are safe to
+continue; `STOP` (exit `2`) means a dirty Brainer checkout, customized canonical
+skill, foreign link, or invalid host configuration needs explicit human
+direction. It prevents the installer from silently treating a customized
+project as a standard update.
+
 ## Host targeting
 
 Limit scope with:
