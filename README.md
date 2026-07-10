@@ -146,6 +146,10 @@ See [eval/results/static_cost.json](eval/results/static_cost.json) for the full 
 
 **Pick your row.** Claude Code has a real plugin format; the other hosts don't (skills are bare files there). One canonical source (`skills/`), one plugin (`.claude-plugin/marketplace.json`), one installer (`install.sh`) for the rest.
 
+If an agent is given only this repository link and must install or update
+Brainer in another project, give it [`AGENT_INSTALL.md`](AGENT_INSTALL.md). That
+file is the authoritative, copy-pasteable clone/update/install/verify procedure.
+
 | You use… | Want skills… | Run this |
 |---|---|---|
 | **Claude Code** | **everywhere** (recommended) | `git clone https://github.com/SaarShai/Brainer.git ~/.local/share/brainer && claude plugin install ~/.local/share/brainer/.claude-plugin/marketplace.json` |
@@ -184,12 +188,14 @@ SKILLS_DIR=skills.new ./install.sh      # alternate canonical dir
 ```bash
 cd /path/to/project-X
 git clone https://github.com/SaarShai/Brainer.git .brainer
-.brainer/install.sh --host codex          # wires .brainer/.codex/skills/
-mkdir -p .codex/skills
-ln -sfn ../.brainer/.codex/skills/* .codex/skills/
+.brainer/install.sh --project "$PWD" --host codex --no-graphify
 ```
 
-Repeat the last two lines per host (`.gemini/skills/`, etc.). For Claude Code, use the plugin command in the table above — it's cwd-independent and skips the symlink dance entirely.
+Repeat with `--host gemini` as needed. For the complete agent-facing update
+procedure, including dirty-checks and verification, see
+[`AGENT_INSTALL.md`](AGENT_INSTALL.md). For Claude Code, use the plugin command
+in the table above when you want a user-wide install; use `--project` when the
+skills should be scoped to one consumer project.
 
 ### Bootstrap wiki-memory in a fresh project
 
