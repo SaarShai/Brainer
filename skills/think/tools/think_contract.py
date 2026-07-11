@@ -95,9 +95,13 @@ def validate_contract(skill_text: str, eval_text: str, probes: object) -> list[s
     for marker in FORBIDDEN_SKILL_MARKERS:
         if marker in skill_lower:
             errors.append(f"SKILL.md restored removed marker: {marker}")
-    for marker in REQUIRED_EVAL_MARKERS:
-        if marker not in eval_lower:
-            errors.append(f"operational eval missing marker: {marker}")
+    # Consumer repos vendor skills but not Brainer's canonical eval/ harness.
+    # Keep the fixture contract enforced where that harness exists, without
+    # making the shipped skill test fail solely because the harness is absent.
+    if eval_text:
+        for marker in REQUIRED_EVAL_MARKERS:
+            if marker not in eval_lower:
+                errors.append(f"operational eval missing marker: {marker}")
 
     if not isinstance(probes, list) or not probes:
         errors.append("drift_probes.json must be a non-empty list")
@@ -113,18 +117,21 @@ def validate_contract(skill_text: str, eval_text: str, probes: object) -> list[s
     return errors
 
 
+def load_eval_text(repo_root: Path) -> str:
+    paths = (
+        repo_root / "eval" / "tasks" / "think-operational.yaml",
+        repo_root / "eval" / "tasks" / "think.yaml",
+        repo_root / "eval" / "tasks" / "think-methods.yaml",
+    )
+    return "\n".join(path.read_text(encoding="utf-8") for path in paths if path.is_file())
+
+
 def main() -> int:
     repo_root = Path(__file__).resolve().parents[3]
     skill_dir = repo_root / "skills" / "think"
     errors = validate_contract(
         (skill_dir / "SKILL.md").read_text(encoding="utf-8"),
-        "\n".join(
-            (
-                (repo_root / "eval" / "tasks" / "think-operational.yaml").read_text(encoding="utf-8"),
-                (repo_root / "eval" / "tasks" / "think.yaml").read_text(encoding="utf-8"),
-                (repo_root / "eval" / "tasks" / "think-methods.yaml").read_text(encoding="utf-8"),
-            )
-        ),
+        load_eval_text(repo_root),
         json.loads((skill_dir / "drift_probes.json").read_text(encoding="utf-8")),
     )
     if errors:

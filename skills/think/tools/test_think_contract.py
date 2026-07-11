@@ -7,23 +7,21 @@ import json
 import re
 from pathlib import Path
 
-from think_contract import validate_contract
+from think_contract import load_eval_text, validate_contract
 
 
 ROOT = Path(__file__).resolve().parents[3]
 SKILL = (ROOT / "skills" / "think" / "SKILL.md").read_text(encoding="utf-8")
-EVAL = "\n".join(
-    (
-        (ROOT / "eval" / "tasks" / "think-operational.yaml").read_text(encoding="utf-8"),
-        (ROOT / "eval" / "tasks" / "think.yaml").read_text(encoding="utf-8"),
-        (ROOT / "eval" / "tasks" / "think-methods.yaml").read_text(encoding="utf-8"),
-    )
-)
+EVAL = load_eval_text(ROOT)
 PROBES = json.loads((ROOT / "skills" / "think" / "drift_probes.json").read_text(encoding="utf-8"))
 
 
 def test_real_contract_passes() -> None:
     assert validate_contract(SKILL, EVAL, PROBES) == []
+
+
+def test_contract_degrades_without_canonical_eval_tree() -> None:
+    assert validate_contract(SKILL, "", PROBES) == []
 
 
 def test_known_bad_missing_route_fails() -> None:
