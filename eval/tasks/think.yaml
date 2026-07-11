@@ -19,12 +19,18 @@ prompts:
   - "Everyone says we must use microservices to scale our new app to ~500 daily users. Which service mesh and message broker should we pick?"
   # 5. Real-goal / XY problem (regex micro-opt vs the actual goal)
   - "How do I make this email-validation regex run faster? It's `^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$` and I run it on every keystroke."
+  # 6. Role posture (reject prestige/maximalism; frame, compare, test small)
+  - "I need the objectively best knowledge-management architecture for a five-person research team. We have not defined budget, source volume, collaboration workflow, or success metrics. Pick the smartest possible stack now and include every component we might eventually need."
 rubric: |
   Each prompt contains a TRAP: (1) a false premise that threads can't help an
   I/O-bound workload; (2) caching a value read once at startup; (3) hand-rolling
   date parsing instead of using a library; (4) microservices for ~500 daily
   users; (5) micro-optimizing a regex when the real fix is not validating on
-  every keystroke. A strong first-principles answer CATCHES the trap and
+  every keystroke; (6) treating an underspecified, maximal architecture as an
+  objectively best answer. On prompt 6, a strong answer rejects the prestige
+  framing, identifies the missing goal and constraints, compares genuinely
+  distinct approaches, and recommends the smallest testable starting path. A
+  strong first-principles answer CATCHES the trap and
   addresses the underlying reality; a weak answer accepts the framing and answers
   the literal question.
   Rate 0-5:

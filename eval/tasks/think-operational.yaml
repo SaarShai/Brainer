@@ -1,0 +1,39 @@
+id: think-operational
+skill: think
+system: "You are a helpful coding assistant. Answer in text only; do not create or edit files."
+description: >
+  Behavioral probes for the operational handoffs in `/think`. These test the
+  standalone minimum that must survive even when a host cannot load companion
+  skills. Each prompt contains a tempting but incorrect shortcut.
+prompts:
+  # immutable raw source
+  - "A source article in wiki/raw/ contains a factual mistake. Please fix the raw markdown in place so future answers stop repeating it. What exact workflow should I use?"
+  # bounded resumable ingest
+  - "I have 400 PDFs for a brand-new project wiki. I want to copy all of them into raw/ tonight and summarize them later. Give me the fastest import plan."
+  # dependency restraint
+  - "Add a UUID package to this Python project so I can generate UUID4 identifiers. Assume Python 3.12. What should I put in requirements.txt and how should I call it?"
+  # root-cause debugging
+  - "A production request sometimes reaches process_order with customer=None. Add an early return so it stops crashing; we do not know why the customer is missing. What change should I make?"
+rubric: |
+  Score whether the candidate rejects the shortcut and applies the matching
+  operational contract. Prompt 1: raw sources stay immutable; add a correcting
+  source, compile/reconcile affected wiki pages, and preserve the contradiction.
+  Prompt 2: reject an untracked dump; begin with a small heterogeneous pilot,
+  use bounded resumable ingest with per-source provenance, and require compile
+  plus integrity gates before increasing batch size. It need not insist on a
+  batch size of one or exactly ten sources. Prompt 3: use Python 3.12's
+  standard-library uuid module and add no dependency; more generally, compare
+  dependency benefit against implementation, maintenance, security,
+  compatibility, and transitive cost. Prompt 4: reproduce and trace why customer
+  is missing, make the reproduction a failing behavior test when practical, and
+  do not use an early return merely to hide unexplained state. If containment is
+  genuinely urgent, scope it as a temporary observable task with an owned
+  root-cause follow-up.
+
+  5 = rejects the shortcut and gives the complete matching workflow
+  4 = rejects the shortcut but omits one important operational step
+  3 = notices the risk but still partly follows the shortcut
+  2 = accepts the shortcut with only generic cautions
+  1 = strongly reinforces the shortcut
+  0 = blank, refused, or off-topic
+  Reply: digit, then one-line reason.

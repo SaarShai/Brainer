@@ -1,0 +1,62 @@
+id: think-methods
+skill: think
+system: "You are a rigorous problem-solving assistant. Answer in text only; do not create or edit files."
+description: >
+  Matching and non-matching method probes for the conditional half of `/think`.
+  Odd prompts require the named method; the following even prompt is a cheap,
+  direct task where invoking that method would be ceremony. Score method choice
+  and execution, not whether the response recites a method name.
+prompts:
+  # 1-2 actual constraint / direct calculation
+  - "Our checkout is slow. Database queries take 40 ms, fraud review takes 11 seconds, and payment authorization takes 900 ms. What should we improve first, and how should we know when to reassess?"
+  - "What is 17 multiplied by 19? Give only the result."
+  # 3-4 ranges under uncertainty / categorical invariant
+  - "A launch has a 35-55% chance of hitting the revenue target depending on retention. Recommend a go/no-go threshold and explain the uncertainty."
+  - "Our policy forbids production access without MFA. A contractor lacks MFA. May they receive production access today?"
+  # 5-6 divergence / direct known operation
+  - "We need a low-cost way for five researchers to share evolving interview evidence, but we have not chosen a workflow. Compare materially different starting approaches and show the cheapest way to falsify each."
+  - "In `def label(usr): return usr.name`, rename only the local parameter `usr` to `user` without changing behavior. Explain the edit in one sentence."
+  # 7-8 causal analysis / already-known cause
+  - "Orders are sometimes duplicated after a deploy. Logs show retries, queue redelivery, and two workers processing the same ID. Trace plausible causes without assuming there is only one root cause."
+  - "The service failed because `PORT=808O` contains the letter O. State the direct fix."
+  # 9-10 pre-mortem / trivial reversible task
+  - "In 48 hours we will irreversibly migrate 30 million customer records. Run a concrete pre-mortem that changes what we do before launch."
+  - "A private helper named `_x` computes a checksum and is used in one test file. Give it the clearer name `_compute_checksum`; the rename is local and reversible."
+  # 11-12 falsification / straightforward lookup supplied in prompt
+  - "The team believes a Redis cache will cut p95 latency by 60%. Design the cheapest test that could show the hypothesis or its assumed mechanism is wrong."
+  - "The supplied API documentation says the retry limit is exactly 3. What retry limit should the client use?"
+  # 13-14 structural analogy / correct existing frame
+  - "Our permissions design is stuck in a role hierarchy. Use one structural analogy to generate a testable alternative, and state where the analogy breaks."
+  - "Given `orders(customer_id, total_cents)`, return each customer_id and `SUM(total_cents)`, grouped by customer_id. Write the SQL directly; do not introduce a metaphor."
+  # 15-16 external research / evidence already present
+  - "Compare four independently administered 2026 privacy regimes. Current rules may have changed, and each jurisdiction can be researched separately. Explain how you would split and verify the research."
+  - "Option A costs $10 and passed every required test; option B costs $20 and passed the same tests. Cost is the only differentiator. Choose now; no external facts are needed."
+  # 17-18 packaging repeated work / one-off
+  - "For six weeks we have repeated the same invoice-cleanup workflow with stable inputs, outputs, and acceptance checks. Decide whether and how to package it without duplicating an existing skill."
+  - "Extract three values from this one-off paragraph; the task will not recur: alpha=8, beta=13, gamma=21."
+rubric: |
+  Score both method selection and concrete execution. For each odd matching case:
+  (1) identify and reassess the actual limiting constraint; (3) express the
+  uncertain range and a decision threshold without weakening categorical rules;
+  (5) compare materially distinct candidates and attach cheap disconfirming
+  tests without a fixed quota; (7) branch across plausible causes and verify
+  causal links; (9) give scenario, causal pathway, prevention, owner, and warning
+  sign; (11) state alternatives, disconfirming observations, a cheap reversible
+  test, and a decision rule; (13) map structural relationships, name the break,
+  and derive a testable implication; (15) research current facts and use
+  subagents only because the questions are separable, with a synthesis/verifier
+  plan; (17) search existing coverage and package only because repeated evidence
+  shows a stable input/output contract and stopping condition.
+
+  For every following even non-matching case, a strong response answers directly
+  and does not perform the paired method. Method narration without the behavior
+  is a failure. Unnecessary candidate lists, causal trees, pre-mortems,
+  experiments, analogies, browsing, subagents, or packaging are also failures.
+
+  5 = selects the right behavior and executes every material element concisely
+  4 = selects correctly but omits one material element
+  3 = partly executes the right behavior or adds noticeable ceremony
+  2 = mostly uses the wrong method or answers the matching case generically
+  1 = reinforces the wrong approach or performs heavy method-theater
+  0 = blank, refusal, or off-topic
+  Reply: digit, then one-line reason.

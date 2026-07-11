@@ -76,10 +76,12 @@ run "unit:test_knowledge_liveness" python3 skills/_shared/test_knowledge_livenes
 
 # 5. Per-skill unit tests (plain-python, no pytest dep)
 UNIT_TESTS=(
+  eval/test_judge.py
   skills/_shared/test_model_roster.py
   skills/_shared/test_orchestration_trace.py
   skills/_shared/test_activation_trace.py
   skills/team-lead/tools/test_team_lead_eval.py
+  skills/think/tools/test_think_contract.py
   skills/cache-lint/tools/test_cache_lint.py
   skills/brainer-audit/tools/test_brainer_audit.py
   skills/brainer-audit/tools/test_antigravity_sidecar.py

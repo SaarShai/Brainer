@@ -23,24 +23,35 @@ from typing import Any
 OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
 
 _THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+_SCORE_LINE_RE = re.compile(r"^(?:(?:reply|score)\s*:\s*)?([0-5])\b", re.IGNORECASE)
 
 
 def _extract_score(raw: str) -> int | None:
-    """First leading-digit line of the response, AFTER stripping <think>…</think>.
+    """First 0-5 line after removing complete or orphaned reasoning output.
 
     Reasoning models (qwen3.*, deepseek-r1) wrap their scratchpad in <think> blocks that
     can contain digit-led lines (e.g. "12/12 passed") which would otherwise be grabbed as
-    the score. Strip the block first, then take the first line that starts with a digit.
+    the score. Some Ollama model templates emit only the closing ``</think>`` tag; in that
+    case everything before the final orphaned close is still hidden reasoning.
     """
     cleaned = _THINK_RE.sub(" ", raw)
+    if re.search(r"</think>", cleaned, re.IGNORECASE):
+        cleaned = re.split(r"</think>", cleaned, flags=re.IGNORECASE)[-1]
     for line in cleaned.splitlines():
-        line = line.strip()
-        if line and line[0].isdigit():
-            try:
-                return int(line[0])
-            except ValueError:
-                pass
+        match = _SCORE_LINE_RE.match(line.strip())
+        if match:
+            return int(match.group(1))
     return None
+
+
+def _rubric_for_case(rubric: str, prompt_idx: int) -> str:
+    """Scope a shared multi-prompt rubric to the task currently being judged."""
+    return (
+        f"CURRENT CASE: prompt {prompt_idx + 1}. Apply only this prompt's matching "
+        "criteria; criteria for other numbered prompts are irrelevant.\n\n"
+        f"{rubric}"
+    )
+
 
 DEFAULT_RUBRIC = """\
 Rate the candidate output from 0 to 5 on whether it addresses the task correctly and concisely.
@@ -144,7 +155,12 @@ def judge_results(results_path: Path, model: str, backend: str) -> dict[str, Any
         scored = []
         for it in items:
             prompt = prompts[it["prompt_idx"]]
-            j = judge_fn(model, prompt, it["output"], rubric)
+            j = judge_fn(
+                model,
+                prompt,
+                it["output"],
+                _rubric_for_case(rubric, it["prompt_idx"]),
+            )
             scored.append({"prompt_idx": it["prompt_idx"], **j})
         return scored
 
