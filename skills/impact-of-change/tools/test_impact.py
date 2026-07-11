@@ -309,6 +309,167 @@ def test_e6_coverage_gap(root: Path) -> None:
     assert any("coverage" in w.lower() for w in rep["warnings"]), \
         f"E6 expected a COVERAGE warning: {rep['warnings']}"
     print("PASS E6 coverage-gap: absent-from-graph symbol -> UNKNOWN + warning (not false-LOW)")
+    _assert_file_aware_graph_resolution(root)
+
+
+# --------------------------------------------------------------------------
+# E7 — hunk-header function context attributes a body-only edit
+# --------------------------------------------------------------------------
+def test_e7_hunk_header_function_attribution(root: Path) -> None:
+    raw = """diff --git a/core.py b/core.py
+index 1111111..2222222 100644
+--- a/core.py
++++ b/core.py
+@@ -20,7 +20,7 @@ def leaf_fn():
+     value = 1
+-    return value
++    return value + 1
+"""
+    original_git = impact._git
+    impact._git = lambda args, repo: raw
+    try:
+        changed = impact.extract_changed_symbols(str(root), "working")
+    finally:
+        impact._git = original_git
+    assert changed == [{
+        "symbol": "leaf_fn", "kind": "function", "file": "core.py",
+        "change": "modified",
+    }], f"E7 hunk header did not attribute body edit: {changed}"
+    print("PASS E7 hunk-header: body-only edit attributed to leaf_fn")
+
+
+# --------------------------------------------------------------------------
+# E8 — unattributed Python body edit is UNKNOWN, never silently LOW
+# --------------------------------------------------------------------------
+def test_e8_unresolved_body_is_unknown(root: Path) -> None:
+    (root / "settings.py").write_text("VALUE = 1\n")
+    _git(["add", "settings.py"], root)
+    _git(["commit", "-qm", "add settings"], root)
+    write_graph(root)
+    (root / "settings.py").write_text("VALUE = 2\n")
+
+    rep = impact.analyze(repo=str(root), diff_spec="working")
+    unresolved = next(
+        (a for a in rep["affected"] if a["symbol"] == "<unresolved>"), None
+    )
+    assert unresolved is not None, f"E8 unresolved top-level edit disappeared: {rep}"
+    assert unresolved["kind"] == "unknown", unresolved
+    assert unresolved["risk"] == "UNKNOWN", unresolved
+    assert rep["risk"] == "UNKNOWN", rep["risk"]
+    assert "attribute" in unresolved["risk_reason"].lower(), unresolved["risk_reason"]
+    print("PASS E8 unresolved-body: unattributed edit remains visible as UNKNOWN")
+
+
+# --------------------------------------------------------------------------
+# E9 — hunk label is only enclosing while changed lines remain indented
+# --------------------------------------------------------------------------
+def test_e9_hunk_header_dedent_is_unresolved(root: Path) -> None:
+    raw = """diff --git a/core.py b/core.py
+index 1111111..2222222 100644
+--- a/core.py
++++ b/core.py
+@@ -1,6 +1,6 @@ def previous():
+     return 1
+
+-OLD_VALUE = 1
++NEW_VALUE = 2
+"""
+    original_git = impact._git
+    impact._git = lambda args, repo: raw
+    try:
+        changed = impact.extract_changed_symbols(str(root), "working")
+    finally:
+        impact._git = original_git
+    assert not any(row["symbol"] == "previous" for row in changed), changed
+    assert changed == [{
+        "symbol": "<unresolved>", "kind": "unknown", "file": "core.py",
+        "change": "modified", "resolved": False,
+    }], f"E9 dedented module edit must stay unresolved: {changed}"
+    print("PASS E9 hunk-header dedent: module edit remains unresolved")
+
+
+# --------------------------------------------------------------------------
+# E10 — next-file diff metadata must not create a phantom unresolved row
+# --------------------------------------------------------------------------
+def test_e10_file_boundary_metadata_is_ignored(root: Path) -> None:
+    raw = """diff --git a/core.py b/core.py
+index 1111111..2222222 100644
+--- a/core.py
++++ b/core.py
+@@ -1,2 +1,2 @@ def leaf_fn():
+-    return 1
++    return 2
+diff --git a/README.md b/README.md
+index 3333333..4444444 100644
+--- a/README.md
++++ b/README.md
+@@ -1 +1 @@
+-old
++new
+"""
+    original_git = impact._git
+    impact._git = lambda args, repo: raw
+    try:
+        changed = impact.extract_changed_symbols(str(root), "working")
+    finally:
+        impact._git = original_git
+    assert changed == [{
+        "symbol": "leaf_fn", "kind": "function", "file": "core.py",
+        "change": "modified",
+    }], f"E10 next-file metadata created a phantom change: {changed}"
+    print("PASS E10 file boundary: next diff metadata ignored")
+
+
+# --------------------------------------------------------------------------
+# E6 regression — graph coverage is keyed by file + symbol; ambiguity fails closed
+# --------------------------------------------------------------------------
+def _assert_file_aware_graph_resolution(root: Path) -> None:
+    (root / "a.py").write_text("def helper():\n    return 1\n")
+    (root / "b.py").write_text(
+        "def helper():\n    return 2\n\ndef caller():\n    return helper()\n"
+    )
+    _git(["add", "a.py", "b.py"], root)
+    _git(["commit", "-qm", "add duplicate symbol names"], root)
+    (root / "a.py").write_text("def helper():\n    return 99  # changed\n")
+
+    graph = {
+        "directed": True,
+        "multigraph": False,
+        "graph": {},
+        "nodes": [
+            {"id": "b_helper", "label": "helper()", "file_type": "code",
+             "source_file": "b.py", "source_location": "L1"},
+            {"id": "b_caller", "label": "caller()", "file_type": "code",
+             "source_file": "b.py", "source_location": "L4"},
+        ],
+        "links": [
+            {"relation": "calls", "source": "b_caller", "target": "b_helper"},
+        ],
+    }
+    graph_path = root / "graphify-out" / "graph.json"
+    graph_path.parent.mkdir(exist_ok=True)
+    graph_path.write_text(json.dumps(graph))
+
+    rep = impact.analyze(repo=str(root), diff_spec="working")
+    changed = next(a for a in rep["affected"] if a["source_file"] == "a.py")
+    assert changed["risk"] == "UNKNOWN", changed
+    assert changed["covered"] is False and changed["callers"] == [], changed
+    assert any("a.py::helper" in warning for warning in rep["warnings"]), rep["warnings"]
+
+    # Even exact-file matches fail closed when more than one graph node claims
+    # the same file+symbol identity; unioning their callers would invent precision.
+    graph["nodes"].extend([
+        {"id": "a_helper_1", "label": "helper()", "file_type": "code",
+         "source_file": "a.py", "source_location": "L1"},
+        {"id": "a_helper_2", "label": "helper()", "file_type": "code",
+         "source_file": "a.py", "source_location": "L20"},
+    ])
+    graph_path.write_text(json.dumps(graph))
+    rep = impact.analyze(repo=str(root), diff_spec="working")
+    ambiguous = next(a for a in rep["affected"] if a["source_file"] == "a.py")
+    assert ambiguous["risk"] == "UNKNOWN" and ambiguous["covered"] is False, ambiguous
+    assert "ambiguous" in ambiguous["risk_reason"].lower(), ambiguous["risk_reason"]
+    print("PASS E6 file-aware graph: cross-file collision + ambiguity -> UNKNOWN")
 
 
 # --------------------------------------------------------------------------
@@ -320,6 +481,10 @@ def main() -> int:
         ("E4", test_e4_structure),
         ("E5", test_e5_inheritance),
         ("E6", test_e6_coverage_gap),
+        ("E7", test_e7_hunk_header_function_attribution),
+        ("E8", test_e8_unresolved_body_is_unknown),
+        ("E9", test_e9_hunk_header_dedent_is_unresolved),
+        ("E10", test_e10_file_boundary_metadata_is_ignored),
     ]
     failures = 0
     for name, fn in cases:

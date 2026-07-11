@@ -25,9 +25,23 @@ def log_err(msg: str) -> None:
 
 
 def resolve_cwd(payload: dict) -> Path | None:
-    for cand in (payload.get("cwd"), os.environ.get("CLAUDE_PROJECT_DIR"), os.getcwd()):
-        if cand and Path(cand).is_dir():
-            return Path(cand)
+    payload_cwd = payload.get("cwd")
+    if payload_cwd is not None and not isinstance(payload_cwd, str):
+        log_err(f"invalid-cwd type={type(payload_cwd).__name__}")
+    candidates = (
+        ("payload", payload_cwd),
+        ("CLAUDE_PROJECT_DIR", os.environ.get("CLAUDE_PROJECT_DIR")),
+        ("process", os.getcwd()),
+    )
+    for source, cand in candidates:
+        if not isinstance(cand, str) or not cand:
+            continue
+        try:
+            path = Path(cand)
+            if path.is_dir():
+                return path
+        except (ValueError, OSError) as e:
+            log_err(f"invalid-cwd source={source} error={type(e).__name__}")
     return None
 
 
@@ -41,9 +55,23 @@ def main() -> int:
     except json.JSONDecodeError as e:
         log_err(f"json-decode-error: {e}")
         return 0
+    if not isinstance(payload, dict):
+        log_err(f"non-object-payload type={type(payload).__name__}")
+        return 0
 
     tp = payload.get("transcript_path", "")
-    if not tp or not Path(tp).is_file():
+    if not isinstance(tp, str):
+        log_err(f"invalid-transcript-path type={type(tp).__name__}")
+        return 0
+    if not tp:
+        log_err(f"missing-transcript path={tp!r}")
+        return 0
+    try:
+        transcript_exists = Path(tp).is_file()
+    except (ValueError, OSError) as e:
+        log_err(f"invalid-transcript-path error={type(e).__name__}")
+        return 0
+    if not transcript_exists:
         log_err(f"missing-transcript path={tp!r}")
         return 0
 

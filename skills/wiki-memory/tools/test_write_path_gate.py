@@ -114,6 +114,42 @@ def test_force_overrides_refusal():
     assert res["gate"]["forced"] is True
 
 
+def test_force_records_caller_asserted_authority_limit():
+    """A forced reject remains API-compatible but must be auditable without
+    pretending the CLI can verify that a human/operator authorized it."""
+    s = _store()
+    res = s.new_page("page", "stuff", domain="experiments", force=True)
+    override = res["gate"]["force_override"]
+    assert override["applied"] is True
+    assert override["authority"] == "caller-asserted"
+    assert override["authority_verified"] is False
+    assert "operator/user-directed" in override["contract"]
+    assert "cannot verify" in override["authority_limit"]
+    log = (s.root / "log.md").read_text(encoding="utf-8")
+    assert "caller-asserted" in log and "force override" in log.lower()
+
+
+def test_decision_template_is_gated_as_decision():
+    """A reasonless decision with ample lexical signal would pass the fact
+    gate, so the decision template must explicitly select decision semantics."""
+    s = _store()
+    before = {p.id for p in s.pages()}
+    body = (
+        "We chose PostgreSQL over SQLite. Decision: PostgreSQL. "
+        "The datastore runs on Fly.io and stores 320MB."
+    )
+    try:
+        s.new_page("decision", "PostgreSQL migration selected",
+                   domain="architecture", body=body, tags=["database"])
+        raised = False
+    except WikiWriteRejected as e:
+        raised = True
+        assert e.report["signal"]["pass"] is False
+        assert "why-clause" in e.report["signal"]["reason"].lower()
+    assert raised, "reasonless decision template must be refused by the decision gate"
+    assert {p.id for p in s.pages()} == before
+
+
 def test_default_scope_classification_is_never_stripped():
     """LEARNING_CONTRACT §1: a write with no `scope=` passed still gets a
     valid classification by page kind (this-repo for an ordinary L2 fact

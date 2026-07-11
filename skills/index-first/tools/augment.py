@@ -25,7 +25,10 @@ import sys
 MIN_TOKEN = 4            # skip short/noisy patterns before any work
 MAX_TOKEN = 96
 RESULT_LIMIT = 3         # inject the top ~3 hits
-DEADLINE_MS = int(os.environ.get("INDEX_FIRST_DEADLINE_MS", "300"))
+try:
+    DEADLINE_MS = int(os.environ.get("INDEX_FIRST_DEADLINE_MS", "300"))
+except ValueError:
+    DEADLINE_MS = None
 
 _IDENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
@@ -195,6 +198,8 @@ def _emit(text):
 
 
 def main():
+    if DEADLINE_MS is None:
+        return 0
     _arm_deadline()
 
     raw_in = sys.stdin.read()

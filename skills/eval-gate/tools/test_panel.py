@@ -102,9 +102,22 @@ def test_majority_refutes_fails():
     with patched_roster([False, "raw_false", True]):
         rc, out, err = run_cli(score_args("--stub-score", "5", "--panel", "3"))
     assert rc == 1, (rc, out, err)
-    assert_json_score(out, "pass")
+    assert_json_score(out, "fail")
     assert "eval-gate panel verdicts:" in err, err
     assert "holds=false" in err, err
+
+
+def test_criteria_majority_refutes_updates_final_json():
+    criteria = '[{"id":"quality","description":"meets the rubric"}]'
+    with patched_roster([False, "raw_false", True]):
+        rc, out, err = run_cli(score_args(
+            "--criteria-json", criteria,
+            "--stub-criteria", '{"quality":"pass"}',
+            "--panel", "3",
+        ))
+    assert rc == 1, (rc, out, err)
+    assert_json_score(out, "fail")
+    assert "eval-gate panel verdicts:" in err, err
 
 
 def test_degraded_fallback_warns_and_uses_single_exit():
@@ -137,6 +150,7 @@ def main():
     tests = [
         test_majority_holds_passes,
         test_majority_refutes_fails,
+        test_criteria_majority_refutes_updates_final_json,
         test_degraded_fallback_warns_and_uses_single_exit,
         test_two_responders_is_not_a_quorum,
         test_panel_argparse_rejects_bad_counts,

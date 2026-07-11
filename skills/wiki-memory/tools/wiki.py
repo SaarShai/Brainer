@@ -3106,28 +3106,45 @@ class WikiStore:
         # write (Codex flag: `new` skipped write-gate + overlap, leaving it
         # honor-system). Run both gates on the candidate; refuse a low-signal /
         # reasonless write, and steer a near-duplicate to update-not-create.
-        # `force=True` is the explicit escape hatch for deliberate
-        # scaffold-then-fill flows (template stub now, content later).
+        # `force=True` is a caller-asserted operator/user-directed escape hatch
+        # for deliberate scaffold-then-fill flows. This CLI boundary cannot
+        # verify who authorized the override, so forced rejects are logged with
+        # that authority limitation instead of being presented as verified.
         if template not in self._TEMPLATE_MAP:
             raise KeyError(f"unknown template: {template}")
         template_rel, target_dir = self._TEMPLATE_MAP[template]
         # `scope`, if the caller passed one, overrides the by-kind default
         # (LEARNING_CONTRACT §1: classification is mandatory, but callers may
         # classify explicitly rather than take the page-kind default).
+        candidate_kind = "decision" if template == "decision" else "fact"
         gate = self.gate_candidate(title, body=body, reason=reason, tags=tags,
-                                    scope=scope, target_dir=target_dir)
+                                    kind=candidate_kind, scope=scope,
+                                    target_dir=target_dir)
         if not force and not gate["accept"]:
             if gate["overlap_blocks"]:
                 bm = gate["overlap"].get("best_match") or {}
                 msg = (f"REFUSED: near-duplicate of existing page "
                        f"`{bm.get('id', '?')}` ({bm.get('path', '?')}) — "
                        f"update that page instead of creating `{title}`. "
-                       f"Pass force=True to override.")
+                       f"Use force=True only for a caller-asserted operator/user-directed override.")
             else:
                 msg = (f"REFUSED: {gate['signal'].get('reason', 'low-signal candidate')}. "
                        f"Give the fact a reason (because…/so that…/to avoid…) and "
-                       f"concrete content, or pass force=True to override.")
+                       f"concrete content, or use force=True only for a caller-asserted "
+                       f"operator/user-directed override.")
             raise WikiWriteRejected(msg, gate)
+        force_override = None
+        if force:
+            force_override = {
+                "applied": not gate["accept"],
+                "authority": "caller-asserted",
+                "authority_verified": False,
+                "contract": "operator/user-directed escape only",
+                "authority_limit": "CLI cannot verify caller authority.",
+                "original_accept": gate["accept"],
+                "original_signal_reason": gate["signal"].get("reason"),
+                "original_overlap": gate["overlap"].get("overlap"),
+            }
         self.init()
         template_path = self.root / template_rel
         if not template_path.exists():
@@ -3157,7 +3174,11 @@ class WikiStore:
         content = _set_trust_frontmatter(content, trust_value)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
-        self.append_log("update", title, f"Created `{target.relative_to(self.root).as_posix()}` from `{template}` template.")
+        log_note = f"Created `{target.relative_to(self.root).as_posix()}` from `{template}` template."
+        if force_override and force_override["applied"]:
+            log_note += (" caller-asserted force override applied; operator/user direction "
+                         "is required by contract, but CLI authority cannot be verified.")
+        self.append_log("update", title, log_note)
         # M4 fix: was `self.index()` — full re-index on every page creation,
         # O(N) per `new` call. Now: incremental insert (O(1)); fall back to
         # full reindex if the DB doesn't exist yet. `te wiki index` remains
@@ -3169,6 +3190,7 @@ class WikiStore:
             self._index_add_one(target)
         return {"created": target.relative_to(self.root).as_posix(), "template": template, "title": title,
                 "gate": {"accept": gate["accept"], "forced": bool(force),
+                         "kind": candidate_kind, "force_override": force_override,
                          "signal_pass": gate["signal"].get("pass"),
                          "overlap": gate["overlap"].get("overlap")}}
 
@@ -3452,7 +3474,8 @@ def _cli_main(argv: list[str] | None = None) -> int:
     sp.add_argument("--reason", default="", help="Why this fact is worth keeping (because…/so that…/to avoid…). Feeds the write-gate why-clause check.")
     sp.add_argument("--tags", default="", help="Comma-separated tags (used by the overlap near-dup check).")
     sp.add_argument("--force", action="store_true",
-                    help="Override a write-gate / overlap refusal (deliberate scaffold-then-fill).")
+                    help="Caller-asserted operator/user-directed override of a gate refusal; "
+                         "records audit metadata, but the CLI cannot verify caller authority.")
     sp.add_argument("--scope", default=None,
                     help="LEARNING_CONTRACT §1 SCOPE classification (this-skill/this-repo/"
                          "cross-skill/cross-repo/canon). Defaults by page kind if omitted "

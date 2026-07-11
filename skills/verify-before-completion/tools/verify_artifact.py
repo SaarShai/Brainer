@@ -48,6 +48,32 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "eval-gat
 VISION_EXT = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".pdf", ".webp", ".bmp", ".tiff")
 VISION_MARKERS = ("screenshot", "render:", "rendered", "viewed image", "looked at")
 
+_NEGATIVE_STATUS = re.compile(
+    r"(?:\[(?:fail(?:ed|ures?)?|errors?|not[- ]?done|missing|no[- ]?evidence)\]"
+    r"|\b(?:fail(?:ed|ures?)?|errors?|not|no|never|missing|unavailable|"
+    r"unverified|invalid|absent|omitted)\b)",
+    re.IGNORECASE,
+)
+_POSITIVE_ABSENCE = re.compile(
+    r"\b(?:no\s+(?:failures?|errors?|regressions?)"
+    r"|0\s+(?:fail(?:ed|ures?)?|errors?|regressions?))\b",
+    re.IGNORECASE,
+)
+_FAILED_STATUS = re.compile(
+    r"\b(?:non[- ]?zero|timeout|timed\s+out)\b"
+    r"|\b(?:exit(?:ed)?|return(?:ed|s)?)"
+    r"(?:\s+(?:with\s+)?(?:status|code))?\s*(?:[:=]\s*)?[-+]?0*[1-9]\d*\b",
+    re.IGNORECASE,
+)
+_NEGATED_VISION = re.compile(
+    r"\b(?:screenshot|render(?:ed)?|image|artifact|visual)\b.{0,40}"
+    r"\b(?:missing|failed|unavailable|not (?:found|produced|saved|created|viewed))\b"
+    r"|\b(?:not|never|no)\b.{0,30}\b(?:screenshot|render(?:ed)?|image|artifact|visual)\b"
+    r"|\.(?:png|jpe?g|gif|svg|pdf|webp|bmp|tiff)\b.{0,40}"
+    r"\b(?:missing|failed|unavailable|not (?:found|produced|saved|created|viewed))\b",
+    re.IGNORECASE,
+)
+
 _MARKER = re.compile(r"^\s*\[(?P<kind>evidence|vision|judge)(?::\s*(?P<token>.*?))?\]\s*(?P<text>.*)$",
                      re.IGNORECASE)
 
@@ -74,11 +100,20 @@ def parse_rubric(text: str):
     return crit
 
 
+def is_explicitly_negative(line: str) -> bool:
+    """Negative status/evidence lines are observations, never proof of success."""
+    status = _POSITIVE_ABSENCE.sub("", line)
+    return bool(_NEGATIVE_STATUS.search(status) or _FAILED_STATUS.search(status))
+
+
 def has_vision_evidence(evidence: str) -> bool:
-    low = evidence.lower()
-    if any(marker in low for marker in VISION_MARKERS):
-        return True
-    return any(ext in low for ext in VISION_EXT)
+    for line in evidence.splitlines():
+        low = line.lower()
+        has_reference = (any(marker in low for marker in VISION_MARKERS)
+                         or any(ext in low for ext in VISION_EXT))
+        if has_reference and not is_explicitly_negative(line) and not _NEGATED_VISION.search(line):
+            return True
+    return False
 
 
 def find_token(token: str, evidence_lines) -> str | None:
@@ -87,7 +122,7 @@ def find_token(token: str, evidence_lines) -> str | None:
     if not t:
         return None
     for ln in evidence_lines:
-        if t in ln.lower():
+        if t in ln.lower() and not is_explicitly_negative(ln):
             return ln.strip()
     return None
 

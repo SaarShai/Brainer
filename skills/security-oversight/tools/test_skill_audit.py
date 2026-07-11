@@ -20,9 +20,10 @@ FAIL verdict + finding categories. Mirrors test_security_scan.py's harness.
   A14 noqa marker                      -> injection line skipped -> PASS
   A15 precision (benign-tricky prose)  -> PASS, NO false prompt_injection
   A16 strict mode                      -> HIGH-only skill WARN normally, FAIL --strict
-  A17 dogfood                          -> auditing this skill's own dir: tool files
-                                          + SKILL.md are self-clean (any CRIT/HIGH
-                                          finding is only in a test path)
+  A17 realistic benign                -> representative legitimate skill PASSes
+  A18 dogfood                          -> auditing this skill's own dir: any
+                                          CRITICAL/HIGH finding is test-only;
+                                          documented suite counts stay honest
 
 Run: python3 skills/security-oversight/tools/test_skill_audit.py
 """
@@ -222,11 +223,33 @@ def a17_realistic_benign():
            f"{[(f['severity'], f['why']) for f in rep['findings']]}")
 
 
+def a18_dogfood():
+    skill_dir = HERE.parent
+    rep = sa.audit_skill(skill_dir)
+    severe_non_test = [
+        f for f in rep["findings"]
+        if f["severity"] in ("CRITICAL", "HIGH")
+        and not Path(f["file"]).name.startswith("test_")
+    ]
+    _check(rep["verdict"] in ("PASS", "WARN"),
+           f"A18 self-audit must not FAIL, got {rep['verdict']}")
+    _check(not severe_non_test,
+           f"A18 CRITICAL/HIGH self-findings must be test-only: {severe_non_test}")
+
+    skill_text = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
+    eval_text = (skill_dir / "EVAL.md").read_text(encoding="utf-8")
+    claims = skill_text + "\n" + eval_text
+    _check("A1–A18" in skill_text, "A18 SKILL.md must state the actual skill-audit range")
+    _check("S1–S14" in skill_text, "A18 SKILL.md must state the actual scanner range")
+    _check("10/10" not in claims, "A18 stale 10/10 scanner count must be removed")
+    _check("23/24" not in claims, "A18 stale repo-wide self-PASS count must be removed")
+
+
 def main():
     for fn in (a1_benign, a2_md_injection, a3_code_exec, a4_exfil_combo, a5_obfuscation,
                a6_symlink_escape, a7_typosquat, a8_hidden_html, a9_env_file, a10_binary,
                a11_missing_dir, a12_shape, a13_caveat, a14_noqa, a15_precision,
-               a16_strict, a17_realistic_benign):
+               a16_strict, a17_realistic_benign, a18_dogfood):
         fn()
         print(f"ok  {fn.__name__}")
     print("\nall skill_audit tests passed")

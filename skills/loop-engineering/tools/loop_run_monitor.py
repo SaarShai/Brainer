@@ -168,6 +168,14 @@ def _num_or_none(v: Any) -> float | None:
     return None
 
 
+def _bool(v: Any) -> bool:
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, str):
+        return v.strip().lower() == "true"
+    return False
+
+
 def parse_trace(text: str, source: str) -> list[Iteration]:
     data = json.loads(text)
     out: list[Iteration] = []
@@ -177,7 +185,7 @@ def parse_trace(text: str, source: str) -> list[Iteration]:
             command=str(raw.get("command") or "").strip(),
             error=str(raw.get("error") or "").strip(),
             metric=_num_or_none(raw.get("metric")),
-            accepted=bool(raw.get("accepted", False)),
+            accepted=_bool(raw.get("accepted", False)),
             cost=_num_or_none(raw.get("cost")) or 0.0,
         ))
     return out
@@ -200,10 +208,19 @@ def _trailing_run(values: list[str]) -> int:
     return n
 
 
+def _has_progress(iters: list[Iteration]) -> bool:
+    if any(it.accepted for it in iters):
+        return True
+    nums = [it.metric for it in iters if it.metric is not None]
+    return len(nums) >= 2 and nums[-1] > nums[0]
+
+
 def _check_same_command(iters: list[Iteration], window: int) -> Finding | None:
     cmds = [it.command for it in iters]
     run = _trailing_run(cmds)
     if run >= window:
+        if _has_progress(iters[-window:]):
+            return None
         return Finding("S1", "STUCK",
                        f"same command {run}× in a row (>= {window})",
                        f"command={cmds[-1]!r} reissued {run} consecutive iterations — "
@@ -216,6 +233,8 @@ def _check_repeated_error(iters: list[Iteration], window: int) -> Finding | None
     errs = [it.error for it in iters]
     run = _trailing_run(errs)
     if run >= window:
+        if _has_progress(iters[-window:]):
+            return None
         return Finding("S2", "STUCK",
                        f"same error {run}× in a row (>= {window})",
                        f"error={errs[-1]!r} on {run} consecutive iterations — the loop is "
@@ -233,6 +252,8 @@ def _check_no_progress(iters: list[Iteration], window: int) -> Finding | None:
         return None
     tail = metrics[-window:]
     if any(m is None for m in tail):
+        return None
+    if _has_progress(iters[-window:]):
         return None
     if len(set(tail)) == 1:
         return Finding("S3", "STUCK",
@@ -296,16 +317,13 @@ def _check_refetch_loop(iters: list[Iteration], window: int) -> Finding | None:
     run = _trailing_run(canon)
     if run < window:
         return None
-    tail = iters[-run:]
+    tail = iters[-window:]
     raw_tail = [it.command for it in tail]
     # All-identical raw commands are S1's job (STUCK); don't double-report.
     if len(set(raw_tail)) <= 1:
         return None
     # Progress guards (best-effort; fields are optional on the trace).
-    if any(it.accepted for it in tail):
-        return None
-    nums = [it.metric for it in tail if it.metric is not None]
-    if len(nums) >= 2 and nums[-1] > nums[0]:
+    if _has_progress(tail):
         return None
     return Finding("S4", "WARN",
                    f"re-fetch loop: same action {run}× with only pagination varying",

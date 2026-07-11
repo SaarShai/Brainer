@@ -33,6 +33,10 @@ def test_compromise_regex_balances_fp_and_fn():
     assert not false_pos, f"false positives: {false_pos}"
 
 _EXTRACT_PY = Path(__file__).parent.parent / "extract.py"
+_HOOK_WORKERS = [
+    Path(__file__).parent.parent / "hook.py",
+    Path(__file__).parent.parent / "archive.py",
+]
 
 
 def _write_jsonl(lines: list) -> str:
@@ -52,6 +56,96 @@ def _assistant(text: str) -> dict:
 
 def _user(text: str) -> dict:
     return {"type": "user", "message": {"role": "user", "content": text}}
+
+
+def test_hook_workers_reject_non_object_json_without_traceback():
+    failures = []
+    for worker in _HOOK_WORKERS:
+        proc = subprocess.run(
+            [sys.executable, str(worker)], input="[]", text=True,
+            capture_output=True, env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+        )
+        if proc.returncode != 0 or "Traceback" in proc.stderr:
+            failures.append((worker.name, proc.returncode, proc.stderr))
+    assert not failures, failures
+
+
+def test_hook_workers_normalize_typed_fields_without_traceback():
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td)
+        transcript = tmp / "valid.jsonl"
+        transcript.write_text(
+            json.dumps(_user("keep this context")) + "\n", encoding="utf-8",
+        )
+        env = {
+            **os.environ,
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "CLAUDE_PROJECT_DIR": str(tmp),
+            "TOKEN_ECONOMY_ROOT": str(tmp),
+        }
+
+        def run(worker: Path, payload: dict, expected_log: str = ""):
+            proc = subprocess.run(
+                [sys.executable, str(worker)], input=json.dumps(payload), text=True,
+                capture_output=True, env=env,
+            )
+            assert proc.returncode == 0, (worker.name, proc.stderr)
+            assert "Traceback" not in proc.stderr, (worker.name, proc.stderr)
+            assert "TypeError" not in proc.stderr, (worker.name, proc.stderr)
+            if expected_log:
+                assert expected_log in proc.stderr, (worker.name, proc.stderr)
+            return proc
+
+        hook, archive = _HOOK_WORKERS
+        for worker in _HOOK_WORKERS:
+            run(
+                worker,
+                {"transcript_path": {"truthy": "not-a-path"}},
+                "invalid-transcript-path type=dict",
+            )
+            run(worker, {"transcript_path": "\0"})
+
+        session_proc = run(
+            hook,
+            {"transcript_path": str(transcript),
+             "session_id": {"truthy": "not-a-session-id"},
+             "trigger": "manual"},
+            "invalid-session-id type=dict fallback='unknown'",
+        )
+        assert "structured memory saved" in session_proc.stdout, session_proc.stdout
+
+        trigger_proc = run(
+            hook,
+            {"transcript_path": str(transcript), "session_id": "typed-fields",
+             "trigger": {"truthy": "not-a-trigger"}},
+            "invalid-trigger type=dict fallback='auto'",
+        )
+        assert "structured memory saved" in trigger_proc.stdout, trigger_proc.stdout
+
+        nul_cwd_hook = run(
+            hook,
+            {"transcript_path": str(transcript), "cwd": "\0",
+             "session_id": "typed-fields", "trigger": "manual"},
+        )
+        assert "structured memory saved" in nul_cwd_hook.stdout, nul_cwd_hook.stdout
+
+        run(
+            archive,
+            {"transcript_path": str(transcript), "cwd": {"truthy": "not-a-cwd"}},
+            "invalid-cwd type=dict",
+        )
+        run(archive, {"transcript_path": str(transcript), "cwd": "\0"})
+        copied = tmp / ".brainer" / "sessions" / "raw" / transcript.name
+        assert copied.read_bytes() == transcript.read_bytes()
+
+        valid_hook = run(
+            hook,
+            {"transcript_path": str(transcript), "session_id": "typed-fields",
+             "trigger": "manual"},
+        )
+        assert "structured memory saved" in valid_hook.stdout, valid_hook.stdout
+        run(archive, {"transcript_path": str(transcript), "cwd": str(tmp)})
+        assert copied.read_bytes() == transcript.read_bytes()
 
 
 def test_malformed_lines_do_not_crash_or_block_extraction():

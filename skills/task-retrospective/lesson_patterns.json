@@ -9,7 +9,7 @@
   {
     "id": "loop-ran-past-budget",
     "description": "A loop/fleet/iteration claimed done with no gate run, ran past its declared budget, or self-graded (generator==verifier) — the runtime echo of loop-engineering loop_lint R1-R3. This is the recurrence COUNT for the handoff loop-engineering advertises; the PROBE lives with the failure-owner.",
-    "regex": "ran past budget|ran past its budget|no[- ]gate run|loop_lint (R1|R2|R3)|generator ?== ?verifier|loop-done-without-gate",
+    "regex": "ran past budget|ran past its budget|no[- ]gate run|loop_lint (R1|R2|R3)\\b|generator ?== ?verifier|loop-done-without-gate",
     "promoted": "2026-06-16",
     "fix": "Tighten loop-engineering's existing 'loop-done-without-gate' probe (skills/loop-engineering/drift_probes.json); for the pure budget-overrun slice that never surfaces as a done-claim, add a new probe there (loop-engineering owns the failure). See loop-engineering SKILL.md and its inner/outer handoff."
   }

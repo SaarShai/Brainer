@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -190,6 +191,16 @@ def test_route_probe_json_and_usage():
     assert obj["verdict"] == "PROCEDURE" and obj["verb_count"] >= 2, obj
     # no input is a usage error, not a crash.
     run_cli(["route-probe"], expect=2)
+
+
+def test_loop_lint_lesson_pattern_stops_at_rule_boundary():
+    registry = json.loads((HERE.parent / "lesson_patterns.json").read_text(encoding="utf-8"))
+    entry = next(p for p in registry if p["id"] == "loop-ran-past-budget")
+    pattern = re.compile(entry["regex"])
+    for exact in ("loop_lint R1", "loop_lint R2", "loop_lint R3"):
+        assert pattern.search(exact), f"must match exact rule marker {exact}"
+    for spill in ("loop_lint R10", "loop_lint R20", "loop_lint R30"):
+        assert not pattern.search(spill), f"must not prefix-match unrelated rule {spill}"
 
 
 def main() -> int:

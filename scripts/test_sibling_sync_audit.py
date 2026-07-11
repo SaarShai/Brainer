@@ -30,6 +30,9 @@ BUILDER_V2 = "---\nname: builder\n---\nbuilder roster v2 (fixed)\n"
 VERIFIER = "---\nname: verifier\n---\ncold-context verifier\n"
 REVIEWER = "---\nname: reviewer\n---\nnew roster lane\n"
 LOCAL_LINE = "LOCAL SIBLING TWEAK: keep me\n"
+INDENT_CANON = "---\nname: indent-demo\n---\n## Steps\n  - preserve indentation\n"
+INDENT_LOCAL = "---\nname: indent-demo\n---\n## Steps\n    - preserve indentation\n"
+APPLY_FLAGS = ("--apply-stale", "--apply-absent", "--adopt-new-skills", "--adopt-agents")
 
 FAILS: list[str] = []
 
@@ -60,6 +63,7 @@ def build_canon(canon: Path):
     (canon / "scripts").mkdir(parents=True)
     shutil.copy2(SCRIPT, canon / "scripts" / "sibling_sync_audit.py")
     write(canon / "skills" / "dummy" / "SKILL.md", "---\nname: dummy\n---\nbody\n")
+    write(canon / "skills" / "indent-demo" / "SKILL.md", INDENT_CANON)
     write(canon / "install.sh", "#!/usr/bin/env bash\n")
     # Mirror the real carve-out: agents are tracked, rest of .claude is not.
     write(canon / ".gitignore", ".claude/*\n!.claude/agents/\n")
@@ -98,12 +102,22 @@ def check_two_carrier_consistency():
         print("      diverged:", ",".join(mismatches))
 
 
+def check_propagate_probe_lists_all_apply_flags():
+    repo = Path(__file__).resolve().parents[1]
+    probe_path = repo / "skills" / "propagate" / "drift_probes.json"
+    probes = json.loads(probe_path.read_text(encoding="utf-8"))
+    message = next(p["message"] for p in probes if p.get("id") == "propagate-intent")
+    check("propagate-intent probe names all four apply flags",
+          all(flag in message for flag in APPLY_FLAGS))
+
+
 def main() -> int:
     if shutil.which("git") is None:
         print("SKIP test_sibling_sync_audit (git not on PATH)")
         return 0
 
     check_two_carrier_consistency()
+    check_propagate_probe_lists_all_apply_flags()
 
     tmp = Path(tempfile.mkdtemp(prefix="sibsync-"))
     try:
@@ -119,6 +133,7 @@ def main() -> int:
         # --- sib: the drift case (stale + customized + missing + sibling-only) ---
         sib = docs / "sib"
         write(sib / "skills" / "dummy" / "SKILL.md", "---\nname: dummy\n---\nbody\n")
+        write(sib / "skills" / "indent-demo" / "SKILL.md", INDENT_LOCAL)
         write(sib / "install.sh", "#!/usr/bin/env bash\n")
         write(sib / AGENTS / "builder.md", BUILDER_V1)              # STALE (== v1)
         write(sib / AGENTS / "verifier.md", VERIFIER + LOCAL_LINE)  # CUSTOMIZED
@@ -128,6 +143,7 @@ def main() -> int:
         # --- sib2: opt-out case (declines an agent AND a skill via one file) ---
         sib2 = docs / "sib2"
         write(sib2 / "skills" / "dummy" / "SKILL.md", "---\nname: dummy\n---\nbody\n")
+        write(sib2 / "skills" / "indent-demo" / "SKILL.md", INDENT_CANON)
         write(sib2 / "install.sh", "#!/usr/bin/env bash\n")
         write(sib2 / AGENTS / "builder.md", BUILDER_V2)             # up to date
         write(sib2 / AGENTS / "verifier.md", VERIFIER)              # up to date
@@ -150,8 +166,10 @@ def main() -> int:
               and f"{AGENTS}/verifier.md" in s["agent_differs"])
         check("reviewer is a new_agent", "reviewer" in s["new_agents"])
         check("local-only is sibling_only_agent", s["sibling_only_agents"] == ["local-only"])
-        check("skills track unperturbed (dummy identical, no differs)",
-              s["identical"] == 1 and s["differs"] == [] and s["absent_count"] == 0)
+        check("skills track isolates the indentation-only difference",
+              s["identical"] == 1
+              and s["differs"] == ["skills/indent-demo/SKILL.md"]
+              and s["absent_count"] == 0)
 
         # 2. classify: builder STALE, verifier CUSTOMIZED with its local line shown.
         c = run("--repo", "sib", "--classify").stdout
@@ -160,6 +178,9 @@ def main() -> int:
         check("classify marks verifier AGENT-CUSTOMIZED",
               "AGENT-CUSTOMIZED" in c and "verifier.md" in c)
         check("classify surfaces the local line", "LOCAL SIBLING TWEAK" in c)
+        check("classify marks indentation-only edit CUSTOMIZED",
+              any("CUSTOMIZED" in line and "skills/indent-demo/SKILL.md" in line
+                  for line in c.splitlines()))
 
         # 3. apply: STALE fast-forwards, absent adopts, CUSTOMIZED + sibling-only
         #    are left exactly as-is.
@@ -173,6 +194,8 @@ def main() -> int:
               (sib / AGENTS / "verifier.md").read_text() == VERIFIER + LOCAL_LINE)
         check("sibling-only roster def untouched",
               (sib / AGENTS / "local-only.md").read_text() == "sibling roster\n")
+        check("indentation-only customization NOT overwritten",
+              (sib / "skills" / "indent-demo" / "SKILL.md").read_text() == INDENT_LOCAL)
 
         # 4. opt-out: `agent:reviewer` declines the roster def; `dummy` still
         #    parses as a skill opt-out (shared file, both prefixes coexist).

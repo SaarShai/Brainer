@@ -51,6 +51,17 @@ SLASH_TO_SKILL = {
 # the invocation but do NOT emit it as a user turn (keeps abort-inference anchored on
 # the next REAL user message).
 _CODEX_SKILL_BLOCK = re.compile(r"<skill>\s*<name>\s*([^<\s]+)\s*</name>", re.IGNORECASE)
+_PROCESS_EXIT_RE = re.compile(
+    r"(?:^|\n)\s*(?:Process exited with code|Command failed with exit code)\s+(-?\d+)\b",
+    re.IGNORECASE,
+)
+_COMMAND_FAILURE_RE = re.compile(
+    r"(?:^|\n)\s*(?:Command failed|Process failed)(?:\s*[:.]|\s*$)",
+    re.IGNORECASE,
+)
+_FAILURE_STATUSES = {"failed", "failure", "error", "errored", "cancelled", "canceled",
+                     "timed_out", "timeout"}
+_SUCCESS_STATUSES = {"success", "succeeded", "completed", "complete", "ok", "passed", "pass"}
 
 
 def _skill_tool_use(skill: str, ts: str) -> dict:
@@ -84,6 +95,58 @@ def _slash_skill(text: str) -> str | None:
         return None
     token = s[1:].split(None, 1)[0].strip().lower() if len(s) > 1 else ""
     return SLASH_TO_SKILL.get(token)
+
+
+def _codex_result_status(value, depth: int = 0) -> bool | None:
+    """Return True for explicit/known failure, False for explicit success, else None."""
+    if depth > 8:
+        return None
+    statuses: list[bool] = []
+    if isinstance(value, dict):
+        for key, nested in value.items():
+            normalized = str(key).lower().replace("_", "").replace("-", "")
+            if normalized in {"iserror", "success", "ok"} and isinstance(nested, bool):
+                statuses.append(nested if normalized == "iserror" else not nested)
+            elif normalized in {"exitcode", "returncode"}:
+                if isinstance(nested, int) and not isinstance(nested, bool):
+                    statuses.append(nested != 0)
+                elif isinstance(nested, str) and re.fullmatch(r"-?\d+", nested.strip()):
+                    statuses.append(int(nested) != 0)
+            elif normalized in {"status", "state"} and isinstance(nested, str):
+                status = nested.strip().lower().replace("-", "_").replace(" ", "_")
+                if status in _FAILURE_STATUSES:
+                    statuses.append(True)
+                elif status in _SUCCESS_STATUSES:
+                    statuses.append(False)
+            nested_status = _codex_result_status(nested, depth + 1)
+            if nested_status is not None:
+                statuses.append(nested_status)
+    elif isinstance(value, list):
+        for nested in value:
+            nested_status = _codex_result_status(nested, depth + 1)
+            if nested_status is not None:
+                statuses.append(nested_status)
+    elif isinstance(value, str):
+        text = value.strip()
+        if text.startswith(("{", "[")):
+            try:
+                nested = json.loads(text)
+            except (ValueError, TypeError):
+                nested = None
+            if isinstance(nested, (dict, list)):
+                nested_status = _codex_result_status(nested, depth + 1)
+                if nested_status is not None:
+                    statuses.append(nested_status)
+        match = _PROCESS_EXIT_RE.search(value)
+        if match:
+            statuses.append(int(match.group(1)) != 0)
+        elif _COMMAND_FAILURE_RE.search(value):
+            statuses.append(True)
+    if True in statuses:
+        return True
+    if False in statuses:
+        return False
+    return None
 
 
 def _norm_codex(events: list[dict]) -> list[dict]:
@@ -128,10 +191,21 @@ def _norm_codex(events: list[dict]) -> list[dict]:
                 cmd = args.get("command") or args.get("cmd") or ""
                 args = {**args, "command": cmd}
                 name = "Bash"
-            out.append({"type": "assistant", "timestamp": ts, "message": {"content": [
-                {"type": "tool_use", "name": name, "input": args}]}})
-        # function_call_output / reasoning / event_msg / meta: not part of the
-        # tool_use / message stream the detectors count — drop.
+            tool_use = {"type": "tool_use", "name": name, "input": args}
+            if p.get("call_id"):
+                tool_use["id"] = p["call_id"]
+            out.append({"type": "assistant", "timestamp": ts,
+                        "message": {"content": [tool_use]}})
+        elif ptype == "function_call_output":
+            result_status = _codex_result_status(p)
+            out.append({"type": "user", "timestamp": ts, "message": {"content": [{
+                "type": "tool_result",
+                "tool_use_id": p.get("call_id", ""),
+                "is_error": result_status is True,
+                "content": p.get("output", ""),
+            }]}})
+        # reasoning / event_msg / meta: not part of the tool_use / message
+        # stream the detectors count — drop.
     return out
 
 

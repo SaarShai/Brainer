@@ -69,6 +69,18 @@ def test_search_content_filter_keeps_diversity_and_errors() -> None:
     assert "ERROR: important failure" in out, "error signal lost"
 
 
+def test_custom_keep_survives_search_compression() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        path = Path(td) / "rules.txt"
+        path.write_text("keep:^CUSTOM-SIGNAL\\b\n", encoding="utf-8")
+        lines = [f"src/file{i % 12}.py:{i}: match {i}" for i in range(120)]
+        lines.insert(60, "CUSTOM-SIGNAL search evidence")
+        out, stats = filter_text("\n".join(lines), rules=load_rules(path),
+                                 content_type="search")
+    assert "search-summary" in stats["transforms"], stats
+    assert "CUSTOM-SIGNAL search evidence" in out, out
+
+
 def test_log_content_filter_preserves_signal_lines() -> None:
     raw = "\n".join(
         [f"progress chunk {i}" for i in range(180)]
@@ -81,6 +93,18 @@ def test_log_content_filter_preserves_signal_lines() -> None:
     assert len(out.splitlines()) < len(raw.splitlines()), "log output should shrink"
     assert "WARNING: retrying slow test" in out, "warning line lost"
     assert "FAILED tests/test_api.py::test_auth" in out, "failure line lost"
+
+
+def test_custom_keep_survives_log_compression() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        path = Path(td) / "rules.txt"
+        path.write_text("keep:^CUSTOM-SIGNAL\\b\n", encoding="utf-8")
+        lines = [f"progress chunk {i}" for i in range(300)]
+        lines.insert(150, "CUSTOM-SIGNAL log evidence")
+        out, stats = filter_text("\n".join(lines), rules=load_rules(path),
+                                 content_type="log")
+    assert "log-summary" in stats["transforms"], stats
+    assert "CUSTOM-SIGNAL log evidence" in out, out
 
 
 def test_diff_content_filter_preserves_headers_and_changes() -> None:
@@ -96,6 +120,20 @@ def test_diff_content_filter_preserves_headers_and_changes() -> None:
     assert "@@ -1,320 +1,320 @@" in out, "hunk header lost"
     assert "-old line" in out and "+new line" in out, "changed lines lost"
     assert " context 42" not in out, "large context block should be omitted"
+
+
+def test_custom_keep_survives_diff_compression() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        path = Path(td) / "rules.txt"
+        path.write_text("keep:^CUSTOM-SIGNAL\\b\n", encoding="utf-8")
+        raw = "\n".join(
+            ["diff --git a/app.py b/app.py", "@@ -1,320 +1,320 @@"]
+            + [f" context {i}" for i in range(330)]
+            + ["CUSTOM-SIGNAL diff evidence", "-old line", "+new line"]
+        )
+        out, stats = filter_text(raw, rules=load_rules(path), content_type="diff")
+    assert "diff-hunks" in stats["transforms"], stats
+    assert "CUSTOM-SIGNAL diff evidence" in out, out
 
 
 def test_archive_rewind_roundtrip_and_grep() -> None:
@@ -232,8 +270,11 @@ def main() -> int:
         test_strips_single_char_escape,
         test_no_raw_esc_leaks_and_error_preserved,
         test_search_content_filter_keeps_diversity_and_errors,
+        test_custom_keep_survives_search_compression,
         test_log_content_filter_preserves_signal_lines,
+        test_custom_keep_survives_log_compression,
         test_diff_content_filter_preserves_headers_and_changes,
+        test_custom_keep_survives_diff_compression,
         test_archive_rewind_roundtrip_and_grep,
         test_rewind_rejects_tampered_raw_path_escape,
         test_git_log_detected_as_log_and_compresses,

@@ -153,6 +153,26 @@ def test_manual_lanes_jsonl_parses():
         return malformed == 0 and len(records) == 1 and records[0]["tier"] == "frontier"
 
 
+def test_manual_jsonl_boolean_tokens_are_unpriced():
+    with tempfile.TemporaryDirectory() as td:
+        lanes = Path(td) / "lanes.jsonl"
+        lanes.write_text(
+            json.dumps({"lane_label": "boolean", "tier": "small",
+                        "tokens": True, "accepted": True}) + "\n",
+            encoding="utf-8",
+        )
+        records, malformed = tle.load_manual_lanes(str(lanes))
+        agg = tle.aggregate(records)
+        return (
+            malformed == 0
+            and len(records) == 1
+            and records[0]["tokens"] is None
+            and records[0]["priced"] is False
+            and agg["total_tokens"] == 0
+            and agg["unpriced_lane_count"] == 1
+        )
+
+
 def test_manual_lanes_malformed_rows_skipped_and_counted():
     with tempfile.TemporaryDirectory() as td:
         lanes = Path(td) / "lanes.jsonl"
@@ -166,6 +186,121 @@ def test_manual_lanes_malformed_rows_skipped_and_counted():
         )
         records, malformed = tle.load_manual_lanes(str(lanes))
         return malformed == 2 and len(records) == 1
+
+
+def test_non_finite_and_negative_tokens_are_unpriced():
+    with tempfile.TemporaryDirectory() as td:
+        trace = Path(td) / "trace.jsonl"
+        trace.write_text(
+            "\n".join([
+                json.dumps({"role": "builder", "lane": "glm", "ok": True,
+                            "usage": {"total_tokens": -10}}),
+                json.dumps({"role": "builder", "lane": "glm", "ok": True,
+                            "usage": {"total_tokens": float("nan")}}),
+            ]) + "\n",
+            encoding="utf-8",
+        )
+        lanes = Path(td) / "lanes.jsonl"
+        lanes.write_text(
+            "\n".join([
+                json.dumps({"lane_label": "negative", "tier": "small",
+                            "tokens": -5, "accepted": True}),
+                json.dumps({"lane_label": "infinite", "tier": "small",
+                            "tokens": float("inf"), "accepted": True}),
+            ]) + "\n",
+            encoding="utf-8",
+        )
+
+        trace_records, malformed_trace = tle.load_trace(str(trace))
+        manual_records, malformed_manual = tle.load_manual_lanes(str(lanes))
+        records = trace_records + manual_records
+        agg = tle.aggregate(records)
+        return (
+            malformed_trace == 0
+            and malformed_manual == 0
+            and len(records) == 4
+            and all(r["tokens"] is None and r["priced"] is False for r in records)
+            and agg["total_tokens"] == 0
+            and agg["unpriced_lane_count"] == 4
+        )
+
+
+def test_partial_corrupt_and_fractional_tokens_are_unpriced():
+    with tempfile.TemporaryDirectory() as td:
+        trace = Path(td) / "trace.jsonl"
+        trace.write_text(
+            "\n".join([
+                json.dumps({"role": "builder", "lane": "glm", "ok": True,
+                            "usage": {"prompt_tokens": 100, "completion_tokens": "corrupt"}}),
+                json.dumps({"role": "builder", "lane": "glm", "ok": True,
+                            "usage": {"prompt_tokens": "corrupt", "completion_tokens": 100}}),
+                json.dumps({"role": "builder", "lane": "glm", "ok": True,
+                            "usage": {"total_tokens": 12.5}}),
+                json.dumps({"role": "builder", "lane": "glm", "ok": True,
+                            "usage": {"prompt_tokens": True, "completion_tokens": 10}}),
+            ]) + "\n",
+            encoding="utf-8",
+        )
+        records, malformed = tle.load_trace(str(trace))
+        agg = tle.aggregate(records)
+        return (
+            malformed == 0
+            and len(records) == 4
+            and all(r["tokens"] is None and r["priced"] is False for r in records)
+            and agg["total_tokens"] == 0
+            and agg["unpriced_lane_count"] == 4
+        )
+
+
+def test_one_sided_trace_usage_is_unpriced():
+    with tempfile.TemporaryDirectory() as td:
+        trace = Path(td) / "trace.jsonl"
+        trace.write_text(
+            "\n".join([
+                json.dumps({"role": "builder", "lane": "glm", "ok": True,
+                            "usage": {"prompt_tokens": 100}}),
+                json.dumps({"role": "builder", "lane": "glm", "ok": True,
+                            "usage": {"completion_tokens": 25}}),
+            ]) + "\n",
+            encoding="utf-8",
+        )
+        records, malformed = tle.load_trace(str(trace))
+        agg = tle.aggregate(records)
+        return (
+            malformed == 0
+            and len(records) == 2
+            and all(r["tokens"] is None and r["priced"] is False for r in records)
+            and agg["total_tokens"] == 0
+            and agg["unpriced_lane_count"] == 2
+        )
+
+
+def test_valid_total_or_complete_pair_is_priced():
+    with tempfile.TemporaryDirectory() as td:
+        trace = Path(td) / "trace.jsonl"
+        trace.write_text(
+            "\n".join([
+                json.dumps({"role": "builder", "lane": "glm", "ok": True,
+                            "usage": {"total_tokens": 20}}),
+                json.dumps({"role": "builder", "lane": "glm", "ok": True,
+                            "usage": {"prompt_tokens": 100, "completion_tokens": 5}}),
+                json.dumps({"role": "builder", "lane": "glm", "ok": True,
+                            "usage": {"total_tokens": 20, "prompt_tokens": "corrupt"}}),
+                json.dumps({"role": "builder", "lane": "glm", "ok": True,
+                            "usage": {"total_tokens": "corrupt", "prompt_tokens": 10,
+                                      "completion_tokens": 5}}),
+            ]) + "\n",
+            encoding="utf-8",
+        )
+        records, malformed = tle.load_trace(str(trace))
+        agg = tle.aggregate(records)
+        return (
+            malformed == 0
+            and [r["tokens"] for r in records] == [20, 105, 20, 15]
+            and all(r["priced"] is True for r in records)
+            and agg["total_tokens"] == 160
+            and agg["unpriced_lane_count"] == 0
+        )
 
 
 def test_missing_trace_file_returns_empty_not_crash():

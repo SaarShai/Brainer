@@ -1100,15 +1100,63 @@ write_transcript "$TXE" "$(assistant_text 'updating the ledger' u)" "$(assistant
 out=$(call_p cc67 sk67 "$TXE" s67 'and Z')
 if [ -z "$out" ]; then ok "ledger Edit → suppressed"; else no "ledger Edit suppresses" "got: $(echo "$out"|head -c200)"; fi
 
-echo "[68] ledger_not_materialized: a recent TaskCreate suppresses it"
+echo "[68] ledger_not_materialized: unrelated TaskCreate metadata does NOT suppress it"
 make_skill_with_probes sk68 requirements-ledger "$LNM"
 TXP="$TRANSCRIPT_DIR/t68p.jsonl"; write_transcript "$TXP" "$(assistant_text 'ok' u)"
 call_p cc68 sk68 "$TXP" s68 'add X' >/dev/null
 call_p cc68 sk68 "$TXP" s68 'add Y' >/dev/null
 TXT="$TRANSCRIPT_DIR/t68t.jsonl"
-write_transcript "$TXT" "$(assistant_text 'mirroring to tasks' u)" "$(assistant_tool_use TaskCreate '{"subject":"x"}')"
+write_transcript "$TXT" "$(assistant_text 'creating an unrelated task' u)" "$(assistant_tool_use TaskCreate '{"subject":"x","metadata":{"ledger_id":"r999-wrong"}}')"
 out=$(call_p cc68 sk68 "$TXT" s68 'and Z')
-if [ -z "$out" ]; then ok "TaskCreate → suppressed"; else no "TaskCreate suppresses" "got: $(echo "$out"|head -c200)"; fi
+if echo "$out" | grep -q 'ledger_not_materialized'; then ok "unrelated TaskCreate does not suppress"; else no "unrelated TaskCreate wrongly suppresses" "got: $(echo "$out"|head -c200)"; fi
+
+echo "[68b] ledger_not_materialized: matching TaskCreate metadata suppresses it"
+make_skill_with_probes sk68b requirements-ledger "$LNM"
+TXP="$TRANSCRIPT_DIR/t68bp.jsonl"; write_transcript "$TXP" "$(assistant_text 'ok' u)"
+call_p cc68b sk68b "$TXP" s68b 'add X' >/dev/null
+call_p cc68b sk68b "$TXP" s68b 'add Y' >/dev/null
+RID68=$(python3 -c 'import hashlib;print("r1-"+hashlib.sha256(b"add X").hexdigest()[:6])')
+TXT="$TRANSCRIPT_DIR/t68bt.jsonl"
+write_transcript "$TXT" "$(assistant_text 'mirroring the captured row' u)" "$(assistant_tool_use TaskCreate '{"subject":"x","metadata":{"ledger_id":"'"$RID68"'"}}')"
+out=$(call_p cc68b sk68b "$TXT" s68b 'and Z')
+if [ -z "$out" ]; then ok "matching TaskCreate metadata → suppressed"; else no "matching TaskCreate should suppress" "got: $(echo "$out"|head -c200)"; fi
+
+echo "[68c] ledger_not_materialized: three-conjunct request needs all three suffixed task IDs"
+THREE='add X, update Y, and test Z'
+RID3=$(python3 -c 'import hashlib,sys;print("r1-"+hashlib.sha256(sys.argv[1].encode()).hexdigest()[:6])' "$THREE")
+make_skill_with_probes sk68c requirements-ledger "$LNM"
+TXP="$TRANSCRIPT_DIR/t68cp.jsonl"; write_transcript "$TXP" "$(assistant_text 'ok' u)"
+call_p cc68c sk68c "$TXP" s68c "$THREE" >/dev/null
+call_p cc68c sk68c "$TXP" s68c 'go on' >/dev/null
+TXT="$TRANSCRIPT_DIR/t68ct.jsonl"
+write_transcript "$TXT" \
+  "$(assistant_tool_use TaskCreate '{"subject":"X","metadata":{"ledger_id":"'"$RID3"'-a"}}')" \
+  "$(assistant_tool_use TaskCreate '{"subject":"Y","metadata":{"ledger_id":"'"$RID3"'-b"}}')"
+out=$(call_p cc68c sk68c "$TXT" s68c 'ok')
+if echo "$out" | grep -q 'ledger_not_materialized'; then ok "partial 2/3 task mirror does not suppress"; else no "three-conjunct partial mirror wrongly suppresses" "got: $(echo "$out"|head -c200)"; fi
+
+echo "[68d] ledger_not_materialized: complete three-conjunct task mirror suppresses it"
+make_skill_with_probes sk68d requirements-ledger "$LNM"
+call_p cc68d sk68d "$TXP" s68d "$THREE" >/dev/null
+call_p cc68d sk68d "$TXP" s68d 'go on' >/dev/null
+TXT="$TRANSCRIPT_DIR/t68dt.jsonl"
+write_transcript "$TXT" \
+  "$(assistant_tool_use TaskCreate '{"subject":"X","metadata":{"ledger_id":"'"$RID3"'-a"}}')" \
+  "$(assistant_tool_use TaskCreate '{"subject":"Y","metadata":{"ledger_id":"'"$RID3"'-b"}}')" \
+  "$(assistant_tool_use TaskCreate '{"subject":"Z","metadata":{"ledger_id":"'"$RID3"'-c"}}')"
+out=$(call_p cc68d sk68d "$TXT" s68d 'ok')
+if [ -z "$out" ]; then ok "complete 3/3 task mirror → suppressed"; else no "complete three-conjunct mirror should suppress" "got: $(echo "$out"|head -c200)"; fi
+
+echo "[68e] requirements ledger: audit/verify/score conjunctions each count as atomic asks"
+atomic=$(python3 - "$TOOLS_DIR/hook.py" <<'PY'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("hook", sys.argv[1])
+hook = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(hook)
+print(hook._ledger_atomic_count("fix the parser, then audit the output, verify the evidence, and score the result"))
+PY
+)
+if [ "$atomic" = "4" ]; then ok "audit/verify/score conjuncts → atomic_count=4"; else no "audit/verify/score conjunct count" "got: $atomic"; fi
 
 echo "[69] ledger_not_materialized: cold start (1 item, turn 1) → silent"
 make_skill_with_probes sk69 requirements-ledger "$LNM"
@@ -1209,7 +1257,7 @@ recorded=$(python3 -c "import json;d=json.load(open('$STATE_ROOT/cc83/$SIDH83.js
 if [ -z "$out" ] && [ "$recorded" = yes ]; then ok "kill → silent output, request still on the record"; else no "kill must not disable capture" "out=$(echo "$out"|head -c80) recorded=$recorded"; fi
 
 echo "[84] tool_path_touch: editing a dependency manifest fires"
-PROBES='[{"id":"dep","kind":"tool_path_touch","path_pattern":"(?i)(?:^|/)(?:package\\.json|requirements\\.txt)$","message":"manifest changed — justify the dep"}]'
+PROBES='[{"id":"dep","kind":"tool_path_touch","tools":["Edit","Write","NotebookEdit","Bash"],"path_pattern":"(?i)(?:^|/)(?:package\\.json|requirements\\.txt|pyproject\\.toml|poetry\\.lock)$","message":"manifest changed — justify the dep"}]'
 make_skill_with_probes sk84 le "$PROBES"
 TX="$TRANSCRIPT_DIR/t84.jsonl"
 write_transcript "$TX" "$(assistant_tool_use Edit '{"file_path":"/proj/requirements.txt","old_string":"flask","new_string":"flask\nrequests"}')"
@@ -1221,6 +1269,82 @@ TX="$TRANSCRIPT_DIR/t85.jsonl"
 write_transcript "$TX" "$(assistant_tool_use Edit '{"file_path":"/proj/src/app.py","old_string":"a","new_string":"b"}')"
 out=$(call cc85 sk84 "$TX" s85)
 if [ -z "$out" ]; then ok "non-manifest edit → silent"; else no "non-manifest edit → silent" "got: $(echo "$out"|head -c120)"; fi
+
+echo "[85a] tool_path_touch: Bash redirection mutating a dependency manifest fires"
+TX="$TRANSCRIPT_DIR/t85a.jsonl"
+write_transcript "$TX" "$(assistant_tool_use Bash '{"command":"printf requests >> /proj/requirements.txt"}')"
+out=$(call cc85a sk84 "$TX" s85a)
+if emitted "$out" && echo "$out" | grep -q 'tool_path_touch'; then ok "Bash manifest mutation fires"; else no "Bash manifest mutation should fire" "got: $(echo "$out"|head -c160)"; fi
+
+echo "[85b] tool_path_touch: Bash command that only tests a manifest stays silent"
+TX="$TRANSCRIPT_DIR/t85b.jsonl"
+write_transcript "$TX" "$(assistant_tool_use Bash '{"command":"test -f /proj/requirements.txt && python3 -m pytest -q"}')"
+out=$(call cc85b sk84 "$TX" s85b)
+if [ -z "$out" ]; then ok "Bash manifest test → silent"; else no "Bash manifest test should stay silent" "got: $(echo "$out"|head -c160)"; fi
+
+echo "[85c] tool_path_touch: package-manager dependency mutations fire without an explicit path"
+TX="$TRANSCRIPT_DIR/t85c.jsonl"
+write_transcript "$TX" \
+  "$(assistant_tool_use Bash '{"command":"npm install lodash # --dry-run is only a comment"}')" \
+  "$(assistant_tool_use Bash '{"command":"cd /proj\npoetry add requests"}')"
+out=$(call cc85c sk84 "$TX" s85c)
+if emitted "$out" && echo "$out" | grep -q 'tool_path_touch'; then ok "npm install / poetry add manifest mutation fires"; else no "package-manager manifest mutation should fire" "got: $(echo "$out"|head -c160)"; fi
+
+echo "[85d] tool_path_touch: read-only package-manager commands stay silent"
+TX="$TRANSCRIPT_DIR/t85d.jsonl"
+write_transcript "$TX" \
+  "$(assistant_tool_use Bash '{"command":"npm list --depth=0"}')" \
+  "$(assistant_tool_use Bash '{"command":"poetry show --tree"}')" \
+  "$(assistant_tool_use Bash '{"command":"npm install lodash --dry-run"}')" \
+  "$(assistant_tool_use Bash '{"command":"poetry add requests --dry-run"}')"
+out=$(call cc85d sk84 "$TX" s85d)
+if [ -z "$out" ]; then ok "npm list / poetry show → silent"; else no "read-only package-manager commands should stay silent" "got: $(echo "$out"|head -c160)"; fi
+
+echo "[85e] tool_path_touch: tokenized package-manager adjacency matrix"
+matrix=$(python3 - "$TOOLS_DIR/hook.py" <<'PY'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("hook", sys.argv[1])
+hook = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(hook)
+probe = {
+    "_probe_id": "dep",
+    "tools": ["Bash"],
+    "path_pattern": r"(?i)(?:^|/)(?:package\.json|package-lock\.json|pyproject\.toml|poetry\.lock)$",
+}
+positive = (
+    "/usr/local/bin/npm install lodash",
+    "env NODE_ENV=dev npm install lodash",
+    "npm --prefix /proj install lodash",
+    "/opt/homebrew/bin/poetry add requests",
+    "env POETRY_VIRTUALENVS_CREATE=false poetry --directory /proj add requests",
+    "poetry -C /proj add requests",
+    "npm install lodash --dry-run=false",
+    "poetry add requests --dry-run=false",
+)
+negative = (
+    "npm install lodash --dry-run",
+    "npm install lodash --dry-run=true",
+    "npm install lodash --no-save",
+    "poetry add requests --dry-run",
+    "poetry add requests --dry-run=true",
+    "npm list --depth=0",
+    "poetry show --tree",
+)
+failures = []
+for command in positive:
+    result = hook.detect_tool_path_touch(
+        probe, [], [{"name": "Bash", "input": {"command": command}}])
+    if result is None:
+        failures.append("MISS " + command)
+for command in negative:
+    result = hook.detect_tool_path_touch(
+        probe, [], [{"name": "Bash", "input": {"command": command}}])
+    if result is not None:
+        failures.append("FALSE-POS " + command)
+print("\n".join(failures) if failures else "ok")
+PY
+)
+if [ "$matrix" = "ok" ]; then ok "package-manager adjacency matrix"; else no "package-manager adjacency matrix" "got: $matrix"; fi
 
 echo "[86] whitespace_only_edit: an Edit changing only whitespace fires"
 PROBES='[{"id":"reformat","kind":"whitespace_only_edit","min_chars":4,"message":"whitespace-only reformat — keep the diff to the task"}]'

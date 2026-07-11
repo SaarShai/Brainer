@@ -44,6 +44,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import signal
 import sys
 import time
@@ -1105,12 +1106,17 @@ _LEDGER_COMPOUND_RE = re.compile(
     r"(?i)(?:\b(?:and|also|plus|then)\b|[,;]\s)\s*(?:can you |could you |would you |please )?"
     r"(?:add|create|write|fix|update|make|implement|build|remove|delete|rename|refactor|"
     r"test|document|check|pin|install|set ?up|wire|handle|support|enable|ensure|include|"
-    r"generate|run|review|investigate|answer|explain)\b"
+    r"generate|run|review|audit|verify|score|investigate|answer|explain)\b"
 )
 
 
 def _ledger_make_id(turn: int, text: str) -> str:
     return f"r{turn}-" + hashlib.sha256(text.encode("utf-8", "replace")).hexdigest()[:6]
+
+
+def _ledger_atomic_count(text: str) -> int:
+    """Bounded hint for the visible ledger's split-conjunct task mirror."""
+    return min(8, 1 + len(_LEDGER_COMPOUND_RE.findall(text)))
 
 
 def update_ledger(ledger: list, prompt: str, turn: int) -> tuple[list, list, str]:
@@ -1157,7 +1163,8 @@ def update_ledger(ledger: list, prompt: str, turn: int) -> tuple[list, list, str
 
     # Capture the whole prompt (a real ask, or a meta+ask compound — over-capture
     # is the safe direction; never drop). The meta effect above already applied.
-    item = {"id": _ledger_make_id(turn, p), "turn": turn, "text": p[:LEDGER_TEXT_CAP]}
+    item = {"id": _ledger_make_id(turn, p), "turn": turn,
+            "text": p[:LEDGER_TEXT_CAP], "atomic_count": _ledger_atomic_count(p)}
     ledger = (ledger + [item])[-LEDGER_STORE_CAP:]
     return ledger, closed, (meta or "add")
 
@@ -1521,12 +1528,25 @@ def detect_ledger_not_materialized(probe: dict, _messages, tool_uses: list[dict]
         path_re = re.compile(_LEDGER_MAINT_PATH_DEFAULT)
     for tu in (tool_uses or []):
         name = tu.get("name", "")
-        if name in _LEDGER_MAINT_TOOLS:
-            return None  # native-task mirror is being maintained
         if name in _LEDGER_MAINT_EDIT_TOOLS:
             fp = str((tu.get("input") or {}).get("file_path", ""))
             if path_re.search(fp):
                 return None  # the visible markdown ledger is being maintained
+    task_ids = set()
+    for tu in (tool_uses or []):
+        if tu.get("name", "") not in _LEDGER_MAINT_TOOLS:
+            continue
+        metadata = (tu.get("input") or {}).get("metadata")
+        ledger_id = metadata.get("ledger_id") if isinstance(metadata, dict) else None
+        if isinstance(ledger_id, str) and ledger_id:
+            task_ids.add(ledger_id)
+    for req in traj_stats.get("open_ledger_requirements", []):
+        base = str(req.get("id", ""))
+        count = max(1, min(8, _as_int(req.get("atomic_count"), 1)))
+        expected = ({base} if count == 1 else
+                    {f"{base}-{chr(ord('a') + i)}" for i in range(count)})
+        if base and expected <= task_ids:
+            return None  # matching native-task mirror group is being maintained
     return {"open_count": open_ct}
 
 
@@ -1539,6 +1559,122 @@ DETECTORS["ledger_not_materialized"] = detect_ledger_not_materialized
 # don't control; justify it". A NUDGE (warn): the probe can't know whether a
 # reason was stated, only that the manifest moved.
 _PATH_TOUCH_EDIT_TOOLS_DEFAULT = ("Edit", "Write", "NotebookEdit")
+_BASH_WRITE_TARGET_RE = re.compile(
+    r"(?:>{1,2}|(?:^|[|;&])\s*tee(?:\s+-a)?)\s*[\"']?([^\s\"';&|]+)"
+)
+_SHELL_BREAK = re.compile(r"^[;&|\n]+$")
+_SHELL_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=.*$", re.S)
+_GLOBAL_OPTION_VALUES = {
+    "npm": {"--prefix", "--registry", "--cache", "--userconfig",
+            "--globalconfig", "--workspace", "-w", "--loglevel"},
+    "poetry": {"--directory", "-C", "--project", "-P"},
+}
+
+
+def _shell_command_segments(command: str) -> list[list[str]]:
+    """Tokenize shell commands without executing them; malformed input is inert."""
+    try:
+        lexer = shlex.shlex(command, posix=True, punctuation_chars=";&|\n")
+        lexer.whitespace_split = True
+        lexer.commenters = "#"
+        lexer.whitespace = " \t\r"  # keep newline as a command separator token
+        tokens = list(lexer)
+    except (TypeError, ValueError):
+        return []
+    segments: list[list[str]] = []
+    current: list[str] = []
+    for token in tokens:
+        if _SHELL_BREAK.match(token):
+            if current:
+                segments.append(current)
+                current = []
+        else:
+            current.append(token)
+    if current:
+        segments.append(current)
+    return segments
+
+
+def _unwrap_shell_command(tokens: list[str]) -> list[str]:
+    """Remove assignment/env/sudo wrappers and return executable-first tokens."""
+    i = 0
+    while i < len(tokens):
+        while i < len(tokens) and _SHELL_ASSIGNMENT.match(tokens[i]):
+            i += 1
+        if i >= len(tokens):
+            return []
+        executable = os.path.basename(tokens[i]).lower()
+        if executable == "env":
+            i += 1
+            while i < len(tokens):
+                token = tokens[i]
+                if _SHELL_ASSIGNMENT.match(token) or token in ("-i", "--ignore-environment"):
+                    i += 1
+                elif token in ("-u", "--unset", "--chdir"):
+                    i += 2
+                elif token.startswith(("--unset=", "--chdir=")):
+                    i += 1
+                else:
+                    break
+            continue
+        if executable == "sudo":
+            i += 1
+            while i < len(tokens) and tokens[i].startswith("-"):
+                option = tokens[i]
+                i += 2 if option in ("-u", "-g", "--user", "--group") else 1
+            continue
+        return tokens[i:]
+    return []
+
+
+def _global_subcommand(tokens: list[str], manager: str) -> str:
+    i = 1
+    takes_value = _GLOBAL_OPTION_VALUES[manager]
+    while i < len(tokens):
+        token = tokens[i]
+        if token == "--":
+            i += 1
+            break
+        if token in takes_value:
+            i += 2
+            continue
+        if token.startswith("-"):
+            i += 1
+            continue
+        return token.lower()
+    return tokens[i].lower() if i < len(tokens) else ""
+
+
+def _true_cli_flag(tokens: list[str], name: str) -> bool:
+    state = None
+    for token in tokens:
+        if token == name:
+            state = True
+        elif token.startswith(name + "="):
+            value = token.split("=", 1)[1].strip().lower()
+            state = value not in ("false", "0", "no", "off")
+    return state is True
+
+
+def _bash_manifest_mutation_targets(command: str) -> list[str]:
+    targets: list[str] = []
+    for segment in _shell_command_segments(command):
+        tokens = _unwrap_shell_command(segment)
+        if not tokens:
+            continue
+        manager = os.path.basename(tokens[0]).lower()
+        if manager.endswith(".cmd"):
+            manager = manager[:-4]
+        if manager not in _GLOBAL_OPTION_VALUES:
+            continue
+        subcommand = _global_subcommand(tokens, manager)
+        dry_run = _true_cli_flag(tokens, "--dry-run")
+        if manager == "npm" and subcommand in ("install", "i", "add"):
+            if not dry_run and not _true_cli_flag(tokens, "--no-save"):
+                targets.extend(("package.json", "package-lock.json"))
+        elif manager == "poetry" and subcommand == "add" and not dry_run:
+            targets.extend(("pyproject.toml", "poetry.lock"))
+    return targets
 
 
 def detect_tool_path_touch(probe: dict, _messages, tool_uses: list[dict], _tool_errors=None,
@@ -1566,8 +1702,18 @@ def detect_tool_path_touch(probe: dict, _messages, tool_uses: list[dict], _tool_
     min_count = max(1, _as_int(probe.get("min_count"), 1))
     hits = []
     for tu in (tool_uses or []):
-        if tu.get("name", "") in tools:
-            fp = str((tu.get("input") or {}).get("file_path", ""))
+        name = tu.get("name", "")
+        if name not in tools:
+            continue
+        inp = tu.get("input") or {}
+        if name == "Bash":
+            command = str(inp.get("command", ""))
+            hits.extend(target for target in _BASH_WRITE_TARGET_RE.findall(command)
+                        if rx.search(target))
+            hits.extend(target for target in _bash_manifest_mutation_targets(command)
+                        if rx.search(target))
+        else:
+            fp = str(inp.get("file_path", ""))
             if fp and rx.search(fp):
                 hits.append(fp)
     if len(hits) >= min_count:
@@ -1788,7 +1934,9 @@ def main() -> int:
             state.get("request_ledger", []), prompt_text_user, turn)
         state["request_ledger"] = ledger
         if ledger_action == "add":
-            state["substantive_add_count"] = _as_int(state.get("substantive_add_count"), 0) + 1
+            added_atomic = _as_int(ledger[-1].get("atomic_count"), 1) if ledger else 1
+            state["substantive_add_count"] = (
+                _as_int(state.get("substantive_add_count"), 0) + max(1, added_atomic))
         substantive_add_count = _as_int(state.get("substantive_add_count"), 0)
         correction_ledger = state.get("correction_ledger", [])
         # Persist counter + ledger early — if any later step errors, we still progress
@@ -1905,9 +2053,18 @@ def main() -> int:
             # open_ledger_count counts only items from PRIOR turns (this turn's
             # fresh adds aren't a "drop" yet) and excludes parked/deferred items.
             traj["turn"] = turn
+            prior_open = [
+                it for it in ledger if isinstance(it, dict) and not it.get("deferred")
+                and _as_int(it.get("turn"), turn) < turn
+            ]
             traj["open_ledger_count"] = sum(
-                1 for it in ledger
-                if not it.get("deferred") and _as_int(it.get("turn"), turn) < turn)
+                max(1, _as_int(it.get("atomic_count"), 1)) for it in prior_open
+            )
+            traj["open_ledger_requirements"] = [
+                {"id": it.get("id", ""),
+                 "atomic_count": max(1, _as_int(it.get("atomic_count"), 1))}
+                for it in prior_open
+            ]
             traj["substantive_add_count"] = substantive_add_count
             try:
                 with probe_time_limit(PROBE_TIMEOUT_SECONDS):

@@ -294,6 +294,26 @@ def test_extract_scope_reads_only_frontmatter() -> None:
     assert extract_scope("plain text, no scope at all") is None
 
 
+def test_skill_gate_examples_include_mandatory_scope() -> None:
+    """Documented gate commands must be executable under the current CLI
+    contract; omitting --scope makes even positive examples reject."""
+    skill = (Path(__file__).resolve().parent.parent / "SKILL.md").read_text(encoding="utf-8")
+    commands = [line.strip() for line in skill.splitlines()
+                if "write_gate.py gate " in line and not line.lstrip().startswith("#")]
+    assert commands, "expected documented write_gate.py gate examples"
+    missing = [line for line in commands if "--scope " not in line]
+    assert not missing, f"gate examples missing mandatory --scope: {missing}"
+
+
+def test_skill_protocol_scope_enum_matches_runtime() -> None:
+    skill = (Path(__file__).resolve().parent.parent / "SKILL.md").read_text(encoding="utf-8")
+    protocol = skill.split("## Protocol", 1)[1].split("## Anti-patterns", 1)[0]
+    classification_rule = protocol.split("2. **PASS/FAIL", 1)[0]
+    missing = [scope for scope in sorted(SCOPE_VALUES)
+               if f"`{scope}`" not in classification_rule]
+    assert not missing, f"Protocol SCOPE enum omits runtime values: {missing}"
+
+
 # --- Attack replays: HIGH+MED holes at write_gate.py:292,296,299,417,444 --------
 
 def test_attack_body_only_scope_no_frontmatter_rejected() -> None:
@@ -410,6 +430,8 @@ def main() -> int:
         test_classified_candidate_accepted,
         test_this_repo_scope_accepted,
         test_extract_scope_reads_only_frontmatter,
+        test_skill_gate_examples_include_mandatory_scope,
+        test_skill_protocol_scope_enum_matches_runtime,
         test_attack_body_only_scope_no_frontmatter_rejected,
         test_attack_malformed_unclosed_frontmatter_scope_rejected,
         test_attack_frontmatter_kind_decision_no_why_default_fact_rejected,

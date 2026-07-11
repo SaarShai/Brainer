@@ -82,6 +82,8 @@ def _diff_args(diff_spec: str) -> list[str]:
 # symbol name. Methods (indented def) and classes are all caught here.
 _DEF_RE = re.compile(r"^([+\- ])\s*(?:async\s+)?(def|class)\s+([A-Za-z_]\w*)")
 _FILE_RE = re.compile(r"^\+\+\+ b/(.+)$")
+_HUNK_RE = re.compile(r"^@@.*?@@(?:\s+(.*))?$")
+_HUNK_DEF_RE = re.compile(r"^(\s*)(?:async\s+)?(def|class)\s+([A-Za-z_]\w*)")
 
 
 def extract_changed_symbols(repo: str, diff_spec: str) -> list[dict[str, Any]]:
@@ -101,14 +103,23 @@ def extract_changed_symbols(repo: str, diff_spec: str) -> list[dict[str, Any]]:
     found: dict[tuple[str, str], dict[str, Any]] = {}  # (file, name) -> row
     enclosing: str | None = None
     enclosing_kind: str | None = None
+    enclosing_indent: int | None = None
     body_touched: set[tuple[str, str]] = set()
+    unresolved_files: set[str] = set()
 
     for line in raw.splitlines():
+        if line.startswith("diff --git "):
+            cur_file = None
+            enclosing = None
+            enclosing_kind = None
+            enclosing_indent = None
+            continue
         fm = _FILE_RE.match(line)
         if fm:
             cur_file = fm.group(1)
             enclosing = None
             enclosing_kind = None
+            enclosing_indent = None
             continue
         if cur_file is None or not cur_file.endswith(".py"):
             continue
@@ -116,11 +127,20 @@ def extract_changed_symbols(repo: str, diff_spec: str) -> list[dict[str, Any]]:
             # new hunk: enclosing context resets (we don't trust cross-hunk nesting)
             enclosing = None
             enclosing_kind = None
+            enclosing_indent = None
+            hm = _HUNK_RE.match(line)
+            context = hm.group(1) if hm else None
+            cm = _HUNK_DEF_RE.match(context or "")
+            if cm:
+                enclosing_indent = len(cm.group(1))
+                enclosing_kind, enclosing = cm.group(2), cm.group(3)
             continue
         m = _DEF_RE.match(line)
         if m:
             sign, kind, name = m.group(1), m.group(2), m.group(3)
             enclosing, enclosing_kind = name, kind
+            code = line[1:]
+            enclosing_indent = len(code) - len(code.lstrip())
             key = (cur_file, name)
             if sign == "+":
                 cur = found.get(key)
@@ -139,9 +159,28 @@ def extract_changed_symbols(repo: str, diff_spec: str) -> list[dict[str, Any]]:
             else:  # context line that is itself a def/class header (unchanged)
                 enclosing, enclosing_kind = name, kind
             continue
+        if line.startswith(" ") and enclosing is not None:
+            code = line[1:]
+            indent = len(code) - len(code.lstrip())
+            if code.strip() and enclosing_indent is not None and indent <= enclosing_indent:
+                enclosing = None
+                enclosing_kind = None
+                enclosing_indent = None
         # a changed body line (added/removed, not a header) -> mark enclosing modified
-        if line and line[0] in "+-" and enclosing is not None:
-            body_touched.add((cur_file, enclosing))
+        if line and line[0] in "+-":
+            code = line[1:]
+            if not code.strip():
+                continue
+            indent = len(code) - len(code.lstrip())
+            if (enclosing is not None and enclosing_indent is not None
+                    and indent > enclosing_indent):
+                body_touched.add((cur_file, enclosing))
+            else:
+                unresolved_files.add(cur_file)
+                if enclosing_indent is not None and indent <= enclosing_indent:
+                    enclosing = None
+                    enclosing_kind = None
+                    enclosing_indent = None
 
     # promote body-touched enclosing symbols to "modified" if not already a row
     for (f, name) in body_touched:
@@ -151,6 +190,13 @@ def extract_changed_symbols(repo: str, diff_spec: str) -> list[dict[str, Any]]:
             kind = "class" if name[:1].isupper() and "_" not in name else "function"
             found[key] = {"symbol": name, "kind": kind, "file": f,
                           "change": "modified"}
+
+    for f in unresolved_files:
+        key = (f, "<unresolved>")
+        found.setdefault(key, {
+            "symbol": "<unresolved>", "kind": "unknown", "file": f,
+            "change": "modified", "resolved": False,
+        })
 
     # normalize kind label: graphify uses function/method/class; def -> function
     rows = []
@@ -209,16 +255,39 @@ def is_stale(graph_file: Path, repo: str) -> bool:
     return head_ts > graph_ts
 
 
-def build_indexes(graph: dict[str, Any]) -> dict[str, Any]:
+def _normalise_source_file(value: Any, repo: str | None = None) -> str:
+    """Return the repo-relative spelling used to join graph nodes to diffs."""
+    if not isinstance(value, str) or not value.strip():
+        return ""
+    path = Path(value.strip())
+    if path.is_absolute() and repo:
+        try:
+            path = path.resolve().relative_to(Path(repo).resolve())
+        except (OSError, ValueError):
+            return path.as_posix()
+    normalised = path.as_posix()
+    while normalised.startswith("./"):
+        normalised = normalised[2:]
+    return normalised
+
+
+def build_indexes(graph: dict[str, Any], repo: str | None = None) -> dict[str, Any]:
     nodes_by_id = {n["id"]: n for n in graph["nodes"] if "id" in n}
-    # symbol name -> set of node ids (one name may resolve to multiple nodes)
+    # Bare-name lookup is retained for diagnostics only. Analysis resolves a
+    # changed symbol by (source_file, symbol): `a.py::helper` must never borrow
+    # `b.py::helper`'s callers. Multiple exact matches are ambiguous rather than
+    # silently unioned (common for duplicate method names in one file).
     name_to_ids: dict[str, set[str]] = {}
+    file_name_to_ids: dict[tuple[str, str], set[str]] = {}
     for n in graph["nodes"]:
         if n.get("file_type") and n["file_type"] != "code":
             continue
         sym = _node_symbol(n.get("label", ""))
         if sym:
             name_to_ids.setdefault(sym, set()).add(n["id"])
+            source_file = _normalise_source_file(n.get("source_file"), repo)
+            if source_file:
+                file_name_to_ids.setdefault((source_file, sym), set()).add(n["id"])
     # inbound dependency adjacency: target_id -> [(source_id, relation), ...]
     # Reversed CALLS = callers; reversed INHERITS = subclasses of the target.
     inbound: dict[str, list[tuple[str, str]]] = {}
@@ -227,7 +296,7 @@ def build_indexes(graph: dict[str, Any]) -> dict[str, Any]:
         if rel in DEP_RELATIONS:
             inbound.setdefault(link["target"], []).append((link["source"], rel))
     return {"nodes_by_id": nodes_by_id, "name_to_ids": name_to_ids,
-            "inbound": inbound}
+            "file_name_to_ids": file_name_to_ids, "inbound": inbound}
 
 
 def callers_of(node_id: str, idx: dict[str, Any], depth: int) -> list[dict[str, Any]]:
@@ -382,6 +451,13 @@ def analyze(repo: str, diff_spec: str = "working", depth: int = DEFAULT_DEPTH,
     repo = str(Path(repo).resolve())
     changed = extract_changed_symbols(repo, diff_spec)
     warnings: list[str] = []
+    unresolved = [row for row in changed if not row.get("resolved", True)]
+    if unresolved:
+        files = ", ".join(sorted({row["file"] for row in unresolved}))
+        warnings.append(
+            f"ATTRIBUTION: changed Python body could not be attributed to a "
+            f"def/class ({files}) — scored UNKNOWN, not LOW."
+        )
     gpath = graph_path_for(repo, graph)
 
     use_graph = gpath.exists()
@@ -396,15 +472,23 @@ def analyze(repo: str, diff_spec: str = "working", depth: int = DEFAULT_DEPTH,
         mode = "graph"
         try:
             g = load_graph(gpath)
-            idx = build_indexes(g)
+            idx = build_indexes(g, repo=repo)
         except Exception as exc:  # malformed graph -> degrade, never crash
             warnings.append(f"graph load failed ({exc}); falling back to grep.")
             use_graph = False
         if use_graph:
             uncovered: list[str] = []
             for row in changed:
-                ids = idx["name_to_ids"].get(row["symbol"], set())
-                in_graph = bool(ids)
+                if not row.get("resolved", True):
+                    why = ("changed Python body could not be attributed to a function "
+                           "or class; blast radius is unknown until the diff is inspected")
+                    affected.append(_affected_row(
+                        row, [], "UNKNOWN", why, covered=False))
+                    continue
+                key = (_normalise_source_file(row["file"], repo), row["symbol"])
+                exact_ids = idx["file_name_to_ids"].get(key, set())
+                in_graph = len(exact_ids) == 1
+                ids = exact_ids if in_graph else set()
                 callers: list[dict[str, Any]] = []
                 seen_pairs = set()
                 for nid in ids:
@@ -414,17 +498,20 @@ def analyze(repo: str, diff_spec: str = "working", depth: int = DEFAULT_DEPTH,
                             seen_pairs.add(k)
                             callers.append(c)
                 risk, why = classify_risk(callers, in_graph=in_graph)
+                if len(exact_ids) > 1:
+                    why = (f"ambiguous graph match: {len(exact_ids)} nodes for "
+                           f"{row['file']}::{row['symbol']} — risk is UNVERIFIED")
                 affected.append(_affected_row(row, callers, risk, why, covered=in_graph))
                 if not in_graph:
-                    uncovered.append(row["symbol"])
+                    uncovered.append(f"{row['file']}::{row['symbol']}")
             if uncovered:
                 uniq = sorted(set(uncovered))
                 shown = ", ".join(uniq[:8]) + ("…" if len(uniq) > 8 else "")
                 warnings.append(
-                    f"COVERAGE: {len(uniq)} changed symbol(s) absent from the graph "
-                    f"({shown}) — scored UNKNOWN, not LOW. The graph does not span the "
-                    "diff; run `graphify update .` (or extract over the changed files) "
-                    "and re-run for a real blast radius."
+                    f"COVERAGE: {len(uniq)} changed symbol(s) unresolved by exact "
+                    f"file+symbol identity ({shown}) — absent or ambiguous matches are "
+                    "scored UNKNOWN, not LOW. Refresh the graph and re-run for a real "
+                    "blast radius."
                 )
 
     if not use_graph:
@@ -434,6 +521,12 @@ def analyze(repo: str, diff_spec: str = "working", depth: int = DEFAULT_DEPTH,
             "Run `graphify extract . --backend ollama` for precision."
         )
         for row in changed:
+            if not row.get("resolved", True):
+                why = ("changed Python body could not be attributed to a function "
+                       "or class; blast radius is unknown until the diff is inspected")
+                affected.append(_affected_row(
+                    row, [], "UNKNOWN", why, covered=False))
+                continue
             callers = grep_callers(repo, row["symbol"], row["file"])
             # degraded risk: lexical breadth only (no entry/depth signal)
             risk, why = _degraded_risk(callers)
@@ -502,10 +595,21 @@ def _recommendations(affected, mode) -> list[str]:
             f"{', '.join(a['files'][:3]) or 'its callers'}."
         )
     for a in [x for x in affected if x["risk"] == "UNKNOWN"]:
-        recs.append(
-            f"UNKNOWN `{a['symbol']}`: absent from the graph (coverage gap) — re-extract "
-            "(`graphify update .`) and re-run; do NOT treat as low-risk."
-        )
+        if a["symbol"] == "<unresolved>":
+            recs.append(
+                f"UNKNOWN `{a['source_file']}` change: inspect the diff and identify "
+                "the enclosing symbol before choosing verification scope."
+            )
+        elif "ambiguous" in a["risk_reason"].lower():
+            recs.append(
+                f"UNKNOWN `{a['source_file']}::{a['symbol']}`: ambiguous graph identity — "
+                "inspect duplicate nodes or refresh the graph before choosing test scope."
+            )
+        else:
+            recs.append(
+                f"UNKNOWN `{a['symbol']}`: absent from the graph (coverage gap) — re-extract "
+                "(`graphify update .`) and re-run; do NOT treat as low-risk."
+            )
     if mode == "degraded":
         recs.append(
             "Build the graph (`graphify extract . --backend ollama`) and re-run "

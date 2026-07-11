@@ -60,6 +60,31 @@ def test_clean_spec_passes():
     assert _exit_for(CLEAN) == 0
 
 
+def test_multidocument_yaml_parses_each_document():
+    second = CLEAN.replace("name: refactor-loop", "name: docs-loop")
+    stream = CLEAN + "---\n" + second
+    specs = loop_lint.parse_specs(stream, "spec.yaml")
+    assert len(specs) == 2, [(s.name, s.fields) for s in specs]
+    assert [s.name for s in specs] == ["refactor-loop", "docs-loop"], specs
+    report = loop_lint.lint(stream, "spec.yaml")
+    assert report.n_specs == 2, report.n_specs
+    assert report.findings == [], [(f.rule, f.severity) for f in report.findings]
+
+
+def test_indented_yaml_dashes_do_not_split_documents():
+    second = CLEAN.replace("name: refactor-loop", "name: embedded-example")
+    stream = CLEAN + "  ---\n" + second
+    specs = loop_lint.parse_specs(stream, "spec.yaml")
+    assert len(specs) == 1, [(s.name, s.start_line) for s in specs]
+
+
+def test_yaml_dashes_need_space_before_comment():
+    second = CLEAN.replace("name: refactor-loop", "name: embedded-example")
+    stream = CLEAN + "---# not a document marker\n" + second
+    specs = loop_lint.parse_specs(stream, "spec.yaml")
+    assert len(specs) == 1, [(s.name, s.start_line) for s in specs]
+
+
 def test_prose_self_grading_r3_fail():
     """ADVERSARIAL (2026-06-27 PROMPTER opt run): a verifier that ADMITS self-
     grading in prose ('the same agent then grades its own patch') slipped R3 —

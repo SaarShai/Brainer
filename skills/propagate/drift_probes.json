@@ -3,7 +3,7 @@
     "id": "propagate-intent",
     "kind": "prompt_intent",
     "pattern": "(?i)(?:\\b(?:propagat\\w+|sync\\w*|push(?:ing|ed)?|roll(?:ing)?(?:\\s+\\w+){0,4}\\s+out|fast[- ]?forward\\w*|ship\\w*)\\b[^.?!\\n]{0,50}\\b(?:sibling|consumer|other|downstream|vendored?)\\s+(?:repos?|projects?)\\b|\\b(?:propagat\\w+|sync\\w*)\\b[^.?!\\n]{0,60}\\b(?:everywhere|vendored)\\b|\\bsibling\\s+(?:sync|repos?\\b[^.?!\\n]{0,20}\\b(?:sync\\w*|updat\\w+))|\\b(?:propagat\\w+|sync\\w*|roll\\w*|push\\w*|updat\\w+)\\b[^.?!\\n]{0,40}\\b(?:screenery|prompter|farey|product[- ]images)\\b|\\b(?:screenery|prompter|farey|product[- ]images)\\b[^.?!\\n]{0,50}\\b(?:should\\s+get|pick\\s+up|receive|needs?\\s+the)\\b|\\b(?:consumer|sibling|downstream)\\s+(?:repos?|projects?)\\b[^.?!\\n]{0,40}\\b(?:pick\\s+up|get|receive|updat\\w+|sync\\w*)\\b)",
-    "message": "this prompt asks to propagate Brainer changes to sibling repos — apply the propagate skill: commit canonical FIRST, then per sibling (sequentially, never parallel): --classify -> --apply-stale --apply-absent -> sibling install.sh -> --repo verify -> --post-check + adjacent vendored tests. Never overwrite CUSTOMIZED files; flag them for manual merge.",
+    "message": "this prompt asks to propagate Brainer changes to sibling repos — apply the propagate skill: commit canonical FIRST, then per sibling (sequentially, never parallel): --classify -> --apply-stale --apply-absent --adopt-new-skills --adopt-agents -> sibling install.sh -> --repo verify -> --post-check + adjacent vendored tests. Never overwrite CUSTOMIZED files; flag them for manual merge.",
     "severity": "warn"
   },
   {

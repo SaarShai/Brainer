@@ -75,12 +75,41 @@ def test_lint_pass():
         f = Path(t) / "SKILL.md"
         f.write_text(
             "---\nname: x\ndescription: short desc\nstatus: proposed\n---\n"
-            "## When to Use\na\n## Procedure\nb\n## Verification\nc\n",
+            "## When to Use\na\n## Procedure\nb\n## Pitfalls\nc\n## Verification\nd\n",
             encoding="utf-8")
         code, out = _run(["lint", "--file", str(f)])
         assert code == 0, out
         assert "PASS" in out
     print("ok test_lint_pass")
+
+
+def test_lint_fails_without_pitfalls():
+    with tempfile.TemporaryDirectory() as t:
+        f = Path(t) / "SKILL.md"
+        f.write_text(
+            "---\nname: x\ndescription: short desc\nstatus: proposed\n---\n"
+            "## When to Use\na\n## Procedure\nb\n## Verification\nc\n",
+            encoding="utf-8")
+        code, out = _run(["lint", "--file", str(f)])
+        assert code == 1, out
+        assert "missing required section: Pitfalls" in out, out
+    print("ok test_lint_fails_without_pitfalls")
+
+
+def test_lint_rejects_pitfalls_heading_inside_fence():
+    for opener, closer in (("```markdown", "```"), ("~~~markdown", "~~~")):
+        with tempfile.TemporaryDirectory() as t:
+            f = Path(t) / "SKILL.md"
+            f.write_text(
+                "---\nname: x\ndescription: short desc\nstatus: proposed\n---\n"
+                "## When to Use\na\n## Procedure\nb\n"
+                f"{opener}\n## Pitfalls\nnot a real section\n{closer}\n"
+                "## Verification\nd\n",
+                encoding="utf-8")
+            code, out = _run(["lint", "--file", str(f)])
+            assert code == 1, out
+            assert "missing required section: Pitfalls" in out, out
+    print("ok test_lint_rejects_pitfalls_heading_inside_fence")
 
 
 def test_lint_fail_missing_section_and_key():
@@ -103,7 +132,7 @@ def test_lint_warn_long_desc():
         long_desc = "x" * 80
         f.write_text(
             f"---\nname: x\ndescription: {long_desc}\nstatus: proposed\n---\n"
-            "## When to Use\na\n## Procedure\nb\n## Verification\nc\n",
+            "## When to Use\na\n## Procedure\nb\n## Pitfalls\nc\n## Verification\nd\n",
             encoding="utf-8")
         code, out = _run(["lint", "--file", str(f)])
         assert code == 0, out  # advisory only

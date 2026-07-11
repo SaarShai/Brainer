@@ -182,23 +182,25 @@ tools/
 ├── security_scan.py        # git diff added-lines → 4-class triage → severity → routing
 ├── test_security_scan.py   # standalone S1–S14 probes (assert + exit 1), temp-git fixture
 ├── skill_audit.py          # walk an untrusted skill folder/repo → PASS/WARN/FAIL (pre-install)
-└── test_skill_audit.py     # standalone A1–A17 probes (malicious + benign-precision + dogfood)
+└── test_skill_audit.py     # standalone A1–A18 probes (malicious + benign-precision + dogfood)
 ```
 
 ## Tests
 
 ```bash
 python3 skills/security-oversight/tools/test_security_scan.py   # diff scanner (S1–S14)
-python3 skills/security-oversight/tools/test_skill_audit.py     # skill auditor (A1–A17)
+python3 skills/security-oversight/tools/test_skill_audit.py     # skill auditor (A1–A18)
 ```
 
-`test_skill_audit.py` covers **A1–A17**: malicious detection (SKILL.md prompt-
+`test_skill_audit.py` covers **A1–A18**: malicious detection (SKILL.md prompt-
 injection, code-exec, exfil combo, obfuscation, symlink-escape, typosquat, hidden
 HTML-comment, secret file, binary), **precision** (a realistic benign skill and
 injection-resembling prose must PASS — a noisy gate gets ignored), robustness
 (missing dir → ERROR never raises, JSON shape, caveat always present, `noqa`,
-`--strict`), and a **dogfood** self-clean check. Real-world: 23/24 Brainer skills
-PASS on their own audit (the one WARN is this skill's own test fixtures).
+`--strict`), and a **dogfood** assertion that audits this skill's own directory:
+the overall result may WARN on deliberate attack fixtures, but any CRITICAL/HIGH
+finding outside `test_*.py` fails the suite. No repo-wide self-PASS ratio is
+claimed here because the skill inventory and fixture corpus change over time.
 
 Covers (S1–S14): **S1** secret (AWS key/credential → HIGH), **S2** injection
 (`eval(input)`=HIGH, clean=none), **S3** supply_chain (manifest → MEDIUM), **S4**
@@ -229,7 +231,7 @@ sink (`curl|sh` inside a string, `bash -c` argv — the raw-scan path).
 ## Status
 
 **Opt-in / unmeasured.** Plumbing self-tested offline (`test_security_scan.py`,
-no network, 10/10). Per catalog policy it earns trust on real diffs before any
+no network, S1–S14). Per catalog policy it earns trust on real diffs before any
 default promotion — target: catching introduced secrets/sinks/untrusted-deps and
 correctly escalating business-logic authz to a human, at a false-positive rate low
 enough not to be ignored. **Promotion-time follow-up: done** — `drift_probes.json`

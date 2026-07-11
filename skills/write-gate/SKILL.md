@@ -69,20 +69,20 @@ Source for the formula: [ogham-mcp/ogham-mcp](https://github.com/ogham-mcp/ogham
 
 ```bash
 # score a piece of text from stdin or a file
-python skills/write-gate/tools/write_gate.py score --kind fact < candidate.md
-python skills/write-gate/tools/write_gate.py score --kind decision --text "We chose pgvector over Qdrant because dev parity"
+python3 skills/write-gate/tools/write_gate.py score --kind fact < candidate.md
+python3 skills/write-gate/tools/write_gate.py score --kind decision --text "We chose pgvector over Qdrant because dev parity"
 
 # explain why something was rejected
-python skills/write-gate/tools/write_gate.py explain --text "Basically we did some stuff with the database."
+python3 skills/write-gate/tools/write_gate.py explain --text "Basically we did some stuff with the database."
 
 # integrate as a precheck in another script
-python skills/write-gate/tools/write_gate.py gate --kind decision --file ./candidate.md && echo "write it" || echo "rejected"
+python3 skills/write-gate/tools/write_gate.py gate --kind decision --scope this-skill --file ./candidate.md && echo "write it" || echo "rejected"
 
 # a vouched-for atomic fact bypasses the signal floor (--trust, else read from frontmatter)
-python skills/write-gate/tools/write_gate.py gate --kind fact --trust verified --text "The PROMPTER folder is also called alfred."
+python3 skills/write-gate/tools/write_gate.py gate --kind fact --scope cross-repo --trust verified --text "The PROMPTER folder is also called alfred."
 
 # SCOPE is mandatory (LEARNING_CONTRACT §1) — missing/invalid --scope rejects outright
-python skills/write-gate/tools/write_gate.py gate --kind fact --scope this-skill --file ./candidate.md
+python3 skills/write-gate/tools/write_gate.py gate --kind fact --scope this-skill --file ./candidate.md
 ```
 
 Exit codes:
@@ -94,7 +94,7 @@ Exit codes:
 
 Before persistent write:
 
-1. **Classify SCOPE first — unclassified = unbanked.** Every candidate gets one of `this-skill` / `cross-skill` / `cross-repo` / `canon` (`scope:` frontmatter or `--scope`) before it can pass; the gate mechanically rejects a missing/invalid scope regardless of signal score. A `cross-skill` or `canon` lesson never lands in a single skill's own notes — it goes to [`LEARNING_CONTRACT.md` §1](../_shared/LEARNING_CONTRACT.md#1-scope-classification-is-mandatory-at-banking-time) (or `ORCHESTRATION.md` if orchestration-shaped), with a pointer left in the skill — §1 has the full table.
+1. **Classify SCOPE first — unclassified = unbanked.** Every candidate gets one of `this-skill` / `this-repo` / `cross-skill` / `cross-repo` / `canon` (`scope:` frontmatter or `--scope`) before it can pass; the gate mechanically rejects a missing/invalid scope regardless of signal score. A `cross-skill` or `canon` lesson never lands in a single skill's own notes — it goes to [`LEARNING_CONTRACT.md` §1](../_shared/LEARNING_CONTRACT.md#1-scope-classification-is-mandatory-at-banking-time) (or `ORCHESTRATION.md` if orchestration-shaped), with a pointer left in the skill — §1 has the full table.
 2. **PASS/FAIL lessons need a mechanism, not just a page.** If the candidate is expressible as a PASS/FAIL check, it must land as an executable check (test/probe/lint/gate) or the write must say explicitly why no invariant exists yet. See [LEARNING_CONTRACT §3](../_shared/LEARNING_CONTRACT.md#3-mechanism-over-prose).
 3. **Repo canon beats private memory.** If another host (Codex, Gemini, a future session) needs this to act correctly, it belongs in the repo, not only in a private memory dir. See [LEARNING_CONTRACT §7](../_shared/LEARNING_CONTRACT.md#7-repo-canon-over-private-memory).
 4. Run `write_gate.py gate --kind <kind> --scope <scope> --file <candidate>`.

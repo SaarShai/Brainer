@@ -39,6 +39,80 @@ def test_codex_function_call_maps_to_tool_use():
     print("ok test_codex_function_call_maps_to_tool_use")
 
 
+def test_codex_function_call_output_pairs_with_tool_use():
+    codex = [
+        {"type": "response_item", "timestamp": "t1", "payload": {
+            "type": "function_call", "name": "exec_command",
+            "arguments": '{"cmd":"pytest -q"}', "call_id": "call-7"}},
+        {"type": "response_item", "timestamp": "t2", "payload": {
+            "type": "function_call_output", "call_id": "call-7",
+            "output": "2 passed"}},
+    ]
+    norm = tn.normalize(codex)
+    assert len(norm) == 2, norm
+    tool_use = norm[0]["message"]["content"][0]
+    assert tool_use["id"] == "call-7", tool_use
+    assert norm[1]["type"] == "user", norm[1]
+    tool_result = norm[1]["message"]["content"][0]
+    assert tool_result == {
+        "type": "tool_result",
+        "tool_use_id": "call-7",
+        "is_error": False,
+        "content": "2 passed",
+    }, tool_result
+    print("ok test_codex_function_call_output_pairs_with_tool_use")
+
+
+def test_codex_function_call_output_derives_failure_status():
+    cases = [
+        ("marker-fail", "Process exited with code 1", True),
+        ("nested-exit-fail", {"result": {"exit_code": 2}}, True),
+        ("nested-status-fail", {"result": {"status": "failed"}}, True),
+        ("marker-pass", "Process exited with code 0\n2 passed", False),
+        ("nested-pass", {"result": {"status": "completed", "exit_code": 0}}, False),
+        ("plain-pass", "2 passed", False),
+    ]
+    for call_id, output, expected in cases:
+        codex = [{"type": "response_item", "payload": {
+            "type": "function_call_output", "call_id": call_id,
+            "output": output}}]
+        result = tn.normalize(codex)[0]["message"]["content"][0]
+        assert result["is_error"] is expected, (call_id, result)
+    print("ok test_codex_function_call_output_derives_failure_status")
+
+
+def test_codex_function_results_pair_when_interleaved_and_reversed():
+    codex = [
+        {"type": "response_item", "payload": {
+            "type": "function_call", "name": "exec_command",
+            "arguments": '{"cmd":"pytest -q"}', "call_id": "call-ok"}},
+        {"type": "response_item", "payload": {
+            "type": "function_call_output", "call_id": "call-bad",
+            "output": "Process exited with code 1"}},
+        {"type": "response_item", "payload": {
+            "type": "function_call", "name": "exec_command",
+            "arguments": '{"cmd":"pytest broken.py"}', "call_id": "call-bad"}},
+        {"type": "response_item", "payload": {
+            "type": "function_call_output", "call_id": "call-ok",
+            "output": "2 passed"}},
+    ]
+    norm = tn.normalize(codex)
+    uses = {
+        block["id"]: block
+        for event in norm if event["type"] == "assistant"
+        for block in event["message"]["content"] if block["type"] == "tool_use"
+    }
+    results = {
+        block["tool_use_id"]: block
+        for event in norm if event["type"] == "user"
+        for block in event["message"]["content"] if block["type"] == "tool_result"
+    }
+    assert set(uses) == {"call-ok", "call-bad"}, uses
+    assert results["call-bad"]["is_error"] is True, results
+    assert results["call-ok"]["is_error"] is False, results
+    print("ok test_codex_function_results_pair_when_interleaved_and_reversed")
+
+
 def test_codex_shell_tool_maps_to_bash_with_command_key():
     codex = [{"type": "response_item", "payload": {
         "type": "function_call", "name": "exec_command",
@@ -129,10 +203,13 @@ if __name__ == "__main__":
     test_claude_passthrough()
     test_codex_detection()
     test_codex_function_call_maps_to_tool_use()
+    test_codex_function_call_output_pairs_with_tool_use()
+    test_codex_function_call_output_derives_failure_status()
+    test_codex_function_results_pair_when_interleaved_and_reversed()
     test_codex_shell_tool_maps_to_bash_with_command_key()
     test_codex_bad_arguments_dont_crash()
     test_codex_user_and_assistant_messages()
     test_codex_slash_skill_synthesizes_skill_tool_use()
     test_codex_skill_block_is_canonical_invocation()
     test_codex_non_slash_user_no_synthesis()
-    print("ALL 9 TESTS PASSED")
+    print("ALL 12 TESTS PASSED")

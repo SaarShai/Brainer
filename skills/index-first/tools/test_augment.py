@@ -8,6 +8,7 @@ emits additionalContext only on a real index hit; every other path is a clean
 no-op (exit 0, no stdout).
 
 Cases:
+  0. skill metadata opts out       -> auto-install: false
   1. valid token + index hit      -> additionalContext on stdout, exit 0
   2. Read tool                    -> no stdout, exit 0 (never gate Read)
   3. <4-char pattern              -> no stdout, exit 0
@@ -15,15 +16,18 @@ Cases:
   5. regex-only pattern           -> no stdout, exit 0
   6. index command fails          -> no stdout, exit 0
   7. slow query exceeds deadline  -> exit 0, no partial stdout
+  9. malformed deadline env       -> exit 0, no stdout (fail-open)
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 AUGMENT = os.path.join(HERE, "augment.py")
+SKILL_MD = os.path.join(os.path.dirname(HERE), "SKILL.md")
 
 
 def run(payload, env_extra=None, timeout=10):
@@ -63,6 +67,11 @@ def assert_context(rc, out, token, label):
 
 def main():
     assert os.path.exists(AUGMENT), f"augment.py not found at {AUGMENT}"
+
+    skill_text = open(SKILL_MD, encoding="utf-8").read()
+    assert re.search(r"(?m)^auto-install:\s*false\s*$", skill_text), (
+        "index-first is opt-in and must declare auto-install: false")
+    print("PASS metadata_auto_install_false")
 
     tmp = tempfile.mkdtemp()
 
@@ -166,6 +175,14 @@ def main():
         timeout=10,
     )
     assert_noop(p.returncode, p.stdout.decode("utf-8", "replace"), "malformed_stdin_noop")
+
+    # 9. malformed deadline configuration must fail open, not crash at import.
+    rc, out = run(
+        {"tool_name": "Grep", "tool_input": {"pattern": "handleRequest"}},
+        env_extra={"INDEX_FIRST_QUERY_CMD": ok_cmd,
+                   "INDEX_FIRST_DEADLINE_MS": "not-a-number"},
+    )
+    assert_noop(rc, out, "malformed_deadline_noop")
 
     print("\nALL augment tests passed")
 

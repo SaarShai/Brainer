@@ -167,8 +167,29 @@ def cmd_dedup(args) -> int:
 REQUIRED_SECTIONS = [
     ("When to Use", r"(?im)^#{1,3}\s+when to use\b"),
     ("Procedure", r"(?im)^#{1,3}\s+(procedure|steps)\b"),
+    ("Pitfalls", r"(?im)^#{1,3}\s+pitfalls\b"),
     ("Verification", r"(?im)^#{1,3}\s+verification\b"),
 ]
+
+
+def _without_fenced_blocks(text: str) -> str:
+    """Return prose outside Markdown backtick/tilde fences."""
+    out: list[str] = []
+    fence_char = ""
+    fence_len = 0
+    for line in text.splitlines():
+        if not fence_char:
+            match = re.match(r"^[ \t]*(`{3,}|~{3,})", line)
+            if match:
+                marker = match.group(1)
+                fence_char, fence_len = marker[0], len(marker)
+                continue
+            out.append(line)
+            continue
+        close = re.match(r"^[ \t]*([`~]{3,})[ \t]*$", line)
+        if close and close.group(1)[0] == fence_char and len(close.group(1)) >= fence_len:
+            fence_char, fence_len = "", 0
+    return "\n".join(out)
 
 
 def cmd_lint(args) -> int:
@@ -194,11 +215,10 @@ def cmd_lint(args) -> int:
     for key in ("name", "description", "status"):
         if not fm.get(key):
             errors.append(f"missing frontmatter key: {key}")
+    prose = _without_fenced_blocks(text)
     for label, pat in REQUIRED_SECTIONS:
-        if not re.search(pat, text):
+        if not re.search(pat, prose):
             errors.append(f"missing required section: {label}")
-    if not re.search(r"(?im)^#{1,3}\s+pitfalls\b", text):
-        warnings.append("no Pitfalls section (recommended)")
 
     desc = fm.get("description", "")
     if desc and len(desc) > 60:

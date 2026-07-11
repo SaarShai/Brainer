@@ -71,7 +71,7 @@ def test_healthy_reports_cost_per_accept():
 # --- S1 SAME-COMMAND ------------------------------------------------------
 
 def test_same_command_3x_stuck_s1():
-    trace = [{"command": "pytest -q", "metric": i, "accepted": True} for i in range(3)]
+    trace = [{"command": "pytest -q", "accepted": False} for _ in range(3)]
     assert _has(trace, "S1", "STUCK"), _codes(trace)
     assert _exit_for(trace) == 2
 
@@ -84,9 +84,26 @@ def test_same_command_2x_not_stuck_default():
 
 
 def test_same_command_window_tunable():
-    trace = [{"command": "x", "metric": 1, "accepted": True},
-             {"command": "x", "metric": 2, "accepted": True}]
+    trace = [{"command": "x", "accepted": False},
+             {"command": "x", "accepted": False}]
     assert _has(trace, "S1", "STUCK", cmd_window=2), _codes(trace, cmd_window=2)
+
+
+def test_same_command_progress_not_stuck_s1():
+    accepted = [{"command": "pytest -q", "accepted": False},
+                {"command": "pytest -q", "accepted": False},
+                {"command": "pytest -q", "accepted": True}]
+    rising = [{"command": "pytest -q", "metric": i, "accepted": False}
+              for i in range(3)]
+    assert not _has(accepted, "S1", "STUCK"), _codes(accepted)
+    assert not _has(rising, "S1", "STUCK"), _codes(rising)
+
+
+def test_same_command_uses_latest_stuck_window():
+    trace = [{"command": "pytest -q", "accepted": True}] + [
+        {"command": "pytest -q", "accepted": False} for _ in range(3)
+    ]
+    assert _has(trace, "S1", "STUCK"), _codes(trace)
 
 
 def test_empty_commands_dont_count_as_repeat_s1():
@@ -98,10 +115,26 @@ def test_empty_commands_dont_count_as_repeat_s1():
 # --- S2 REPEATED-ERROR ----------------------------------------------------
 
 def test_same_error_2x_stuck_s2():
-    trace = [{"command": "a", "error": "AssertionError: boom", "metric": 1, "accepted": True},
-             {"command": "b", "error": "AssertionError: boom", "metric": 2, "accepted": True}]
+    trace = [{"command": "a", "error": "AssertionError: boom", "accepted": False},
+             {"command": "b", "error": "AssertionError: boom", "accepted": False}]
     assert _has(trace, "S2", "STUCK"), _codes(trace)
     assert _exit_for(trace) == 2
+
+
+def test_same_error_progress_not_stuck_s2():
+    accepted = [{"command": "a", "error": "AssertionError: boom", "accepted": False},
+                {"command": "b", "error": "AssertionError: boom", "accepted": True}]
+    rising = [{"command": "a", "error": "AssertionError: boom", "metric": 1},
+              {"command": "b", "error": "AssertionError: boom", "metric": 2}]
+    assert not _has(accepted, "S2", "STUCK"), _codes(accepted)
+    assert not _has(rising, "S2", "STUCK"), _codes(rising)
+
+
+def test_same_error_uses_latest_stuck_window():
+    trace = [{"command": "a", "error": "boom", "accepted": True},
+             {"command": "b", "error": "boom", "accepted": False},
+             {"command": "c", "error": "boom", "accepted": False}]
+    assert _has(trace, "S2", "STUCK"), _codes(trace)
 
 
 def test_distinct_errors_not_stuck_s2():
@@ -119,10 +152,16 @@ def test_empty_errors_dont_count_s2():
 # --- S3 NO-PROGRESS -------------------------------------------------------
 
 def test_flat_metric_2x_stuck_s3():
-    trace = [{"command": "a", "metric": 5, "accepted": True},
-             {"command": "b", "metric": 5, "accepted": True}]
+    trace = [{"command": "a", "metric": 5, "accepted": False},
+             {"command": "b", "metric": 5, "accepted": False}]
     assert _has(trace, "S3", "STUCK"), _codes(trace)
     assert _exit_for(trace) == 2
+
+
+def test_flat_metric_with_accepted_change_not_stuck_s3():
+    trace = [{"command": "a", "metric": 5, "accepted": False},
+             {"command": "b", "metric": 5, "accepted": True}]
+    assert not _has(trace, "S3", "STUCK"), _codes(trace)
 
 
 def test_moving_metric_not_stuck_s3():
@@ -154,6 +193,13 @@ def test_cost_per_accept_value():
              {"command": "b", "metric": 2, "accepted": False, "cost": 100}]
     rep = m.monitor(json.dumps(trace), "t.json")
     assert rep.cost_per_accept == 400.0, rep.cost_per_accept  # 400 total / 1 accept
+
+
+def test_string_booleans_parse_without_truthiness_bug():
+    trace = [{"command": "a", "metric": 1, "accepted": "false"},
+             {"command": "b", "metric": 2, "accepted": "TRUE"}]
+    rep = m.monitor(json.dumps(trace), "t.json")
+    assert rep.n_accepted == 1, rep.n_accepted
 
 
 def test_cost_per_accept_falls_back_to_iterations():
@@ -200,7 +246,7 @@ def test_refetch_variant_loop_warns_s4():
 
 def test_identical_command_is_s1_not_s4():
     # All-identical commands are S1's job; S4 must not double-report.
-    trace = [{"command": "pytest -q", "metric": i} for i in range(3)]
+    trace = [{"command": "pytest -q"} for _ in range(3)]
     assert _has(trace, "S1", "STUCK"), _codes(trace)
     assert not _has(trace, "S4", "WARN"), _codes(trace)
 
@@ -208,6 +254,16 @@ def test_identical_command_is_s1_not_s4():
 def test_refetch_progress_guard_accepted():
     trace = [dict(REFETCH[0]), dict(REFETCH[1]), {**REFETCH[2], "accepted": True}]
     assert not _has(trace, "S4", "WARN"), _codes(trace)
+
+
+def test_refetch_uses_latest_stuck_window():
+    trace = [
+        {"command": "rg foo | head -10", "accepted": True},
+        {"command": "rg foo | head -20", "accepted": False},
+        {"command": "rg foo | head -30", "accepted": False},
+        {"command": "rg foo | head -40", "accepted": False},
+    ]
+    assert _has(trace, "S4", "WARN"), _codes(trace)
 
 
 def test_refetch_progress_guard_metric_rising():
@@ -307,7 +363,7 @@ def test_missing_path_exit_3():
 def test_json_output_shape():
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fh:
         # a stuck trace so findings + summary are populated.
-        fh.write(json.dumps([{"command": "x", "metric": 1, "accepted": True}] * 3))
+        fh.write(json.dumps([{"command": "x", "metric": 1, "accepted": False}] * 3))
         path = fh.name
     try:
         buf = io.StringIO()

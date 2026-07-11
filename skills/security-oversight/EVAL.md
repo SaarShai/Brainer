@@ -12,9 +12,11 @@ scored HIGH/MEDIUM/REVIEW, routed to `verify-before-completion` / a human;
 PASS/WARN/FAIL). Absence of a finding is NOT proof of safety.
 
 ## Deterministic self-tests (green)
-`tools/test_security_scan.py` + `tools/test_skill_audit.py` (incl. the
-untracked-file silent-miss regression); both run in `scripts/run_all_tests.sh`.
-Field fact: 23/24 Brainer skills self-PASS `skill_audit.py` (2026-06 scan).
+`tools/test_security_scan.py` (S1–S14, including the untracked-file silent-miss
+regression) + `tools/test_skill_audit.py` (A1–A18, including a real self-dogfood
+assertion); both run in `scripts/run_all_tests.sh`. Dogfood permits WARN findings
+from deliberate `test_*.py` attacks but fails any CRITICAL/HIGH finding outside
+test fixtures. No drifting repo-wide self-PASS ratio is claimed.
 
 ## What to measure (when N is available)
 - **Detection P/R on seeded diffs** — plant known secrets / sinks / dep-adds /

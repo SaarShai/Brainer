@@ -50,6 +50,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import os
 import sys
 from pathlib import Path
@@ -103,16 +104,25 @@ def price_per_mtok(tier: str) -> float:
 # Record loading
 # --------------------------------------------------------------------------
 
+def _valid_token_number(value: Any) -> bool:
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, int):
+        return value >= 0
+    return (isinstance(value, float) and math.isfinite(value)
+            and value >= 0 and value.is_integer())
+
+
 def _tokens_from_usage(usage: Any) -> int | None:
     if not isinstance(usage, dict):
         return None
+    total = usage.get("total_tokens")
+    if _valid_token_number(total):
+        return int(total)
     prompt = usage.get("prompt_tokens")
     completion = usage.get("completion_tokens")
-    total = usage.get("total_tokens")
-    if isinstance(total, (int, float)):
-        return int(total)
-    if isinstance(prompt, (int, float)) or isinstance(completion, (int, float)):
-        return int(prompt or 0) + int(completion or 0)
+    if _valid_token_number(prompt) and _valid_token_number(completion):
+        return int(prompt) + int(completion)
     return None
 
 
@@ -233,8 +243,13 @@ def _normalize_manual_row(row: dict[str, Any]) -> dict[str, Any] | None:
     tokens_raw = row.get("tokens")
     tokens: int | None
     try:
-        tokens = int(float(tokens_raw)) if tokens_raw not in (None, "") else None
-    except (ValueError, TypeError):
+        token_number = (
+            None
+            if isinstance(tokens_raw, bool)
+            else float(tokens_raw) if tokens_raw not in (None, "") else None
+        )
+        tokens = int(token_number) if _valid_token_number(token_number) else None
+    except (ValueError, TypeError, OverflowError):
         tokens = None
     accepted_raw = row.get("accepted")
     accepted = _truthy(accepted_raw) if accepted_raw not in (None, "") else None
@@ -271,10 +286,11 @@ def aggregate(records: list[dict[str, Any]]) -> dict[str, Any]:
         bucket = by_tier[tier]
         bucket["lanes"] += 1
         tokens = rec["tokens"]
-        if tokens is None:
+        if tokens is None or not _valid_token_number(tokens):
             bucket["unpriced_lanes"] += 1
             unpriced_total += 1
         else:
+            tokens = int(tokens)
             bucket["tokens"] += tokens
             cost = tokens / 1_000_000.0 * price_per_mtok(tier)
             bucket["cost"] += cost

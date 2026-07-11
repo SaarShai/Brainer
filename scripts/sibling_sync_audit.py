@@ -155,7 +155,7 @@ def _canon_line_corpus(rel: str, max_commits: int = 400) -> set[str]:
         blob = subprocess.run(["git", "show", f"{sha}:{rel}"],
                               cwd=BRAINER, capture_output=True, text=True)
         if blob.returncode == 0:
-            corpus.update(ln.strip() for ln in blob.stdout.splitlines() if ln.strip())
+            corpus.update(ln.rstrip() for ln in blob.stdout.splitlines() if ln.strip())
     return corpus
 
 
@@ -176,7 +176,7 @@ def classify_differs(sib: Path, differs: list[str]) -> dict:
             continue
         # Line-provenance fallback: does the sibling hold any never-canonical line?
         corpus = _canon_line_corpus(rel)
-        sib_lines = [ln.strip() for ln in (sib / rel).read_text(
+        sib_lines = [ln.rstrip() for ln in (sib / rel).read_text(
             errors="replace").splitlines() if ln.strip()]
         novel = [ln for ln in sib_lines if ln not in corpus]
         if novel:

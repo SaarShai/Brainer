@@ -132,6 +132,34 @@ FIXTURES: Dict[str, List[Dict[str, Any]]] = {
             ],
         },
         {
+            "name": "tests-passed claim after a bare pytest invocation",
+            "expect": True,
+            "events": [
+                _ev("tool_call", command="pytest -q"),
+                _ev("assistant_message",
+                    content_summary="All tests " + _PASSED + " and the work is " + _DONE + "."),
+            ],
+        },
+        {
+            "name": "tests-passed claim after statusless pytest result",
+            "expect": True,
+            "events": [
+                _ev("tool_result", command="pytest -q", content_summary="2 " + _PASSED),
+                _ev("assistant_message",
+                    content_summary="All tests " + _PASSED + " and the work is " + _DONE + "."),
+            ],
+        },
+        {
+            "name": "tests-passed claim after is_error true pytest result",
+            "expect": True,
+            "events": [
+                _ev("tool_result", command="pytest -q", is_error=True,
+                    content_summary="pytest crashed"),
+                _ev("assistant_message",
+                    content_summary="All tests " + _PASSED + " and the work is " + _DONE + "."),
+            ],
+        },
+        {
             "name": "committed claim with no git evidence",
             "expect": True,
             "events": [
@@ -174,6 +202,16 @@ FIXTURES: Dict[str, List[Dict[str, Any]]] = {
             "events": [
                 _ev("tool_call", command="pytest -q"),
                 _ev("tool_result", command="pytest -q", exit_code=0,
+                    content_summary="2 " + _PASSED),
+                _ev("assistant_message",
+                    content_summary="All tests " + _PASSED + ", " + _DONE + "."),
+            ],
+        },
+        {
+            "name": "claim with explicit is_error false pytest result",
+            "expect": False,
+            "events": [
+                _ev("tool_result", command="pytest -q", is_error=False,
                     content_summary="2 " + _PASSED),
                 _ev("assistant_message",
                     content_summary="All tests " + _PASSED + ", " + _DONE + "."),

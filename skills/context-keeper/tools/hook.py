@@ -27,14 +27,38 @@ def main() -> int:
     except json.JSONDecodeError as e:
         log_err(f"json-decode-error: {e}")
         return 0
+    if not isinstance(payload, dict):
+        log_err(f"non-object-payload type={type(payload).__name__}")
+        return 0
 
     tp = payload.get("transcript_path", "")
     sid = payload.get("session_id", "")
     trigger = payload.get("trigger", "auto")
 
-    if not tp or not Path(tp).is_file():
+    if not isinstance(tp, str):
+        log_err(f"invalid-transcript-path type={type(tp).__name__}")
+        return 0
+    if not tp:
         log_err(f"missing-transcript path={tp!r}")
         return 0
+    try:
+        transcript_exists = Path(tp).is_file()
+    except (ValueError, OSError) as e:
+        log_err(f"invalid-transcript-path error={type(e).__name__}")
+        return 0
+    if not transcript_exists:
+        log_err(f"missing-transcript path={tp!r}")
+        return 0
+    if not isinstance(sid, str):
+        log_err(f"invalid-session-id type={type(sid).__name__} fallback='unknown'")
+        sid = "unknown"
+    elif not sid:
+        sid = "unknown"
+    if not isinstance(trigger, str):
+        log_err(f"invalid-trigger type={type(trigger).__name__} fallback='auto'")
+        trigger = "auto"
+    elif not trigger:
+        trigger = "auto"
 
     extract_py = Path(__file__).parent / "extract.py"
     if not extract_py.is_file():
@@ -47,7 +71,7 @@ def main() -> int:
     try:
         subprocess.run(
             [sys.executable, str(extract_py), tp, "--pointer-only",
-             "--session-id", sid or "unknown", "--trigger", trigger or "auto"],
+             "--session-id", sid, "--trigger", trigger],
             timeout=30,
             check=False,
             env=env,

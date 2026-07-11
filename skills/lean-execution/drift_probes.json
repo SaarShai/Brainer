@@ -2,6 +2,7 @@
   {
     "kind": "tool_path_touch",
     "id": "dependency-manifest-changed",
+    "tools": ["Edit", "Write", "NotebookEdit", "Bash"],
     "path_pattern": "(?i)(?:^|/)(?:package\\.json|package-lock\\.json|yarn\\.lock|pnpm-lock\\.yaml|requirements\\.txt|pyproject\\.toml|poetry\\.lock|Pipfile(?:\\.lock)?|go\\.mod|go\\.sum|Cargo\\.(?:toml|lock)|Gemfile(?:\\.lock)?|pom\\.xml|build\\.gradle(?:\\.kts)?|composer\\.(?:json|lock))$",
     "message": "dependency manifest/lockfile changed — every dependency is permanent code you don't control. Confirm stdlib/existing can't do it, and state WHY the new dep is needed.",
     "severity": "warn"

@@ -145,16 +145,26 @@ def recent_events(events: Sequence[Dict[str, Any]], idx: int, window: int = 6) -
     return events[max(0, idx - window):idx]
 
 
-def _is_failed_result(event: Dict[str, Any]) -> bool:
-    """True when a tool_result carries an explicit failure signal."""
-    if bool(event.get("is_error")):
+def _result_succeeded(event: Dict[str, Any]) -> bool | None:
+    """True/False for explicit result status; None when status is unknown."""
+    signals: list[bool] = []
+    if "is_error" in event:
+        is_error = event.get("is_error")
+        if isinstance(is_error, bool):
+            signals.append(not is_error)
+        elif isinstance(is_error, str) and is_error.strip().lower() in {"true", "false"}:
+            signals.append(is_error.strip().lower() == "false")
+    if "exit_code" in event:
+        exit_code = event.get("exit_code")
+        if isinstance(exit_code, int) and not isinstance(exit_code, bool):
+            signals.append(exit_code == 0)
+        elif isinstance(exit_code, str) and re.fullmatch(r"-?\d+", exit_code.strip()):
+            signals.append(int(exit_code) == 0)
+    if False in signals:
+        return False
+    if True in signals:
         return True
-    exit_code = event.get("exit_code")
-    if isinstance(exit_code, int):
-        return exit_code != 0
-    if isinstance(exit_code, str):
-        return exit_code.strip() not in {"", "0"}
-    return False
+    return None
 
 
 def has_recent_verification(events: Sequence[Dict[str, Any]], idx: int) -> bool:
@@ -165,24 +175,15 @@ def has_recent_verification(events: Sequence[Dict[str, Any]], idx: int) -> bool:
         kind = event.get("event")
         # PRECISION FIX (Zone 3): a FAILED verification (non-zero exit / is_error)
         # is NOT evidence of completion — a "tests passed" claim sitting next to a
-        # failed pytest must still fire. Only count tool_results that did not fail.
+        # failed/unknown pytest must still fire. Count only explicitly successful results.
         if kind == "tool_result":
-            if not _is_failed_result(event):
+            if _result_succeeded(event) is True:
                 return True
             continue
         if kind == "tool_call":
-            # A bare invocation only counts as verification when no failed
-            # result for it appears in the same recent window.
-            if not any(
-                e.get("event") == "tool_result"
-                and VERIFY_COMMAND_RE.search(text_of(e))
-                and _is_failed_result(e)
-                for e in recent_events(events, idx)
-            ):
-                return True
+            # An invocation is intent, not execution evidence. Only the
+            # observed successful tool_result can verify a claim.
             continue
-        if event.get("exit_code") == 0 and VERIFY_COMMAND_RE.search(blob):
-            return True
     return False
 
 

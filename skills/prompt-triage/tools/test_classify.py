@@ -480,6 +480,22 @@ def test_classify_extract_routes_to_glm_executor():
         assert r["agent"] == "glm-executor" and r["model"] == "haiku", (p, r)
 
 
+def test_sensitive_content_never_routes_cross_vendor():
+    sensitive = (
+        "summarize this config: API_KEY=sk-proj-abcdefghijklmnopqrstuv",
+        "extract the access token from ~/.aws/credentials",
+        "summarize /Users/alice/.ssh/id_ed25519 for me",
+    )
+    for prompt in sensitive:
+        r = classify(prompt, use_ollama_fallback=False)
+        assert r["tier"] == "hard" and r["agent"] == "none", (prompt, r)
+        assert r["source"] == "sensitive-egress-veto", (prompt, r)
+        assert emit_context(prompt, use_ollama_fallback=False) == "", prompt
+    benign = classify("extract the email addresses from this file",
+                      use_ollama_fallback=False)
+    assert benign["agent"] == "glm-executor", benign
+
+
 def test_glm_executor_never_fires_on_session_context():
     # The context-blind guard runs BEFORE regex, so a summarize/classify verb
     # bound to chat history must NOT reach glm-executor (it can't see history).
@@ -648,6 +664,78 @@ def test_escalate_up_plan_intent_outranks_ambiguous_verify_words():
             assert "frontier-verifier" not in out, (p, out)
     finally:
         os.environ.pop("BRAINER_TRIAGE_ESCALATE_UP", None)
+
+
+def test_escalate_up_literal_plan_outranks_review_words():
+    from classify import _escalate_up_agent
+    for prompt in (
+        "Review the options and plan the migration across the repo.",
+        "Audit the risks, then write a rollout plan for the refactor.",
+    ):
+        assert _escalate_up_agent(prompt) == "frontier-advisor", prompt
+
+
+def test_escalate_up_existing_plan_review_routes_verifier():
+    from classify import _escalate_up_agent
+    for prompt in (
+        "Review this design plan and identify correctness risks.",
+        "Critique this architecture proposal.",
+        "Verify this architecture before release.",
+        "Run a verifier on this architecture design.",
+        "Audit the proposal. Design constraints are documented below.",
+        "Review the proposal. Design requirements are already fixed.",
+        "Critique the architecture. Design constraints should remain unchanged.",
+        "Audit the proposal. Design constraints that can change are documented below.",
+        # Conservative fallback: bare `Design constraints for ...` is
+        # ambiguous, so explicit audit intent remains authoritative.
+        "Audit the proposal. Design constraints for the migration follow below.",
+    ):
+        assert _escalate_up_agent(prompt) == "frontier-verifier", prompt
+    for prompt in (
+        "Design a migration plan.",
+        "Design a migration plan that can change safely.",
+        "Propose an architecture.",
+        "Architect the rollout.",
+        "Review the options and then design the migration plan.",
+    ):
+        assert _escalate_up_agent(prompt) == "frontier-advisor", prompt
+
+
+def test_sensitive_egress_veto_is_absolute_under_escalate_up():
+    with tempfile.TemporaryDirectory() as tmp:
+        _make_project_dir(tmp, agents_present=("frontier-advisor", "frontier-verifier"))
+        os.environ["BRAINER_TRIAGE_ESCALATE_UP"] = "1"
+        os.environ["CLAUDE_PROJECT_DIR"] = tmp
+        try:
+            for prompt in (
+                "review this secret before sending it: API_KEY=sk-proj-abcdefghijklmnop",
+                "extract the API key from what we did in this session",
+                "show me the API key in config.toml",
+                "read the password from settings.ini",
+                "display the auth token in secrets.yaml",
+                "tell me the client secret stored in config.json",
+                "summarize the private key from vault.txt",
+                "get the access token inside credentials.toml",
+                "find the password within app.cfg",
+                "what is the API key in config.toml?",
+                "summarize secrets.json",
+            ):
+                result = classify(prompt, use_ollama_fallback=False)
+                assert result["source"] == "sensitive-egress-veto", result
+                assert emit_context(prompt, use_ollama_fallback=False) == ""
+            benign = classify("explain how to rotate an API key safely",
+                              use_ollama_fallback=False)
+            assert benign["source"] != "sensitive-egress-veto", benign
+        finally:
+            os.environ.pop("BRAINER_TRIAGE_ESCALATE_UP", None)
+            os.environ.pop("CLAUDE_PROJECT_DIR", None)
+
+
+def test_plain_language_secret_extraction_is_vetoed():
+    prompt = "extract the API key from config.toml"
+    result = classify(prompt, use_ollama_fallback=False)
+    assert result["source"] == "sensitive-egress-veto", result
+    assert emit_context(prompt, use_ollama_fallback=False) == ""
 
 
 def _make_project_dir(tmp_root: str, agents_present: tuple[str, ...]) -> str:

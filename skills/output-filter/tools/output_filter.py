@@ -154,7 +154,7 @@ def _ordered_keep(lines: list[str], keep_indexes: set[int], note: str) -> list[s
     return [note, *kept]
 
 
-def _compress_search(text: str) -> tuple[str, dict[str, Any]]:
+def _compress_search(text: str, keep_patterns: list[re.Pattern[str]]) -> tuple[str, dict[str, Any]]:
     lines = text.splitlines()
     match_indexes = [i for i, line in enumerate(lines) if SEARCH_LINE_RE.match(line)]
     if len(match_indexes) <= 80:
@@ -169,7 +169,7 @@ def _compress_search(text: str) -> tuple[str, dict[str, Any]]:
         if len(seen_files) >= 40:
             break
     for i, line in enumerate(lines):
-        if DEFAULT_KEEP.search(line):
+        if _matches(keep_patterns, line):
             keep.add(i)
     note = f"[output-filter: search results compressed; kept {len(keep)}/{len(lines)} lines across {len(seen_files)} files]"
     kept = _ordered_keep(lines, keep, note)
@@ -178,13 +178,13 @@ def _compress_search(text: str) -> tuple[str, dict[str, Any]]:
     return "\n".join(kept) + "\n", {"content_lines_removed": len(lines) - len(kept), "transforms": ["search-summary"]}
 
 
-def _compress_log(text: str) -> tuple[str, dict[str, Any]]:
+def _compress_log(text: str, keep_patterns: list[re.Pattern[str]]) -> tuple[str, dict[str, Any]]:
     lines = text.splitlines()
     if len(lines) <= 220:
         return text, {"content_lines_removed": 0, "transforms": []}
     keep: set[int] = set(range(min(20, len(lines)))) | set(range(max(0, len(lines) - 50), len(lines)))
     for i, line in enumerate(lines):
-        if LOG_KEEP_RE.search(line):
+        if LOG_KEEP_RE.search(line) or _matches(keep_patterns, line):
             keep.add(i)
     note = f"[output-filter: log compressed; kept {len(keep)}/{len(lines)} signal lines]"
     kept = _ordered_keep(lines, keep, note)
@@ -193,13 +193,14 @@ def _compress_log(text: str) -> tuple[str, dict[str, Any]]:
     return "\n".join(kept) + "\n", {"content_lines_removed": len(lines) - len(kept), "transforms": ["log-summary"]}
 
 
-def _compress_diff(text: str) -> tuple[str, dict[str, Any]]:
+def _compress_diff(text: str, keep_patterns: list[re.Pattern[str]]) -> tuple[str, dict[str, Any]]:
     lines = text.splitlines()
     if len(lines) <= 300:
         return text, {"content_lines_removed": 0, "transforms": []}
     keep: set[int] = set()
     for i, line in enumerate(lines):
-        if DIFF_LINE_RE.search(line) or line.startswith(("+", "-")):
+        if (DIFF_LINE_RE.search(line) or line.startswith(("+", "-"))
+                or _matches(keep_patterns, line)):
             keep.add(i)
     note = f"[output-filter: diff compressed; kept {len(keep)}/{len(lines)} headers and changed lines]"
     kept = _ordered_keep(lines, keep, note)
@@ -208,14 +209,16 @@ def _compress_diff(text: str) -> tuple[str, dict[str, Any]]:
     return "\n".join(kept) + "\n", {"content_lines_removed": len(lines) - len(kept), "transforms": ["diff-hunks"]}
 
 
-def _compress_content(text: str, content_type: str) -> tuple[str, dict[str, Any]]:
+def _compress_content(
+    text: str, content_type: str, keep_patterns: list[re.Pattern[str]]
+) -> tuple[str, dict[str, Any]]:
     detected = detect_content_type(text) if content_type == "auto" else content_type
     if detected == "search":
-        out, meta = _compress_search(text)
+        out, meta = _compress_search(text, keep_patterns)
     elif detected == "log":
-        out, meta = _compress_log(text)
+        out, meta = _compress_log(text, keep_patterns)
     elif detected == "diff":
-        out, meta = _compress_diff(text)
+        out, meta = _compress_diff(text, keep_patterns)
     else:
         out, meta = text, {"content_lines_removed": 0, "transforms": []}
     meta["content_type"] = detected
@@ -279,7 +282,7 @@ def filter_text(
     stats["filtered_lines"] = len(output)
     filtered = "\n".join(output) + ("\n" if output else "")
     try:
-        filtered, content_stats = _compress_content(filtered, content_type)
+        filtered, content_stats = _compress_content(filtered, content_type, rules.keep)
     except Exception as exc:
         content_stats = {"content_type": "plain", "content_lines_removed": 0, "transforms": [], "content_filter_error": str(exc)}
     stats.update(content_stats)

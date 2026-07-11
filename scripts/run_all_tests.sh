@@ -51,6 +51,139 @@ run() {
   fi
 }
 
+# Single declarative source of truth for deterministic suite entrypoints.
+# Row schema: kind|group|runner|path|requires_module|label/reason/owner
+#   S = executable suite; D = suite delegated to a registered owner; X = exclusion.
+test_roster() {
+  cat <<'BRAINER_TEST_ROSTER'
+# brainer:test-roster:start
+# kind|group|runner|path|requires_module|label/reason/owner
+S|core|python3|skills/_shared/test_knowledge_liveness.py|-|-
+S|core|python3|eval/test_judge.py|-|-
+S|core|python3|skills/_shared/test_model_roster.py|-|-
+S|core|python3|skills/_shared/test_brief_header.py|-|-
+S|core|python3|skills/_shared/test_orchestration_trace.py|-|-
+S|core|python3|skills/_shared/test_activation_trace.py|-|-
+S|core|python3|skills/team-lead/tools/test_team_lead_eval.py|-|-
+S|core|python3|skills/think/tools/test_think_contract.py|-|-
+S|core|python3|skills/cache-lint/tools/test_cache_lint.py|-|-
+S|core|python3|skills/brainer-audit/tools/test_brainer_audit.py|-|-
+S|core|python3|skills/brainer-audit/tools/test_antigravity_sidecar.py|-|-
+S|core|python3|skills/brainer-audit/tools/test_hooks.py|-|-
+S|core|python3|skills/brainer-audit/tools/test_path_confinement.py|-|-
+S|core|python3|skills/brainer-audit/tools/test_redaction.py|-|-
+S|core|python3|skills/brainer-audit/tools/test_detector_precision.py|-|-
+S|core|python3|skills/loop-engineering/tools/test_loop_lint.py|-|-
+S|core|python3|skills/loop-engineering/tools/test_loop_run_monitor.py|-|-
+S|core|python3|skills/context-keeper/tools/tests/test_extract.py|-|-
+S|core|python3|skills/output-filter/tools/test_output_filter.py|-|-
+S|core|python3|skills/prompt-triage/tools/test_classify.py|-|-
+S|core|python3|skills/write-gate/tools/test_write_gate.py|-|-
+S|core|python3|skills/requirements-ledger/tools/test_dropmodes.py|-|-
+S|core|python3|skills/task-retrospective/tools/test_task_audit.py|-|-
+S|core|python3|skills/wiki-memory/tools/test_consolidate.py|-|-
+S|core|python3|skills/wiki-memory/tools/test_decay.py|-|-
+S|core|python3|skills/wiki-memory/tools/test_link_nav.py|-|-
+S|core|python3|skills/wiki-memory/tools/test_lint_hygiene.py|-|-
+S|core|python3|skills/wiki-memory/tools/test_provenance.py|-|-
+S|core|python3|skills/wiki-memory/tools/test_belief_propagation.py|-|-
+S|core|python3|skills/wiki-memory/tools/test_schema_evolution.py|-|-
+S|core|python3|skills/wiki-memory/tools/test_refresh.py|-|-
+S|core|python3|skills/wiki-memory/tools/test_resolve.py|-|-
+S|core|python3|skills/wiki-memory/tools/test_write_path_gate.py|-|-
+S|core|python3|skills/wiki-memory/tools/test_okf.py|-|-
+S|core|python3|skills/wiki-memory/tools/test_claim_grade.py|-|-
+S|core|python3|skills/wiki-memory/tools/test_sim_eval.py|-|-
+S|core|python3|skills/wiki-memory/tools/test_config.py|-|-
+S|core|python3|skills/wiki-refresh/tools/test_staleness.py|-|-
+S|core|python3|skills/wiki-refresh/tools/test_artifact_guard.py|-|-
+S|core|python3|skills/wiki-refresh/tools/test_disuse.py|-|-
+S|core|python3|skills/wiki-memory/tools/test_wiki_adoption.py|-|-
+S|core|python3|skills/index-first/tools/test_augment.py|-|-
+S|core|python3|skills/compliance-canary/tools/test_hook_safety.py|-|-
+S|core|python3|skills/_shared/test_adversarial_regression.py|-|-
+S|core|python3|skills/eval-gate/tools/test_panel.py|-|-
+S|core|python3|skills/eval-gate/tools/test_validate_case.py|-|-
+S|core|python3|skills/impact-of-change/tools/test_impact.py|-|-
+S|core|python3|skills/security-oversight/tools/test_security_scan.py|-|-
+S|core|python3|skills/security-oversight/tools/test_skill_audit.py|-|-
+S|core|python3|skills/compliance-canary/tools/test_coherence_drift_meter.py|-|-
+S|core|python3|skills/learn-skill/tools/test_learn.py|-|-
+S|core|python3|skills/learn-skill/tools/test_telemetry.py|-|-
+S|core|python3|skills/learn-skill/tools/test_nomination.py|-|-
+S|core|python3|skills/learn-skill/tools/test_hooks.py|-|-
+S|core|python3|skills/learn-skill/tools/test_install_merge.py|-|-
+S|core|python3|skills/_shared/test_transcript_norm.py|-|-
+S|core|python3|scripts/test_gen_hooks_map.py|-|-
+S|core|python3|scripts/test_test_roster.py|-|-
+S|core|python3|scripts/test_mine_transcripts.py|-|-
+S|core|python3|scripts/test_sibling_sync_audit.py|-|-
+S|core|python3|scripts/test_sibling_sync_gitignore.py|-|-
+S|core|python3|scripts/test_project_install_preflight.py|-|-
+S|core|python3|skills/_shared/test_lane_guard.py|-|-
+S|core|python3|eval/harness_acceptance/test_run.py|-|-
+S|core|python3|eval/exp8_trigger/test_run_trigger_offline.py|-|-
+S|core|python3|skills/semantic-diff/tools/tests/test_basic.py|tree_sitter|-
+S|core|python3|skills/semantic-diff/tools/tests/test_multilang.py|tree_sitter|-
+S|core|python3|skills/semantic-diff/tools/tests/test_rename.py|tree_sitter|-
+S|core|python3|skills/semantic-diff/tools/tests/test_syntax_error.py|tree_sitter|-
+S|core|python3|skills/semantic-diff/tools/tests/test_whitespace.py|tree_sitter|-
+S|core|python3|skills/semantic-diff/tools/tests/test_realistic.py|tree_sitter|-
+S|core|python3|skills/semantic-diff/tools/tests/test_classlevel.py|tree_sitter|-
+S|tail|bash|skills/compliance-canary/tools/test.sh|-|hook:compliance-canary
+S|tail|bash|skills/eval-gate/tools/test.sh|-|tool:eval-gate
+S|tail|bash|skills/verify-before-completion/tools/test.sh|-|tool:verify-artifact
+S|e3|python3|scripts/e3_gauntlet.py|-|e3:gauntlet
+S|e3|python3|scripts/test_e3_gauntlet.py|-|e3:selftest
+X|-|-|scripts/test_skill.sh|-|parameterized helper requiring a skill name; registered suites are tracked directly
+# brainer:test-roster:end
+BRAINER_TEST_ROSTER
+}
+
+run_registered_suites() {
+  local wanted_group="$1"
+  local kind row_group runner path requirement label effective_label in_registry
+  in_registry=0
+  while IFS='|' read -r kind row_group runner path requirement label; do
+    case "$kind" in
+      "# brainer:test-roster:start") in_registry=1; continue ;;
+      "# brainer:test-roster:end") break ;;
+    esac
+    [ "$in_registry" -eq 1 ] || continue
+    case "$kind" in
+      ""|\#*) continue ;;
+      D|X) continue ;;
+      S) ;;
+      *)
+        echo "FAIL test-roster:unknown-row:$kind"
+        FAIL=$((FAIL+1)); FAILED+=("test-roster:unknown-row:$kind")
+        continue ;;
+    esac
+    [ "$row_group" = "$wanted_group" ] || continue
+    if [ "$requirement" != "-" ] && ! python3 -c \
+      'import importlib.util,sys; sys.exit(0 if importlib.util.find_spec(sys.argv[1]) else 1)' \
+      "$requirement"; then
+      echo "SKIP $path ($requirement not importable)"
+      continue
+    fi
+    if [ ! -f "$path" ]; then
+      echo "FAIL missing:$path"
+      FAIL=$((FAIL+1)); FAILED+=("missing:$path")
+      continue
+    fi
+    case "$runner" in
+      python3|bash) ;;
+      *)
+        echo "FAIL test-roster:unsupported-runner:$runner:$path"
+        FAIL=$((FAIL+1)); FAILED+=("test-roster:unsupported-runner:$runner:$path")
+        continue ;;
+    esac
+    effective_label="$label"
+    [ "$effective_label" != "-" ] || effective_label="unit:${path%.py}"
+    run "$effective_label" "$runner" "$path"
+  done < <(test_roster)
+}
+
 if [ "$GROUP" = "core" ] || [ "$GROUP" = "all" ]; then
 
 # 1. SKILL.md lint — every skill, one call each so the failing file is named
@@ -72,87 +205,9 @@ run "py-syntax" python3 scripts/check_python_syntax.py
 # JSON parses, SKILL.md frontmatter + referenced tool paths resolve, markdown links
 # resolve, wiki links resolve, hooks-map entries resolve. A dead gate is worse than none.
 run "knowledge-liveness" python3 skills/_shared/knowledge_liveness.py
-run "unit:test_knowledge_liveness" python3 skills/_shared/test_knowledge_liveness.py
 
-# 5. Per-skill unit tests (plain-python, no pytest dep)
-UNIT_TESTS=(
-  eval/test_judge.py
-  skills/_shared/test_model_roster.py
-  skills/_shared/test_orchestration_trace.py
-  skills/_shared/test_activation_trace.py
-  skills/team-lead/tools/test_team_lead_eval.py
-  skills/think/tools/test_think_contract.py
-  skills/cache-lint/tools/test_cache_lint.py
-  skills/brainer-audit/tools/test_brainer_audit.py
-  skills/brainer-audit/tools/test_antigravity_sidecar.py
-  skills/brainer-audit/tools/test_hooks.py
-  skills/brainer-audit/tools/test_path_confinement.py
-  skills/brainer-audit/tools/test_redaction.py
-  skills/brainer-audit/tools/test_detector_precision.py
-  skills/loop-engineering/tools/test_loop_lint.py
-  skills/loop-engineering/tools/test_loop_run_monitor.py
-  skills/context-keeper/tools/tests/test_extract.py
-  skills/output-filter/tools/test_output_filter.py
-  skills/prompt-triage/tools/test_classify.py
-  skills/write-gate/tools/test_write_gate.py
-  skills/requirements-ledger/tools/test_dropmodes.py
-  skills/task-retrospective/tools/test_task_audit.py
-  skills/wiki-memory/tools/test_consolidate.py
-  skills/wiki-memory/tools/test_decay.py
-  skills/wiki-memory/tools/test_lint_hygiene.py
-  skills/wiki-memory/tools/test_provenance.py
-  skills/wiki-memory/tools/test_belief_propagation.py
-  skills/wiki-memory/tools/test_schema_evolution.py
-  skills/wiki-memory/tools/test_refresh.py
-  skills/wiki-memory/tools/test_resolve.py
-  skills/wiki-memory/tools/test_write_path_gate.py
-  skills/wiki-memory/tools/test_okf.py
-  skills/wiki-memory/tools/test_claim_grade.py
-  skills/wiki-memory/tools/test_sim_eval.py
-  skills/wiki-memory/tools/test_config.py
-  skills/wiki-refresh/tools/test_staleness.py
-  skills/wiki-refresh/tools/test_artifact_guard.py
-  skills/wiki-refresh/tools/test_disuse.py
-  skills/wiki-memory/tools/test_wiki_adoption.py
-  skills/index-first/tools/test_augment.py
-  skills/compliance-canary/tools/test_hook_safety.py
-  skills/_shared/test_adversarial_regression.py
-  skills/eval-gate/tools/test_validate_case.py
-  skills/impact-of-change/tools/test_impact.py
-  skills/compliance-canary/tools/test_coherence_drift_meter.py
-  skills/learn-skill/tools/test_learn.py
-  skills/learn-skill/tools/test_telemetry.py
-  skills/learn-skill/tools/test_nomination.py
-  skills/learn-skill/tools/test_hooks.py
-  skills/learn-skill/tools/test_install_merge.py
-  skills/_shared/test_transcript_norm.py
-  scripts/test_gen_hooks_map.py
-  scripts/test_mine_transcripts.py
-  scripts/test_sibling_sync_audit.py
-  scripts/test_sibling_sync_gitignore.py
-  scripts/test_project_install_preflight.py
-  skills/_shared/test_lane_guard.py
-  eval/harness_acceptance/test_run.py
-)
-# semantic-diff needs tree-sitter; SKIP (not FAIL) where the dep is absent
-# (e.g. bare CI runners) — semdiff's own suite covers it on dev machines.
-if python3 -c "import tree_sitter" 2>/dev/null; then
-  UNIT_TESTS+=(
-    skills/semantic-diff/tools/tests/test_basic.py
-    skills/semantic-diff/tools/tests/test_multilang.py
-    skills/semantic-diff/tools/tests/test_rename.py
-    skills/semantic-diff/tools/tests/test_syntax_error.py
-    skills/semantic-diff/tools/tests/test_whitespace.py
-    skills/semantic-diff/tools/tests/test_realistic.py
-    skills/semantic-diff/tools/tests/test_classlevel.py
-  )
-else
-  echo "SKIP semantic-diff suite (tree_sitter not importable)"
-fi
-for t in "${UNIT_TESTS[@]}"; do
-  [ -f "$t" ] || { echo "FAIL missing:$t"; FAIL=$((FAIL+1)); FAILED+=("missing:$t"); continue; }
-  run "unit:$(basename "$t" .py)" python3 "$t"
-done
+# 5. Per-skill unit tests (plain-python, no pytest dep), from the roster above.
+run_registered_suites core
 
 # 5b. Deterministic eval sims (offline; exit code is the verdict)
 run "sims" env BRAINER_CHECK_NO_WRITE="$BRAINER_CHECK_NO_WRITE" python3 eval/sims/run_all.py --quiet
@@ -185,10 +240,8 @@ fi
 
 if [ "$GROUP" = "tail" ] || [ "$GROUP" = "all" ]; then
 
-# 6. Hook self-test suites
-run "hook:compliance-canary" bash skills/compliance-canary/tools/test.sh
-run "tool:eval-gate" bash skills/eval-gate/tools/test.sh
-run "tool:verify-artifact" bash skills/verify-before-completion/tools/test.sh
+# 6. Hook self-test suites, from the same declarative roster.
+run_registered_suites tail
 
 # 7. Triage replay audit — re-classifies every historically-routed prompt with
 # the current classifier; fails on local-model / low-conf / length-gate
@@ -208,8 +261,7 @@ if [ "$GROUP" = "e3" ]; then
 # just inside the Brainer checkout. NON-CORE / opt-in only — each of these does
 # a real `install.sh --project` (git init + symlinks + hook-merge) into a fresh
 # temp project, too slow for the default core/tail/all path.
-run "e3:gauntlet" python3 scripts/e3_gauntlet.py
-run "e3:selftest" python3 scripts/test_e3_gauntlet.py
+run_registered_suites e3
 
 fi
 

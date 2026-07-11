@@ -294,6 +294,31 @@ def _looks_like_flat_spec(text: str) -> bool:
     return bool(keys & {"gate", "generator", "verifier", "topology", "stop", "budget"})
 
 
+_YAML_DOC_RE = re.compile(r"^---(?:[ \t]+#.*)?[ \t]*$")
+
+
+def _specs_from_yaml(text: str, source: str) -> list[Spec]:
+    """Parse each flat document in a multi-document YAML stream."""
+    out: list[Spec] = []
+    block: list[str] = []
+    start_line = 1
+    for line_no, line in enumerate(text.splitlines(), 1):
+        if _YAML_DOC_RE.match(line):
+            if block and _looks_like_flat_spec("\n".join(block)):
+                spec = _parse_flat(block, base_line=start_line)
+                spec.source = source
+                out.append(spec)
+            block = []
+            start_line = line_no + 1
+        else:
+            block.append(line)
+    if block and _looks_like_flat_spec("\n".join(block)):
+        spec = _parse_flat(block, base_line=start_line)
+        spec.source = source
+        out.append(spec)
+    return out
+
+
 def parse_specs(text: str, source: str) -> list[Spec]:
     """Discover loop specs from raw text. Order of preference:
     .json → JSON; fenced ```loop blocks → one spec each; otherwise, if the text
@@ -302,6 +327,8 @@ def parse_specs(text: str, source: str) -> list[Spec]:
     low = source.lower()
     if low.endswith(".json"):
         specs = _specs_from_json(text, source)
+    elif low.endswith((".yaml", ".yml")):
+        specs = _specs_from_yaml(text, source)
     elif low.endswith((".md", ".markdown")) or _FENCE_OPEN_RE.search(text) or "```loop" in text.lower():
         specs = _specs_from_markdown(text, source)
         # A markdown file with no fenced loop block but flat keys at top level

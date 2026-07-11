@@ -672,13 +672,14 @@ def cmd_score(args):
             return 2
         norm, blocking = res["score_norm"], res["blocking_criteria"]
         verdict = "fail" if (blocking or norm < args.threshold - _NORM_EPS) else "pass"
-        print(json.dumps({
+        output = {
             "verdict": verdict, "score_norm": round(norm, 3), "threshold": args.threshold,
             "blocking_criteria": blocking, "criteria": res["criteria"],
             "latency_ms": res["latency_ms"],
-        }, indent=2))
+        }
         single_exit = 0 if verdict == "pass" else 1
         if args.panel is None:
+            print(json.dumps(output, indent=2))
             return single_exit
         panel = _run_verifier_panel(
             args.panel, args.threshold, rubric_txt, candidate, _score_summary(res, verdict, criteria)
@@ -689,23 +690,29 @@ def cmd_score(args):
         if len(responders) < 3:
             print(f"panel degraded to single-judge (only {len(responders)} members reachable, need 3)",
                   file=sys.stderr)
+            print(json.dumps(output, indent=2))
             return single_exit
         if single_exit != 0 or not panel["majority_holds"]:
+            if not panel["majority_holds"]:
+                output["verdict"] = "fail"
             _print_panel_verdicts(panel["results"])
+            print(json.dumps(output, indent=2))
             return 1
+        print(json.dumps(output, indent=2))
         return 0
     if res["score"] is None:
         print("eval-gate: judge returned no parseable score", file=sys.stderr)
         return 2
     norm = res["score"] / 5.0
     verdict = "pass" if norm >= args.threshold else "fail"
-    print(json.dumps({
+    output = {
         "score": res["score"], "score_norm": round(norm, 3),
         "threshold": args.threshold, "verdict": verdict,
         "reason": res["reason"], "latency_ms": res["latency_ms"],
-    }, indent=2))
+    }
     single_exit = 0 if verdict == "pass" else 1
     if args.panel is None:
+        print(json.dumps(output, indent=2))
         return single_exit
     panel = _run_verifier_panel(
         args.panel, args.threshold, rubric_txt, candidate, _score_summary(res, verdict, criteria)
@@ -717,10 +724,15 @@ def cmd_score(args):
     if len(responders) < 3:
         print(f"panel degraded to single-judge (only {len(responders)} members reachable, need 3)",
               file=sys.stderr)
+        print(json.dumps(output, indent=2))
         return single_exit
     if single_exit != 0 or not panel["majority_holds"]:
+        if not panel["majority_holds"]:
+            output["verdict"] = "fail"
         _print_panel_verdicts(panel["results"])
+        print(json.dumps(output, indent=2))
         return 1
+    print(json.dumps(output, indent=2))
     return 0
 
 

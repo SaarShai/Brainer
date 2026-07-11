@@ -278,7 +278,7 @@ tools/
 ├── hook.sh        # UserPromptSubmit shell shim
 ├── hook.py        # probes + periodic re-anchor + request ledger + correction ledger + state (one process)
 ├── install.sh     # wires UserPromptSubmit into project-local .claude/
-├── test.sh        # regression suite (108 cases: probes + re-anchor + ledger + correction ledger + hardening)
+├── test.sh        # regression suite: probes + re-anchor + ledgers + hardening
 └── measure.py     # standalone offline probe analyzer
 ```
 

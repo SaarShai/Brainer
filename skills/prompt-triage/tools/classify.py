@@ -232,6 +232,51 @@ def _needs_session_context(prompt: str) -> bool:
     return bool(CONTEXT_HINTS.search(folded)) or bool(CONTINUATION_RE.match(folded))
 
 
+_SENSITIVE_EGRESS_RE = re.compile(
+    r"\b(?:api[_-]?key|access[_-]?token|auth[_-]?token|password|passwd|"
+    r"client[_-]?secret|private[_-]?key)\b\s*[:=]\s*[^\s,;]+|"
+    r"\b(?:sk-(?:proj-)?[A-Za-z0-9_-]{16,}|AKIA[A-Z0-9]{16}|"
+    r"gh[pousr]_[A-Za-z0-9]{20,})\b|"
+    r"-----BEGIN [A-Z ]*PRIVATE KEY-----|"
+    r"(?:^|[/\\\s])(?:\.env(?:\.[A-Za-z0-9_-]+)?|"
+    r"\.ssh/(?:id_rsa|id_ed25519|authorized_keys)|\.aws/credentials|"
+    r"\.config/gcloud/application_default_credentials\.json|etc/shadow)\b",
+    re.I,
+)
+
+_CREDENTIAL_TERM_RE = re.compile(
+    r"\b(?:api[_ -]?key|access[_ -]?token|auth[_ -]?token|password|passwd|"
+    r"client[_ -]?secret|private[_ -]?key)\b",
+    re.I,
+)
+_CREDENTIAL_FILE_RE = re.compile(
+    r"(?<!\w)[~./\\\w-]*(?:credentials?|secrets?|passwords?)[\w.-]*\."
+    r"(?:toml|json|ya?ml|ini|cfg|conf|env|txt|pem|key)\b",
+    re.I,
+)
+_CREDENTIAL_SOURCE_RE = re.compile(
+    r"\b(?:from|in|inside|within|under)\b[^\n]{0,80}?"
+    r"(?:[~./\\\w-]+\.(?:toml|json|ya?ml|ini|cfg|conf|env|txt|pem|key)\b|"
+    r"(?:app\s+)?(?:config|settings|credentials?|secrets?)(?:\s+file)?\b|"
+    r"(?:what we did|(?:this|the current)\s+(?:session|conversation))\b)",
+    re.I,
+)
+
+
+def _has_sensitive_egress(prompt: str) -> bool:
+    """Credential value/path, credential-named file, or credential + source.
+
+    The last form is deliberately verb-independent: access phrasing changes
+    constantly (show/read/tell/get/what-is), while the risky invariant is a
+    credential term tied to a concrete file or session source.
+    """
+    return bool(
+        _SENSITIVE_EGRESS_RE.search(prompt)
+        or _CREDENTIAL_FILE_RE.search(prompt)
+        or (_CREDENTIAL_TERM_RE.search(prompt) and _CREDENTIAL_SOURCE_RE.search(prompt))
+    )
+
+
 # Imperative sentence-starts for multi-objective counting (field misroute,
 # PROMPTER 2026-06-12: "look through X. find a method. document it. otherwise
 # research..." routed research-lite/0.8 — four objectives, one cheap agent).
@@ -440,9 +485,16 @@ except ValueError:  # bad env value must degrade to the default, never crash the
 
 
 def classify(prompt: str, use_ollama_fallback: bool = True) -> dict:
-    # Session-context guard runs FIRST: no classifier (regex or LLM) can know
-    # what's in the conversation, so any verdict on these prompts is noise the
-    # main model must spend tokens overriding.
+    # Sensitive egress outranks every routing route, including the otherwise
+    # first session-context guard: a prompt can carry both, and context-shaped
+    # wording must not reopen cross-vendor dispatch for credential material.
+    if _has_sensitive_egress(prompt):
+        return {"tier": "hard", "agent": "none", "model": "opus",
+                "confidence": 1.0,
+                "reason": "secret-like material or a sensitive credential path; cross-vendor routing vetoed",
+                "lean_context": [], "source": "sensitive-egress-veto"}
+    # Session-context guard runs before every ordinary classifier: no regex or
+    # LLM can know what's in the conversation, so those prompts stay local.
     if _needs_session_context(prompt):
         return {"tier": "hard", "agent": "none", "model": "opus",
                 "confidence": 1.0,
@@ -609,7 +661,7 @@ def _read_prompt_from_stdin() -> str:
 # subagent. Default (env unset) stays byte-identical to today — proven by
 # test_classify.py.
 _VERIFY_INTENT_RE = re.compile(
-    r"\b(?:verify|review|judge|audit|critique|grade|assess|evaluate|vet|"
+    r"\b(?:verify|verifier|review|judge|audit|critique|grade|assess|evaluate|vet|"
     r"double[-\s]?check|sanity[-\s]?check|sign[-\s]?off|pass\/fail|"
     r"pass or fail|find\s+bugs?|red[-\s]?team|safe\s+to\s+ship|"
     r"correctness\s+risks?)\b",
@@ -617,18 +669,17 @@ _VERIFY_INTENT_RE = re.compile(
 )
 
 
-# Plan/design-intent takes PRECEDENCE over verify-intent (cross-vendor review
-# P2 fix, 2026-07-05): "evaluate"/"assess" are ambiguous — they show up both in
-# genuine review asks ("evaluate whether this is safe to ship") and in planning
-# asks ("evaluate two architecture options and design the migration plan").
-# When a plan/design verb is ALSO present, the dominant ask is to produce a
-# plan, not to judge existing work — route advisor even though the prompt also
-# contains an ambiguous verify-ish word. Verify-only prompts (no plan verb at
-# all — "review and audit this refactor") are unaffected; they still fall
-# through to the verify-intent check below.
-_PLAN_INTENT_RE = re.compile(
-    r"\b(?:design|propose|architect)\b",
-    re.I,
+# Creation intent takes precedence over verify intent only when the grammar is
+# unambiguous. The noun/verb-ambiguous forms design/propose/architect require a
+# determiner-led object; bare "Design constraints ..." therefore cannot
+# override an explicit audit. Create/draft/build/write/plan are imperative-only
+# enough at a clause boundary to remain direct creation signals.
+_PLAN_CREATION_RE = re.compile(
+    r"(?:^|[.!?;]\s*|,\s*(?:then\s+)?|\b(?:and|then)\s+)"
+    r"(?:(?:please)\s+|(?:(?:can|could|would|will)\s+you\s+))*"
+    r"(?:(?:design|propose|architect)\s+(?:a|an|the)\b|"
+    r"(?:create|draft|build|write|plan)\b)",
+    re.I | re.M,
 )
 
 
@@ -671,12 +722,12 @@ def _escalate_up_agent(prompt: str) -> str:
     existing intent vocabulary (COMPLEX_HINTS' review/audit/critique overlap
     is deliberate — those already signal 'judge this', not 'plan this').
     Plan/design-shaped prompts get the advisor seat even if an ambiguous
-    verify-ish word ("evaluate"/"assess") is also present (see _PLAN_INTENT_RE
+    verify-ish word ("evaluate"/"assess") is also present (see _PLAN_CREATION_RE
     docstring). Otherwise: verify/review/judge-shaped prompts get the cold
     verifier seat; plan/architecture/decision prompts (the default) get the
     advisor seat."""
     folded = prompt.translate(_UNICODE_FOLD)
-    if _PLAN_INTENT_RE.search(folded):
+    if _PLAN_CREATION_RE.search(folded):
         return "frontier-advisor"
     if _VERIFY_INTENT_RE.search(folded):
         return "frontier-verifier"
@@ -695,6 +746,12 @@ def emit_context(prompt: str, use_ollama_fallback: bool = True) -> str:
     if not prompt or is_bypass(prompt):
         return ""
     result = classify(prompt, use_ollama_fallback=use_ollama_fallback)
+    # A sensitive-egress verdict is an absolute cross-vendor boundary. The
+    # escalate-up feature may route other hard prompts to a frontier seat, but
+    # must never reopen a verdict that exists specifically to keep credentials
+    # in the current session boundary.
+    if result.get("source") == "sensitive-egress-veto":
+        return ""
     # If main-model required (tier=hard or agent=none), emit nothing — preserves
     # the prior hook.sh behavior of early-exiting on these classifications.
     if result.get("tier") == "hard" or result.get("agent") == "none":

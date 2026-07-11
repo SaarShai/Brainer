@@ -22,6 +22,10 @@ cat > "$TMP/rubric_vision.md" <<'EOF'
 [vision] chart renders without overlap
 EOF
 
+cat > "$TMP/rubric_zero_errors.md" <<'EOF'
+[evidence: 0 errors] static checks report no errors
+EOF
+
 # --- 1. ALL-PASS: every criterion has a backing evidence line -> exit 0 ----
 printf 'pytest: 7 passed in 0.3s\nbuild finished exit 0\n' \
   | "${VA[@]}" --rubric "$TMP/rubric.md" >/dev/null 2>&1
@@ -38,6 +42,84 @@ got=$(printf 'pytest: 7 passed in 0.3s\n' \
   | python3 -c 'import json,sys; r=json.load(sys.stdin); print(sum(1 for c in r["criteria"] if not c["done"]))')
 chk "$got" 1 "exactly one criterion flagged NOT-DONE"
 
+# an explicitly negative line containing the required token must NOT pass by
+# substring alone (the old matcher treated this as positive evidence)
+printf 'FAIL: expected 7 passed but 2 failed\nbuild finished exit 0\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric.md" >/dev/null 2>&1
+chk $? 1 "explicitly negative text line cannot satisfy an evidence token"
+
+printf 'pytest summary: FAIL: expected 7 passed but 2 failed\nbuild finished exit 0\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric.md" >/dev/null 2>&1
+chk $? 1 "embedded negative text clause cannot satisfy an evidence token"
+
+printf 'pytest summary: UNVERIFIED EVIDENCE: expected 7 passed\nbuild finished exit 0\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric.md" >/dev/null 2>&1
+chk $? 1 "UNVERIFIED EVIDENCE cannot satisfy an evidence token"
+
+printf 'pytest summary: INVALID EVIDENCE: expected 7 passed\nbuild finished exit 0\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric.md" >/dev/null 2>&1
+chk $? 1 "INVALID EVIDENCE cannot satisfy an evidence token"
+
+printf 'no failures: pytest 7 passed in 0.3s\nbuild finished exit 0\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric.md" >/dev/null 2>&1
+chk $? 0 "positive no-failures summary remains valid evidence"
+
+printf 'pytest: 7 passed, 0 failed\nbuild finished exit 0\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric.md" >/dev/null 2>&1
+chk $? 0 "positive zero-failed summary remains valid evidence"
+
+printf 'lint: 0 errors\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric_zero_errors.md" >/dev/null 2>&1
+chk $? 0 "positive zero-errors summary remains valid evidence"
+
+printf 'pytest: 7 passed, 0 failed; nonzero exit status\nbuild finished exit 0\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric.md" >/dev/null 2>&1
+chk $? 1 "nonzero exit status overrides a zero-failed summary"
+
+printf 'lint: 0 errors; exit status 2\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric_zero_errors.md" >/dev/null 2>&1
+chk $? 1 "numeric nonzero exit status overrides a zero-errors summary"
+
+printf 'pytest: 7 passed, 0 failed; command returned nonzero\nbuild finished exit 0\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric.md" >/dev/null 2>&1
+chk $? 1 "returned-nonzero status overrides a zero-failed summary"
+
+printf 'lint: 0 errors; command returned 3\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric_zero_errors.md" >/dev/null 2>&1
+chk $? 1 "numeric nonzero return overrides a zero-errors summary"
+
+printf 'pytest: 7 passed, 0 failed; Process exited with code 1\nbuild finished exit 0\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric.md" >/dev/null 2>&1
+chk $? 1 "canonical process-exited-with-code failure overrides a zero-failed summary"
+
+printf 'pytest: 7 passed, 0 failed; Process returned with code 2\nbuild finished exit 0\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric.md" >/dev/null 2>&1
+chk $? 1 "returned-with-code failure uses the same status grammar"
+
+printf 'pytest: 7 passed, 0 failed; timeout\nbuild finished exit 0\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric.md" >/dev/null 2>&1
+chk $? 1 "timeout overrides a zero-failed summary"
+
+printf 'lint: 0 errors; command timed out\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric_zero_errors.md" >/dev/null 2>&1
+chk $? 1 "timed-out status overrides a zero-errors summary"
+
+printf 'pytest: 7 passed, 0 failed; exit status 0\nbuild finished exit 0\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric.md" >/dev/null 2>&1
+chk $? 0 "zero exit status remains valid positive evidence"
+
+printf 'lint: 0 errors; command returned 0\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric_zero_errors.md" >/dev/null 2>&1
+chk $? 0 "zero return remains valid positive evidence"
+
+printf 'pytest: 7 passed, 0 failed; Process exited with code 0\nbuild finished exit 0\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric.md" >/dev/null 2>&1
+chk $? 0 "canonical process-exited-with-code zero remains positive"
+
+printf 'pytest: 7 passed, 0 failed; Process returned with code 0\nbuild finished exit 0\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric.md" >/dev/null 2>&1
+chk $? 0 "returned-with-code zero remains positive"
+
 # --- 3. VISION-WITHOUT-SCREENSHOT-FAILS ------------------------------------
 # text evidence mentions the criterion but NO screenshot/render reference -> fail
 printf 'the chart renders without overlap, verified the data\n' \
@@ -48,6 +130,24 @@ chk $? 1 "vision criterion with text-only evidence -> exit 1"
 printf 'the chart renders without overlap\nscreenshot saved to /tmp/chart.png\n' \
   | "${VA[@]}" --rubric "$TMP/rubric_vision.md" >/dev/null 2>&1
 chk $? 0 "vision criterion WITH screenshot reference -> exit 0"
+
+# a negative visual-reference line still contains both a marker and extension;
+# neither is evidence that the artifact was actually viewed.
+printf 'the chart renders without overlap\nNO screenshot was produced at /tmp/chart.png\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric_vision.md" >/dev/null 2>&1
+chk $? 1 "explicitly negative screenshot line cannot satisfy vision evidence"
+
+printf 'the chart renders without overlap\ncheck result: missing screenshot at /tmp/chart.png\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric_vision.md" >/dev/null 2>&1
+chk $? 1 "embedded missing-screenshot clause cannot satisfy vision evidence"
+
+printf 'the chart renders without overlap\ncheck result: screenshot absent at /tmp/chart.png\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric_vision.md" >/dev/null 2>&1
+chk $? 1 "screenshot-absent clause cannot satisfy vision evidence"
+
+printf 'the chart renders without overlap\ncheck result: artifact omitted at /tmp/chart.png\n' \
+  | "${VA[@]}" --rubric "$TMP/rubric_vision.md" >/dev/null 2>&1
+chk $? 1 "artifact-omitted clause cannot satisfy vision evidence"
 
 # --vision flag promotes a plain rubric to require visual evidence too
 printf 'pytest: 7 passed in 0.3s\nbuild finished exit 0\n' \

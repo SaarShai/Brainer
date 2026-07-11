@@ -29,17 +29,30 @@ Relation to [`context-keeper`](../context-keeper/SKILL.md): context-keeper is
 handoff document, and covers cross-agent handoffs (Claude→codex, pre-dispatch)
 that no hook fires for. Complementary, not duplicates.
 
+## Invocation boundary
+
+`disable-model-invocation: true` makes Baton slash-only for mutations.
+Read-only discovery is not a Baton invocation: an agent may run `ls -t .brainer/baton/`
+and read an existing baton as an advisory recovery probe when project/session
+continuity rules call for it. Without a literal `/baton` in the current user
+message, do not create, edit, rename, delete, promote, or otherwise mutate a
+baton or its durable-memory destination. A natural-language handoff request is
+an opportunity to suggest `/baton`, not authority to write one.
+
 ## When to Use
+
+The situations below describe when `/baton` is useful; they do not override the
+slash-only mutation boundary above.
 
 **Drop a baton when:**
 - A session ends with work unfinished and someone/something will continue it.
-- The user says "hand this off", "pick up later", "pass this to another agent".
+- After a natural-language handoff request, the user explicitly invokes `/baton`.
 - You're running low on context and want to checkpoint before it's summarized away.
 - You're about to dispatch the rest of the work to a separate agent/session (e.g. `codex exec`).
 
 **Grab a baton when:**
-- Starting work in a repo where a prior session may have left one (check first:
-  `ls -t .brainer/baton/ 2>/dev/null`).
+- The user invokes `/baton` to resume from one found by the advisory read-only
+  probe (`ls -t .brainer/baton/ 2>/dev/null`).
 
 **Don't use for:** a finished task (no handoff needed), or durable architecture
 rationale (that belongs in the wiki via write-gate, not a baton).
@@ -151,9 +164,10 @@ Premortem ([`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §8):
   a State of Play that no longer matches the repo, because the retirement step is a
   convention in this file, not a check any tool runs.
 - **No-hooks host** — this skill is pure markdown-file convention with no hook and
-  `auto-install: false`; on any host, a baton only gets written or read if a human
-  or agent remembers the slash trigger, so the entire mechanism depends on
-  attention rather than automatic enforcement.
+  `auto-install: false`; an advisory recovery probe may discover and read an
+  existing baton without `/baton`, but no hook creates, updates, retires, or
+  promotes one. Those mutations remain literal-slash-only, so preservation and
+  retirement still depend on attention rather than automatic enforcement.
 
 <!-- Rationale (why this earns a skill) — scored by write-gate before commit:
 Baton earns a skill because Brainer has no forward-handoff procedure: context-keeper is mechanical PreCompact/SessionEnd extraction, but nothing captures curated intent + dead-ends + literal-next-step when passing unfinished work to a fresh session, another window, or codex — so that the next agent doesn't re-derive ruled-out approaches (memory notes record codex fire-and-forget and subagent-handoff failures as recurring pain). Decision: vendor blader/baton (MIT, prompt-only, reviewed 2026-07-01, dedup verdict CREATE) rather than author from scratch, because its Iron Rule (verify State of Play against `git status`, never chat narrative) and its dead-ends-with-why section are field-tested phrasing we'd otherwise reinvent. Adapted to `.brainer/baton/` and retirement-via-write-gate→wiki so scratch never pollutes the durable store. Error avoided: a confidently-wrong handoff built from chat narrative sends the next runner the wrong way with false confidence — worse than no handoff.

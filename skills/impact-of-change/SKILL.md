@@ -1,6 +1,6 @@
 ---
 name: impact-of-change
-description: "Use before committing or claiming work done to map a code edit to its blast radius — which symbols depend on the changed ones, plus a LOW/MEDIUM/HIGH risk score. Trigger on \"what breaks if I change this?\", \"who calls this?\", \"is this safe to ship?\", or as the pre-commit gate in a generate→verify loop. Uses graphify's call graph when present, labelled lexical grep otherwise; tells verify-before-completion WHAT to verify. Also: /impact-of-change."
+description: "Use before committing or claiming work done to map a code edit to its blast radius — which symbols depend on the changed ones, plus a LOW/MEDIUM/HIGH/UNKNOWN risk score. Trigger on \"what breaks if I change this?\", \"who calls this?\", \"is this safe to ship?\", or as the pre-commit gate in a generate→verify loop. Uses graphify's call graph when present, labelled lexical grep otherwise; tells verify-before-completion WHAT to verify. Also: /impact-of-change."
 status: proposed
 effort: low
 tools: [Bash, Read]
@@ -13,7 +13,7 @@ pulse_reminder: "before closing a task with edits, run impact.py — emit the bl
 
 Answer **"what breaks if I change this?"** before a commit or a done-claim. Map
 uncommitted edits (or a commit range) to their **blast radius**: which symbols
-depend on the changed symbols, and a **risk score** (LOW/MEDIUM/HIGH) from
+depend on the changed symbols, and a **risk score** (LOW/MEDIUM/HIGH/UNKNOWN) from
 caller breadth plus how far the call chain reaches. It is graph-based
 *planning*, not testing — it hands the high-risk list to
 `verify-before-completion`, which runs the fresh tests.
@@ -67,6 +67,8 @@ Per the spec thresholds, each changed symbol is scored from its inbound callers:
 - **MEDIUM** — 3–10 direct callers, or any indirect caller at depth ≥2.
 - **HIGH** — >10 direct callers, OR a caller in an entry/critical path
   (`main`/`cli`/`api`/`app`/`handler`/`route`/…), OR a transitive chain at depth ≥3.
+- **UNKNOWN** — a changed symbol is absent from the graph, or a changed Python
+  body cannot be attributed to a `def`/`class`; never silently score either LOW.
 
 Overall report risk is the max across changed symbols.
 
@@ -113,7 +115,7 @@ Structured `dict` (→ JSON with `--json`, or markdown by default). Top-level ke
 ```
 tools/
 ├── impact.py        # git diff → changed symbols → graphify CALLS edges → risk
-└── test_impact.py   # standalone E1–E4 probes (assert + exit 1), temp-git fixture
+└── test_impact.py   # standalone E1–E10 probes (assert + exit 1), temp-git fixture
 ```
 
 ## Tests
@@ -122,9 +124,12 @@ tools/
 python3 skills/impact-of-change/tools/test_impact.py
 ```
 
-Covers the spec's four probes: **E1** precision (changed leaf fn → dependents
+Covers ten probes: **E1** precision (changed leaf fn → dependents
 match ground truth), **E2** degradation (graphify absent → grep report +
 warning, never errors), **E3** risk (LOW private helper vs HIGH >10 callers),
-**E4** structure (output is parseable JSON with the documented shape). The graph
-path is driven by a fixture `graph.json` mirroring graphify's node-link shape;
-the degrade path needs no graphify.
+**E4** structure (parseable output), **E5** inheritance traversal, **E6** graph
+coverage gaps → UNKNOWN, **E7** hunk-header function attribution, **E8**
+unresolved changed bodies → UNKNOWN, **E9** hunk-context dedent safety, and
+**E10** cross-file diff metadata isolation. The graph path is driven by a
+fixture `graph.json` mirroring graphify's node-link shape; the degrade path
+needs no graphify.

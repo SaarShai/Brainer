@@ -14,6 +14,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 # core.py only needs parser.parse(src) -> tree; the node API (.type, .children,
 # .child_by_field_name, .start_byte, .end_byte) is identical across versions.
 _PARSER_CACHE: dict = {}
+_CACHE_SNAPSHOT_VERSION = 2
 
 # lang -> (module, capsule-factory attr). typescript's factory is non-standard.
 _SLIM_GRAMMARS = {
@@ -101,6 +102,11 @@ class Node:
 
 def detect_lang(path: str | Path) -> Optional[str]:
     return EXT_LANG.get(Path(path).suffix.lower())
+
+
+def _has_syntax_error(source: bytes, lang: str) -> bool:
+    """Whether tree-sitter found an error node anywhere in the source."""
+    return bool(get_parser(lang).parse(source).root_node.has_error)
 
 
 def _node_name(node, source: bytes, kind_map) -> Optional[str]:
@@ -233,6 +239,30 @@ def snapshot_full(path: str | Path, ignore_comments: bool = False) -> dict[str, 
             for n in nodes}
 
 
+def _cache_snapshot(path: str | Path) -> dict:
+    """Versioned internal cache record; public snapshot_full() stays node-only."""
+    path = Path(path)
+    source = path.read_bytes()
+    lang = detect_lang(path)
+    return {
+        "__semdiff_cache_version__": _CACHE_SNAPSHOT_VERSION,
+        "source_hash": hashlib.sha256(source).hexdigest(),
+        "syntax_error": _has_syntax_error(source, lang),
+        "nodes": snapshot_full(path),
+    }
+
+
+def _valid_cache_nodes(nodes: object) -> bool:
+    """True when every cached AST node has the snapshot_full() schema."""
+    return isinstance(nodes, dict) and all(
+        isinstance(name, str)
+        and isinstance(entry, dict)
+        and isinstance(entry.get("hash"), str)
+        and isinstance(entry.get("body"), str)
+        for name, entry in nodes.items()
+    )
+
+
 def render_diff(path: str | Path, prev: dict[str, str]) -> tuple[str, dict]:
     """Compare current file vs prev snapshot; render diff view.
 
@@ -246,9 +276,26 @@ def render_diff(path: str | Path, prev: dict[str, str]) -> tuple[str, dict]:
     curr = {n.name: n.hash for n in nodes}
     by_name = {n.name: n for n in nodes}
 
+    if prev.get("__semdiff_cache_version__") == _CACHE_SNAPSHOT_VERSION:
+        prev_nodes = prev.get("nodes", {})
+        prev_source_hash = prev.get("source_hash")
+    else:
+        # Backward compatibility for existing cache files and callers that pass
+        # snapshot_full() directly.
+        prev_nodes = prev
+        prev_source_hash = None
+
+    if _has_syntax_error(source, lang):
+        return source.decode("utf-8", "replace"), {
+            "added": [], "removed": [], "changed": [], "unchanged": [],
+            "renamed": [], "lang": lang, "node_count": len(nodes),
+            "mode": "full", "reason": "syntax-error", "error": True,
+            "warning": "AST contains syntax errors; returned the full file because a node diff is unreliable.",
+        }
+
     # Backward-compat: prev may be {name: hash} OR {name: {hash, body}}.
     def _prev_hash(v): return v["hash"] if isinstance(v, dict) else v
-    prev_hashes = {k: _prev_hash(v) for k, v in prev.items()}
+    prev_hashes = {k: _prev_hash(v) for k, v in prev_nodes.items()}
 
     added = [n for n in curr if n not in prev_hashes]
     removed = [n for n in prev_hashes if n not in curr]
@@ -257,14 +304,14 @@ def render_diff(path: str | Path, prev: dict[str, str]) -> tuple[str, dict]:
 
     # Rename detection: if prev has bodies, try to match added↔removed by body similarity.
     renames = []
-    if added and removed and any(isinstance(v, dict) and "body" in v for v in prev.values()):
+    if added and removed and any(isinstance(v, dict) and "body" in v for v in prev_nodes.values()):
         try:
             import base64
             from .rename_detect import detect_renames
-            prev_snap_short = {k: _prev_hash(v) for k, v in prev.items() if k in removed}
+            prev_snap_short = {k: _prev_hash(v) for k, v in prev_nodes.items() if k in removed}
             curr_snap_short = {n.name: n.hash for n in nodes if n.name in added}
             prev_bodies = {k: base64.b64decode(v["body"])
-                            for k, v in prev.items() if isinstance(v, dict) and "body" in v and k in removed}
+                            for k, v in prev_nodes.items() if isinstance(v, dict) and "body" in v and k in removed}
             curr_bodies = {n.name: n.source for n in nodes if n.name in added}
             rename_results = detect_renames(prev_snap_short, curr_snap_short, prev_bodies, curr_bodies)
             # Strong-confidence renames only (≥0.7 per lib threshold)
@@ -278,6 +325,16 @@ def render_diff(path: str | Path, prev: dict[str, str]) -> tuple[str, dict]:
             removed = [n for n in removed if n not in renamed_old]
         except Exception:
             pass  # rename detection is best-effort
+
+    source_changed = (prev_source_hash is not None
+                      and prev_source_hash != hashlib.sha256(source).hexdigest())
+    if source_changed and not (added or removed or changed or renames):
+        return source.decode("utf-8", "replace"), {
+            "added": [], "removed": [], "changed": [], "unchanged": unchanged,
+            "renamed": [], "lang": lang, "node_count": len(nodes),
+            "mode": "full", "reason": "bytes-changed-without-ast-delta", "error": False,
+            "warning": "File bytes changed but no extracted AST node changed; returned the full file.",
+        }
 
     lines = [f"// semdiff: {path} (lang={lang}, diff-since-last-read)"]
     lines.append(f"// summary: +{len(added)} ~{len(changed)} -{len(removed)} ={len(unchanged)} "
@@ -362,18 +419,61 @@ def read_smart(path: str | Path, session_id: str, cache_dir: Optional[Path] = No
     """Main entry. First read: return full file + store snapshot.
     Subsequent: return diff view.
     """
-    from .cache import SessionCache
     path = Path(path).resolve()
+    if detect_lang(path) is None:
+        source = path.read_bytes().decode("utf-8", "replace")
+        return source, {"mode": "full", "reason": "unsupported-language"}
+
+    from .cache import SessionCache
     cache = SessionCache(session_id, cache_dir=cache_dir)
     prev = cache.get(str(path))
 
     if prev is None:
         source = path.read_bytes().decode("utf-8", "replace")
-        cache.set(str(path), snapshot_full(path))  # store bodies for future rename detection
+        snap = _cache_snapshot(path)
+        cache.set(str(path), snap)  # store bodies + file hash for safe fallback detection
+        if snap["syntax_error"]:
+            return source, {
+                "mode": "full", "reason": "syntax-error", "error": True,
+                "warning": "AST contains syntax errors; returned the full file because a node diff is unreliable.",
+            }
         return source, {"mode": "full", "reason": "first-read"}
+
+    cache_reason = None
+    cache_warning = None
+    if (not isinstance(prev, dict)
+            or prev.get("__semdiff_cache_version__") != _CACHE_SNAPSHOT_VERSION
+            or not isinstance(prev.get("source_hash"), str)):
+        cache_reason = "legacy-cache-migration"
+        cache_warning = (
+            "Legacy cache has no trusted source hash; returned full current "
+            "source and upgraded cache."
+        )
+    elif (not _valid_cache_nodes(prev.get("nodes"))
+            or not isinstance(prev.get("syntax_error"), bool)):
+        cache_reason = "invalid-cache-schema"
+        cache_warning = (
+            "Cache schema is invalid; returned full current source and replaced cache."
+        )
+    elif prev["syntax_error"]:
+        cache_reason = "syntax-error-recovery"
+        cache_warning = (
+            "Previous cache came from syntax-error source; returned full current "
+            "source and refreshed cache."
+        )
+
+    if cache_reason:
+        source = path.read_bytes().decode("utf-8", "replace")
+        snap = _cache_snapshot(path)
+        cache.set(str(path), snap)
+        return source, {
+            "mode": "full", "reason": cache_reason,
+            "error": bool(snap["syntax_error"]),
+            "warning": cache_warning,
+        }
 
     rendered, meta = render_diff(path, prev)
     # rewrite snapshot fully (simpler than incremental merge, avoids staleness)
-    cache.set(str(path), snapshot_full(path))
-    meta["mode"] = "diff"
+    cache.set(str(path), _cache_snapshot(path))
+    meta.setdefault("mode", "diff")
     return rendered, meta
