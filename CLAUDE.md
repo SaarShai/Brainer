@@ -47,6 +47,7 @@ context match (e.g. `wiki-memory` for "have we done X").
 - `requirements-ledger` — Use whenever the user states anything carrying intent — an ask, a question, a constraint, a preference, a compound "do X, Y, and Z" (one row per conjunct), or an implicit ask embedded in prose
 - `security-oversight` — Use before committing or claiming work done to triage a code edit for INTRODUCED security risk — leaked secrets, dangerous sinks, untrusted deps, risky auth logic
 - `semantic-diff` — AST-node-level diff for file re-reads
+- `standing-orders` — Auto-arm standing directives on matching prompts — ORCH tier (goal, lanes, cheapest delegation, other-vendor advisor, end-to-end) on decomposable work; DEEP tier (blindspot pass, lesson capture) on high-level tasks
 - `team-lead` — Use when the user says lead, orchestrate, use your team, use builders — or marks a task important/challenging while the session model is ANY top-tier frontier model (Fable-class, Opus-class, GPT-5.x/Codex, or peer)
 - `verify-before-completion` — Use before claiming work is done, fixed, passing, committed, or ready
 - `wiki-memory` — Repo-local markdown wiki with progressive retrieval (search → timeline → fetch) and gated writes (verified facts only)

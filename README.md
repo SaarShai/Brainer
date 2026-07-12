@@ -87,9 +87,9 @@ graphify extract .
 
 `./install.sh` installs `graphify` from our maintained fork ([SaarShai/graphify@token-economy-patches](https://github.com/SaarShai/graphify/tree/token-economy-patches)) — published `graphifyy` 0.8.17 ships four bugs that affect our skill flow (see [skills/index-first/EVAL.md](skills/index-first/EVAL.md) for the bug list and impact). The installer prefers `pipx` and falls back to `python3 -m pip install --user`. Opt out with `./install.sh --no-graphify` (the wiki-memory and index-first skills degrade gracefully when the graph isn't present). After bootstrap the stack is on automatically — hooks fire per event, descriptions trigger on prompt shape.
 
-## The catalog (27 skills)
+## The catalog (28 skills)
 
-**All 27 are symlinked and listed by `./install.sh` (as of v1.13; `loop-engineering`, `eval-gate`, `requirements-ledger`, `brainer-audit`, and `learn-skill` are in the catalog).** `compliance-canary` (the single drift watcher — it absorbed `skill-pulse` at v1.10) auto-wires its `UserPromptSubmit` hook (`auto-install: true`, **default-on since v1.7**); `think` is slash-only (`/think`, no hook). To disable a default-on hook, remove its entry from `.claude/settings.json` by hand.
+**All 28 are symlinked and listed by `./install.sh` (as of v1.13; `loop-engineering`, `eval-gate`, `requirements-ledger`, `brainer-audit`, and `learn-skill` are in the catalog).** `compliance-canary` (the single drift watcher — it absorbed `skill-pulse` at v1.10) auto-wires its `UserPromptSubmit` hook (`auto-install: true`, **default-on since v1.7**); `think` is slash-only (`/think`, no hook). To disable a default-on hook, remove its entry from `.claude/settings.json` by hand.
 
 | Skill | Trigger | Desc tokens | Notes |
 |---|---|---:|---|

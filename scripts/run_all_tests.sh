@@ -130,6 +130,7 @@ S|core|python3|skills/semantic-diff/tools/tests/test_syntax_error.py|tree_sitter
 S|core|python3|skills/semantic-diff/tools/tests/test_whitespace.py|tree_sitter|-
 S|core|python3|skills/semantic-diff/tools/tests/test_realistic.py|tree_sitter|-
 S|core|python3|skills/semantic-diff/tools/tests/test_classlevel.py|tree_sitter|-
+S|core|python3|skills/standing-orders/tools/test_standing_orders.py|-|-
 S|tail|bash|skills/compliance-canary/tools/test.sh|-|hook:compliance-canary
 S|tail|bash|skills/eval-gate/tools/test.sh|-|tool:eval-gate
 S|tail|bash|skills/verify-before-completion/tools/test.sh|-|tool:verify-artifact

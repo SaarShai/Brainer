@@ -59,6 +59,7 @@ TARGET_CASES = [
     ("scan this patch for introduced secrets, dangerous sinks, risky auth logic, and untrusted dependencies", "security-oversight"),
     ("this task will repeat; run an after-the-fact retrospective and capture reusable project lessons", "task-retrospective"),
     ("lead this challenging task by delegating bounded builder lanes and reviewing their work", "team-lead"),
+    ("break this migration into independent parallel lanes across every affected file and drive it end-to-end to done", "standing-orders"),
 ]
 
 # Composition prompts accept any listed companion as an honest top-1 answer.

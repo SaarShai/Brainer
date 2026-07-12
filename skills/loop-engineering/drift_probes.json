@@ -17,13 +17,6 @@
     "severity": "warn"
   },
   {
-    "id": "fleet-orchestration-intent",
-    "kind": "prompt_intent",
-    "pattern": "(?i)(?:\\b(?:spawn|dispatch|orchestrat\\w+|fan[- ]?out|fleet)\\b[^.?!\\n]{0,40}\\b(?:agents?|sub-?agents?|workers?|assistants?)\\b|\\b(?:agents?|sub-?agents?|workers?|assistants?)\\b[^.?!\\n]{0,30}\\bin parallel\\b|\\b(?:team|swarm|fleet|group|pool|army|set) of (?:parallel )?(?:agents?|sub-?agents?|workers?|assistants?)\\b|\\bparallel (?:agents?|sub-?agents?|workers?|assistants?)\\b|\\bsplit (?:the |up )?(?:work|task|goal)\\b[^.?!\\n]{0,40}\\b(?:independent|parallel|pieces|across|concurrent)\\b|\\bgive each (?:agent|sub-?agent|worker|assistant)\\b|\\b(?:multiple|several|many|separate|distinct|various) (?:(?:parallel|ai|sub|independent|concurrent|separate) )*(?:agents?|sub-?agents?|assistants?|workers?)\\b|\\bdispatch(?:ed|ing)? (?:them |these |the )?(?:concurrently|in parallel)\\b)",
-    "message": "this prompt asks you to ORCHESTRATE A FLEET — apply loop-engineering's orchestration section: write the GOAL, split into independent pieces, give each agent a self-contained brief (goal + in-scope files + done-means + explicit OUT-of-scope), dispatch concurrently, synthesize as they return. Require the executor report contract ('READY FOR JUDGING', attempts+assumptions, never 'done'); worktree-isolate any writers; quarantine untrusted-content readers (read-only tools). CRITICAL: hooks/probes do NOT fire inside subagents — inline the relevant skill directives into each subagent prompt and re-verify their output in the main loop.",
-    "severity": "warn"
-  },
-  {
     "id": "harness-audit-intent",
     "kind": "prompt_intent",
     "pattern": "(?i)(?:\\b(?:agent|claude|codex)\\s+harness\\b|\\bharness\\s+(?:engineering|audit|setup|config|configuration|review)\\b|\\b(?:audit|review|configure|harden|scan)\\b[^.?!\\n]{0,40}\\bharness\\b|\\bdefault\\s+harness\\b|\\.claude/[^.?!\\n]{0,80}\\b(?:settings\\.json|hooks?|subagents?|agents?|skills?|memory|permissions)\\b|\\b(?:context|permissions|hooks?|subagents?|skills?|memory)\\b[^.?!\\n]{0,60}\\b(?:before|under(?:neath)?|beneath)\\b[^.?!\\n]{0,40}\\b(?:loop|automation|agent))",

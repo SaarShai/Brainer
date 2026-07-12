@@ -21,7 +21,7 @@ HOOK = SKILLS / "compliance-canary" / "tools" / "hook.py"
 
 # probe -> dict(mode, sig, pos[], neg[])
 CORPUS = {
- "fleet-orchestration-intent": dict(mode="prompt", sig="ORCHESTRATE A FLEET", pos=[
+ "orch-tier-intent": dict(mode="prompt", sig="[standing-orders] ORCH", pos=[
    "spawn agents in parallel, split the work into independent pieces, dispatch them concurrently",
    "break this into independent chunks and run several sub-agents at once",
    "fan out a few workers to handle these concurrently",
