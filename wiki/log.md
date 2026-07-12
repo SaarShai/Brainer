@@ -1,5 +1,9 @@
 # Log
 
+## [2026-07-12] lesson | new-skill landing integration-gate regress — builder lane gates on skill-local tests, ships 3 hidden regressions only caught by full core suite
+
+Standing-orders build session (commit bb5d773): a single-skill lane that reported green on skill-local checks (test_*.py, check_skill_contracts, e1) shipped without running the full integration suite. Cold verifier found 3 undisclosed FAILs (baseline 108/108 → 3 FAILs). Root cause: new skill touches 6 integration points beyond skill dir: carrier-sync (CLAUDE.md/AGENTS.md/GEMINI.md catalogs + ./install.sh), marketplace-sync (.claude-plugin/marketplace.json + prose count), README skill-count line, eval/exp8 fixture counts, harness_acceptance H1a (byte budget 7668B), harness_acceptance H1b–H1c (SKILL.md >15360B companion + cross-file counts). Rule: any new-skill lane's DONE-MEANS must include `bash scripts/run_all_tests.sh --group core` at 0 FAIL + brief naming integration files as in-scope. Measurement: cold-verifier catch-rate was 100% (3/3 finds). Wiki page: [[concepts/new-skill-landing-integration-gate-regress]]. pattern:gate-first-rebuild
+
 ## [2026-07-07] lesson | fable-mode probe overclaimed "same class failure" — fixed in 5ce5f38; message now claims only observable count
 
 Drift probe `kind=repeated_tool_error` shipped in 2753220 with user-facing message claiming "the same class of failure recurred — STOP retrying variations". Adversarial review proved false-diagnosis on 3 distinct failures: the detector observes only count >= N (is_error matches), not semantic class equivalence. Fixed in 5ce5f38 to claim only observed signal (">=3 failures = stalling"). Regression locked by canary test [103d] preventing the overclaim language from reappearing. Wiki page: [[concepts/fable-mode-probe-message-overclaim-lesson]]. pattern:honest-probe-messaging
