@@ -4,8 +4,7 @@
 #   SessionStart -> promote/demote/stale nudge (read-only; surfaces, never mutates)
 # The skill-MUTATING steps (promote / demote / staleness --apply) stay agent-run by
 # design (loop-engineering: an unattended write path needs a gate — so the unattended
-# path here is append/read-only only). learn-skill ships auto-install:false, so this
-# runs only when invoked explicitly: bash skills/learn-skill/tools/install.sh
+# path here is append/read-only only). The root installer runs this by default.
 set -euo pipefail
 
 DRY_RUN=0

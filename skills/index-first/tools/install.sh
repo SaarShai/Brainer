@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
-# OPT-IN installer for the index-first PreToolUse augment hook.
+# Installer for the index-first PreToolUse augment hook.
 #
-# This skill is opt-in (auto-install:false). It is NOT wired into the repo's
-# default ./install.sh — you run THIS script by hand when you want grep/glob
-# calls augmented with index hits. Merges a single PreToolUse entry into
+# The root ./install.sh runs this by default. Merges a single PreToolUse entry into
 # .claude/settings.json, then leaves everything else untouched.
 #
 # The settings-merge guard (never overwrite a corrupt/truncated settings.json)
@@ -118,4 +116,4 @@ sys.stderr.write(msg + "\n")
 PY
 
 chmod +x "$TOOLS_DIR/augment.py"
-echo "index-first augment hook: opt-in install complete (run with --uninstall to remove)."
+echo "index-first augment hook: default install complete (run with --uninstall to remove)."

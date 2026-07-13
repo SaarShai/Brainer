@@ -27,7 +27,7 @@ edit canonical Brainer skills.
 4. **GATE** — `write_gate.py gate --kind sop` on the "why this earns a skill" block.
    Exit 1 ⇒ revise or drop. No agent-only override.
 5. **WRITE** — scaffold `skills/<name>/SKILL.md`, frontmatter: `status: proposed`,
-   `source:`, `learned_at:`, `disable-model-invocation: true`, `auto-install: false`.
+   `source:`, `learned_at:`, `disable-model-invocation: true`, `auto-install: true`.
 
 **Trust (BUILT in turn 4):** counted promotion is telemetry-gated — `learn.py promote`
 flips `proposed → trusted` only after `telemetry.py` shows N consecutive hits with no
@@ -49,7 +49,7 @@ NOTE: turn-3 GLM review cut `promote` for lack of evidence; turn 4 built the evi
 - **#6** staleness — `learn.py staleness` (git/age aware); consumes `source:`/`learned_at:`.
 
 ## done means:
-1. `skills/learn-skill/SKILL.md` exists; frontmatter valid (`name`, `description`, `status`, `auto-install: false`); documents the 5-step flow + manual-trust note.
+1. `skills/learn-skill/SKILL.md` exists; frontmatter valid (`name`, `description`, `status`, `auto-install: true`); documents the 5-step flow + manual-trust note.
 2. `learn.py {dedup,lint,scaffold}` run; `test_learn.py` passes (quote output).
 3. Demo: a real source → a `proposed` SKILL.md that passes `learn.py lint` AND `write_gate.py gate` on its rationale; dedup correctly flags a near-dup.
 4. New skill appears in the install catalog frontmatter scan (or note why deferred).

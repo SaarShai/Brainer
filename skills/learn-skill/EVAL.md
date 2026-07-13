@@ -1,6 +1,8 @@
 # learn-skill — EVAL
 
-**Posture: opt-in (`auto-install: false`).** Ships symlinked + listed but wires no hook.
+**Posture: default-on (`auto-install: true`).** Ships symlinked + listed and wires its
+telemetry hooks. Learned output skills remain proposed and slash-only until separately
+promoted by telemetry.
 No measured A/B yet; promotion to default needs N≥50 like every other Brainer skill.
 
 ## What it is
@@ -35,7 +37,7 @@ only write-path gate is `write-gate`'s rule scorer.
    whose external CLI deps are absent here (advisory; Claude Code has no native tool-hiding).
    Ported from Hermes `requires_tools` / `fallback_for_toolsets`.
 
-Sessions hooks (opt-in `install.sh`): SessionEnd `scan` (append-only); SessionStart nudge
+Session hooks (default `install.sh`): SessionEnd `scan` (append-only); SessionStart nudge
 (promote-ready / failing→refine / missing-tools / stale). Mutating steps stay agent-run.
 
 ## Known limits (documented, not bugs)
@@ -85,8 +87,8 @@ Premortem ([`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §8):
   what it was learned from; `learn.py staleness` catches this only when it's actually run,
   and for a URL source it can't even fetch to check — it can only age-flag, leaving the real
   re-verification to an agent that has to remember to re-`WebFetch` it.
-- **No-hooks host** — the SessionEnd/SessionStart telemetry hooks are opt-in
-  (`install.sh`) and Claude-Code-shaped; Codex has no SessionStart/SessionEnd, so the
+- **No-hooks host** — the SessionEnd/SessionStart telemetry hooks are default-on in
+  `install.sh` and Claude-Code-shaped; Codex has no SessionStart/SessionEnd, so the
   installer substitutes Stop + UserPromptSubmit with `--defer-trailing` scanning per
   `docs/HOST_CAPABILITY_MATRIX.md`, and a host with neither wired at all silently drops to
   **zero usage telemetry** — `learn.py promote` then has nothing to gate on, so a learned

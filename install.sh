@@ -612,10 +612,9 @@ done
 # source and reusing the exact same idempotent JSON-merge idiom every
 # per-skill installer already uses (hooks.setdefault(event, []).append a
 # {matcher:"*", hooks:[{type:"command", command:cmd}]} rule; never touch a
-# non-Brainer hook; never overwrite a corrupt settings.json). Opt-in skills
-# (brainer-audit, learn-skill, index-first) and any future hook skill this
-# table doesn't yet name are reported via a loud [warn], never silently
-# skipped.
+# non-Brainer hook; never overwrite a corrupt settings.json). The marker-gated
+# brainer-audit skill and any future hook skill this table doesn't yet name are
+# reported via a loud [warn], never silently skipped.
 # claude-code only (--host constrains): the .codex/hooks.json / .gemini
 # equivalents follow the same script-location limitation and are named in the
 # loud warn below rather than silently skipped.
@@ -647,13 +646,15 @@ def skill_is_optin(skill_md_text):
 # hook.sh for skills that ship hook.py only as a thin exit-0-safety internal
 # used BY hook.sh, e.g. compliance-canary/context-keeper). Skills with no
 # single-command claude-code hook this generic pass can safely reconstruct
-# (brainer-audit, learn-skill: opt-in; index-first: opt-in) are excluded here
-# and named in the loud warn the caller prints either way.
+# (brainer-audit) is excluded here and named in the loud warn the caller prints
+# either way because it does not have a single hook shape.
 KNOWN_HOOK_INSTALLERS = {
     # skill_name: [(event, shell_var_name_in_that_installer), ...]
     "compliance-canary": [("UserPromptSubmit", "HOOK_CMD")],
     "context-keeper":    [("PreCompact", "HOOK_CMD"), ("SessionEnd", "ARCHIVE_CMD")],
     "prompt-triage":     [("UserPromptSubmit", "HOOK_CMD")],
+    "index-first":       [("PreToolUse", "HOOK_CMD")],
+    "learn-skill":       [("SessionEnd", "END_CMD"), ("SessionStart", "START_CMD")],
 }
 
 def extract_cmd(installer_text, var_name):
@@ -668,7 +669,11 @@ for skill_dir in sorted(src.iterdir()):
     if not skill_dir.is_dir() or not tools.is_dir():
         continue
     hook_files = [f for f in tools.iterdir() if f.name in ("hook.sh", "hook.py")]
-    if not hook_files:
+    # Some default-on hook skills expose a purpose-named executable rather
+    # than hook.sh/hook.py (index-first/augment.py, learn-skill/hooks.py).
+    # Their command shape is still declared below, so include those known
+    # installers in the consumer-project pass.
+    if not hook_files and skill_dir.name not in KNOWN_HOOK_INSTALLERS:
         continue
     skill_md = skill_dir / "SKILL.md"
     md_text = skill_md.read_text(encoding="utf-8", errors="replace") if skill_md.exists() else ""

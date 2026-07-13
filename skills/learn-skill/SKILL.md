@@ -4,7 +4,7 @@ description: Turn a pointed-at source (local dir, doc URL, a workflow you just d
 status: trusted
 effort: low
 tools: [Bash, Read, Grep, WebFetch]
-auto-install: false
+auto-install: true
 pulse_reminder: a learned skill is born `proposed` (slash-only, won't auto-fire) and its rationale must clear write-gate. Dedup before you create — patch, don't duplicate.
 ---
 
@@ -74,7 +74,7 @@ durable *fact* (→ `wiki-memory` + `write-gate`). `/learn` produces a *procedur
    python3 skills/learn-skill/tools/learn.py lint --file skills/<name>/SKILL.md
    ```
    The scaffold sets `status: proposed`, `disable-model-invocation: true` (won't auto-fire),
-   `auto-install: false`, and stamps `source:` + `learned_at:` for later staleness checks.
+    `auto-install: true`, and stamps `source:` + `learned_at:` for later staleness checks.
 
 6. **Weakest-executor acceptance test.** Before proposing, run the skill on the
    weakest model tier that will actually execute it — fresh context, an instance
@@ -185,7 +185,7 @@ Honest limits (see [`EVAL.md`](EVAL.md)): transcript-mined outcomes are heuristi
 (`source: inferred`); a strict operator counts `--manual-only`. Slash-literal invocations
 that don't surface as a `Skill` tool_use aren't counted.
 
-## Unattended wiring (opt-in)
+## Unattended wiring (default-on)
 `bash skills/learn-skill/tools/install.sh` wires two hooks into `.claude/settings.json`:
 - **SessionEnd** → `telemetry scan` the transcript (APPEND-only usage log).
 - **SessionStart** → a read-only nudge listing promote-ready / demote / stale skills.

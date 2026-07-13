@@ -2,7 +2,7 @@
 name: index-first
 description: Prefer pre-built indexes over chains of grep/read/scan. Use when about to look up symbols, callers, references, routes, or "where is X used / what depends on Y" — query the index (codegraph, ctags, wiki search) before scanning raw text. Batch related lookups into one capped call. Applies to code and any indexed corpus (wiki, tickets, docs).
 effort: low
-auto-install: false
+auto-install: true
 ---
 
 # Index-First Retrieval

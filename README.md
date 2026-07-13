@@ -89,7 +89,7 @@ graphify extract .
 
 ## The catalog (28 skills)
 
-**All 28 are symlinked and listed by `./install.sh` (as of v1.13; `loop-engineering`, `eval-gate`, `requirements-ledger`, `brainer-audit`, and `learn-skill` are in the catalog).** `compliance-canary` (the single drift watcher — it absorbed `skill-pulse` at v1.10) auto-wires its `UserPromptSubmit` hook (`auto-install: true`, **default-on since v1.7**); `think` is slash-only (`/think`, no hook). To disable a default-on hook, remove its entry from `.claude/settings.json` by hand.
+**All 28 are symlinked and listed by `./install.sh` (as of v1.13; `loop-engineering`, `eval-gate`, `requirements-ledger`, `brainer-audit`, and `learn-skill` are in the catalog).** `compliance-canary` (the single drift watcher — it absorbed `skill-pulse` at v1.10), `learn-skill`, and `index-first` auto-wire their hooks by default; `think` is slash-only (`/think`, no hook). To disable a default-on hook, remove its entry from `.claude/settings.json` by hand.
 
 | Skill | Trigger | Desc tokens | Notes |
 |---|---|---:|---|
