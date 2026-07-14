@@ -1,6 +1,6 @@
 ---
 name: plan-first-execute
-description: Plan before executing non-trivial or spec-worthy tasks. Trigger when the task has more than 3 steps, unclear scope, multiple files, real risk, user-visible behavior, or architecture decisions. Inspect reality first, separate WHAT from HOW, draft a phased plan with verification gates, simplify, then execute.
+description: Plan before executing non-trivial or spec-worthy tasks. Trigger when work has more than 3 steps, unclear scope, multiple files, risk, user-visible behavior, or architecture decisions; inspect reality, separate WHAT from HOW, plan with verification gates, simplify, then execute.
 effort: medium
 ---
 
@@ -13,6 +13,13 @@ Use for tasks with >3 steps, unclear scope, multiple files, risk, user-visible b
 ## Spec-First Checkpoint
 
 For feature work, product behavior, migrations, shared contracts, or any task likely to outlive one turn, create a compact spec before implementation. If a repo already has a spec/task packet (`specs/...`, `PLAN.md`, issue body, design doc), read and update that instead of creating a parallel artifact.
+
+If the destination is nameable but the route is too foggy to produce a complete,
+gradeable spec in one session, do not counterfeit completeness with speculative
+tasks. Suggest the slash-only [`/wayfinder`](../wayfinder/SKILL.md) flow: it maps
+precise decision questions separately from still-unformulated in-scope fog, then
+hands the cleared route back here. Do not create or mutate a map without the
+literal `/wayfinder` invocation.
 
 Minimum spec contract:
 - **WHAT/WHY**: user-visible outcome, scope, non-goals, assumptions, dependencies.

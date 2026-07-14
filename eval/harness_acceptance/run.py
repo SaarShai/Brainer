@@ -78,8 +78,15 @@ def check_h1a() -> tuple[str, str, bool, str]:
     floor correction for legitimate skill growth, not a loosened target.
     Standing bar for ANY future re-baseline: repeat the description-vs-
     structure byte split; only description growth justifies a bump.
+
+    Re-baseline (2026-07-13): adding proposed `/wayfinder` changed the resident
+    block from 7661B / 28 skill lines to 7733B / 29 skill lines. The measured
+    split was descriptions 5308B -> 5380B (+72B) and structural bytes 2353B ->
+    2353B (byte-identical). Since 100% of growth is the new skill's immutable
+    trigger line and structural growth is zero, the documented-floor procedure
+    permits the same 256B margin: 7733 + 256 = 7989B.
     """
-    BUDGET_BYTES = 7668  # measured floor (7412B, 2026-07-07) + 256B margin
+    BUDGET_BYTES = 7989  # measured floor (7733B, 2026-07-13) + 256B margin
     claude_md = REPO / "CLAUDE.md"
     if not claude_md.exists():
         return ("H1a", "token", False, "CLAUDE.md not found")
@@ -94,7 +101,7 @@ def check_h1a() -> tuple[str, str, bool, str]:
     size = len(block.encode("utf-8"))
     ok = size <= BUDGET_BYTES
     return ("H1a", "token", ok,
-            f"resident block {size}B vs budget {BUDGET_BYTES}B (measured floor 7412B + 256B margin, "
+            f"resident block {size}B vs budget {BUDGET_BYTES}B (measured floor 7733B + 256B margin, "
             f"down from 7990B pre-diet baseline via safe relocation, not trigger/rule cuts)")
 
 

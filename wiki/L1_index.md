@@ -55,8 +55,9 @@ Compact pointers. Fetch details on demand.
 - concepts/local-model-setup (concept tags=infra,devices,models,routing,harnesses) -> `concepts/local-model-setup.md`
 - concepts/measure-triggers-by-decision-marker (concept tags=eval-methodology,triggers,measurement) -> `concepts/measure-triggers-by-decision-marker.md`
 - concepts/memory-article-4layer-evaluated-2026-07 (concept tags=memory,article-adoption,multi-agent,concurrency,negative-result,ab-test) -> `concepts/memory-article-4layer-evaluated-2026-07.md`
-- concepts/new-skill-landing-integration-gate-regress (lesson tags=skills,testing,integration,regression,new-skill-landing,gate-first,builders) -> `concepts/new-skill-landing-integration-gate-regress.md`
+- concepts/new-skill-landing-integration-gate-regress (lesson tags=skills,testing,integration,regression,new-skill-landing,gate-first,builders,integration-test) -> `concepts/new-skill-landing-integration-gate-regress.md`
 - concepts/optimization-axes (concept tags=framework,categorization,meta) -> `concepts/optimization-axes.md`
+- concepts/origintrail-dkg-adoption-2026-07 (concept tags=origintrail,dkg,adoption,provenance,trust,memory,telemetry) -> `concepts/origintrail-dkg-adoption-2026-07.md`
 - concepts/prefix-caching (concept tags=prompt-caching,cost) -> `concepts/prefix-caching.md`
 - concepts/premortem-and-think-edits-measured (concept tags=skills,premortem,think,eval,ab-test,over-warning,sycophancy,negative-result,calibration) -> `concepts/premortem-and-think-edits-measured.md`
 - concepts/progressive-retrieval (concept tags=retrieval,progressive-disclosure,wiki,memory,synthesis) -> `concepts/progressive-retrieval.md`
@@ -69,6 +70,7 @@ Compact pointers. Fetch details on demand.
 - concepts/team-lead-upstream-2026-07 (concept tags=orchestration,team-lead,builder,verifier,upstream,sibling-sync,adoption) -> `concepts/team-lead-upstream-2026-07.md`
 - concepts/turboquant-kv-cache (concept tags=turboquant,kv-cache,llama-cpp,apple-silicon,gguf-stack) -> `concepts/turboquant-kv-cache.md`
 - concepts/unsloth-distill (concept tags=distillation,local-models) -> `concepts/unsloth-distill.md`
+- concepts/wayfinder-adoption-2026-07 (concept tags=skills,wayfinder,adoption,planning,multi-session,decision-map) -> `concepts/wayfinder-adoption-2026-07.md`
 - concepts/when-to-extract-a-skill-md-section-into-tools (concept tags=skills,authoring,refactor,extraction,bloat,lazy-load) -> `concepts/when-to-extract-a-skill-md-section-into-tools.md`
 - concepts/wiki-governance (concept tags=wiki,governance,schema) -> `concepts/wiki-governance.md`
 - concepts/write-gate-not-truth-filter (concept tags=eval-methodology,write-gate,provenance,memory-poisoning) -> `concepts/write-gate-not-truth-filter.md`

@@ -23,6 +23,7 @@ improvise a hand-rolled equivalent:
 - `/brainer-audit` — Use when the user explicitly activates Brainer audit mode, asks to audit this session, audit Brainer use, or track Brainer skill usage
 - `/task-retrospective` — Use only when the user explicitly arms task audit mode: /retro, asks for task-retrospective, says this task will repeat and should be learned from, or requests an after-the-fact task learning audit
 - `/think` — How an agent should think and approach problems — first-principles, reduce/simplify before adding, research-and-borrow before building, experiment-and-falsify, never hallucinate or flatter
+- `/wayfinder` — Map a foggy multi-session effort as decision tickets
 
 ### Model-invokable (host fires on matching context)
 

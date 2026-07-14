@@ -41,6 +41,7 @@ import statistics
 import sys
 import time
 import urllib.request
+import uuid
 from pathlib import Path
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434/api/generate")
@@ -453,9 +454,11 @@ def _run_verifier_panel(n, threshold, rubric_txt, candidate, score_summary):
         f"SCORED OUTPUT:\n{_truncate_panel_text(candidate)}"
     )
     results = []
+    correlation_id = "run:" + uuid.uuid4().hex
     for member in panel:
         try:
-            raw_result = roster_mod.run_dispatch(member, "verifier", claim, brief)
+            raw_result = roster_mod.run_dispatch(
+                member, "verifier", claim, brief, correlation_id=correlation_id)
         except Exception as e:
             raw_result = {"ok": False, "error": f"dispatch raised: {e}"}
         results.append(_panel_result_from_dispatch(member, raw_result))

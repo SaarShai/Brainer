@@ -631,7 +631,77 @@ def test_run_dispatch_trace_enabled_by_default():
     prev = os.environ.pop("BRAINER_TRACE", None)
     try:
         mr.run_dispatch(_b(mr.LANE_GPT, invocation="cat"), "advisor", "unstick me", "b", timeout=5)
-        return len(calls) == 1 and calls[0]["lane"] == mr.LANE_GPT and calls[0]["task_digest"] == "unstick me"
+        correlation_id = calls[0]["correlation_id"] if calls else ""
+        return (len(calls) == 1 and calls[0]["lane"] == mr.LANE_GPT
+                and correlation_id.startswith("run:") and len(correlation_id) == 36
+                and "unstick me" not in correlation_id)
+    finally:
+        mr._record_lane_event = orig
+        if prev is not None:
+            os.environ["BRAINER_TRACE"] = prev
+
+
+def test_run_dispatch_correlation_id_is_unique_by_default_and_caller_stable():
+    calls = []
+    orig = mr._record_lane_event
+    mr._record_lane_event = lambda path, event: calls.append(event) or True
+    prev = os.environ.pop("BRAINER_TRACE", None)
+    try:
+        backend = _b(mr.LANE_GPT, invocation="cat")
+        mr.run_dispatch(backend, "advisor", "same task", "b", timeout=5)
+        mr.run_dispatch(backend, "verifier", "same task", "b", timeout=5)
+        mr.run_dispatch(backend, "advisor", "different task", "b", timeout=5,
+                        correlation_id="run:caller-stable")
+        mr.run_dispatch(backend, "verifier", "different task", "b", timeout=5,
+                        correlation_id="run:caller-stable")
+        ids = [call["correlation_id"] for call in calls]
+        return (ids[0] != ids[1] and ids[2:] == ["run:caller-stable"] * 2
+                and all(1 <= len(value) <= 128 for value in ids))
+    finally:
+        mr._record_lane_event = orig
+        if prev is not None:
+            os.environ["BRAINER_TRACE"] = prev
+
+
+def test_run_dispatch_correlation_id_rejects_unbounded_or_illegal_values():
+    calls = []
+    orig = mr._record_lane_event
+    mr._record_lane_event = lambda path, event: calls.append(event) or True
+    prev = os.environ.pop("BRAINER_TRACE", None)
+    try:
+        backend = _b(mr.LANE_GPT, invocation="cat")
+        valid = "x" * 128
+        oversized = "y" * 129
+        illegal = "raw task text with spaces"
+        mr.run_dispatch(backend, "advisor", "t", "b", timeout=5,
+                        correlation_id=valid)
+        mr.run_dispatch(backend, "advisor", "t", "b", timeout=5,
+                        correlation_id=oversized)
+        mr.run_dispatch(backend, "advisor", "t", "b", timeout=5,
+                        correlation_id=illegal)
+        ids = [call["correlation_id"] for call in calls]
+        return (ids[0] == valid
+                and all(value.startswith("run:") and len(value) == 36
+                        for value in ids[1:])
+                and ids[1] != ids[2]
+                and oversized not in ids and illegal not in ids)
+    finally:
+        mr._record_lane_event = orig
+        if prev is not None:
+            os.environ["BRAINER_TRACE"] = prev
+
+
+def test_run_panel_shares_one_correlation_id_across_lanes():
+    calls = []
+    orig = mr._record_lane_event
+    mr._record_lane_event = lambda path, event: calls.append(event) or True
+    prev = os.environ.pop("BRAINER_TRACE", None)
+    try:
+        roster = [_b(mr.LANE_GPT, invocation="cat"),
+                  _b(mr.LANE_GEMINI, invocation="cat")]
+        mr.run_panel(roster, 2, "advisor", "same panel task", "b", timeout=5)
+        ids = [call["correlation_id"] for call in calls]
+        return len(ids) == 2 and ids[0] == ids[1] and ids[0].startswith("run:")
     finally:
         mr._record_lane_event = orig
         if prev is not None:

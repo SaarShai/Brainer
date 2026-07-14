@@ -48,6 +48,12 @@
       "status": "accepted",
       "risk": "prompt-triage (per-prompt model routing) and team-lead (per-task lane decomposition) can both fire, and running both on one small ask adds delegation ceremony that costs more than the task.",
       "resolution": "Triage wins for a single-shot task, team-lead for genuinely decomposable multi-lane work — don't run both on one small ask."
+    },
+    {
+      "skills": ["wayfinder", "plan-first-execute"],
+      "status": "accepted",
+      "risk": "Both govern uncertain planning work, so an agent could create a decision map and an implementation plan for the same unresolved effort.",
+      "resolution": "Use slash-only wayfinder while a gradeable spec cannot yet be produced; hand the cleared route to plan-first-execute once no active tickets or unformulated fog remain."
     }
   ]
 }

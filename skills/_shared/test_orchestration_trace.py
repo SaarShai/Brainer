@@ -68,13 +68,14 @@ def test_record_lane_event_default_path_is_dot_brainer_trace():
     return ot.DEFAULT_TRACE_PATH.parts[-3:] == (".brainer", "trace", "lanes.jsonl")
 
 
-def test_record_lane_event_redacts_task_digest():
+def test_record_lane_event_redacts_correlation_id():
     with tempfile.TemporaryDirectory() as td:
         path = Path(td) / "lanes.jsonl"
         ot.record_lane_event(str(path), {"lane": "gpt", "ok": True,
-                                         "task_digest": "key=sk-proj-abcdef0123456789abcdef"})
+                                         "correlation_id": "key=sk-proj-abcdef0123456789abcdef"})
         row = json.loads(path.read_text(encoding="utf-8").splitlines()[0])
-        return "sk-proj-abcdef" not in (row["task_digest"] or "") and "[REDACTED]" in row["task_digest"]
+        return ("sk-proj-abcdef" not in (row["correlation_id"] or "")
+                and "[REDACTED]" in row["correlation_id"])
 
 
 def test_record_lane_event_drops_entirely_when_redactor_missing():

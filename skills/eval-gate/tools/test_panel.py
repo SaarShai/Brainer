@@ -36,7 +36,8 @@ def patched_roster(script):
         return _backends()
 
     def fake_run_dispatch(member, role, task, brief, **kwargs):
-        calls.append({"member": member.vendor, "role": role, "task": task, "brief": brief})
+        calls.append({"member": member.vendor, "role": role, "task": task,
+                      "brief": brief, **kwargs})
         verdict = script.pop(0)
         if verdict == "drop":
             return {"vendor": member.vendor, "lane": member.lane, "ok": False, "error": "scripted drop"}
@@ -96,6 +97,9 @@ def test_majority_holds_passes():
     assert calls[0]["task"].startswith("This output meets the rubric at >= 0.7:"), calls[0]
     assert "RUBRIC:\nrubric" in calls[0]["brief"], calls[0]
     assert "SCORED OUTPUT:\ncandidate output" in calls[0]["brief"], calls[0]
+    correlation_ids = [call.get("correlation_id", "") for call in calls]
+    assert len(set(correlation_ids)) == 1, calls
+    assert correlation_ids[0].startswith("run:") and len(correlation_ids[0]) == 36, calls
 
 
 def test_majority_refutes_fails():

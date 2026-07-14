@@ -19,7 +19,7 @@ INPUTS (either or both; empty input is a valid, reportable state):
 1. --trace <path>: JSONL written by skills/_shared/orchestration_trace.py
    (record_lane_event). Known fields: role, lane, vendor, ok, usage
    ({"prompt_tokens": int, "completion_tokens": int}), latency_ms,
-   served_model, task_digest. Tolerant of missing/extra fields; malformed
+   served_model, correlation_id. Tolerant of missing/extra fields; malformed
    lines (bad JSON) are SKIPPED and counted, never fatal.
 
 2. --lanes <path>: manual records (CSV or JSONL) for lanes whose token spend

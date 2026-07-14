@@ -2,6 +2,11 @@
 """orchestration_trace — tiny append-only JSONL writer for per-lane dispatch
 telemetry (usage/latency/served-model), consumed by model_roster.run_dispatch.
 
+`correlation_id` is a bounded run identifier supplied by model_roster, not task
+content or a task fingerprint. Parallel lane events in one panel share it;
+independent dispatches get distinct IDs unless a caller deliberately supplies
+one. This append-only sink does not reinterpret caller data.
+
 PERSISTENCE MUST NOT CRASH A CALLER: record_lane_event never raises — any
 failure (unwritable path, bad permissions, disk full) is caught and reported
 as a False return, exactly like the CLI dispatch paths in model_roster.py that
@@ -79,7 +84,7 @@ DEFAULT_TRACE_PATH = _REPO_ROOT / ".brainer" / "trace" / "lanes.jsonl"
 # Fields record_lane_event accepts verbatim (the whole event, including these,
 # is redacted at serialization — see below). Unknown extra keys are still
 # written through — this is an append-only sink, not a strict schema validator.
-_KNOWN_FIELDS = ("role", "lane", "vendor", "ok", "usage", "latency_ms", "served_model", "task_digest", "source")
+_KNOWN_FIELDS = ("role", "lane", "vendor", "ok", "usage", "latency_ms", "served_model", "correlation_id", "source")
 
 # `source` distinguishes real delegation telemetry from fixture/test data
 # written into the same lanes.jsonl (a 2026-07-06 discovery: the file had no
@@ -154,7 +159,7 @@ def record_lane_event(path: "str | os.PathLike[str] | None", event: dict[str, An
 
     `path` defaults to `.brainer/trace/lanes.jsonl` under the repo root when
     None/empty. `event` is the caller-supplied fields (role, lane, vendor, ok,
-    usage, latency_ms, served_model, task_digest, source, ...).
+    usage, latency_ms, served_model, correlation_id, source, ...).
 
     `source` ("live" | "fixture" | any caller value) distinguishes real
     delegation telemetry from fixture/test data sharing the same trace file.

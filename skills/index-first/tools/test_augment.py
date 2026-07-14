@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Self-test for augment.py — the default-on index-first PreToolUse hook.
+"""Self-test for augment.py — the opt-in index-first PreToolUse hook.
 
 Plain-python (assert + exit 1 style; no pytest dep), mirroring the Brainer
 convention in scripts/run_all_tests.sh. Feeds synthetic Claude Code PreToolUse
@@ -8,7 +8,7 @@ emits additionalContext only on a real index hit; every other path is a clean
 no-op (exit 0, no stdout).
 
 Cases:
-  0. skill metadata is default-on  -> auto-install: true
+  0. skill metadata is opt-in      -> auto-install: false
   1. valid token + index hit      -> additionalContext on stdout, exit 0
   2. Read tool                    -> no stdout, exit 0 (never gate Read)
   3. <4-char pattern              -> no stdout, exit 0
@@ -69,9 +69,9 @@ def main():
     assert os.path.exists(AUGMENT), f"augment.py not found at {AUGMENT}"
 
     skill_text = open(SKILL_MD, encoding="utf-8").read()
-    assert re.search(r"(?m)^auto-install:\s*true\s*$", skill_text), (
-        "index-first is default-on and must declare auto-install: true")
-    print("PASS metadata_auto_install_true")
+    assert re.search(r"(?m)^auto-install:\s*false\s*$", skill_text), (
+        "index-first is opt-in and must declare auto-install: false")
+    print("PASS metadata_auto_install_false")
 
     tmp = tempfile.mkdtemp()
 

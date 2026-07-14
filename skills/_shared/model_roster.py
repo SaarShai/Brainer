@@ -48,6 +48,7 @@ import shutil
 import subprocess
 import sys
 import time
+import uuid
 from dataclasses import asdict, dataclass, field
 from typing import Literal
 
@@ -616,7 +617,7 @@ def _extract_findings(text: str) -> str:
     return lines[-1] if lines else ""
 
 
-def _trace_dispatch(result: dict, task: str) -> None:
+def _trace_dispatch(result: dict, correlation_id: str) -> None:
     """Best-effort telemetry write after a dispatch — never raises, never
     affects `result`. BRAINER_TRACE=0 disables (e.g. noisy test runs); default
     is on. A missing/broken trace writer is silently skipped — persistence is
@@ -630,14 +631,16 @@ def _trace_dispatch(result: dict, task: str) -> None:
             "role": result.get("role"), "lane": result.get("lane"),
             "vendor": result.get("vendor"), "ok": result.get("ok"),
             "usage": result.get("usage"), "latency_ms": result.get("latency_ms"),
-            "served_model": result.get("served_model"), "task_digest": task,
+            "served_model": result.get("served_model"),
+            "correlation_id": correlation_id,
         })
     except Exception:
         pass
 
 
 def run_dispatch(b: Backend, role: Role, task: str, brief: str, *,
-                 model: str = "", timeout: float = 120.0, effort: str = "") -> dict:
+                 model: str = "", timeout: float = 120.0, effort: str = "",
+                 correlation_id: str = "") -> dict:
     """Execute ONE backend read-only, prompt on stdin, capture the result. Never
     raises — a failure is reported as ok=False with the reason, so the caller can
     drop it and keep the survivors.
@@ -647,7 +650,9 @@ def run_dispatch(b: Backend, role: Role, task: str, brief: str, *,
     time of the dispatch call), and `served_model` (the model the transport
     actually reports serving, or None when not reported/parseable) — every
     existing key is unchanged. A best-effort trace event is appended after
-    each dispatch (see orchestration_trace.py); BRAINER_TRACE=0 disables it.
+    each dispatch (see orchestration_trace.py). Its bounded `correlation_id` is
+    caller-supplied or a fresh random run ID, never derived from task text.
+    BRAINER_TRACE=0 disables it.
 
     `effort`, if given (non-default), maps to `-c model_reasoning_effort=
     <effort>` on the codex-CLI GPT lane, same as render_dispatch; no effort ==
@@ -659,11 +664,13 @@ def run_dispatch(b: Backend, role: Role, task: str, brief: str, *,
     result = {"vendor": b.vendor, "lane": b.lane, "role": role,
               "ok": False, "findings": "", "raw": "", "error": "",
               "usage": None, "latency_ms": None, "served_model": None}
+    if not re.fullmatch(r"[A-Za-z0-9._:-]{1,128}", correlation_id or ""):
+        correlation_id = "run:" + uuid.uuid4().hex
     try:
         _validate_effort(effort)
     except ValueError as e:
         result["error"] = str(e)
-        _trace_dispatch(result, task)
+        _trace_dispatch(result, correlation_id)
         return result
     # Render once, up front. render_prompt fails CLOSED (raises) when the
     # redactor is unavailable — catch it here so "never raises" holds and the
@@ -672,7 +679,7 @@ def run_dispatch(b: Backend, role: Role, task: str, brief: str, *,
         prompt = render_prompt(role, task, brief)
     except RuntimeError as e:
         result["error"] = str(e)
-        _trace_dispatch(result, task)
+        _trace_dispatch(result, correlation_id)
         return result
     if b.kind == "http" and b.transport == "openrouter":
         meta: dict = {}
@@ -697,7 +704,7 @@ def run_dispatch(b: Backend, role: Role, task: str, brief: str, *,
         text = _strip_ansi(text)
         result.update(ok=ok, raw=text,
                       findings=_extract_findings(text) if ok else "", error=err)
-        _trace_dispatch(result, task)
+        _trace_dispatch(result, correlation_id)
         return result
     if b.kind == "http" and b.lane == LANE_GLM:
         meta = {}
@@ -710,11 +717,11 @@ def run_dispatch(b: Backend, role: Role, task: str, brief: str, *,
         text = _strip_ansi(text)
         result.update(ok=ok, raw=text,
                       findings=_extract_findings(text) if ok else "", error=err)
-        _trace_dispatch(result, task)
+        _trace_dispatch(result, correlation_id)
         return result
     if b.kind == "api":
         result["error"] = "api lane: dispatch via the glm-executor subagent, not auto-runnable from this util"
-        _trace_dispatch(result, task)
+        _trace_dispatch(result, correlation_id)
         return result
     inv = b.invocation
     resolved_model = ""
@@ -726,7 +733,7 @@ def run_dispatch(b: Backend, role: Role, task: str, brief: str, *,
         argv = shlex.split(inv)
     except ValueError as e:
         result["error"] = f"unparseable invocation {inv!r}: {e}"
-        _trace_dispatch(result, task)
+        _trace_dispatch(result, correlation_id)
         return result
     t0 = time.monotonic()
     try:
@@ -734,11 +741,11 @@ def run_dispatch(b: Backend, role: Role, task: str, brief: str, *,
     except subprocess.TimeoutExpired:
         result["error"] = f"timeout after {timeout:.0f}s"
         result["latency_ms"] = (time.monotonic() - t0) * 1000
-        _trace_dispatch(result, task)
+        _trace_dispatch(result, correlation_id)
         return result
     except (OSError, ValueError) as e:
         result["error"] = f"dispatch failed: {e}"
-        _trace_dispatch(result, task)
+        _trace_dispatch(result, correlation_id)
         return result
     result["latency_ms"] = (time.monotonic() - t0) * 1000
     # CLI transports don't report token usage; `served_model` is only set when
@@ -750,11 +757,11 @@ def run_dispatch(b: Backend, role: Role, task: str, brief: str, *,
     if proc.returncode != 0:
         # an unauthenticated / misconfigured CLI lands here (the gemini case)
         result["error"] = f"exit {proc.returncode}: {_strip_ansi(proc.stderr or '')[:200].strip()}"
-        _trace_dispatch(result, task)
+        _trace_dispatch(result, correlation_id)
         return result
     result["ok"] = True
     result["findings"] = _extract_findings(out)
-    _trace_dispatch(result, task)
+    _trace_dispatch(result, correlation_id)
     return result
 
 
@@ -781,7 +788,9 @@ def run_panel(roster: list[Backend], n: int, role: Role, task: str, brief: str, 
     `effort`, if given, is passed through to every member's run_dispatch (see
     its docstring); empty string (the default) is a no-op."""
     panel = pick_panel(roster, n, exclude_lane=exclude_lane)
-    runs = [run_dispatch(b, role, task, brief, timeout=timeout, effort=effort) for b in panel]
+    correlation_id = "run:" + uuid.uuid4().hex
+    runs = [run_dispatch(b, role, task, brief, timeout=timeout, effort=effort,
+                         correlation_id=correlation_id) for b in panel]
     survivors = [r for r in runs if r["ok"]]
     failures = [r for r in runs if not r["ok"]]
     out = {"role": role, "requested": n, "dispatched": len(panel),

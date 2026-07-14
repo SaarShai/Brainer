@@ -35,6 +35,7 @@ TARGET_CASES = [
     ("make your answers really terse and compact, drop the fluff", "caveman-ultra"),
     ("this plan has way too many steps — simplify it, cut the process", "lean-execution"),
     ("before we start this 6-file refactor, draft a phased plan first", "plan-first-execute"),
+    ("/wayfinder map this multi-session effort whose destination is known but whose decision route is still foggy", "wayfinder"),
     ("I think the tests pass now — confirm the work is actually done", "verify-before-completion"),
     ("where is the function parse_config used across the whole codebase?", "index-first"),
     ("the wiki facts are stale after the big rename — reconcile them against the code", "wiki-refresh"),
