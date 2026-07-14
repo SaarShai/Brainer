@@ -79,7 +79,7 @@ def check_h1a() -> tuple[str, str, bool, str]:
     Standing bar for ANY future re-baseline: repeat the description-vs-
     structure byte split; only description growth justifies a bump.
 
-    Re-baseline (2026-07-13): adding proposed `/wayfinder` changed the resident
+    Re-baseline (2026-07-13): adding model-invokable Wayfinder changed the resident
     block from 7661B / 28 skill lines to 7733B / 29 skill lines. The measured
     split was descriptions 5308B -> 5380B (+72B) and structural bytes 2353B ->
     2353B (byte-identical). Since 100% of growth is the new skill's immutable

@@ -37,6 +37,17 @@ class TriggerCasesTest(unittest.TestCase):
             with self.subTest(target=target):
                 self.assertRegex(prompts[target], rf"^/{target}(?:\s|$)")
 
+    def test_wayfinder_is_model_invokable_and_both_handoffs_are_explicit(self) -> None:
+        wayfinder = (HERE.parents[1] / "skills" / "wayfinder" / "SKILL.md").read_text()
+        plan = (HERE.parents[1] / "skills" / "plan-first-execute" / "SKILL.md").read_text()
+        think = (HERE.parents[1] / "skills" / "think" / "SKILL.md").read_text()
+        self.assertIn("trigger_type: model", wayfinder)
+        self.assertIn("disable-model-invocation: false", wayfinder)
+        self.assertIn("wayfinder", plan.lower())
+        self.assertIn("wayfinder", think.lower())
+        self.assertIn("automatically", plan.lower())
+        self.assertIn("automatically", think.lower())
+
     def test_composition_schema_and_names(self) -> None:
         live = trigger.live_skill_names()
         self.assertGreater(len(trigger.COMPOSITION_CASES), 0)

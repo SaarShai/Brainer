@@ -35,6 +35,7 @@ REQUIRED_SKILL_MARKERS = (
     "wiki-refresh",
     "write-gate",
     "plan-first-execute",
+    "wayfinder",
     "lean-execution",
     "verify-before-completion",
     "without a fixed quota",

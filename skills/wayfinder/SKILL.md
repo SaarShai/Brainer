@@ -1,22 +1,23 @@
 ---
 name: wayfinder
-description: Map a foggy multi-session effort as decision tickets
-status: proposed
+description: Use when multi-session decisions are foggy before planning.
+status: trusted
 source: "https://github.com/mattpocock/skills/tree/main/skills/engineering/wayfinder"
 learned_at: 2026-07-13
-trigger_type: slash
+trigger_type: model
 risk_level: medium
 host_support: [claude, codex, gemini, generic]
 side_effects: [reads_repo, writes_files, network]
 requires_tools: [read, write, edit]
-disable-model-invocation: true
+disable-model-invocation: false
 auto-install: false
 ---
 
 # wayfinder
 
-> **Proposed and slash-only.** The frontmatter prevents automatic invocation;
-> promotion follows [`learn-skill`](../learn-skill/SKILL.md)'s telemetry gate.
+> **Model-invokable and directly invokable.** `plan-first-execute` and `/think`
+> may load Wayfinder when they detect a named destination with an unclear
+> decision route. Users can also invoke it directly with `/wayfinder`.
 
 Adapted from Matt Pocock's
 [Wayfinder](https://github.com/mattpocock/skills/tree/main/skills/engineering/wayfinder)
@@ -26,9 +27,10 @@ conventions instead of requiring a particular tracker or companion skill suite.
 
 ## When to Use
 
-Use `/wayfinder` when an effort is too large or uncertain to turn into a
+Use Wayfinder when an effort is too large or uncertain to turn into a
 trustworthy spec or plan in one session: the destination can be named, but
-important decisions cannot yet be phrased or ordered.
+important decisions cannot yet be phrased or ordered. This may be an automatic
+handoff from `plan-first-execute` or `/think`, or a direct `/wayfinder` request.
 
 **Positive example:** `/wayfinder Map the decisions needed before we can specify
 the multi-region migration.`
@@ -40,8 +42,10 @@ Skip it when [`plan-first-execute`](../plan-first-execute/SKILL.md) can already
 produce a complete, gradeable `done means:` block. Wayfinder sits *before* a
 spec. It clears decisions; it does not implement the destination.
 
-This skill is slash-only. Without a literal `/wayfinder`, an agent may suggest
-it but must not create, claim, close, or otherwise mutate a decision map.
+When auto-invoked, the same map-writing rules and user-scope boundaries apply as
+for a direct `/wayfinder` request. Do not create, claim, close, or otherwise
+mutate a decision map when `plan-first-execute` can already produce a complete,
+gradeable plan.
 
 ## Procedure
 
@@ -242,7 +246,7 @@ after they are verified. Neither replaces the working decision map.
 - Completion means zero active tickets and an empty **Not yet specified** section.
 
 <!-- Adoption rationale checked by write-gate:
-Wayfinder earns a proposed skill because Brainer's plan-first-execute starts when
+Wayfinder earns a dedicated skill because Brainer's plan-first-execute starts when
 a task is already specifiable, requirements-ledger tracks user intent rather
 than project decisions, baton transfers session state, and wiki-memory stores
 durable resolved decisions. None represents the unresolved-decision frontier or

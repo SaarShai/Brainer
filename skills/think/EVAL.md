@@ -164,8 +164,9 @@ one canonical should-fire prompt per skill:
 
 Raw: [`eval/exp8_trigger/results/with-think.json`](../../eval/exp8_trigger/results/with-think.json).
 Caveat: this measured description classification, not current activation.
-`disable-model-invocation: true` now makes the success criterion literal `/think`
-activation plus non-activation on similar non-literal requests. The historical
+`disable-model-invocation: true` keeps direct `/think` activation explicit, while
+the loaded skill may hand off to model-invokable Wayfinder when the route is too
+foggy for a complete plan. The historical
 one-prompt-per-skill design did **not** test that boundary.
 
 ## Historical A/B (smoke — NON-CONFIRMING) — N=3 × 5 then-current trap probes
@@ -270,7 +271,7 @@ Raw: workflow run `wf_bd0b9813` (subject/judge transcripts under the session's
 ## What the skill currently rests on
 
 - ✅ Historical catalog classification was clean; literal manual activation still needs a boundary fixture.
-- ✅ Trivially cheap resident (slash-only; catalog one-liner ~40 tok, no hook/dep).
+- ✅ Trivially cheap resident (manual `/think`; Wayfinder handoff is model-invokable, with no hook/dep).
 - ✅ Manual activation, compact routes, role posture, removed absolutes, and the drift-probe regex are statically regression-locked with negative fixtures.
 - ✅ Role wording is behavior-first and statically rejects restoration of the prestige claim.
 - ➖ The role-behavior probe exists, but no isolated role-only A/B has been run.

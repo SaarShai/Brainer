@@ -23,7 +23,6 @@ improvise a hand-rolled equivalent:
 - `/brainer-audit` — Use when the user explicitly activates Brainer audit mode, asks to audit this session, audit Brainer use, or track Brainer skill usage
 - `/task-retrospective` — Use only when the user explicitly arms task audit mode: /retro, asks for task-retrospective, says this task will repeat and should be learned from, or requests an after-the-fact task learning audit
 - `/think` — How an agent should think and approach problems — first-principles, reduce/simplify before adding, research-and-borrow before building, experiment-and-falsify, never hallucinate or flatter
-- `/wayfinder` — Map a foggy multi-session effort as decision tickets
 
 ### Model-invokable (host fires on matching context)
 
@@ -51,6 +50,7 @@ context match (e.g. `wiki-memory` for "have we done X").
 - `standing-orders` — Auto-arm standing directives on matching prompts — ORCH tier (goal, lanes, cheapest delegation, other-vendor advisor, end-to-end) on decomposable work; DEEP tier (blindspot pass, lesson capture) on high-level tasks
 - `team-lead` — Use when the user says lead, orchestrate, use your team, use builders — or marks a task important/challenging while the session model is ANY top-tier frontier model (Fable-class, Opus-class, GPT-5.x/Codex, or peer)
 - `verify-before-completion` — Use before claiming work is done, fixed, passing, committed, or ready
+- `wayfinder` — Use when multi-session decisions are foggy before planning.
 - `wiki-memory` — Repo-local markdown wiki with progressive retrieval (search → timeline → fetch) and gated writes (verified facts only)
 - `wiki-refresh` — Reconcile wiki-memory pages against the current codebase — Keep / Update / Consolidate / Replace / Delete drifted ones
 - `write-gate` — Decide whether a candidate fact deserves persistent memory

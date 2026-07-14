@@ -89,13 +89,13 @@ graphify extract .
 
 ## The catalog (29 skills)
 
-**All 29 are symlinked and listed by `./install.sh` (as of v1.13; `loop-engineering`, `eval-gate`, `requirements-ledger`, `brainer-audit`, `learn-skill`, and proposed `/wayfinder` are in the catalog).** `compliance-canary` (the single drift watcher — it absorbed `skill-pulse` at v1.10) and `learn-skill` auto-wire their hooks by default; `index-first` remains opt-in, while `think` and `wayfinder` are slash-only (no hook). To disable a default-on hook, remove its entry from `.claude/settings.json` by hand.
+**All 29 are symlinked and listed by `./install.sh` (as of v1.13; `loop-engineering`, `eval-gate`, `requirements-ledger`, `brainer-audit`, `learn-skill`, and model-invokable Wayfinder are in the catalog).** `compliance-canary` (the single drift watcher — it absorbed `skill-pulse` at v1.10) and `learn-skill` auto-wire their hooks by default; `index-first` remains opt-in, while `think` remains manually invoked as `/think` and may hand off to Wayfinder automatically. To disable a default-on hook, remove its entry from `.claude/settings.json` by hand.
 
 | Skill | Trigger | Desc tokens | Notes |
 |---|---|---:|---|
 | [caveman-ultra](skills/caveman-ultra/SKILL.md) | session-start, "be terse" | 68 | Terse output style. ~65% output reduction reported (juliusbrussee/caveman lineage). |
 | [plan-first-execute](skills/plan-first-execute/SKILL.md) | task > 3 steps | 50 | Plan-mode gate. |
-| [wayfinder](skills/wayfinder/SKILL.md) | `/wayfinder` (manual; slash-only) | 56 | Proposed pre-spec flow for multi-session work whose destination is known but decision route remains foggy. |
+| [wayfinder](skills/wayfinder/SKILL.md) | `/wayfinder` or automatic handoff | 56 | Trusted pre-spec flow for multi-session work whose destination is known but decision route remains foggy. |
 | [think](skills/think/SKILL.md) | `/think` (manual; slash-only) | 81 | How an agent should think: first-principles, reduce/simplify, research-and-borrow, experiment-to-falsify, no flattery; ideation + 5-whys + pre-mortem/inversion. Frontier A/B: posture **neutral for Opus** (+0.07) but **load-bearing for weak models** (7b failed the traps); restructured Always/When-relevant; slash-only `/think`. See [EVAL](skills/think/EVAL.md). |
 | [lean-execution](skills/lean-execution/SKILL.md) | "simplify / lean / prune" | 51 | Pruning rule. |
 | [verify-before-completion](skills/verify-before-completion/SKILL.md) | before any "done" claim | 34 | Evidence-first. |

@@ -16,10 +16,11 @@ For feature work, product behavior, migrations, shared contracts, or any task li
 
 If the destination is nameable but the route is too foggy to produce a complete,
 gradeable spec in one session, do not counterfeit completeness with speculative
-tasks. Suggest the slash-only [`/wayfinder`](../wayfinder/SKILL.md) flow: it maps
-precise decision questions separately from still-unformulated in-scope fog, then
-hands the cleared route back here. Do not create or mutate a map without the
-literal `/wayfinder` invocation.
+tasks. Invoke [`wayfinder`](../wayfinder/SKILL.md) automatically: it maps precise
+decision questions separately from still-unformulated in-scope fog, then hands
+the cleared route back here. A user may also invoke it directly with
+`/wayfinder`. Do not invoke it when this skill can already produce a complete,
+gradeable `done means:` block.
 
 Minimum spec contract:
 - **WHAT/WHY**: user-visible outcome, scope, non-goals, assumptions, dependencies.
