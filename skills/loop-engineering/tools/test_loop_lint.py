@@ -1235,6 +1235,169 @@ def test_data_placeholder_gate_not_flagged_r1():
     assert not _has(spec, 1, "WARN", source="spec.json"), _rules(spec, source="spec.json")
 
 
+# --- R15 SELF-MODIFICATION-BOUNDARIES ------------------------------------
+
+SELF_MODIFYING = CLEAN + """\
+self_modifying: true
+editable_surfaces: skills/example/SKILL.md
+locked_surfaces: tests/, evaluator.py, permissions.json
+held_in_gate: python3 ./run_held_in.py
+held_out_gate: python3 ./run_held_out.py
+artifact_binding: sha256(candidate artifact) recorded with every score
+human_approval: owner approves promotion after both gates pass
+"""
+
+
+def test_r15_self_modifying_missing_boundaries_fails_each_field():
+    """Known-bad proof: opting into self-modification without explicit mutation
+    boundaries/gates must produce one deterministic fatal finding per omission."""
+    spec = CLEAN + "self_modifying: true\n"
+    rep = loop_lint.lint(spec, "spec.yaml")
+    r15 = [f for f in rep.findings if f.rule == 15]
+    expected = [
+        "editable_surfaces", "locked_surfaces", "held_in_gate", "held_out_gate",
+        "artifact_binding", "human_approval",
+    ]
+    assert [f.severity for f in r15] == ["FAIL"] * len(expected), r15
+    assert [f.detail.split("`", 2)[1] for f in r15] == expected, [f.detail for f in r15]
+    assert _exit_for(spec) == 2
+
+
+def test_r15_self_modifying_complete_contract_is_clean():
+    assert _rules(SELF_MODIFYING) == [], _rules(SELF_MODIFYING)
+    assert _exit_for(SELF_MODIFYING) == 0
+
+
+def test_r15_ordinary_and_explicit_false_specs_unchanged():
+    assert _rules(CLEAN) == [], _rules(CLEAN)
+    assert _rules(CLEAN + "self_modifying: false\n") == [], _rules(CLEAN + "self_modifying: false\n")
+
+
+def test_r15_only_normalized_literal_true_activates():
+    for alias in ("yes", "1", "on"):
+        spec = CLEAN + f"self_modifying: {alias}\n"
+        assert _rules(spec, rule=15) == [], (alias, _rules(spec, rule=15))
+    assert len(_rules(CLEAN + "self_modifying: TRUE\n", rule=15)) == 6
+
+
+def test_r15_literal_true_strips_only_unquoted_inline_comments():
+    for activation in ("true # enable boundaries", '"true" # enable boundaries'):
+        spec = SELF_MODIFYING.replace("self_modifying: true", f"self_modifying: {activation}")
+        assert _rules(spec, rule=15) == [], (activation, _rules(spec, rule=15))
+    # A hash embedded in a token is not a YAML comment and must not activate.
+    spec = CLEAN + "self_modifying: true#not-a-comment\n"
+    assert _rules(spec, rule=15) == [], _rules(spec, rule=15)
+
+
+def test_r15_hash_inside_quoted_yaml_literal_does_not_activate():
+    for activation in ('"true # literal"', "'true # literal'"):
+        spec = CLEAN + f"self_modifying: {activation}\n"
+        assert _rules(spec, rule=15) == [], (activation, _rules(spec, rule=15))
+    # Retaining R15's source spelling must not change ordinary quote stripping.
+    parsed = loop_lint.parse_specs(CLEAN.replace("refactor-loop", '"quoted loop"'), "spec.yaml")
+    assert parsed[0].name == "quoted loop", parsed[0].name
+
+
+def test_r15_json_string_provenance_matches_yaml_exact_literal_semantics():
+    base = dict(loop_lint.parse_specs(CLEAN, "spec.yaml")[0].fields)
+    quoted_hash = json.dumps({**base, "self_modifying": "true # literal"})
+    assert _rules(quoted_hash, source="spec.json", rule=15) == [], (
+        _rules(quoted_hash, source="spec.json", rule=15)
+    )
+
+    for activation in (True, "true"):
+        active = json.dumps({**base, "self_modifying": activation})
+        assert len(_rules(active, source="spec.json", rule=15)) == 6, (
+            activation, _rules(active, source="spec.json", rule=15)
+        )
+
+    parsed = loop_lint.parse_specs(json.dumps({**base, "name": "quoted loop"}), "spec.json")
+    assert parsed[0].name == "quoted loop", parsed[0].name
+
+
+def test_r15_placeholder_boundaries_fail_per_field_and_value():
+    fields = [
+        "editable_surfaces", "locked_surfaces", "held_in_gate", "held_out_gate",
+        "artifact_binding", "human_approval",
+    ]
+    for field in fields:
+        original = next(line for line in SELF_MODIFYING.splitlines()
+                        if line.startswith(field + ":"))
+        for placeholder in ("TODO", "TBD", "n/a", "none", "null", "nil", "?", "no",
+                            "not set", "<TODO>", "TODO: fill this", "TODO - choose later"):
+            spec = SELF_MODIFYING.replace(original, f"{field}: {placeholder}")
+            r15 = [f for f in loop_lint.lint(spec, "spec.yaml").findings if f.rule == 15]
+            assert len(r15) == 1 and f"`{field}`" in r15[0].title, (field, placeholder, r15)
+
+
+def test_r15_placeholder_substrings_in_concrete_paths_and_commands_are_valid():
+    spec = (SELF_MODIFYING
+            .replace("skills/example/SKILL.md", "skills/TODO-tools/null-policy.md")
+            .replace("tests/, evaluator.py, permissions.json", "tests/not-set/TBD.json")
+            .replace("python3 ./run_held_in.py", "python3 ./tools/todo_gate.py --mode not-set")
+            .replace("python3 ./run_held_out.py", "python3 ./tools/null_gate.py --label TBD")
+            .replace("sha256(candidate artifact) recorded with every score",
+                     "sha256 recorded at docs/spec#todo")
+            .replace("owner approves promotion after both gates pass",
+                     "owner approves after TODO-tools report passes"))
+    assert _rules(spec, rule=15) == [], _rules(spec, rule=15)
+    for concrete_path in ("TODO-tools/SKILL.md", "TODO.md"):
+        spec = SELF_MODIFYING.replace("skills/example/SKILL.md", concrete_path)
+        assert _rules(spec, rule=15) == [], (concrete_path, _rules(spec, rule=15))
+
+
+# --- immutable resolved spec ---------------------------------------------
+
+def test_resolved_snapshot_hash_is_canonical_and_deterministic():
+    spec = loop_lint.parse_specs(SELF_MODIFYING, "spec.yaml")[0]
+    first = loop_lint.resolve_snapshot(spec)
+    second = loop_lint.resolve_snapshot(spec)
+    assert first == second
+    assert first["schema_version"] == 1
+    assert first["self_modifying"] is True
+    assert first["spec_hash"].startswith("sha256:")
+    assert len(first["spec_hash"]) == len("sha256:") + 64
+    assert first["spec_hash"] == loop_lint.resolved_spec_hash(first)
+
+
+def test_resolved_snapshot_hash_covers_every_emitted_field():
+    spec = loop_lint.parse_specs(SELF_MODIFYING, "spec.yaml")[0]
+    snapshot = loop_lint.resolve_snapshot(spec)
+    original_hash = snapshot["spec_hash"]
+    for field, changed in (
+        ("name", "changed-name"),
+        ("source", "elsewhere.loop"),
+        ("unattended", not snapshot["unattended"]),
+        ("self_modifying", False),
+        ("note", "changed contract"),
+    ):
+        tampered = json.loads(json.dumps(snapshot))
+        tampered[field] = changed
+        assert loop_lint.resolved_spec_hash(tampered) != original_hash, field
+    tampered = json.loads(json.dumps(snapshot))
+    tampered["fields"]["budget"] = "max_iterations=999"
+    assert loop_lint.resolved_spec_hash(tampered) != original_hash
+    tampered = json.loads(json.dumps(snapshot))
+    tampered["lint"]["verdict"] = "fail"
+    assert loop_lint.resolved_spec_hash(tampered) != original_hash
+
+
+def test_resolve_cli_emits_bound_snapshot():
+    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as fh:
+        fh.write(SELF_MODIFYING)
+        path = fh.name
+    try:
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            rc = loop_lint.main(["--resolve", path])
+        snapshot = json.loads(buf.getvalue())
+        assert rc == 0
+        assert snapshot["kind"] == "loop.resolved"
+        assert snapshot["spec_hash"] == loop_lint.resolved_spec_hash(snapshot)
+    finally:
+        os.unlink(path)
+
+
 # --- runner ---------------------------------------------------------------
 
 def main() -> int:

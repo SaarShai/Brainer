@@ -37,15 +37,27 @@ from __future__ import annotations
 import argparse
 import datetime
 import json
+import math
+import os
 import re
+import shlex
+import signal
 import shutil
+import stat
 import subprocess
 import sys
+import tempfile
+import threading
+import time
+from dataclasses import dataclass
 from pathlib import Path
 
 # Harness tools are always present (the agent runtime provides them); only external
 # CLI binaries named in `requires_tools:` are checked with shutil.which.
 _HARNESS_TOOLS = {"bash", "read", "write", "edit", "grep", "glob", "webfetch", "websearch", "task"}
+DEFAULT_GATE_TIMEOUT_SECONDS = 30.0
+MAX_GATE_TIMEOUT_SECONDS = 300.0
+DEFAULT_GATE_OUTPUT_LIMIT_BYTES = 16_384
 
 STOPWORDS = {
     "the", "a", "an", "and", "or", "of", "to", "for", "in", "on", "with", "use",
@@ -473,12 +485,28 @@ def cmd_staleness(args) -> int:
 
 # -------------------------- #1 conditional activation -----------------------
 
+def _requires_tool_names(requires: str) -> list[str]:
+    """Parse the frontmatter forms used in the catalog.
+
+    This intentionally handles both YAML's inline list (`[Read, Edit]`) and the
+    historical comma scalar (`Read, Edit`) without pulling in a YAML dependency.
+    """
+    value = (requires or "").strip()
+    if value.startswith("[") and value.endswith("]"):
+        value = value[1:-1]
+    out = []
+    for raw in value.split(","):
+        tool = raw.strip().strip("'\"")
+        if tool:
+            out.append(tool)
+    return out
+
+
 def _missing_tools(requires: str) -> list[str]:
     """Return the external CLI tools a skill needs that are NOT on PATH. Harness tools
     (Bash/Read/...) are assumed present and skipped."""
     out = []
-    for raw in (requires or "").split(","):
-        tool = raw.strip()
+    for tool in _requires_tool_names(requires):
         if not tool or tool.lower() in _HARNESS_TOOLS:
             continue
         if shutil.which(tool) is None:
@@ -521,36 +549,521 @@ def cmd_refine(args) -> int:
     if not path.is_file():
         print(f"FAIL: no such skill: {path}")
         return 1
-    aborts = [r for r in telemetry._records(False, _slug(args.name))
+    active_records = telemetry._post_checkpoint_records(
+        False, _slug(args.name)).get(_slug(args.name), [])
+    aborts = [r for r in active_records
               if r.get("outcome") == "abort"]
     print(f"=== REFINEMENT BRIEF: {_slug(args.name)} ===")
     print(f"aborts on record (post-checkpoint): "
           f"{telemetry.compute_stats().get(_slug(args.name), {}).get('aborts', 0)}")
-    for r in aborts[-5:]:
+    recent = aborts[-5:]
+    for r in recent:
+        causal_status = r.get("causal_status") or "unknown"
         print(f"  - [{r.get('ts','?')}] {r.get('note','(no note)')}")
+        print(f"    verifier_cause: {r.get('verifier_cause') or '(not recorded)'}")
+        print(f"    causal_status: {causal_status}")
+        print(f"    mechanism: {r.get('mechanism') or '(not recorded)'}")
+        print(f"    evidence_ref: {r.get('evidence_ref') or '(not recorded)'}")
     print("\n--- current SKILL.md ---")
     print(path.read_text(encoding="utf-8"))
     print("\n--- next steps ---")
-    print("Diagnose why it aborted, then propose a targeted fix:")
-    print(f"  learn.py patch --name {_slug(args.name)} --old '<exact text>' "
-          f"--new '<fix>' --rationale '<why, with because/so that>'")
-    print("patch is gated (write-gate + lint), resets status->proposed, and checkpoints")
-    print("telemetry so the skill re-earns trust from a clean slate.")
+    statuses = {r.get("causal_status") or "unknown" for r in recent}
+    if "skill-caused" in statuses:
+        print("Confirmed skill-caused evidence exists. Propose a targeted fix that preserves passing behavior:")
+        print(f"  learn.py patch --name {_slug(args.name)} --old '<exact text>' "
+              f"--new '<fix>' --rationale '<why, with because/so that>' "
+              f"--held-in-cmd '<fails before; passes after>' "
+              f"--held-out-cmd '<passes before and after>'")
+        print("patch is gated by write-gate, behavioral baselines, lint, and post-patch")
+        print("held-in/held-out checks; success resets status and checkpoints telemetry.")
+    elif statuses and statuses <= {"task-difficulty", "model-capability"}:
+        print("NON-ADDRESSABLE: recorded failures are exclusively task-difficulty/model-capability.")
+        print("Do not patch the skill from this evidence; change the task route or executor instead.")
+    else:
+        print("UNCONFIRMED: no recorded abort is confirmed skill-caused.")
+        print("Collect verifier cause, mechanism, and evidence before proposing a skill patch.")
     return 0
 
 
+def _gate_process_backend() -> str | None:
+    """Return a write-denying, no-fork gate backend or None to fail closed.
+
+    A process group alone is insufficient: a hostile gate can call ``setsid``
+    and mutate the skill after its direct parent exits.  The macOS sandbox
+    denies all writes outside a private temp root and denies process creation;
+    other hosts refuse this patch route until they have an equivalent backend.
+    """
+    if (os.name != "posix" or not hasattr(os, "killpg")
+            or sys.platform != "darwin" or not shutil.which("sandbox-exec")):
+        return None
+    profile = "(version 1)(deny default)(allow process*)(allow file-read*)(deny process-fork)"
+    try:
+        probe = subprocess.run(
+            ["sandbox-exec", "-p", profile, "/usr/bin/true"],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL, timeout=2, check=False,
+            env={"PATH": os.defpath},
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if probe.returncode == 0:
+        return "sandbox-exec-readonly-no-fork"
+    return None
+
+
+def _sandbox_gate_argv(backend: str, argv: list[str], writable_root: Path,
+                       denied_read_paths: tuple[Path, ...] = ()) -> list[str]:
+    if backend != "sandbox-exec-readonly-no-fork":
+        raise ValueError(f"unsupported gate backend: {backend}")
+    read_rule = "(allow file-read*)"
+    if denied_read_paths:
+        exclusions = "".join(
+            "(require-not (literal " + json.dumps(os.path.realpath(path)) + "))"
+            for path in denied_read_paths)
+        read_rule = "(allow file-read* (require-all " + exclusions + "))"
+    profile = (
+        "(version 1)(deny default)(allow process*)" + read_rule +
+        "(allow file-write* (subpath " + json.dumps(str(writable_root)) + "))"
+        "(deny process-fork)(deny network*)"
+    )
+    return ["sandbox-exec", "-p", profile, *argv]
+
+
+def _gate_group_exists(pgid: int) -> bool:
+    if sys.platform == "darwin":
+        try:
+            check = subprocess.run(
+                ["/bin/ps", "-axo", "pgid=,stat="], capture_output=True,
+                text=True, timeout=1, check=False, env={"PATH": os.defpath},
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return True
+        if check.returncode != 0:
+            return True
+        for line in check.stdout.splitlines():
+            fields = line.split()
+            if len(fields) >= 2 and fields[0] == str(pgid):
+                # An orphan zombie cannot execute or mutate anything and cannot
+                # be reaped by this process; launchd owns its final collection.
+                if not fields[1].startswith("Z"):
+                    return True
+        return False
+    try:
+        os.killpg(pgid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _signal_gate_group(pgid: int) -> bool:
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except ProcessLookupError:
+        return True
+    except OSError:
+        return False
+    return True
+
+
+def _terminate_gate_group(proc: subprocess.Popen, *, wait_seconds: float = 1.0) -> bool:
+    """SIGKILL a gate group, reap its leader, and verify no member remains."""
+    pgid = proc.pid
+    if not _signal_gate_group(pgid):
+        return False
+    try:
+        proc.wait(timeout=wait_seconds)
+    except subprocess.TimeoutExpired:
+        return False
+    deadline = time.monotonic() + wait_seconds
+    while True:
+        if not _gate_group_exists(pgid):
+            return True
+        if not _signal_gate_group(pgid):
+            return False
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.01)
+
+
+def _run_behavior_gate(command: str | list[str], *, timeout_seconds: float,
+                       output_limit_bytes: int,
+                       denied_read_paths: tuple[Path, ...] = (),
+                       hide_output: bool = False) -> tuple[int | None, str]:
+    """Run a shell-free gate with bounded wall time and surfaced output.
+
+    None is a controlled execution refusal (invalid command, launch failure, or
+    timeout, unsupported process backend, or output-cap breach), never a
+    traceback. Output is retained in a fixed-size in-memory buffer. Crossing the
+    cap terminates the process group; no unbounded spool is created.
+    """
+    if isinstance(command, list):
+        argv = command.copy()
+    else:
+        try:
+            argv = shlex.split(command)
+        except ValueError as e:
+            return None, "invalid hidden gate command" if hide_output else f"invalid command quoting: {e}"
+    if not argv:
+        return None, "empty command"
+    if (not math.isfinite(timeout_seconds) or timeout_seconds <= 0
+            or timeout_seconds > MAX_GATE_TIMEOUT_SECONDS):
+        return None, ("gate timeout must be finite and > 0 seconds, with maximum "
+                      f"{MAX_GATE_TIMEOUT_SECONDS:g} seconds")
+    if output_limit_bytes <= 0:
+        return None, "gate output limit must be > 0 bytes"
+    backend = _gate_process_backend()
+    if backend is None:
+        return None, ("unsupported gate isolation backend: patch gates require a "
+                      "write-denying, no-fork sandbox")
+    with tempfile.TemporaryDirectory(prefix="brainer-learn-gate-") as temp:
+        writable_root = Path(temp).resolve()
+        (writable_root / "home").mkdir(mode=0o700)
+        (writable_root / "tmp").mkdir(mode=0o700)
+        execution_argv = (_sandbox_gate_argv(backend, argv, writable_root,
+                                             denied_read_paths)
+                          if denied_read_paths else
+                          _sandbox_gate_argv(backend, argv, writable_root))
+        env = os.environ.copy()
+        env.update({
+            "HOME": str(writable_root / "home"),
+            "TMPDIR": str(writable_root / "tmp"),
+            "PYTHONDONTWRITEBYTECODE": "1",
+        })
+        try:
+            proc = subprocess.Popen(
+                execution_argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                shell=False, start_new_session=True, bufsize=0, env=env)
+        except (OSError, ValueError) as e:
+            if hide_output:
+                return None, "hidden gate could not execute"
+            return None, f"could not execute {argv[0]!r}: {e}"
+
+        captured = bytearray()
+        output_exceeded = threading.Event()
+        reader_error: list[str] = []
+
+        def _drain() -> None:
+            try:
+                assert proc.stdout is not None
+                while True:
+                    chunk = proc.stdout.read(4096)
+                    if not chunk:
+                        return
+                    if len(captured) <= output_limit_bytes:
+                        remaining = output_limit_bytes + 1 - len(captured)
+                        captured.extend(chunk[:remaining])
+                        if len(captured) > output_limit_bytes:
+                            output_exceeded.set()
+                            _signal_gate_group(proc.pid)
+            except OSError as e:
+                reader_error.append(str(e))
+
+        reader = threading.Thread(target=_drain, name="learn-gate-output", daemon=True)
+        reader.start()
+        deadline = time.monotonic() + timeout_seconds
+        timed_out = False
+        while proc.poll() is None:
+            if output_exceeded.is_set():
+                break
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                timed_out = True
+                break
+            try:
+                proc.wait(timeout=min(0.02, remaining))
+            except subprocess.TimeoutExpired:
+                continue
+        # Every path, including a clean direct-parent exit, tears down and then
+        # verifies the entire original process group before accepting the result.
+        group_clean = _terminate_gate_group(proc)
+        reader.join(timeout=1.0)
+        if reader.is_alive():
+            group_clean = False
+        if proc.stdout is not None:
+            proc.stdout.close()
+    raw = bytes(captured)
+    text = raw[:output_limit_bytes].decode("utf-8", errors="replace").rstrip()
+    if hide_output:
+        text = ""
+    if not group_clean:
+        return None, "gate process group cleanup could not be verified"
+    if output_exceeded.is_set():
+        detail = f"output exceeded {output_limit_bytes} bytes; process group terminated"
+        return None, detail + (("\n" + text) if text else "")
+    if timed_out:
+        detail = f"timed out after {timeout_seconds:g} seconds"
+        return None, detail + (("\n" + text) if text else "")
+    if reader_error:
+        return None, ("could not read hidden gate output" if hide_output
+                      else f"could not read gate output: {reader_error[0]}")
+    return proc.returncode, text
+
+
+@dataclass(frozen=True)
+class _TargetSnapshot:
+    """Leaf-path state that a behavior gate is forbidden to change."""
+    file_type: int
+    device: int
+    inode: int
+    links: int
+    mode: int
+    data: bytes
+
+
+@dataclass(frozen=True)
+class _GateRegistry:
+    path: Path
+    snapshot: _TargetSnapshot
+    held_in: list[str]
+    held_out: list[str]
+
+
+_GATE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+
+
+def _strict_json_object(data: bytes) -> dict:
+    def reject_constant(value: str):
+        raise ValueError(f"non-finite JSON constant {value!r} is forbidden")
+
+    def unique_object(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate JSON key {key!r} is forbidden")
+            result[key] = value
+        return result
+
+    return json.loads(data.decode("utf-8"), parse_constant=reject_constant,
+                      object_pairs_hook=unique_object)
+
+
+def _freeze_gate_registry_path(raw_path: str) -> Path:
+    """Reject symlinked ancestry, then return the strict canonical path.
+
+    This is a fail-closed preflight, not a claim of race-proof descriptor
+    traversal. The registry's parent hierarchy must remain operator-controlled
+    and stable for the duration of the patch command.
+    """
+    candidate = Path(os.path.abspath(raw_path))
+    try:
+        resolved = candidate.resolve(strict=True)
+    except OSError as e:
+        raise ValueError(f"gate registry path cannot be resolved: {e}") from None
+    # macOS exposes these filesystem roots as stable system aliases into
+    # /private. They are the anchor, not an operator-controlled registry parent.
+    root_aliases = ({Path("/var"), Path("/tmp"), Path("/etc")}
+                    if sys.platform == "darwin" else set())
+    current = Path(candidate.anchor)
+    for part in candidate.parts[1:]:
+        current = current / part
+        try:
+            node = os.lstat(current)
+        except OSError as e:
+            raise ValueError(f"gate registry path component is unavailable: {current} ({e})") from None
+        if stat.S_ISLNK(node.st_mode) and current not in root_aliases:
+            raise ValueError(f"gate registry path contains a symlink component: {current}")
+    return resolved
+
+
+def _load_gate_registry(path: Path, held_in_id: str,
+                        held_out_id: str) -> _GateRegistry:
+    """Resolve opaque IDs from a guarded, shell-free JSON argv registry."""
+    if held_in_id == held_out_id:
+        raise ValueError("held-in and held-out gate IDs must be distinct")
+    if not _GATE_ID_RE.fullmatch(held_in_id) or not _GATE_ID_RE.fullmatch(held_out_id):
+        raise ValueError("gate IDs must be opaque ASCII identifiers")
+    snapshot, fd = _open_regular_target(path)
+    try:
+        raw = _strict_json_object(snapshot.data)
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as e:
+        raise ValueError(f"gate registry is not valid JSON: {e}") from None
+    finally:
+        os.close(fd)
+    if not isinstance(raw, dict):
+        raise ValueError("gate registry must be a JSON object mapping IDs to argv")
+    for gate_id, argv in raw.items():
+        if not isinstance(gate_id, str) or not _GATE_ID_RE.fullmatch(gate_id):
+            raise ValueError("gate registry contains a non-opaque ID")
+        if (not isinstance(argv, list) or not argv
+                or any(not isinstance(arg, str) or not arg or "\0" in arg for arg in argv)):
+            raise ValueError(f"gate registry entry {gate_id!r} must be non-empty string argv")
+    if held_in_id not in raw or held_out_id not in raw:
+        raise ValueError("held-in or held-out gate ID is absent from the registry")
+    return _GateRegistry(path=path, snapshot=snapshot,
+                         held_in=raw[held_in_id].copy(),
+                         held_out=raw[held_out_id].copy())
+
+
+def _open_regular_target(path: Path) -> tuple[_TargetSnapshot, int]:
+    """Snapshot a regular non-symlink target and keep its inode open.
+
+    The caller closes the returned descriptor. Keeping it open across a gate
+    prevents delete/recreate from hiding behind immediate inode-number reuse.
+    """
+    before = os.lstat(path)
+    if not stat.S_ISREG(before.st_mode):
+        raise ValueError("target must be a regular non-symlink file")
+    if before.st_nlink != 1:
+        raise ValueError(f"target must not be hardlinked (st_nlink={before.st_nlink})")
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(path, flags)
+    try:
+        opened = os.fstat(fd)
+        if (not stat.S_ISREG(opened.st_mode)
+                or (opened.st_dev, opened.st_ino) != (before.st_dev, before.st_ino)):
+            raise ValueError("target changed while it was being opened")
+        if opened.st_nlink != 1:
+            raise ValueError(f"target must not be hardlinked (st_nlink={opened.st_nlink})")
+        with os.fdopen(os.dup(fd), "rb") as handle:
+            data = handle.read()
+        return _TargetSnapshot(
+            file_type=stat.S_IFMT(opened.st_mode),
+            device=opened.st_dev,
+            inode=opened.st_ino,
+            links=opened.st_nlink,
+            mode=stat.S_IMODE(opened.st_mode),
+            data=data,
+        ), fd
+    except Exception:
+        os.close(fd)
+        raise
+
+
+def _snapshot_regular_target(path: Path) -> _TargetSnapshot:
+    snapshot, fd = _open_regular_target(path)
+    os.close(fd)
+    return snapshot
+
+
+def _target_matches_snapshot(path: Path, expected: _TargetSnapshot) -> bool:
+    try:
+        actual, fd = _open_regular_target(path)
+    except (OSError, ValueError):
+        return False
+    try:
+        return actual == expected
+    finally:
+        os.close(fd)
+
+
+def _restore_regular_target(path: Path, expected: _TargetSnapshot) -> None:
+    """Restore leaf type + bytes + permission bits without following a symlink.
+
+    A same-directory temporary regular file atomically replaces a file or
+    symlink leaf. Empty directory replacements are removed without recursion;
+    broader side effects are deliberately outside this helper's authority.
+    """
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.restore-", dir=path.parent)
+    temp_path = Path(temp_name)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(expected.data)
+            handle.flush()
+            os.fsync(handle.fileno())
+            os.fchmod(handle.fileno(), expected.mode)
+        try:
+            current = os.lstat(path)
+        except FileNotFoundError:
+            current = None
+        if current is not None and stat.S_ISDIR(current.st_mode):
+            os.rmdir(path)
+        # os.replace replaces the leaf directory entry itself; a symlink target
+        # is never opened or modified.
+        os.replace(temp_path, path)
+        restored = _snapshot_regular_target(path)
+        if (restored.file_type != stat.S_IFREG or restored.mode != expected.mode
+                or restored.data != expected.data):
+            raise OSError("restored target failed type/content/permission verification")
+    finally:
+        try:
+            temp_path.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def _run_target_protected_gate(path: Path, command: str | list[str], **gate_options
+                               ) -> tuple[int | None, str, bool, str | None]:
+    """Run one gate while detecting and repairing any target-path mutation."""
+    expected, guard_fd = _open_regular_target(path)
+    try:
+        code, output = _run_behavior_gate(command, **gate_options)
+        if _target_matches_snapshot(path, expected):
+            return code, output, False, None
+        try:
+            _restore_regular_target(path, expected)
+        except OSError as e:
+            return code, output, True, str(e)
+        return code, output, True, None
+    finally:
+        os.close(guard_fd)
+
+
+def _run_patch_gate(path: Path, command: str | list[str], registry: _GateRegistry | None,
+                    **gate_options) -> tuple[int | None, str, bool, str | None]:
+    """Run a target-protected gate and bind it to the frozen hidden registry."""
+    if registry is not None and not _target_matches_snapshot(registry.path, registry.snapshot):
+        return None, "hidden gate registry changed", False, None
+    code, output, target_mutated, restore_error = _run_target_protected_gate(
+        path, command,
+        denied_read_paths=((registry.path,) if registry is not None else ()),
+        hide_output=registry is not None,
+        **gate_options)
+    if registry is not None and not _target_matches_snapshot(registry.path, registry.snapshot):
+        return None, "hidden gate registry changed", target_mutated, restore_error
+    return code, output, target_mutated, restore_error
+
+
 def cmd_patch(args) -> int:
+    """Resolve an optional hidden-ID registry, then use the existing patch verifier."""
+    registry_path = getattr(args, "gate_registry", None)
+    held_in_id = getattr(args, "held_in_id", None)
+    held_out_id = getattr(args, "held_out_id", None)
+    hidden_values = (registry_path, held_in_id, held_out_id)
+    if any(hidden_values):
+        if not all(hidden_values):
+            print("FAIL: hidden gates require --gate-registry, --held-in-id, and --held-out-id.")
+            return 1
+        if args.held_in_cmd is not None or args.held_out_cmd is not None:
+            print("FAIL: choose hidden gate IDs or legacy raw commands, not both.")
+            return 1
+        try:
+            registry = _load_gate_registry(_freeze_gate_registry_path(registry_path),
+                                           held_in_id, held_out_id)
+        except (OSError, ValueError) as e:
+            print(f"FAIL: invalid hidden gate registry ({e}).")
+            return 1
+        args.held_in_cmd = registry.held_in
+        args.held_out_cmd = registry.held_out
+        args._gate_registry = registry
+    else:
+        if args.held_in_cmd is None or args.held_out_cmd is None:
+            print("FAIL: provide both legacy raw gate commands or the hidden-ID registry mode.")
+            return 1
+        args._gate_registry = None
+    return _cmd_patch(args)
+
+
+def _cmd_patch(args) -> int:
     """Gated, exact-string patch to a learned skill's body — the refinement WRITE path.
-    Gate: the rationale must clear write-gate AND the patched file must lint clean (else
-    revert). On success: stamp refined_at, reset status->proposed (re-earn trust), and
-    write a telemetry checkpoint (clean-slate the abort streak)."""
+    Gate: rationale clears write-gate; held-in fails and held-out passes before mutation;
+    after patch + lint, both pass. Any failure restores regular type, bytes, and mode.
+    On success, reset status->proposed and write a telemetry checkpoint."""
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import telemetry  # noqa: E402
     path = _skill_path(args.skills_dir, args.name)
-    if not path.is_file():
-        print(f"FAIL: no such skill: {path}")
+    try:
+        original_snapshot = _snapshot_regular_target(path)
+    except (OSError, ValueError) as e:
+        print(f"FAIL: target skill must be a regular non-symlink file: {path} ({e})")
         return 1
-    original = path.read_text(encoding="utf-8")
+    original_bytes = original_snapshot.data
+    try:
+        original = original_bytes.decode("utf-8")
+    except UnicodeDecodeError as e:
+        print(f"FAIL: skill is not valid UTF-8 ({e}).")
+        return 1
     if args.old not in original:
         print("FAIL: --old text not found verbatim in the skill (copy it exactly).")
         return 1
@@ -571,22 +1084,148 @@ def cmd_patch(args) -> int:
         print("REFUSED: patch rationale did not clear write-gate (add the reason / evidence).")
         return 1
 
-    patched = original.replace(args.old, args.new)
-    path.write_text(patched, encoding="utf-8")
-    # GATE 2: patched file must lint clean, else revert.
-    lint_code, lint_out = _capture(lambda: cmd_lint(argparse.Namespace(file=str(path))))
-    if lint_code != 0:
-        path.write_text(original, encoding="utf-8")  # revert
-        print("REFUSED: patched skill fails lint — reverted.\n" + lint_out)
+    # GATE 2: prove the baseline shape before touching the skill. A missing/broken
+    # command is not evidence that held-in fails; it is a malformed gate.
+    gate_options = {
+        "timeout_seconds": args.gate_timeout_seconds,
+        "output_limit_bytes": args.gate_output_limit_bytes,
+    }
+    registry = getattr(args, "_gate_registry", None)
+    held_in_before, held_in_before_out, target_mutated, restore_error = (
+        _run_patch_gate(path, args.held_in_cmd, registry, **gate_options))
+    if target_mutated:
+        if restore_error:
+            print("REFUSED: held-in baseline mutated the target skill; "
+                  f"rollback failed: {restore_error}")
+            return 1
+        print("REFUSED: held-in baseline mutated the target skill — restored exact original "
+              "bytes/mode as a regular file.")
+        return 1
+    if held_in_before is None:
+        print(f"REFUSED: held-in baseline could not run: {held_in_before_out}")
+        return 1
+    if held_in_before == 0:
+        print("REFUSED: held-in baseline must fail before the patch, but it passed.")
+        return 1
+    held_out_before, held_out_before_out, target_mutated, restore_error = (
+        _run_patch_gate(path, args.held_out_cmd, registry, **gate_options))
+    if target_mutated:
+        if restore_error:
+            print("REFUSED: held-out baseline mutated the target skill; "
+                  f"rollback failed: {restore_error}")
+            return 1
+        print("REFUSED: held-out baseline mutated the target skill — restored exact original "
+              "bytes/mode as a regular file.")
+        return 1
+    if held_out_before is None:
+        print(f"REFUSED: held-out baseline could not run: {held_out_before_out}")
+        return 1
+    if held_out_before != 0:
+        suffix = f"\n{held_out_before_out}" if held_out_before_out else ""
+        print("REFUSED: held-out baseline must pass before the patch, but it failed."
+              + suffix)
         return 1
 
-    _rewrite_frontmatter(path, {
-        "status": "proposed",
-        "disable-model-invocation": "true",
-        "refined_at": datetime.date.today().isoformat(),
-    })
-    telemetry.main(["record", "--skill", _slug(args.name), "--outcome", "checkpoint",
-                    "--note", f"refined: {args.rationale[:80]}"])
+    patched = original.replace(args.old, args.new)
+    checkpoint_id: int | None = None
+    try:
+        path.write_text(patched, encoding="utf-8")
+        # GATE 3: syntax/house-standard validity.
+        lint_code, lint_out = _capture(lambda: cmd_lint(argparse.Namespace(file=str(path))))
+        if lint_code != 0:
+            raise RuntimeError("patched skill fails lint\n" + lint_out.rstrip())
+
+        # GATE 4: held-in improvement plus held-out non-regression.
+        held_in_after, held_in_after_out, target_mutated, restore_error = (
+            _run_patch_gate(path, args.held_in_cmd, registry, **gate_options))
+        if target_mutated:
+            detail = f"; gate restore failed: {restore_error}" if restore_error else ""
+            raise RuntimeError("held-in gate mutated the target skill" + detail)
+        if held_in_after != 0:
+            detail = held_in_after_out or ("command could not run" if held_in_after is None else "")
+            raise RuntimeError("held-in still fails after the patch" + (f"\n{detail}" if detail else ""))
+        held_out_after, held_out_after_out, target_mutated, restore_error = (
+            _run_patch_gate(path, args.held_out_cmd, registry, **gate_options))
+        if target_mutated:
+            detail = f"; gate restore failed: {restore_error}" if restore_error else ""
+            raise RuntimeError("held-out gate mutated the target skill" + detail)
+        if held_out_after != 0:
+            detail = held_out_after_out or ("command could not run" if held_out_after is None else "")
+            raise RuntimeError("held-out regressed after the patch" + (f"\n{detail}" if detail else ""))
+
+        # A post-gate lint is intentionally redundant with byte invariance: it is
+        # the artifact-level backstop before metadata/checkpoint acceptance.
+        final_lint_code, final_lint_out = _capture(
+            lambda: cmd_lint(argparse.Namespace(file=str(path))))
+        if final_lint_code != 0:
+            raise RuntimeError("final patched skill fails lint after behavior gates\n"
+                               + final_lint_out.rstrip())
+
+        # Close the acceptance boundary under open inode guards. Metadata rewrite
+        # must keep the same regular, single-link inode; the checkpoint lands only
+        # after that final artifact is linted and byte/mode/inode-verified.
+        candidate_snapshot, candidate_guard = _open_regular_target(path)
+        final_snapshot: _TargetSnapshot | None = None
+        final_guard: int | None = None
+        try:
+            if not _target_matches_snapshot(path, candidate_snapshot):
+                raise RuntimeError("target invariant changed before metadata rewrite")
+            _rewrite_frontmatter(path, {
+                "status": "proposed",
+                "disable-model-invocation": "true",
+                "refined_at": datetime.date.today().isoformat(),
+            })
+            final_snapshot, final_guard = _open_regular_target(path)
+            if ((final_snapshot.file_type, final_snapshot.device, final_snapshot.inode,
+                 final_snapshot.links, final_snapshot.mode)
+                    != (candidate_snapshot.file_type, candidate_snapshot.device,
+                        candidate_snapshot.inode, 1, candidate_snapshot.mode)):
+                raise RuntimeError("target invariant changed during metadata rewrite")
+            metadata_lint_code, metadata_lint_out = _capture(
+                lambda: cmd_lint(argparse.Namespace(file=str(path))))
+            if metadata_lint_code != 0:
+                raise RuntimeError("metadata-updated skill fails final lint\n"
+                                   + metadata_lint_out.rstrip())
+            if not _target_matches_snapshot(path, final_snapshot):
+                raise RuntimeError("target invariant changed before telemetry checkpoint")
+
+            now = telemetry._now()
+            checkpoint = {
+                "skill": _slug(args.name), "ts": now, "recorded_at": now,
+                "outcome": "checkpoint", "source": "manual",
+                "session": os.environ.get("CLAUDE_SESSION_ID", ""),
+                "note": f"refined: {args.rationale[:80]}",
+            }
+            checkpoint_id = telemetry._append(telemetry._store(), checkpoint)
+            if checkpoint_id is None:
+                raise RuntimeError("telemetry checkpoint failed")
+            if not _target_matches_snapshot(path, final_snapshot):
+                raise RuntimeError("target invariant changed across telemetry checkpoint")
+        finally:
+            if final_guard is not None:
+                os.close(final_guard)
+            os.close(candidate_guard)
+        if final_snapshot is None or not _target_matches_snapshot(path, final_snapshot):
+            raise RuntimeError("target invariant changed after telemetry checkpoint")
+    except Exception as e:
+        rollback_errors = []
+        if checkpoint_id is not None:
+            try:
+                if not telemetry._delete_event(checkpoint_id):
+                    rollback_errors.append("telemetry checkpoint rollback found no event")
+            except Exception as rollback_error:
+                rollback_errors.append(f"telemetry checkpoint rollback failed: {rollback_error}")
+        try:
+            _restore_regular_target(path, original_snapshot)
+        except (OSError, ValueError) as rollback_error:
+            rollback_errors.append(f"skill rollback failed: {rollback_error}")
+        if rollback_errors:
+            print(f"REFUSED: {e} — rollback incomplete: {'; '.join(rollback_errors)}")
+        else:
+            print(f"REFUSED: {e} — restored exact original bytes/mode as a regular file (skill); "
+                  "telemetry append remained atomic.")
+        return 1
+
     print(f"PATCHED {_slug(args.name)} → status proposed (re-earns trust). "
           f"telemetry checkpointed (abort streak cleared).")
     return 0
@@ -668,6 +1307,21 @@ def main(argv=None) -> int:
     pa.add_argument("--old", required=True)
     pa.add_argument("--new", required=True)
     pa.add_argument("--rationale", required=True)
+    pa.add_argument("--held-in-cmd",
+                    help="Legacy raw command that must fail before and pass after.")
+    pa.add_argument("--held-out-cmd",
+                    help="Legacy raw regression command that must always pass.")
+    pa.add_argument("--gate-registry",
+                    help="Regular single-link JSON file mapping opaque gate IDs to argv.")
+    pa.add_argument("--held-in-id", help="Opaque held-in ID from --gate-registry.")
+    pa.add_argument("--held-out-id", help="Distinct opaque held-out ID from --gate-registry.")
+    pa.add_argument("--gate-timeout-seconds", type=float,
+                    default=DEFAULT_GATE_TIMEOUT_SECONDS,
+                    help=f"Per behavior-gate timeout (default {DEFAULT_GATE_TIMEOUT_SECONDS:g}s).")
+    pa.add_argument("--gate-output-limit-bytes", type=int,
+                    default=DEFAULT_GATE_OUTPUT_LIMIT_BYTES,
+                    help="Maximum gate output read/surfaced per command "
+                         f"(default {DEFAULT_GATE_OUTPUT_LIMIT_BYTES} bytes).")
     pa.add_argument("--scope", default="this-skill",
                      help="LEARNING_CONTRACT §1 SCOPE classification for the patch rationale "
                           "(default this-skill: a learned-skill artifact tied to one skill's "

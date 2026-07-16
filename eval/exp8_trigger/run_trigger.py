@@ -55,6 +55,7 @@ TARGET_CASES = [
     ("map this code change to its callers and blast radius before I decide whether it is safe to ship", "impact-of-change"),
     ("turn this repeated local workflow into a reusable Brainer skill", "learn-skill"),
     ("design this generator-verifier retry loop with a concrete gate, stop condition, and budget cap", "loop-engineering"),
+    ("/self-improvement-loops govern this loop that may rewrite its own prompt, evaluator harness, and optimizer", "self-improvement-loops"),
     ("sync these canonical Brainer skill changes to sibling repos without overwriting customizations", "propagate"),
     ("track every ask and conjunct in a visible ledger until the user explicitly closes each one", "requirements-ledger"),
     ("scan this patch for introduced secrets, dangerous sinks, risky auth logic, and untrusted dependencies", "security-oversight"),

@@ -87,9 +87,9 @@ graphify extract .
 
 `./install.sh` installs `graphify` from our maintained fork ([SaarShai/graphify@token-economy-patches](https://github.com/SaarShai/graphify/tree/token-economy-patches)) — published `graphifyy` 0.8.17 ships four bugs that affect our skill flow (see [skills/index-first/EVAL.md](skills/index-first/EVAL.md) for the bug list and impact). The installer prefers `pipx` and falls back to `python3 -m pip install --user`. Opt out with `./install.sh --no-graphify` (the wiki-memory and index-first skills degrade gracefully when the graph isn't present). After bootstrap the stack is on automatically — hooks fire per event, descriptions trigger on prompt shape.
 
-## The catalog (29 skills)
+## The catalog (30 skills)
 
-**All 29 are symlinked and listed by `./install.sh` (as of v1.13; `loop-engineering`, `eval-gate`, `requirements-ledger`, `brainer-audit`, `learn-skill`, and model-invokable Wayfinder are in the catalog).** `compliance-canary` (the single drift watcher — it absorbed `skill-pulse` at v1.10) and `learn-skill` auto-wire their hooks by default; `index-first` remains opt-in, while `think` remains manually invoked as `/think` and may hand off to Wayfinder automatically. To disable a default-on hook, remove its entry from `.claude/settings.json` by hand.
+**All 30 are symlinked and listed by `./install.sh` (as of v1.13; `loop-engineering`, `self-improvement-loops`, `eval-gate`, `requirements-ledger`, `brainer-audit`, `learn-skill`, and model-invokable Wayfinder are in the catalog).** `compliance-canary` (the single drift watcher — it absorbed `skill-pulse` at v1.10) and `learn-skill` auto-wire their hooks by default; `index-first` remains opt-in, while `think` and `self-improvement-loops` remain manually invoked slash-only skills. To disable a default-on hook, remove its entry from `.claude/settings.json` by hand.
 
 | Skill | Trigger | Desc tokens | Notes |
 |---|---|---:|---|
@@ -112,6 +112,7 @@ graphify extract .
 | [task-retrospective](skills/task-retrospective/SKILL.md) | explicit task audit / `/retro` / after-the-fact reconstruction | 105 | User-triggered task audit mode for repeatable project work. Arm it before the task when possible, or reconstruct after the fact; it produces a project-learning report and routes at most 3 durable lessons to project memory, SOPs, checklists, project-specific skills, or broad repo instructions through write-gate. It does not audit Brainer skill obedience or edit canonical Brainer skills. Default-installed. |
 | [brainer-audit](skills/brainer-audit/SKILL.md) | explicit Brainer/session audit | 67 | Report-only Brainer skill-use audit mode over normalized events. Detects missed skill triggers, unverified completion claims, output-filter opportunities, dropped requirements, write-gate bypasses, and task-retrospective boundary violations. Claude/Codex hooks are opt-in and marker-gated; Antigravity uses lower-fidelity sidecar snapshots. |
 | [loop-engineering](skills/loop-engineering/SKILL.md) | before building a loop / fleet / verifier pipeline | 96 | Use BEFORE building any multi-step agentic loop, generator→verifier pipeline, fan-out/fleet, or iterate-until-correct/retry loop. Picks the loop shape (open/closed · inner/outer · single/fleet), pairs a generator with a SEPARATE verifier, and forces a concrete gate + stop + budget cap up front. Ships loop_lint.py to refuse no-gate / self-grading / unbounded specs. Override with ONE SHOT. **Default-installed** (v1.11). |
+| [self-improvement-loops](skills/self-improvement-loops/SKILL.md) | `/self-improvement-loops` (manual; slash-only) | 9 | Proposed policy for loops that may modify their own prompt, context, workflow, harness, or optimizer; adds locked surfaces, hidden held-out gates, artifact binding, and human approval boundaries over `loop-engineering`. |
 | [eval-gate](skills/eval-gate/SKILL.md) | "is this good enough / score this" | 117 | Score AI output against a written rubric before it ships — an LLM-as-judge quality gate for content output (drafts, posts, answers) and product output (an agent's reply, an extraction, a generated payload). Use when asked "is this good enough", "score/grade this", "would this pass", to gate output on quality, to regression-check a prompt/model/pipeline change, or to turn a flagged bad output into a permanent test case. Returns 0-5 + reason; exit code gates. **Default-installed** (v1.11; N≥50 validation pending). |
 
 **Always-resident context tax (resident sentinel block, all skill descriptions): ~7,990 bytes.** Roughly 0.9% of a 200K context window (byte-for-byte proxy; the `marketplace.json` `context_cost_estimate_tokens` figure predates the current catalog and needs remeasuring). Every skill's description is resident; hook scripts and `tools/` load only when fired, adding no resident tax.
@@ -267,7 +268,7 @@ Built on prior work:
 
 ## Status
 
-- 29 skills written and lint-clean.
+- 30 skills written and lint-clean.
 - 3 hosts wired and verified (Claude Code, Codex, Gemini CLI).
 - Static-cost measurements published.
 - Live A/B harness ready; needs a healthy Ollama / explicit `ANTHROPIC_API_KEY` / `HF_TOKEN` to run.

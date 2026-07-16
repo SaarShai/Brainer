@@ -5,6 +5,8 @@ from __future__ import annotations
 import io
 import json
 import os
+import sqlite3
+import subprocess
 import sys
 import tempfile
 from contextlib import redirect_stdout
@@ -36,6 +38,25 @@ def test_record_and_stats():
     print("ok test_record_and_stats")
 
 
+def test_structured_abort_evidence_roundtrip():
+    with tempfile.TemporaryDirectory() as t:
+        os.environ["CLAUDE_PROJECT_DIR"] = t
+        code, out = _run(["record", "--skill", "structured", "--outcome", "abort",
+                          "--verifier-cause", "output omitted the required guard",
+                          "--causal-status", "skill-caused",
+                          "--mechanism", "procedure never mentions the guard",
+                          "--evidence-ref", "trace:42"])
+        assert code == 0, out
+        emitted = json.loads(out)
+        stored = telemetry._records(False, "structured")[0]
+        for key in ("verifier_cause", "causal_status", "mechanism", "evidence_ref"):
+            assert emitted[key] == stored[key], (key, emitted, stored)
+        assert stored["causal_status"] == "skill-caused"
+        assert telemetry.compute_stats()["structured"]["aborts"] == 1
+    os.environ.pop("CLAUDE_PROJECT_DIR", None)
+    print("ok test_structured_abort_evidence_roundtrip")
+
+
 def test_consecutive_hits():
     with tempfile.TemporaryDirectory() as t:
         os.environ["CLAUDE_PROJECT_DIR"] = t
@@ -59,6 +80,114 @@ def test_manual_only_filter():
         assert telemetry.compute_stats()["baz"]["total"] == 2
         assert telemetry.compute_stats(manual_only=True)["baz"]["total"] == 1
     print("ok test_manual_only_filter")
+
+
+def test_legacy_jsonl_migration_is_idempotent_and_incremental():
+    with tempfile.TemporaryDirectory() as t:
+        os.environ["CLAUDE_PROJECT_DIR"] = t
+        store = Path(t) / telemetry.STORE_REL
+        store.parent.mkdir(parents=True)
+        rows = [
+            {"skill": "legacy", "ts": "1", "outcome": "hit", "source": "manual"},
+            {"skill": "legacy", "ts": "2", "outcome": "abort", "source": "manual"},
+        ]
+        store.write_text("\n".join(json.dumps(row) for row in rows) + "\n",
+                         encoding="utf-8")
+        assert telemetry.compute_stats()["legacy"]["total"] == 2
+        assert telemetry.compute_stats()["legacy"]["total"] == 2
+        rows.append(
+            {"skill": "legacy", "ts": "3", "outcome": "hit", "source": "manual"})
+        store.write_text("\n".join(json.dumps(row) for row in rows) + "\n",
+                         encoding="utf-8")
+        assert telemetry.compute_stats()["legacy"]["total"] == 3
+        assert telemetry.compute_stats()["legacy"]["total"] == 3
+        db = Path(t) / telemetry.DB_REL
+        assert db.is_file()
+        with sqlite3.connect(db) as conn:
+            assert conn.execute("PRAGMA journal_mode").fetchone()[0].lower() == "wal"
+            assert conn.execute("SELECT count(*) FROM events").fetchone()[0] == 3
+    os.environ.pop("CLAUDE_PROJECT_DIR", None)
+    print("ok test_legacy_jsonl_migration_is_idempotent_and_incremental")
+
+
+def test_sqlite_wal_concurrent_writers_preserve_all_records():
+    with tempfile.TemporaryDirectory() as t:
+        os.environ["CLAUDE_PROJECT_DIR"] = t
+        script = (
+            "import sys; from pathlib import Path; "
+            f"sys.path.insert(0, {str(Path(__file__).resolve().parent)!r}); "
+            "import telemetry; "
+            "raise SystemExit(telemetry.main(['record','--skill',sys.argv[1],"
+            "'--outcome','hit']))"
+        )
+        children = [
+            subprocess.Popen([sys.executable, "-c", script, f"writer-{i}"],
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             text=True, env=os.environ.copy())
+            for i in range(12)
+        ]
+        for child in children:
+            stdout, stderr = child.communicate(timeout=10)
+            assert child.returncode == 0, (stdout, stderr)
+        records = telemetry._records(False)
+        assert len(records) == 12, records
+        assert {record["skill"] for record in records} == {
+            f"writer-{i}" for i in range(12)}
+    os.environ.pop("CLAUDE_PROJECT_DIR", None)
+    print("ok test_sqlite_wal_concurrent_writers_preserve_all_records")
+
+
+def test_exact_event_delete_preserves_adjacent_records():
+    with tempfile.TemporaryDirectory() as t:
+        os.environ["CLAUDE_PROJECT_DIR"] = t
+        first = {"skill": "rollback", "ts": "1", "outcome": "checkpoint",
+                 "source": "manual"}
+        second = {"skill": "concurrent", "ts": "2", "outcome": "hit",
+                  "source": "manual"}
+        first_id = telemetry._append(telemetry._store(), first)
+        second_id = telemetry._append(telemetry._store(), second)
+        assert isinstance(first_id, int) and isinstance(second_id, int)
+        assert telemetry._delete_event(first_id) is True
+        records = telemetry._records(False)
+        assert records == [second], records
+    os.environ.pop("CLAUDE_PROJECT_DIR", None)
+    print("ok test_exact_event_delete_preserves_adjacent_records")
+
+
+def test_concurrent_scans_deduplicate_transactionally():
+    with tempfile.TemporaryDirectory() as t:
+        os.environ["CLAUDE_PROJECT_DIR"] = t
+        transcript = Path(t) / "transcript.jsonl"
+        events = [
+            {"type": "assistant", "timestamp": "2026-01-01T00:00:00",
+             "message": {"content": [
+                 {"type": "tool_use", "name": "Skill", "input": {"skill": "once"}}]}},
+            {"type": "user", "message": {"content": [
+                {"type": "text", "text": "ok"}]}},
+        ]
+        transcript.write_text("\n".join(json.dumps(event) for event in events),
+                              encoding="utf-8")
+        script = (
+            "import sys; from pathlib import Path; "
+            f"sys.path.insert(0, {str(Path(__file__).resolve().parent)!r}); "
+            "import telemetry; "
+            "raise SystemExit(telemetry.main(['scan','--transcript',sys.argv[1]]))"
+        )
+        children = [
+            subprocess.Popen([sys.executable, "-c", script, str(transcript)],
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             text=True, env=os.environ.copy())
+            for _ in range(2)
+        ]
+        outputs = []
+        for child in children:
+            stdout, stderr = child.communicate(timeout=10)
+            assert child.returncode == 0, (stdout, stderr)
+            outputs.append(json.loads(stdout))
+        assert sum(output["added"] for output in outputs) == 1, outputs
+        assert telemetry.compute_stats()["once"]["total"] == 1
+    os.environ.pop("CLAUDE_PROJECT_DIR", None)
+    print("ok test_concurrent_scans_deduplicate_transactionally")
 
 
 def test_scan_infers_outcome():
@@ -230,6 +359,7 @@ def test_checkpoint_clean_slate():
         _run(["record", "--skill", "r", "--outcome", "abort"])
         assert telemetry.compute_stats()["r"]["aborts"] == 2
         _run(["record", "--skill", "r", "--outcome", "checkpoint"])  # refine point
+        assert telemetry._post_checkpoint_records(False, "r")["r"] == []
         s = telemetry.compute_stats().get("r", {})
         assert s.get("total", 0) == 0, s  # clean slate
         _run(["record", "--skill", "r", "--outcome", "hit"])

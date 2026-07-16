@@ -75,6 +75,7 @@ S|core|python3|skills/brainer-audit/tools/test_redaction.py|-|-
 S|core|python3|skills/brainer-audit/tools/test_detector_precision.py|-|-
 S|core|python3|skills/loop-engineering/tools/test_loop_lint.py|-|-
 S|core|python3|skills/loop-engineering/tools/test_loop_run_monitor.py|-|-
+S|core|python3|skills/self-improvement-loops/eval/test_weakest_executor.py|-|-
 S|core|python3|skills/context-keeper/tools/tests/test_extract.py|-|-
 S|core|python3|skills/output-filter/tools/test_output_filter.py|-|-
 S|core|python3|skills/prompt-triage/tools/test_classify.py|-|-

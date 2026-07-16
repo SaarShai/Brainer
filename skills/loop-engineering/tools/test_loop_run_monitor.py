@@ -20,10 +20,21 @@ from contextlib import redirect_stdout
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import loop_run_monitor as m  # noqa: E402
+import loop_lint  # noqa: E402
+
+_DEFAULT_RESOLVED = object()
 
 
-def _codes(trace, **kw):
-    rep = m.monitor(json.dumps(trace), "trace.json", **kw)
+def _resolved_for(trace):
+    if isinstance(trace, dict) and trace.get("self_modifying") is True:
+        return SELF_MOD_RESOLVED
+    return None
+
+
+def _codes(trace, resolved_spec=_DEFAULT_RESOLVED, **kw):
+    if resolved_spec is _DEFAULT_RESOLVED:
+        resolved_spec = _resolved_for(trace)
+    rep = m.monitor(json.dumps(trace), "trace.json", resolved_spec=resolved_spec, **kw)
     return [(f.code, f.severity) for f in rep.findings]
 
 
@@ -31,17 +42,29 @@ def _has(trace, code, sev, **kw):
     return (code, sev) in _codes(trace, **kw)
 
 
-def _exit_for(trace, argv_extra=None):
+def _exit_for(trace, argv_extra=None, resolved_spec=_DEFAULT_RESOLVED):
     """Run main() against a temp file; return the process exit code."""
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fh:
         fh.write(json.dumps(trace))
         path = fh.name
+    resolved_path = None
+    if resolved_spec is _DEFAULT_RESOLVED:
+        resolved_spec = _resolved_for(trace)
+    if resolved_spec is not None:
+        with tempfile.NamedTemporaryFile("w", suffix=".resolved.json", delete=False) as fh:
+            fh.write(json.dumps(resolved_spec))
+            resolved_path = fh.name
     try:
         buf = io.StringIO()
         with redirect_stdout(buf):
-            return m.main([path] + (argv_extra or []))
+            args = [path] + (argv_extra or [])
+            if resolved_path:
+                args.extend(["--resolved-spec", resolved_path])
+            return m.main(args)
     finally:
         os.unlink(path)
+        if resolved_path:
+            os.unlink(resolved_path)
 
 
 # A healthy trace: distinct commands, no repeated error, metric climbing,
@@ -66,6 +89,50 @@ def test_healthy_reports_cost_per_accept():
     assert rep.n_accepted == 2, rep.n_accepted
     assert rep.total_cost == 320, rep.total_cost
     assert rep.cost_per_accept == 160.0, rep.cost_per_accept  # 320 / 2
+
+
+def test_iteration_index_nonfinite_defaults_without_traceback():
+    trace = json.loads(json.dumps(HEALTHY))
+    trace[0]["i"] = float("nan")
+    trace[1]["i"] = float("inf")
+    trace[2]["i"] = float("-inf")
+    trace[3]["i"] = 10 ** 400
+    parsed = m.parse_trace(json.dumps(trace), "trace.json")
+    assert [it.i for it in parsed[:3]] == [0, 1, 2], [it.i for it in parsed]
+    assert parsed[3].i == 10 ** 400 and isinstance(parsed[3].i, int)
+    assert _codes(trace) == [], _codes(trace)
+    assert _exit_for(trace) == 0
+
+    finite = json.loads(json.dumps(HEALTHY))
+    finite[0]["i"] = 7.9
+    assert m.parse_trace(json.dumps(finite), "trace.json")[0].i == 7
+
+
+def test_metric_nonfinite_and_huge_integer_are_unknown_without_traceback():
+    for value in (float("nan"), float("inf"), float("-inf"), 10 ** 400, -(10 ** 400)):
+        trace = json.loads(json.dumps(HEALTHY))
+        trace[0]["metric"] = value
+        parsed = m.parse_trace(json.dumps(trace), "trace.json")
+        assert parsed[0].metric is None, (value, parsed[0].metric)
+        assert _codes(trace) == [], (value, _codes(trace))
+        assert _exit_for(trace) == 0
+    ordinary = json.loads(json.dumps(HEALTHY))
+    ordinary[0]["metric"] = 7
+    assert m.parse_trace(json.dumps(ordinary), "trace.json")[0].metric == 7.0
+
+
+def test_cost_nonfinite_and_huge_integer_default_to_zero_without_traceback():
+    for value in (float("nan"), float("inf"), float("-inf"), 10 ** 400, -(10 ** 400)):
+        trace = json.loads(json.dumps(HEALTHY))
+        trace[0]["cost"] = value
+        parsed = m.parse_trace(json.dumps(trace), "trace.json")
+        assert parsed[0].cost == 0.0, (value, parsed[0].cost)
+        rep = m.monitor(json.dumps(trace), "trace.json")
+        assert rep.total_cost == 220.0, (value, rep.total_cost)
+        assert _exit_for(trace) == 0
+    ordinary = json.loads(json.dumps(HEALTHY))
+    ordinary[0]["cost"] = 7
+    assert m.parse_trace(json.dumps(ordinary), "trace.json")[0].cost == 7.0
 
 
 # --- S1 SAME-COMMAND ------------------------------------------------------
@@ -376,6 +443,270 @@ def test_json_output_shape():
         assert all({"code", "severity", "title"} <= set(f) for f in out["findings"])
     finally:
         os.unlink(path)
+
+
+# --- self-modifying candidate lineage ------------------------------------
+
+SELF_MOD_SPEC = """\
+name: monitored-self-modification
+topology: closed · outer · single
+generator: coding agent
+verifier: independent reviewer
+gate: python3 run_gate.py
+stop: both gates pass
+budget: max_iterations=2
+self_modifying: true
+editable_surfaces: candidate/
+locked_surfaces: evaluator/
+held_in_gate: gate-id held-in
+held_out_gate: gate-id held-out
+artifact_binding: sha256 candidate tree
+human_approval: owner approves promotion
+anchor_files: SKILL.md, evals/
+state_store: .brainer/self-improvement/state.sqlite3
+recall: read anchor_files and state_store before each pass
+writeback: append verified results after each pass
+on_error: transient=retry with backoff max 2; recoverable-by-generator=return error as observation; user-fixable=interrupt; unexpected=halt and surface
+"""
+SELF_MOD_RESOLVED = loop_lint.resolve_snapshot(
+    loop_lint.parse_specs(SELF_MOD_SPEC, "self-mod.loop")[0])
+
+SELF_MOD_HEALTHY = {
+    "self_modifying": True,
+    "spec_hash": SELF_MOD_RESOLVED["spec_hash"],
+    "iterations": [
+        {
+            "i": 0, "command": "edit candidate", "metric": 1, "accepted": False,
+            "candidate_id": "candidate-001", "artifact_hash": "sha256:aaa",
+            "evaluator_revision": "eval-v3", "diff_size": 12,
+            "trace_refs": ["traces/candidate-001.json"],
+        },
+        {
+            "i": 1, "command": "run held gates", "metric": 2, "accepted": True,
+            "candidate_id": "candidate-002", "artifact_hash": "sha256:bbb",
+            "evaluator_revision": "eval-v3", "diff_size": 4,
+            "trace_refs": ["traces/candidate-002.json", "traces/held-out.json"],
+        },
+    ],
+}
+
+
+def test_self_modifying_complete_lineage_is_healthy():
+    assert _codes(SELF_MOD_HEALTHY) == [], _codes(SELF_MOD_HEALTHY)
+    assert _exit_for(SELF_MOD_HEALTHY) == 0
+
+
+def test_self_modifying_requires_resolved_snapshot_and_trace_hash():
+    assert _has(SELF_MOD_HEALTHY, "PROVENANCE", "STUCK", resolved_spec=None)
+    assert _exit_for(SELF_MOD_HEALTHY, resolved_spec=None) == 2
+
+    trace = json.loads(json.dumps(SELF_MOD_HEALTHY))
+    del trace["spec_hash"]
+    assert _has(trace, "PROVENANCE", "STUCK")
+    assert _exit_for(trace) == 2
+
+
+def test_resolved_self_modifying_spec_rejects_trace_downgrade():
+    base_iteration = {
+        "command": "edit candidate", "metric": 1, "accepted": True,
+    }
+    downgraded = (
+        [base_iteration],
+        {"spec_hash": SELF_MOD_RESOLVED["spec_hash"], "iterations": [base_iteration]},
+        {
+            "self_modifying": False,
+            "spec_hash": SELF_MOD_RESOLVED["spec_hash"],
+            "iterations": [base_iteration],
+        },
+        {"self_modifying": False, "spec_hash": 7, "iterations": [base_iteration]},
+    )
+    for trace in downgraded:
+        codes = _codes(trace, resolved_spec=SELF_MOD_RESOLVED)
+        assert ("PROVENANCE", "STUCK") in codes, (trace, codes)
+        assert _exit_for(trace, resolved_spec=SELF_MOD_RESOLVED) == 2, trace
+
+
+def test_ordinary_resolved_spec_preserves_ordinary_trace_behavior():
+    ordinary = loop_lint.resolve_snapshot(
+        loop_lint.parse_specs(SELF_MOD_SPEC.replace("self_modifying: true",
+                                                   "self_modifying: false"),
+                              "ordinary.loop")[0])
+    assert _codes(HEALTHY, resolved_spec=ordinary) == []
+    assert _exit_for(HEALTHY, resolved_spec=ordinary) == 0
+
+
+def test_supplied_resolved_spec_is_validated_before_trace_activation():
+    assert _has(HEALTHY, "PROVENANCE", "STUCK", resolved_spec={})
+    assert _exit_for(HEALTHY, resolved_spec={}) == 3
+
+
+def test_self_modifying_rejects_mismatched_spec_hash():
+    trace = json.loads(json.dumps(SELF_MOD_HEALTHY))
+    trace["spec_hash"] = "sha256:" + "0" * 64
+    assert _has(trace, "PROVENANCE", "STUCK")
+    assert _exit_for(trace) == 2
+
+
+def test_self_modifying_rejects_malformed_trace_hash():
+    for invalid in ("", "SHA256:" + "0" * 64, "sha256:xyz", True, 7, {}, []):
+        trace = json.loads(json.dumps(SELF_MOD_HEALTHY))
+        trace["spec_hash"] = invalid
+        assert _has(trace, "PROVENANCE", "STUCK"), invalid
+        assert _exit_for(trace) == 2
+
+
+def test_self_modifying_rejects_tampered_or_malformed_resolved_snapshot():
+    tampered = json.loads(json.dumps(SELF_MOD_RESOLVED))
+    tampered["fields"]["budget"] = "max_iterations=999"
+    assert _has(SELF_MOD_HEALTHY, "PROVENANCE", "STUCK", resolved_spec=tampered)
+    assert _exit_for(SELF_MOD_HEALTHY, resolved_spec=tampered) == 3
+
+    for malformed in ([], [SELF_MOD_RESOLVED], {},
+                      {**SELF_MOD_RESOLVED, "schema_version": 2}):
+        assert _has(SELF_MOD_HEALTHY, "PROVENANCE", "STUCK", resolved_spec=malformed)
+        assert _exit_for(SELF_MOD_HEALTHY, resolved_spec=malformed) == 3
+
+
+def test_resolved_spec_rejects_nonclean_lint_verdicts():
+    for severity, verdict in (("WARN", "warn"), ("FAIL", "fail")):
+        snapshot = json.loads(json.dumps(SELF_MOD_RESOLVED))
+        snapshot["lint"] = {
+            "verdict": verdict,
+            "summary": {
+                "WARN": int(severity == "WARN"),
+                "FAIL": int(severity == "FAIL"),
+            },
+            "findings": [{"severity": severity}],
+        }
+        snapshot["spec_hash"] = m.resolved_spec_hash(snapshot)
+        assert _has(SELF_MOD_HEALTHY, "PROVENANCE", "STUCK",
+                    resolved_spec=snapshot), verdict
+        assert _exit_for(SELF_MOD_HEALTHY, resolved_spec=snapshot) == 3, verdict
+
+
+def test_resolved_spec_rejects_verdict_summary_inconsistency():
+    snapshot = json.loads(json.dumps(SELF_MOD_RESOLVED))
+    snapshot["lint"]["summary"]["FAIL"] = 1
+    snapshot["lint"]["findings"] = [{"severity": "FAIL"}]
+    snapshot["spec_hash"] = m.resolved_spec_hash(snapshot)
+    assert _exit_for(SELF_MOD_HEALTHY, resolved_spec=snapshot) == 3
+
+
+def test_resolved_spec_rejects_findings_summary_inconsistency():
+    snapshot = json.loads(json.dumps(SELF_MOD_RESOLVED))
+    snapshot["lint"]["findings"] = [{"severity": "WARN"}]
+    snapshot["spec_hash"] = m.resolved_spec_hash(snapshot)
+    assert _exit_for(SELF_MOD_HEALTHY, resolved_spec=snapshot) == 3
+
+
+def test_self_modifying_cannot_bind_to_ordinary_resolved_spec():
+    ordinary = loop_lint.resolve_snapshot(
+        loop_lint.parse_specs(SELF_MOD_SPEC.replace("self_modifying: true",
+                                                    "self_modifying: false"),
+                              "ordinary.loop")[0])
+    trace = json.loads(json.dumps(SELF_MOD_HEALTHY))
+    trace["spec_hash"] = ordinary["spec_hash"]
+    assert _has(trace, "PROVENANCE", "STUCK", resolved_spec=ordinary)
+    assert _exit_for(trace, resolved_spec=ordinary) == 2
+
+
+def test_self_modifying_missing_lineage_stuck_per_field():
+    """Known-bad proof: a candidate score floating free of artifact lineage must
+    stop the self-modifying loop, with deterministic field-level findings."""
+    trace = {"self_modifying": True, "iterations": [
+        {"command": "edit candidate", "metric": 1, "accepted": True}
+    ]}
+    codes = _codes(trace)
+    assert codes.count(("LINEAGE", "STUCK")) == 5, codes
+    assert _exit_for(trace) == 2
+
+
+def test_self_modifying_accepted_empty_diff_is_stuck():
+    trace = json.loads(json.dumps(SELF_MOD_HEALTHY))
+    trace["iterations"][1]["diff_size"] = 0
+    assert _has(trace, "NOOP", "STUCK"), _codes(trace)
+    assert _exit_for(trace) == 2
+
+
+def test_self_modifying_empty_trace_refs_is_missing_lineage():
+    trace = json.loads(json.dumps(SELF_MOD_HEALTHY))
+    trace["iterations"][0]["trace_refs"] = []
+    assert _has(trace, "LINEAGE", "STUCK"), _codes(trace)
+
+
+def test_self_modifying_nonfinite_diff_size_is_missing_lineage():
+    for value in (float("nan"), float("inf"), float("-inf")):
+        trace = json.loads(json.dumps(SELF_MOD_HEALTHY))
+        trace["iterations"][0]["diff_size"] = value
+        assert _has(trace, "LINEAGE", "STUCK"), (value, _codes(trace))
+
+
+def test_self_modifying_numeric_string_diff_size_remains_missing_lineage():
+    """Existing parser behavior: numeric strings are not JSON numbers."""
+    trace = json.loads(json.dumps(SELF_MOD_HEALTHY))
+    trace["iterations"][0]["diff_size"] = "12"
+    assert _has(trace, "LINEAGE", "STUCK"), _codes(trace)
+
+
+def test_self_modifying_huge_integer_diff_size_is_exact_and_controlled():
+    huge = 10 ** 400
+    positive = json.loads(json.dumps(SELF_MOD_HEALTHY))
+    positive["iterations"][1]["diff_size"] = huge
+    assert _codes(positive) == [], _codes(positive)
+    assert _exit_for(positive) == 0
+    parsed = m.parse_trace(json.dumps(positive), "trace.json")
+    assert parsed[1].diff_size == huge and isinstance(parsed[1].diff_size, int)
+
+    negative = json.loads(json.dumps(SELF_MOD_HEALTHY))
+    negative["iterations"][1]["diff_size"] = -huge
+    assert _has(negative, "NOOP", "STUCK"), _codes(negative)
+    assert not _has(negative, "LINEAGE", "STUCK"), _codes(negative)
+    assert _exit_for(negative) == 2
+
+
+def test_self_modifying_identity_fields_reject_nonstring_coercions():
+    for field in ("candidate_id", "artifact_hash", "evaluator_revision"):
+        for invalid in (True, False, 7, {}, [], "   "):
+            trace = json.loads(json.dumps(SELF_MOD_HEALTHY))
+            trace["iterations"][0][field] = invalid
+            assert _has(trace, "LINEAGE", "STUCK"), (field, invalid, _codes(trace))
+
+
+def test_self_modifying_trace_refs_are_strict_strings():
+    for invalid in (True, 7, {}, [], [""], ["ok", ""], ["ok", {}], [7]):
+        trace = json.loads(json.dumps(SELF_MOD_HEALTHY))
+        trace["iterations"][0]["trace_refs"] = invalid
+        assert _has(trace, "LINEAGE", "STUCK"), (invalid, _codes(trace))
+    for valid in ("trace.json", ["trace.json"], ["a.json", " b.json "]):
+        trace = json.loads(json.dumps(SELF_MOD_HEALTHY))
+        trace["iterations"][0]["trace_refs"] = valid
+        assert not _has(trace, "LINEAGE", "STUCK"), (valid, _codes(trace))
+
+
+def test_self_modifying_activation_requires_json_boolean():
+    for invalid in ("true", "false", 1, 0, None, {}, []):
+        trace = {"self_modifying": invalid, "iterations": HEALTHY}
+        assert _has(trace, "ACTIVATION", "STUCK"), (invalid, _codes(trace))
+        assert _exit_for(trace) == 2
+        assert len(m.parse_trace(json.dumps(trace), "trace.json")) == len(HEALTHY)
+    assert _codes({"self_modifying": False, "iterations": HEALTHY}) == []
+    assert _codes(SELF_MOD_HEALTHY) == []
+
+
+def test_malformed_activation_empty_trace_is_stuck_not_only_empty_warn():
+    trace = {"self_modifying": "true", "iterations": []}
+    assert _has(trace, "ACTIVATION", "STUCK"), _codes(trace)
+    assert _exit_for(trace) == 2
+
+
+def test_ordinary_trace_does_not_require_candidate_lineage():
+    assert _codes(HEALTHY) == [], _codes(HEALTHY)
+    wrapped = {"self_modifying": False, "iterations": HEALTHY}
+    assert _codes(wrapped) == [], _codes(wrapped)
+    # Even a stray malformed hash remains ignored unless self-modification is on.
+    wrapped["spec_hash"] = 7
+    assert _codes(wrapped) == [], _codes(wrapped)
+    assert _exit_for(wrapped, resolved_spec=None) == 0
 
 
 # --- runner ---------------------------------------------------------------

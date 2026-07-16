@@ -15,7 +15,7 @@ generator != verifier} is not a loop — it is an open-ended spin. This linter
 refuses such specs BEFORE the loop runs, turning the doctrine into a mechanical
 gate (per Brainer's "no prose rule where a mechanical gate can stand").
 
-It validates a loop spec against three always-FAIL rules, nine WARN rules, and
+It validates a loop spec against four always-FAIL rules, nine WARN rules, and
 one context-scoped rule (R7 — FAIL when unattended, WARN when attended):
 
   R1 NO-GATE          (FAIL) — gate absent, or prose with no machine-checkable
@@ -71,6 +71,10 @@ one context-scoped rule (R7 — FAIL when unattended, WARN when attended):
                                justification inherits the same bias. Closes the
                                declare-to-audit asymmetry (egress/concurrency/memory
                                all had a field; the deepest rule did not).
+  R15 SELF-MODIFICATION-BOUNDARIES (FAIL) — a spec that opts into
+                               `self_modifying: true` must declare editable and
+                               locked surfaces, held-in and held-out gates,
+                               artifact binding, and human approval.
 
 Use --strict-memory to promote R8/R9 findings to FAIL for loops where durable
 state matters: scheduled, fleet, outer, or long-running loops.
@@ -84,6 +88,7 @@ block (fenced ```loop in markdown, a .yaml/.yml file, a .json file, or stdin).
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -94,7 +99,7 @@ from typing import Literal
 Severity = Literal["OK", "WARN", "FAIL"]
 
 # Rules that are fatal (exit 2). Everything else is advisory (exit 1).
-FAIL_RULES = {1, 2, 3}
+FAIL_RULES = {1, 2, 3, 15}
 
 # R12 CROSS-VENDOR EGRESS — a loop whose advisor/verifier panel sends repo-derived
 # content to a THIRD-PARTY model (cross-vendor, model_roster, codex/gemini/glm/
@@ -173,12 +178,17 @@ class Spec:
     """One parsed loop spec: flat fields + the source line of each field."""
     name: str = ""
     fields: dict[str, str] = field(default_factory=dict)
+    raw_fields: dict[str, str] = field(default_factory=dict)
     field_lines: dict[str, int] = field(default_factory=dict)
     start_line: int = 0
     source: str = ""
 
     def get(self, key: str) -> str:
         return self.fields.get(key, "").strip()
+
+    def get_raw(self, key: str) -> str:
+        """Return source spelling when flat parsing retained it, else the value."""
+        return self.raw_fields.get(key, self.fields.get(key, "")).strip()
 
     def line_of(self, key: str) -> int:
         return self.field_lines.get(key, self.start_line)
@@ -209,6 +219,8 @@ KNOWN_KEYS = {
     "accepted_open_loop", "quorum", "aggregate", "anchor_files", "state_store",
     "recall", "writeback", "state_concurrency", "stuck", "advisor",
     "redaction", "consent", "egress", "verifier_inputs", "verifier_blind", "on_error",
+    "self_modifying", "editable_surfaces", "locked_surfaces", "held_in_gate",
+    "held_out_gate", "artifact_binding", "human_approval",
 }
 
 _KV_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*(.*)$")
@@ -234,8 +246,10 @@ def _parse_flat(lines: list[str], base_line: int) -> Spec:
         if not m:
             continue
         key = m.group(1).strip().lower()
-        val = _strip_quotes(m.group(2))
+        raw_val = m.group(2).strip()
+        val = _strip_quotes(raw_val)
         spec.fields[key] = val
+        spec.raw_fields[key] = raw_val
         spec.field_lines[key] = base_line + i
         if key == "name":
             spec.name = val
@@ -253,6 +267,11 @@ def _specs_from_json(text: str, source: str) -> list[Spec]:
         for k, v in item.items():
             kk = str(k).strip().lower()
             spec.fields[kk] = "" if v is None else str(v)
+            # Preserve JSON type/string boundaries for exact-literal checks.
+            # In particular, `"true # literal"` is one string, not a YAML
+            # scalar followed by an inline comment. Normal field values retain
+            # their established string-coercion behavior in `fields`.
+            spec.raw_fields[kk] = json.dumps(v, ensure_ascii=False)
             spec.field_lines[kk] = 1
         spec.name = spec.get("name")
         out.append(spec)
@@ -425,6 +444,13 @@ _LONG_RUNNING = re.compile(
 )
 _MEMORY_CONTRACT_FIELDS = ("anchor_files", "state_store", "recall", "writeback")
 _STATE_CONCURRENCY_ALLOWED = {"single_writer", "optimistic_revision", "worktree_isolated"}
+_SELF_MODIFICATION_FIELDS = (
+    "editable_surfaces", "locked_surfaces", "held_in_gate", "held_out_gate",
+    "artifact_binding", "human_approval",
+)
+_SELF_MODIFICATION_PLACEHOLDERS = {
+    "todo", "tbd", "n/a", "none", "null", "nil", "?", "no", "not set", "<todo>",
+}
 
 # A real budget cap is a NUMBER bound to a cap unit (iterations / tokens / a
 # duration) — not a stray digit in a prose sentence ("run until inbox has 0 unread").
@@ -709,6 +735,62 @@ def _topology_tokens(topology: str) -> set[str]:
 
 def _is_true(v: str) -> bool:
     return _strip_quotes(v).strip().lower() in {"true", "yes", "1", "on"}
+
+
+def _strip_unquoted_inline_comment(v: str) -> str:
+    """Strip a YAML-style inline comment: `#` outside quotes after whitespace.
+
+    Preserve path fragments (`spec#section`) and hashes inside quoted values.
+    """
+    quote = ""
+    escaped = False
+    for i, ch in enumerate(v):
+        if escaped:
+            escaped = False
+            continue
+        if ch == "\\" and quote == '"':
+            escaped = True
+            continue
+        if quote:
+            if ch == quote:
+                quote = ""
+            continue
+        if ch in "\"'":
+            quote = ch
+        elif ch == "#" and (i == 0 or v[i - 1].isspace()):
+            return v[:i].rstrip()
+    return v.strip()
+
+
+def _normalized_self_modification_value(v: str) -> str:
+    stripped = _strip_unquoted_inline_comment(v)
+    return re.sub(r"\s+", " ", _strip_quotes(stripped).strip().casefold())
+
+
+def _is_literal_true(v: str) -> bool:
+    """R15's explicit activation token: normalized literal `true`, no aliases."""
+    return _normalized_self_modification_value(v) == "true"
+
+
+def _self_modification_field_present(v: str) -> bool:
+    """Reject only narrow, known placeholder sentinels; retain real prose/paths."""
+    normalized = _normalized_self_modification_value(v)
+    if not normalized or normalized in _SELF_MODIFICATION_PLACEHOLDERS:
+        return False
+    # A path beginning with TODO is still concrete (`TODO-tools/SKILL.md` or
+    # `TODO.md`); check its first token before rejecting broader TODO decorations.
+    first_token = normalized.split(maxsplit=1)[0]
+    concrete_first_token = ("/" in first_token or "\\" in first_token
+                            or bool(re.search(r"\.[a-z0-9]{1,8}$", first_token)))
+    if concrete_first_token:
+        return True
+    # Scaffold-style TODO decorations are placeholders, but commands/paths merely
+    # containing "todo" remain valid (`python3 ./tools/todo_gate.py`).
+    if normalized.startswith(("<todo>", "[todo]")):
+        return False
+    if re.match(r"^todo(?:\b|[_-])", normalized):
+        return False
+    return True
 
 
 def _state_concurrency_ok(v: str) -> bool:
@@ -1125,6 +1207,23 @@ def check_spec(report: Report, spec: Spec, rule_filter: int | None, *, strict_me
                                "surface). Add halt/stop/abort/escalate/interrupt/human/bubble/fail-fast/page/alert tokens "
                                "to the on_error value so non-transient errors do not retry indefinitely."))
 
+    # R15 SELF-MODIFICATION-BOUNDARIES — ordinary loops stay untouched. Once a
+    # spec explicitly opts into self-modification, every mutation boundary and
+    # promotion gate is load-bearing, so an omission is a hard gate like R1-R3.
+    if want(15) and _is_literal_true(spec.get_raw("self_modifying")):
+        for key in _SELF_MODIFICATION_FIELDS:
+            if not _self_modification_field_present(spec.get(key)):
+                report.add(Finding(
+                    15, "FAIL",
+                    f"spec '{label}' self-modifies without a concrete `{key}`",
+                    src, spec.line_of(key) or spec.line_of("self_modifying") or spec.start_line,
+                    f"Required self-modification boundary `{key}` is missing or a placeholder. "
+                    "Normalized TODO/TBD/null/nil/not-set sentinels do not define a control. "
+                    "A self-modifying loop "
+                    "must declare editable_surfaces, locked_surfaces, held_in_gate, held_out_gate, "
+                    "artifact_binding, and human_approval before it can run.",
+                ))
+
 def lint(text: str, source: str, rule_filter: int | None = None, *, strict_memory: bool = False) -> Report:
     report = Report(root=source)
     specs = parse_specs(text, source)
@@ -1251,6 +1350,23 @@ def _is_unattended(spec: Spec) -> bool:
             or bool(_SCHEDULED.search(all_fields)) or bool(_LONG_RUNNING.search(all_fields)))
 
 
+RESOLVED_SCHEMA_VERSION = 1
+
+
+def resolved_spec_hash(snapshot: dict) -> str:
+    """Hash every immutable snapshot field using canonical JSON.
+
+    ``spec_hash`` excludes only itself, so any later change to the resolved
+    fields, verdict, source, or contract metadata invalidates the binding.
+    """
+    payload = {key: value for key, value in snapshot.items() if key != "spec_hash"}
+    canonical = json.dumps(
+        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+    return "sha256:" + hashlib.sha256(canonical).hexdigest()
+
+
 def resolve_snapshot(spec: Spec, *, strict_memory: bool = False) -> dict:
     """Freeze one spec into an immutable audit snapshot: normalized fields + the
     lint verdict at freeze time. No timestamp (Date.now is unavailable in this
@@ -1259,13 +1375,15 @@ def resolve_snapshot(spec: Spec, *, strict_memory: bool = False) -> dict:
     check_spec(per, spec, None, strict_memory=strict_memory)
     per.finalize()
     verdict = "fail" if per.summary["FAIL"] else ("warn" if per.summary["WARN"] else "clean")
-    return {
+    snapshot = {
         "kind": "loop.resolved",
+        "schema_version": RESOLVED_SCHEMA_VERSION,
         "note": "immutable audit snapshot of the spec + lint verdict at freeze time. "
                 "NOT a resume checkpoint: it carries no run state and no runner.",
         "name": spec.name,
         "source": spec.source,
         "unattended": _is_unattended(spec),
+        "self_modifying": _is_literal_true(spec.get_raw("self_modifying")),
         "fields": dict(sorted(spec.fields.items())),
         "lint": {
             "verdict": verdict,
@@ -1273,6 +1391,8 @@ def resolve_snapshot(spec: Spec, *, strict_memory: bool = False) -> dict:
             "findings": [asdict(f) for f in per.findings],
         },
     }
+    snapshot["spec_hash"] = resolved_spec_hash(snapshot)
+    return snapshot
 
 
 def diagrams(text: str, source: str, rule_filter: int | None = None, *, strict_memory: bool = False) -> list[str]:
@@ -1299,7 +1419,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--diagram", action="store_true",
                     help="emit a Mermaid diagram of each spec with lint findings overlaid "
                          "(grounded in the parsed spec; wrap in a ```mermaid fence to render)")
-    ap.add_argument("--rule", type=int, choices=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+    ap.add_argument("--rule", type=int, choices=list(range(1, 16)),
                     help="restrict to one rule")
     ap.add_argument("--strict-memory", action="store_true",
                     help="promote R8/R9 loop-memory findings to FAIL for scheduled/fleet/outer/long-running loops")

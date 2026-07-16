@@ -10,6 +10,8 @@ pulse_reminder: a learned skill is born `proposed` (slash-only, won't auto-fire)
 
 # learn-skill
 
+<!-- split-justified -->
+
 Brainer's `/learn`. Brainer could already *retrospect* a task you just did
 ([`task-retrospective`](../task-retrospective/SKILL.md)), but had no way to **ingest a
 source you point at** into a skill (skill-creator was removed). This fills that gap —
@@ -92,6 +94,8 @@ count comes from observed invocations.
 ```bash
 # 1. Usage is logged. Either explicitly...
 python3 skills/learn-skill/tools/telemetry.py record --skill <name> --outcome hit
+# Abort records may attach: --verifier-cause ... --causal-status
+# skill-caused|task-difficulty|model-capability|unknown --mechanism ... --evidence-ref ...
 # ...or mined from a transcript (Skill tool_use → next-turn correction = abort, else hit):
 python3 skills/learn-skill/tools/telemetry.py scan --transcript "$TRANSCRIPT_PATH"
 
@@ -137,8 +141,8 @@ the canary auto-discovers it. Silence per-deployment via `COMPLIANCE_CANARY_PROB
 
 ## Verification
 ```bash
-python3 skills/learn-skill/tools/test_learn.py        # 22: dedup, lint (+YAML gate), scaffold (+YAML-safe), promote, demote, staleness (+disable-on-stale), CRLF, stale-gate
-python3 skills/learn-skill/tools/test_telemetry.py    # 13: record, scan, stats, flag, collision, chronological-streak, regex (+approval-lead/benign-don't)
+python3 skills/learn-skill/tools/test_learn.py        # 56: authoring/lifecycle + hidden-ID/sandbox/invariant/checkpoint rollback gates
+python3 skills/learn-skill/tools/test_telemetry.py    # 18: record/scan/stats/flag/streaks + SQLite migration/concurrency/exact rollback
 python3 skills/learn-skill/tools/test_nomination.py   # 7:  the canary nomination detector + boilerplate filters
 python3 skills/loop-engineering/tools/loop_lint.py skills/learn-skill/LOOPS.md   # 0 fail · 0 warn
 python3 skills/learn-skill/tools/learn.py lint --file skills/<name>/SKILL.md     # exit 0
@@ -164,13 +168,47 @@ When a trusted skill accrues aborts, patch it instead of just demoting:
 ```bash
 python3 skills/learn-skill/tools/learn.py refine --name X     # read-only brief: body + abort evidence
 python3 skills/learn-skill/tools/learn.py patch --name X --old '<exact text>' \
-        --new '<fix>' --rationale '<why — because/so that>'
+        --new '<fix>' --rationale '<why — because/so that>' \
+        --gate-registry '<operator-owned frozen JSON ID-to-argv map>' \
+        --held-in-id '<opaque-held-in-id>' \
+        --held-out-id '<distinct-opaque-held-out-id>' \
+        --gate-timeout-seconds 30 --gate-output-limit-bytes 16384
 ```
-`patch` is **gated**: the rationale must clear write-gate AND the patched file must lint
-clean (else it reverts). On success it resets the skill to `proposed` and **checkpoints
-telemetry** so it re-earns trust from a clean slate (pre-fix aborts no longer count). Two
-failed rounds → demote. The agent proposes (generator); `patch` verifies (separate actor) —
-spec #5 in [`LOOPS.md`](LOOPS.md).
+`refine` distinguishes confirmed `skill-caused` failures from `task-difficulty`,
+`model-capability`, and `unknown`; it does not recommend a skill edit without confirmed
+skill causality. `patch` is **gated**: held-in must fail and held-out pass before mutation;
+after write-gate + patch + lint, both commands must pass and a final lint rechecks the
+post-gate artifact. For self-improvement, the CLI receives only distinct opaque IDs; a
+strict regular single-link registry snapshot beneath a non-symlinked, operator-controlled
+parent hierarchy resolves them to shell-free argv and is unreadable
+inside the gate sandbox. Hidden commands and their output are not surfaced in normal results or
+errors. Legacy `--held-in-cmd`/`--held-out-cmd` remains available for compatibility outside this
+proposer-hidden route. Commands run without a shell inside a write-denying, no-fork OS sandbox
+and a fresh POSIX process group, default to a 30-second timeout each (finite, positive,
+hard-capped at 300 seconds), and retain at most
+16 KiB each. The sandbox permits reads plus writes only inside a private temporary directory;
+it denies network and process creation, so a gate cannot detach a watcher or mutate/hardlink
+the skill. Every exit path kills the original process group and verifies that no live member
+remains. A host without that sandbox fails closed before spawning a behavior gate or
+mutating the skill. Registry ancestry is checked for symlinks and its resolved leaf is
+rechecked around every gate; this assumes the trusted parent hierarchy stays stable during
+the command and does not claim descriptor-walk resistance to a hostile concurrent parent swap.
+Gates are therefore
+single-process: a command that itself needs subprocesses is refused by the sandbox. Every
+gate must leave the target's regular-file type, single-link status, device/inode identity,
+permission bits, and bytes unchanged. An initially hardlinked target is refused before any
+gate or mutation. A mutation refuses the patch and safely
+replaces the leaf without following a symlink, restoring a regular file with the pre-gate
+bytes and mode. Outer rollback uses the same helper. "Exact restoration" means path type +
+contents + permissions; it does **not** claim to restore the original inode. Changes outside
+the target leaf
+(including broader gate side effects) remain the harness/`locked_surfaces` owner's
+responsibility. Telemetry uses stdlib SQLite WAL transactions; an existing JSONL store is
+imported idempotently. Metadata rewrite is guarded by inode/type/link/mode/byte checks before
+and after, and its checkpoint row is deleted by exact SQLite id if the final invariant changes.
+On success it resets the skill to `proposed` and **checkpoints telemetry** so it re-earns
+trust from a clean slate. Two failed
+rounds → demote. The agent proposes; `patch` verifies — spec #5 in [`LOOPS.md`](LOOPS.md).
 
 ## The full self-improvement loop (all built)
 1. **Author** a learned skill from a source (this skill) → born `proposed`, slash-only.

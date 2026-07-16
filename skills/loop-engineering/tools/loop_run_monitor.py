@@ -52,10 +52,16 @@ TRACE SCHEMA (the small documented contract this tool consumes)
 ----------------------------------------------------------------------------
 A trace is JSON: either a list of iteration objects, or an object with an
 ``iterations`` list (an optional top-level ``budget`` is ignored here — the
-static budget cap is loop_lint's job). Read from a file path or ``-`` (stdin).
+static budget cap is loop_lint's job). A top-level JSON boolean
+``self_modifying: true`` activates candidate-lineage enforcement; a present
+non-boolean value is malformed. Self-modifying traces must also carry the
+top-level ``spec_hash`` from a single immutable snapshot emitted by
+``loop_lint.py --resolve``; pass that snapshot with ``--resolved-spec PATH``.
+Missing, malformed, tampered, or mismatched provenance stops the run. Read the
+trace from a file path or ``-`` (stdin).
 
-Each iteration object (all fields OPTIONAL — a sparse trace still lints; only
-the fields present are checked):
+Each iteration object (all fields OPTIONAL for ordinary traces; the five
+candidate-lineage fields are required after ``self_modifying: true``):
 
   {
     "i":       0,                  # iteration index (informational)
@@ -70,7 +76,12 @@ the fields present are checked):
     "state_revision": "abc123",     # optional loop-state revision/hash read by this pass
     "recalled": true,               # optional: pre-pass recall ran
     "wrote_state": true,            # optional: post-pass writeback ran
-    "verdict": "fail"               # optional verifier verdict: pass/fail/blocked/...
+    "verdict": "fail",              # optional verifier verdict: pass/fail/blocked/...
+    "candidate_id": "candidate-7",  # required non-empty string
+    "artifact_hash": "sha256:...",   # required: artifact this score evaluated
+    "evaluator_revision": "eval-v3", # required: evaluator identity/revision
+    "diff_size": 42,                # required finite JSON int/float; integers stay exact
+    "trace_refs": ["trace/7.json"]  # required string or list of non-empty strings
   }
 
 Minimal example (healthy): [{"command":"a","metric":1},{"command":"b","metric":2}]
@@ -79,7 +90,9 @@ Minimal example (stuck S1): [{"command":"a"},{"command":"a"},{"command":"a"}]
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import math
 import re
 import sys
 from dataclasses import asdict, dataclass, field
@@ -95,11 +108,13 @@ DEFAULT_CMD_WINDOW = 3
 DEFAULT_ERR_WINDOW = 2
 DEFAULT_METRIC_WINDOW = 2
 DEFAULT_REFETCH_WINDOW = 3
+_SPEC_HASH_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+_RESOLVED_SCHEMA_VERSION = 1
 
 
 @dataclass
 class Finding:
-    code: str          # S1 / S2 / S3 / COST / ACCEPT
+    code: str          # S1 / S2 / S3 / COST / ACCEPT / ACTIVATION / LINEAGE / NOOP
     severity: Severity
     title: str
     detail: str = ""
@@ -114,6 +129,11 @@ class Iteration:
     metric: float | None = None
     accepted: bool = False
     cost: float = 0.0
+    candidate_id: str = ""
+    artifact_hash: str = ""
+    evaluator_revision: str = ""
+    diff_size: int | float | None = None
+    trace_refs: tuple[str, ...] = ()
 
 
 @dataclass
@@ -158,13 +178,44 @@ def _as_iters(data: Any) -> list[dict]:
 def _num_or_none(v: Any) -> float | None:
     """A metric/cost field coerced to float, or None if absent / not numeric.
     A non-numeric metric (a string label) is treated as None (unknown), never
-    as a stall — S3 only fires on two equal NUMERIC metrics."""
+    as a stall — S3 only fires on two equal NUMERIC metrics. Non-finite floats
+    and integers outside the finite-float range are also unknown."""
     if v is None:
         return None
     if isinstance(v, bool):  # avoid True/False coercing to 1/0
         return None
     if isinstance(v, (int, float)):
-        return float(v)
+        try:
+            number = float(v)
+        except OverflowError:
+            return None
+        return number if math.isfinite(number) else None
+    return None
+
+
+def _iteration_index_or_default(v: Any, default: int) -> int:
+    """Preserve accepted finite numeric indices; safely default edge values."""
+    if isinstance(v, bool):
+        return default
+    if isinstance(v, int):
+        return v
+    if isinstance(v, float) and math.isfinite(v):
+        return int(v)
+    return default
+
+
+def _finite_json_number_or_none(v: Any) -> int | float | None:
+    """A finite JSON number without lossy int→float coercion.
+
+    Python's JSON integers are arbitrary precision; keep them exact so a valid
+    huge integer cannot overflow during parsing. Numeric strings remain invalid.
+    """
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, int):
+        return v
+    if isinstance(v, float) and math.isfinite(v):
+        return v
     return None
 
 
@@ -176,19 +227,142 @@ def _bool(v: Any) -> bool:
     return False
 
 
-def parse_trace(text: str, source: str) -> list[Iteration]:
+def _nonempty_string(v: Any) -> str:
+    """A stripped string identity; never coerce bools, numbers, or containers."""
+    return v.strip() if isinstance(v, str) else ""
+
+
+def _trace_refs(v: Any) -> tuple[str, ...]:
+    """A non-empty string or a non-empty list made only of non-empty strings."""
+    if isinstance(v, str):
+        ref = v.strip()
+        return (ref,) if ref else ()
+    if isinstance(v, list) and v and all(isinstance(ref, str) and ref.strip() for ref in v):
+        return tuple(ref.strip() for ref in v)
+    return ()
+
+
+def _parse_trace_document(
+        text: str) -> tuple[list[Iteration], bool, str | None, str | None, str | None]:
+    """Parse iterations plus the opt-in envelope flag while retaining both
+    ordinary trace forms."""
     data = json.loads(text)
+    self_modifying = False
+    activation_error = None
+    trace_spec_hash = None
+    spec_hash_error = None
+    if isinstance(data, dict) and "self_modifying" in data:
+        raw_activation = data["self_modifying"]
+        if type(raw_activation) is bool:
+            self_modifying = raw_activation
+        else:
+            activation_error = ("top-level `self_modifying` must be a JSON boolean "
+                                f"(true or false), not {type(raw_activation).__name__}")
+    if isinstance(data, dict) and "spec_hash" in data:
+        raw_hash = data["spec_hash"]
+        if isinstance(raw_hash, str) and _SPEC_HASH_RE.fullmatch(raw_hash):
+            trace_spec_hash = raw_hash
+        else:
+            spec_hash_error = ("top-level `spec_hash` must be a lowercase "
+                               "sha256:<64 hex characters> string")
     out: list[Iteration] = []
     for idx, raw in enumerate(_as_iters(data)):
         out.append(Iteration(
-            i=int(raw["i"]) if isinstance(raw.get("i"), (int, float)) and not isinstance(raw.get("i"), bool) else idx,
+            i=_iteration_index_or_default(raw.get("i"), idx),
             command=str(raw.get("command") or "").strip(),
             error=str(raw.get("error") or "").strip(),
             metric=_num_or_none(raw.get("metric")),
             accepted=_bool(raw.get("accepted", False)),
             cost=_num_or_none(raw.get("cost")) or 0.0,
+            candidate_id=_nonempty_string(raw.get("candidate_id")),
+            artifact_hash=_nonempty_string(raw.get("artifact_hash")),
+            evaluator_revision=_nonempty_string(raw.get("evaluator_revision")),
+            diff_size=_finite_json_number_or_none(raw.get("diff_size")),
+            trace_refs=_trace_refs(raw.get("trace_refs")),
         ))
-    return out
+    return out, self_modifying, activation_error, trace_spec_hash, spec_hash_error
+
+
+def parse_trace(text: str, source: str) -> list[Iteration]:
+    """Backward-compatible iteration parser for list and object traces."""
+    return _parse_trace_document(text)[0]
+
+
+def resolved_spec_hash(snapshot: dict) -> str:
+    """Recompute loop_lint's canonical hash over all fields but the hash."""
+    payload = {key: value for key, value in snapshot.items() if key != "spec_hash"}
+    canonical = json.dumps(
+        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+    return "sha256:" + hashlib.sha256(canonical).hexdigest()
+
+
+def validate_resolved_spec(snapshot: object) -> dict:
+    """Validate a single immutable ``loop.resolved`` snapshot and its hash."""
+    if not isinstance(snapshot, dict):
+        raise ValueError("resolved spec must be one loop.resolved JSON object")
+    if snapshot.get("kind") != "loop.resolved":
+        raise ValueError("resolved spec `kind` must be `loop.resolved`")
+    if snapshot.get("schema_version") != _RESOLVED_SCHEMA_VERSION:
+        raise ValueError(
+            f"resolved spec `schema_version` must be {_RESOLVED_SCHEMA_VERSION}")
+    if not isinstance(snapshot.get("fields"), dict):
+        raise ValueError("resolved spec `fields` must be a JSON object")
+    lint = snapshot.get("lint")
+    if not isinstance(lint, dict):
+        raise ValueError("resolved spec `lint` must be a JSON object")
+    verdict = lint.get("verdict")
+    summary = lint.get("summary")
+    findings = lint.get("findings")
+    if verdict not in {"clean", "warn", "fail"}:
+        raise ValueError("resolved spec lint `verdict` must be clean, warn, or fail")
+    if not isinstance(summary, dict):
+        raise ValueError("resolved spec lint `summary` must be a JSON object")
+    counts: dict[str, int] = {}
+    for severity in ("FAIL", "WARN"):
+        count = summary.get(severity)
+        if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+            raise ValueError(
+                f"resolved spec lint summary `{severity}` must be a non-negative integer")
+        counts[severity] = count
+    if not isinstance(findings, list):
+        raise ValueError("resolved spec lint `findings` must be a JSON array")
+    finding_counts = {"FAIL": 0, "WARN": 0}
+    for index, finding in enumerate(findings):
+        if not isinstance(finding, dict):
+            raise ValueError(
+                f"resolved spec lint finding {index} must be a JSON object")
+        severity = finding.get("severity")
+        if severity not in finding_counts:
+            raise ValueError(
+                f"resolved spec lint finding {index} has invalid `severity`")
+        finding_counts[severity] += 1
+    if counts != finding_counts:
+        raise ValueError(
+            "resolved spec lint findings do not match summary counts: "
+            f"summary={counts}, findings={finding_counts}")
+    expected_verdict = (
+        "fail" if counts["FAIL"] else ("warn" if counts["WARN"] else "clean")
+    )
+    if verdict != expected_verdict:
+        raise ValueError(
+            "resolved spec lint verdict does not match summary counts: "
+            f"declared {verdict}, expected {expected_verdict}")
+    if verdict != "clean":
+        raise ValueError(
+            f"resolved spec lint verdict must be clean before execution, got {verdict}")
+    declared_hash = snapshot.get("spec_hash")
+    if not isinstance(declared_hash, str) or not _SPEC_HASH_RE.fullmatch(declared_hash):
+        raise ValueError("resolved spec has no valid lowercase sha256 `spec_hash`")
+    try:
+        actual_hash = resolved_spec_hash(snapshot)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"resolved spec is not canonical JSON: {exc}") from exc
+    if declared_hash != actual_hash:
+        raise ValueError(
+            f"resolved spec hash mismatch: declared {declared_hash}, recomputed {actual_hash}")
+    return snapshot
 
 
 # --- Stuck triggers -------------------------------------------------------
@@ -342,9 +516,65 @@ def monitor(text: str, source: str, *,
             err_window: int = DEFAULT_ERR_WINDOW,
             metric_window: int = DEFAULT_METRIC_WINDOW,
             refetch_window: int = DEFAULT_REFETCH_WINDOW,
-            max_cost_per_accept: float | None = None) -> Report:
-    iters = parse_trace(text, source)
+            max_cost_per_accept: float | None = None,
+            resolved_spec: dict | None = None) -> Report:
+    (iters, self_modifying, activation_error, trace_spec_hash,
+     spec_hash_error) = _parse_trace_document(text)
     report = Report(source=source, n_iters=len(iters))
+
+    if activation_error:
+        report.add(Finding(
+            "ACTIVATION", "STUCK", "malformed self-modifying activation",
+            activation_error,
+        ))
+
+    # Validate a supplied snapshot before trusting the trace-controlled mode bit.
+    # Otherwise a self-modifying loop can downgrade itself to an ordinary trace
+    # simply by omitting the envelope flag or writing `self_modifying: false`.
+    validated_spec = None
+    resolved_validation_error = None
+    if resolved_spec is not None:
+        try:
+            validated_spec = validate_resolved_spec(resolved_spec)
+        except ValueError as exc:
+            resolved_validation_error = str(exc)
+
+    resolved_requires_self_modifying = (
+        validated_spec is not None
+        and validated_spec.get("self_modifying") is True
+    )
+    enforce_self_modifying = self_modifying or resolved_requires_self_modifying
+    binding_errors: list[str] = []
+    if resolved_validation_error:
+        binding_errors.append(resolved_validation_error)
+    if resolved_requires_self_modifying and not self_modifying:
+        binding_errors.append(
+            "resolved self-modifying spec requires an object trace envelope with "
+            "top-level JSON boolean `self_modifying: true`; missing or false is a "
+            "forbidden provenance downgrade")
+    if enforce_self_modifying:
+        if resolved_spec is None:
+            binding_errors.append(
+                "self-modifying traces require --resolved-spec pointing to the "
+                "immutable snapshot emitted by loop_lint --resolve")
+        if spec_hash_error:
+            binding_errors.append(spec_hash_error)
+        if trace_spec_hash is None:
+            binding_errors.append(
+                "self-modifying trace is missing top-level `spec_hash`")
+        elif validated_spec is not None and trace_spec_hash != validated_spec["spec_hash"]:
+            binding_errors.append(
+                f"trace spec_hash {trace_spec_hash} does not match resolved spec "
+                f"{validated_spec['spec_hash']}")
+        if validated_spec is not None and validated_spec.get("self_modifying") is not True:
+            binding_errors.append(
+                "self-modifying trace cannot bind to a resolved snapshot whose "
+                "`self_modifying` value is not true")
+    if binding_errors:
+        report.add(Finding(
+            "PROVENANCE", "STUCK", "self-modifying trace is not bound to its resolved spec",
+            "; ".join(binding_errors),
+        ))
 
     if not iters:
         report.add(Finding("EMPTY", "WARN", "trace has no iterations",
@@ -362,6 +592,36 @@ def monitor(text: str, source: str, *,
         report.cost_per_accept = round(basis / report.n_accepted, 4)
     else:
         report.cost_per_accept = None
+
+    # A self-modifying trace score must bind to the exact candidate artifact and
+    # evaluator. Missing identity is a stop condition, not an advisory.
+    if enforce_self_modifying:
+        for it in iters:
+            lineage = (
+                ("candidate_id", bool(it.candidate_id)),
+                ("artifact_hash", bool(it.artifact_hash)),
+                ("evaluator_revision", bool(it.evaluator_revision)),
+                ("diff_size", it.diff_size is not None),
+                ("trace_refs", bool(it.trace_refs)),
+            )
+            for key, present in lineage:
+                if not present:
+                    report.add(Finding(
+                        "LINEAGE", "STUCK",
+                        f"self-modifying candidate is missing `{key}`",
+                        f"iteration {it.i} has no {key}; candidate scores must bind candidate_id, "
+                        "artifact_hash, evaluator_revision, diff_size, and trace_refs to the "
+                        "artifact actually evaluated.",
+                        at=it.i,
+                    ))
+            if it.accepted and it.diff_size is not None and it.diff_size <= 0:
+                report.add(Finding(
+                    "NOOP", "STUCK",
+                    "accepted self-modifying candidate has an empty/no-op diff",
+                    f"candidate_id={it.candidate_id!r} was accepted with diff_size={it.diff_size}; "
+                    "reject the candidate or record the real changed artifact before promotion.",
+                    at=it.i,
+                ))
 
     # Stuck triggers (STUCK).
     for chk, win in ((_check_same_command, cmd_window),
@@ -411,6 +671,9 @@ def main(argv: list[str]) -> int:
                          f"(default {DEFAULT_REFETCH_WINDOW}; 0 disables)")
     ap.add_argument("--max-cost-per-accept", type=float, default=None,
                     help="WARN when cost-per-accepted-change exceeds this threshold")
+    ap.add_argument("--resolved-spec", metavar="PATH",
+                    help="immutable loop.resolved JSON from `loop_lint --resolve`; required "
+                         "for a trace with `self_modifying: true`")
     args = ap.parse_args(argv)
 
     if args.path == "-":
@@ -427,13 +690,27 @@ def main(argv: list[str]) -> int:
             return 3
         source = str(p)
 
+    resolved_spec = None
+    if args.resolved_spec:
+        resolved_path = Path(args.resolved_spec)
+        if not resolved_path.exists():
+            print(f"error: resolved spec not found: {resolved_path}", file=sys.stderr)
+            return 3
+        try:
+            resolved_spec = validate_resolved_spec(
+                json.loads(resolved_path.read_text(errors="strict")))
+        except (OSError, UnicodeError, ValueError, json.JSONDecodeError) as e:
+            print(f"error: invalid resolved spec in {resolved_path}: {e}", file=sys.stderr)
+            return 3
+
     try:
         report = monitor(text, source,
                          cmd_window=args.cmd_window,
                          err_window=args.err_window,
                          metric_window=args.metric_window,
                          refetch_window=args.refetch_window,
-                         max_cost_per_accept=args.max_cost_per_accept)
+                         max_cost_per_accept=args.max_cost_per_accept,
+                         resolved_spec=resolved_spec)
     except (ValueError, json.JSONDecodeError) as e:
         print(f"error: unparseable trace in {source}: {e}", file=sys.stderr)
         return 3

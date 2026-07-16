@@ -12,11 +12,13 @@ Two capture paths, both honest about confidence:
                 Inferred records are tagged `source: inferred` so a strict operator
                 can count only `manual` ones.
 
-Store: `.brainer/learn-skill/usage.jsonl` (one JSON record per line), under
-CLAUDE_PROJECT_DIR when set (stable across cwd changes), else ./ .
+Store: `.brainer/learn-skill/usage.sqlite3` (SQLite WAL), under CLAUDE_PROJECT_DIR
+when set (stable across cwd changes), else ./ . Existing `usage.jsonl` records are
+imported idempotently; JSONL is then treated as read-only legacy input.
 
-Record shape:
-  {"skill","ts","outcome":"hit|abort","source":"manual|inferred","session","note"}
+Record shape (structured abort evidence is optional for backward compatibility):
+  {"skill","ts","outcome":"hit|abort","source":"manual|inferred","session","note",
+   "verifier_cause","causal_status","mechanism","evidence_ref"}
 
 CLI:
   telemetry.py record --skill S --outcome {hit,abort} [--session ID] [--note T]
@@ -28,13 +30,19 @@ from __future__ import annotations
 
 import argparse
 import datetime as _dt
+import hashlib
 import json
 import os
 import re
+import sqlite3
 import sys
+import time as _time
 from pathlib import Path
 
+# Legacy import path. Keep the name for callers/tests that seed old telemetry.
 STORE_REL = ".brainer/learn-skill/usage.jsonl"
+DB_REL = ".brainer/learn-skill/usage.sqlite3"
+CAUSAL_STATUSES = ("skill-caused", "task-difficulty", "model-capability", "unknown")
 
 # Mirrors compliance-canary's user_correction intent: a NEXT-turn correction after
 # a skill fired is the strongest cheap signal that the skill misfired (= abort).
@@ -92,13 +100,28 @@ def _root() -> Path:
 
 
 def _store(root: Path | None = None) -> Path:
+    """Legacy JSONL path retained for migration and compatibility."""
     return (root or _root()) / STORE_REL
 
 
-def _load(store: Path) -> list[dict]:
+def _database(root: Path | None = None) -> Path:
+    return (root or _root()) / DB_REL
+
+
+def _root_for_legacy_store(store: Path) -> Path:
+    """Recover the project root from `<root>/.brainer/learn-skill/usage.jsonl`."""
+    try:
+        return store.parents[2]
+    except IndexError:
+        return _root()
+
+
+def _legacy_records(store: Path) -> list[tuple[str, dict]]:
+    """Parse legacy JSONL and assign stable per-payload occurrence fingerprints."""
     if not store.is_file():
         return []
-    out: list[dict] = []
+    out: list[tuple[str, dict]] = []
+    occurrences: dict[str, int] = {}
     for line in store.read_text(encoding="utf-8", errors="replace").splitlines():
         line = line.strip()
         if not line:
@@ -107,15 +130,134 @@ def _load(store: Path) -> list[dict]:
             obj = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if isinstance(obj, dict) and obj.get("skill"):
-            out.append(obj)
+        if not isinstance(obj, dict) or not obj.get("skill"):
+            continue
+        digest = hashlib.sha256(
+            json.dumps(obj, sort_keys=True, ensure_ascii=False,
+                       separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        occurrence = occurrences.get(digest, 0)
+        occurrences[digest] = occurrence + 1
+        out.append((f"legacy:{digest}:{occurrence}", obj))
     return out
 
 
-def _append(store: Path, rec: dict) -> None:
-    store.parent.mkdir(parents=True, exist_ok=True)
-    with open(store, "a", encoding="utf-8") as f:
-        f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+def _connect(root: Path | None = None) -> sqlite3.Connection:
+    db = _database(root)
+    db.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(db, timeout=30.0)
+    conn.execute("PRAGMA busy_timeout=30000")
+    # Concurrent first-use processes can collide specifically while switching
+    # journal mode; SQLite's busy_timeout is not consistently honored by this
+    # PRAGMA on all builds. Retry only the lock case, with the same bounded cap.
+    deadline = _time.monotonic() + 30.0
+    while True:
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+            break
+        except sqlite3.OperationalError as e:
+            if "locked" not in str(e).lower() or _time.monotonic() >= deadline:
+                conn.close()
+                raise
+            _time.sleep(0.02)
+    conn.execute("PRAGMA synchronous=FULL")
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS events (
+               id INTEGER PRIMARY KEY AUTOINCREMENT,
+               legacy_fingerprint TEXT UNIQUE,
+               event_key TEXT UNIQUE,
+               payload TEXT NOT NULL
+           )"""
+    )
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(events)")}
+    if "event_key" not in columns:
+        conn.execute("ALTER TABLE events ADD COLUMN event_key TEXT")
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS events_event_key ON events(event_key)")
+    return conn
+
+
+def _event_key(record: dict) -> str | None:
+    """Stable dedup key for transcript-mined events; manual records stay distinct."""
+    if record.get("source") != "inferred":
+        return None
+    return "inferred:" + json.dumps(
+        [record.get("skill"), record.get("ts"), record.get("dup_ord")],
+        ensure_ascii=False, separators=(",", ":"),
+    )
+
+
+def _migrate_legacy(conn: sqlite3.Connection, legacy_store: Path) -> None:
+    """Import every valid legacy row once, including intentional duplicates."""
+    for fingerprint, record in _legacy_records(legacy_store):
+        conn.execute(
+            "INSERT OR IGNORE INTO events(legacy_fingerprint, event_key, payload) "
+            "VALUES (?, ?, ?)",
+            (fingerprint, _event_key(record), json.dumps(record, ensure_ascii=False)),
+        )
+
+
+def _insert_event(conn: sqlite3.Connection, rec: dict) -> int | None:
+    """Single injection point for transaction rollback tests."""
+    cursor = conn.execute(
+        "INSERT OR IGNORE INTO events(legacy_fingerprint, event_key, payload) "
+        "VALUES (NULL, ?, ?)",
+        (_event_key(rec), json.dumps(rec, ensure_ascii=False)),
+    )
+    return int(cursor.lastrowid) if cursor.rowcount == 1 else None
+
+
+def _append(store: Path, rec: dict) -> int | None:
+    """Transactionally append one event to the SQLite WAL store.
+
+    `BEGIN IMMEDIATE` serializes writers on every supported SQLite host. A failed
+    insert rolls back without erasing a concurrent committed event.
+    """
+    root = _root_for_legacy_store(store)
+    with _connect(root) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            _migrate_legacy(conn, store)
+            inserted = _insert_event(conn, rec)
+        except Exception:
+            conn.rollback()
+            raise
+        conn.commit()
+    return inserted
+
+
+def _delete_event(event_id: int, root: Path | None = None) -> bool:
+    """Delete one exact event for a caller rolling back a larger transaction."""
+    with _connect(root) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            cursor = conn.execute("DELETE FROM events WHERE id = ?", (event_id,))
+        except Exception:
+            conn.rollback()
+            raise
+        conn.commit()
+    return cursor.rowcount == 1
+
+
+def _load(store: Path) -> list[dict]:
+    root = _root_for_legacy_store(store)
+    with _connect(root) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            _migrate_legacy(conn, store)
+        except Exception:
+            conn.rollback()
+            raise
+        conn.commit()
+        rows = conn.execute("SELECT payload FROM events ORDER BY id").fetchall()
+    out: list[dict] = []
+    for (payload,) in rows:
+        try:
+            obj = json.loads(payload)
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if isinstance(obj, dict) and obj.get("skill"):
+            out.append(obj)
+    return out
 
 
 # -------------------------- record ------------------------------------------
@@ -132,6 +274,10 @@ def cmd_record(args) -> int:
         "session": args.session or os.environ.get("CLAUDE_SESSION_ID", ""),
         "note": args.note or "",
     }
+    for key in ("verifier_cause", "causal_status", "mechanism", "evidence_ref"):
+        value = getattr(args, key, None)
+        if value:
+            rec[key] = value
     _append(store, rec)
     print(json.dumps(rec, ensure_ascii=False))
     return 0
@@ -247,11 +393,15 @@ def cmd_scan(args) -> int:
             "session": args.session or "",
             "note": "inferred from transcript (next-turn correction)" if outcome == "abort" else "inferred clean",
         }
-        _append(store, rec)
-        existing.add(key)
-        added += 1
+        if outcome == "abort":
+            # Transcript inference establishes that a correction followed the skill,
+            # not that the skill caused the failure. Keep that distinction explicit.
+            rec["causal_status"] = "unknown"
+        if _append(store, rec):
+            existing.add(key)
+            added += 1
     print(json.dumps({"scanned": len(invocations), "added": added,
-                      "deferred": deferred, "store": str(store)}))
+                      "deferred": deferred, "store": str(_database())}))
     return 0
 
 
@@ -289,6 +439,31 @@ def _event_time(r: dict):
     return _parse_dt(r.get("ts")) or _parse_dt(r.get("recorded_at")) or _dt.datetime.min
 
 
+def _post_checkpoint_records(manual_only: bool = False,
+                             skill: str | None = None) -> dict[str, list[dict]]:
+    """Chronological records after each skill's latest checkpoint.
+
+    This is the single clean-slate view used by both aggregate stats and refinement
+    evidence, so a pre-refinement abort cannot influence a later patch proposal.
+    Empty lists are retained for skills whose latest event is a checkpoint.
+    """
+    by_skill: dict[str, list[dict]] = {}
+    for record in _records(manual_only, skill):
+        by_skill.setdefault(record["skill"], []).append(record)
+    for name, records in by_skill.items():
+        records = sorted(records, key=_event_time)
+        last_checkpoint = max(
+            (i for i, record in enumerate(records)
+             if record.get("outcome") == "checkpoint"),
+            default=-1,
+        )
+        by_skill[name] = [
+            record for record in records[last_checkpoint + 1:]
+            if record.get("outcome") != "checkpoint"
+        ]
+    return by_skill
+
+
 def compute_stats(manual_only: bool = False) -> dict:
     """Per-skill: total/hits/aborts + TRAILING consecutive hits/aborts.
 
@@ -297,19 +472,9 @@ def compute_stats(manual_only: bool = False) -> dict:
     so file order would mask a more-recent abort and wrongly clear the promotion
     gate / dodge the demotion flag (adversarial-review HIGH bug). Python sort is
     stable, so equal timestamps keep append order."""
-    recs = _records(manual_only)
-    by_skill: dict[str, list[dict]] = {}
-    for r in recs:
-        by_skill.setdefault(r["skill"], []).append(r)
+    by_skill = _post_checkpoint_records(manual_only)
     out: dict[str, dict] = {}
     for skill, rs in by_skill.items():
-        rs = sorted(rs, key=_event_time)
-        # A `checkpoint` record (written when a skill is refined) is a clean-slate
-        # marker: only usage AFTER the latest checkpoint counts, so a refined skill
-        # re-earns trust from scratch and isn't haunted by pre-refinement aborts.
-        last_cp = max((i for i, r in enumerate(rs)
-                       if r.get("outcome") == "checkpoint"), default=-1)
-        rs = [r for r in rs[last_cp + 1:] if r.get("outcome") != "checkpoint"]
         if not rs:
             # only checkpoint(s) / nothing post-checkpoint → clean slate, zeroed.
             out[skill] = {"total": 0, "hits": 0, "aborts": 0,
@@ -379,6 +544,14 @@ def main(argv=None) -> int:
     r.add_argument("--outcome", required=True, choices=["hit", "abort", "checkpoint"])
     r.add_argument("--session", default=None)
     r.add_argument("--note", default=None)
+    r.add_argument("--verifier-cause", default=None,
+                   help="What the verifier observed (structured abort evidence).")
+    r.add_argument("--causal-status", choices=CAUSAL_STATUSES, default=None,
+                   help="Whether the failure is skill-caused, non-addressable, or unknown.")
+    r.add_argument("--mechanism", default=None,
+                   help="Reusable failure mechanism, when confirmed.")
+    r.add_argument("--evidence-ref", default=None,
+                   help="Path, trace, or other evidence reference.")
     r.set_defaults(func=cmd_record)
 
     s = sub.add_parser("scan", help="Mine a transcript for Skill invocations + infer outcome.")
