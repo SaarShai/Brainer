@@ -68,6 +68,8 @@ def test_committed_host_configs_have_no_prompt_triage_hook() -> None:
 
 def test_reinstall_prune_removes_only_managed_optin_hooks() -> None:
     triage = 'bash "$PWD/.claude/skills/prompt-triage/tools/hook.sh"'
+    audit = ('python3 "${CLAUDE_PROJECT_DIR:-$PWD}/skills/brainer-audit/tools/hook.py" '
+             '--host codex --event UserPromptSubmit')
     canary = 'bash "$PWD/.claude/skills/compliance-canary/tools/hook.sh"'
     app = 'bash "$PWD/.app/hooks/prompt-triage/tools/hook.sh"'
     data = {
@@ -76,22 +78,27 @@ def test_reinstall_prune_removes_only_managed_optin_hooks() -> None:
             "UserPromptSubmit": [
                 {"matcher": "*", "hooks": [
                     {"type": "command", "command": triage},
+                    {"type": "command", "command": audit},
                     {"type": "command", "command": canary},
                     {"type": "command", "command": app},
                 ]}
             ]
         },
     }
-    result, removed = prune(data, {"prompt-triage"})
+    result, removed = prune(data, {"prompt-triage", "brainer-audit"})
     commands = [
         hook["command"]
         for group in result["hooks"]["UserPromptSubmit"]
         for hook in group["hooks"]
     ]
     assert triage not in commands
+    assert audit not in commands
     assert canary in commands and app in commands
     assert result["permissions"] == {"allow": ["Read"]}
-    assert removed == [("prompt-triage", "UserPromptSubmit", triage)]
+    assert removed == [
+        ("prompt-triage", "UserPromptSubmit", triage),
+        ("brainer-audit", "UserPromptSubmit", audit),
+    ]
 
 
 def test_reinstall_prunes_optin_output_style_hook() -> None:

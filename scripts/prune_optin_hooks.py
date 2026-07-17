@@ -8,7 +8,18 @@ import re
 from pathlib import Path
 
 
-MANAGED_SKILL_RE = re.compile(r"\.(?:claude|codex|gemini)/skills/([^/]+)/")
+MANAGED_SKILL_RES = (
+    re.compile(r"\.(?:claude|codex|gemini)/skills/([^/]+)/"),
+    re.compile(r"\$\{CLAUDE_PROJECT_DIR:-\$PWD\}/skills/([^/]+)/"),
+)
+
+
+def managed_skill(command: str) -> str | None:
+    for pattern in MANAGED_SKILL_RES:
+        match = pattern.search(command)
+        if match:
+            return match.group(1)
+    return None
 
 
 def optin_skills(skills_root: Path) -> set[str]:
@@ -29,9 +40,9 @@ def prune(data: dict, optin: set[str]) -> tuple[dict, list[tuple[str, str, str]]
             kept = []
             for hook in group.get("hooks", []):
                 command = hook.get("command", "")
-                match = MANAGED_SKILL_RE.search(command)
-                if match and match.group(1) in optin:
-                    removed.append((match.group(1), event, command))
+                name = managed_skill(command)
+                if name and name in optin:
+                    removed.append((name, event, command))
                 else:
                     kept.append(hook)
             if kept:
