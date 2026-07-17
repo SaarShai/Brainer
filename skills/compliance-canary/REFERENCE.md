@@ -21,6 +21,10 @@ Prints per-probe trigger counts and the offending snippets. No state writes, no 
 
 Codex gets the canary via `.codex/hooks.json` `UserPromptSubmit` (Claude-compatible schema, wired by `tools/install.sh`). Gemini gets it on `BeforeAgent` via `gemini hooks migrate`.
 
+All hosts share the same profile contract. Use `off` rather than an unwired hook
+for a causal control: the profile guarantees no state mutation while keeping
+the host configuration itself constant between experiment arms.
+
 ## Known gaps
 
 - Probe detectors are syntactic — they catch keyword/structural signals but miss semantic drift (a paraphrased "done" without claim-word match). A judge-style probe using a tiny LLM is the natural next add (the `llm_judge` kind, currently deferred).

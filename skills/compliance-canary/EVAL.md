@@ -1,5 +1,13 @@
 # compliance-canary — eval status
 
+**Current deployment (2026-07-16):** default profile is `frontier`. Known-noise
+legacy mechanisms remain available for rollback and paired evaluation but no
+longer emit to frontier leads. `tools/test_profiles.py` deterministically proves
+mutation-free `off`, frontier/shadow output equivalence, suppressed-event
+telemetry, and successful/fresh/class-matched verification. The older findings
+below describe historical `legacy` behavior and are not evidence that those
+mechanisms improve current frontier-model outcomes.
+
 **Status:** v1.10.0 — **skill-pulse folded in** (2026-06-16): one `UserPromptSubmit` hook now runs both mechanisms — symptomatic per-skill probes *and* the periodic skill-rule re-anchor. Hook correctness verified by [tools/test.sh](tools/test.sh) (56 cases — probes + re-anchor cadence/yield/floor/alias/BOM/allowlist + adversarial hardening: malformed payload, non-str session_id, ReDoS time-budget, reminder cap); offline probe baselining via [tools/measure.py](tools/measure.py); canary p99 latency 41 ms on a 400-line synthetic transcript.
 
 ## Why merged (one reactive hook instead of two)
@@ -99,6 +107,7 @@ The data plan for in-the-wild measurement (paper-style):
 
 ```bash
 bash skills/compliance-canary/tools/test.sh
+python3 skills/compliance-canary/tools/test_profiles.py
 ```
 
 ## Out of scope

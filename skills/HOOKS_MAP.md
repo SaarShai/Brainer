@@ -11,7 +11,8 @@ Read THIS instead of walking skills/*/tools/ file by file.
 | prompt-triage | UserPromptSubmit | `skills/prompt-triage/tools/hook.sh` | `skills/prompt-triage/tools/install.sh` |
 
 LIVE wiring state is machine-local: check `.claude/settings.json`.
-Per-skill installers append hook entries and never delete;
-`./install.sh` prunes dead Brainer hooks on re-install. `output-filter`
+Per-skill installers append hook entries; `./install.sh` prunes dead
+hooks and managed hooks for skills now marked `auto-install: false`.
+`output-filter`
 ships tooling but no auto-installer by design (wire as pipe or
 PostToolUse by hand).

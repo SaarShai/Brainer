@@ -1,18 +1,23 @@
 ---
 name: standing-orders
-description: "Auto-arm standing directives on matching prompts — ORCH tier (goal, lanes, cheapest delegation, other-vendor advisor, end-to-end) on decomposable work; DEEP tier (blindspot pass, lesson capture) on high-level tasks. Fires on compliance-canary probes; pulse re-anchor resists drift."
+description: "Experimental standing-directive probes retained for shadow telemetry and paired evaluation. Frontier profiles suppress their output; invoke manually only for an explicit evaluation arm."
+status: experimental
+disable-model-invocation: true
 trigger_type: hook
 risk_level: low
 host_support: [claude, codex, gemini]
 side_effects: [reads_repo]
 requires_tools: [none]
-auto-install: true
+auto-install: false
 pulse_reminder: "standing-orders: big decomposable work → written goal, independent lanes in parallel, other-vendor advisor at commitment points, driven end-to-end with live verification — never partial-as-done. High-level → blindspot pass first; bank verified lessons at closeout."
 ---
 
 <!-- split-justified -->
 
 # standing-orders — the user's standing directives, mechanically armed
+
+> **Shadow/manual during skill-effectiveness evaluation.** Probe matches may be
+> logged by the canary shadow profile, but frontier leads receive no directive.
 
 Two of the user's recurring instructions — "work like a real orchestrator on
 big work" and "think before you commit, and bank what you learn on hard

@@ -1,9 +1,11 @@
 ---
 name: requirements-ledger
-description: Use whenever the user states anything carrying intent — an ask, a question, a constraint, a preference, a compound "do X, Y, and Z" (one row per conjunct), or an implicit ask embedded in prose. Maintains a USER-VISIBLE markdown ledger as the hard source of truth so nothing the user said is ever silently dropped; reconciles every item and ASKS before closing. Fires on every substantive user turn and before any completion claim.
+description: Experimental/manual visible requirements-ledger workflow retained for paired evaluation. Frontier canary preserves pending intent silently without auto-loading this prose or emitting ledger nags.
+status: experimental
+disable-model-invocation: true
 effort: medium
 tools: [Read, Edit, Write, TaskCreate, TaskUpdate, TaskList]
-auto-install: true
+auto-install: false
 model: sonnet
 pulse_reminder: requirements-ledger — every user turn, decompose the message into ATOMIC items (each ask / question / conjunct / implicit ask = one row) in the visible .brainer/ledger/<sid>.md; never delete a row, only re-status; reconcile EVERY item and ASK before closing.
 ---

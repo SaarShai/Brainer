@@ -65,7 +65,8 @@ def _state_file(state_dir: Path, sid: str) -> Path:
 class Session:
     """One canary session: shared state dir + skills root across turns."""
 
-    def __init__(self, root: Path, sid: str, *, pulse: bool = False, extra_env: dict | None = None):
+    def __init__(self, root: Path, sid: str, *, pulse: bool = False,
+                 profile: str = "legacy", extra_env: dict | None = None):
         self.sid = sid
         self.state_dir = root / "state" / sid
         self.skills_root = root / "skills"
@@ -74,6 +75,7 @@ class Session:
             **os.environ,
             "COMPLIANCE_CANARY_STATE_DIR": str(self.state_dir),
             "COMPLIANCE_CANARY_SKILLS_ROOT": str(self.skills_root),
+            "COMPLIANCE_CANARY_PROFILE": profile,
         }
         if not pulse:
             self.env["COMPLIANCE_CANARY_PULSE_DISABLED"] = "1"
@@ -180,6 +182,23 @@ def main() -> int:
             ok("good path: gate stayed silent (agent asked), user-close emptied the ledger")
         else:
             no("mode D positive control failed", f"gate_silent={gate_silent} closed={closed} :: {out[:240]!r}")
+
+        # ---- Frontier control: persist silently until genuine wrap-up -------
+        print("[E] frontier: intent persists silently; only genuine wrap-up surfaces it")
+        s = Session(root, "modeE", pulse=True, profile="frontier")
+        first = s.turn("also rename the legacy foo() calls to bar() everywhere")
+        middle = s.turn("now inspect the parser", last_assistant="Inspecting the parser.")
+        st = s.state()
+        retained = any("rename the legacy foo" in it.get("text", "")
+                       for it in st.get("request_ledger", []))
+        silent = not first and not middle
+        wrap = s.turn("thanks", last_assistant="All done.")
+        surfaced_at_wrap = "wrapping up" in wrap and "rename the legacy foo" in wrap
+        if retained and silent and surfaced_at_wrap:
+            ok("frontier keeps intent silent on ordinary turns and surfaces it at genuine wrap-up")
+        else:
+            no("frontier silent-intent contract failed",
+               f"retained={retained} silent={silent} wrap={wrap[:240]!r}")
 
     print()
     total = PASS + FAIL

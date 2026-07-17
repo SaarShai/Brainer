@@ -1,16 +1,45 @@
 ---
 name: compliance-canary
-description: "Use when a long session drifts — the single always-on drift watcher: one UserPromptSubmit hook combining symptomatic per-skill drift probes (filler creep, verbosity growth, unverified done-claims, looping tool errors), a periodic skill-rule re-anchor, a request ledger that keeps every user request OPEN until completed or user-closed, and a correction ledger that keeps every user correction OPEN (LEARNING_CONTRACT §2) until it is banked or user-closed. Tune/disable via COMPLIANCE_CANARY_* env vars."
+description: "Use when a long session may drift or needs verification-compliance monitoring. Frontier defaults to silent intent state plus one compact, compliance-aware verification probe; shadow measures suppressed legacy probes; legacy preserves rollback behavior; off is a mutation-free control."
 model: haiku
 effort: low
 tools: [Bash, Read, Write]
 auto-install: true
-pulse_reminder: drift detectors are watching — your recent reply is scanned each user turn against the active skills' drift_probes.json files.
 ---
 
 <!-- split-justified -->
 
-# compliance-canary — the drift watcher
+# compliance-canary — profiled drift watcher
+
+## Profiles
+
+Set `COMPLIANCE_CANARY_PROFILE=frontier|shadow|legacy|off` (default:
+`frontier`):
+
+- `frontier` silently records pending intent and emits only
+  `verify-before-completion:claim-without-evidence`, plus pending intent at a
+  genuine wrap-up. There is no pulse, generic style probe, correction nag, or
+  escalation wrapper.
+- `shadow` makes the same task-facing decisions and emits byte-identical output
+  while evaluating suppressed legacy probes into redacted telemetry.
+- `legacy` preserves the complete pre-profile behavior below for rollback.
+- `off` exits before state, lock, ledger, telemetry, transcript, or activation
+  mutation and is the clean experimental control.
+
+`COMPLIANCE_CANARY_PROBE_IDS=skill:id,...` selects exact probes (not entire
+skills). In frontier/shadow it overrides the compact default. Telemetry defaults
+to `.brainer/compliance-canary/telemetry.jsonl` and contains only session hash,
+turn, mechanism, probe ID, emitted flag, exact injected UTF-8 bytes, and content
+hash—never prompt or transcript text.
+
+The compact verification probe accepts evidence only when a tool use has a
+correlated successful result, the result is newer than the last material
+mutation, and its class matches the claim (`test/build`, `filesystem/diff`,
+`live service`, or `visual`). Typed-but-unrun commands, failed results, stale or
+pre-edit checks, incidental output keywords, and wrong evidence classes do not
+suppress it.
+
+The remainder of this document describes `legacy` rollback behavior.
 
 The single, non-optional drift defense for long sessions. One `UserPromptSubmit`
 hook runs **four orthogonal mechanisms** in one process (skill-pulse was folded
@@ -34,9 +63,8 @@ still-open requests precisely as the agent moves to close is the whole point.
 The correction ledger likewise does not yield — it is closeout-blocking, so it
 surfaces every turn it holds an open item.
 
-Emergency off-switch: `COMPLIANCE_CANARY_DISABLED=1` (kills both). This is a
-safety valve, not an install option — the skill is default-on (`auto-install:
-true`) and meant to stay wired.
+Legacy emergency switch: `COMPLIANCE_CANARY_DISABLED=1`. For experiments use
+`COMPLIANCE_CANARY_PROFILE=off`, whose no-mutation contract is tested.
 
 Deep-dive reference: [REFERENCE.md](REFERENCE.md) — the offline `measure.py` analyzer, host compatibility notes, and known gaps.
 
@@ -254,6 +282,9 @@ Env vars (all optional). `SKILL_PULSE_*` names are honored as back-compat aliase
 
 | Var | Default | Effect |
 |---|---|---|
+| `COMPLIANCE_CANARY_PROFILE` | `frontier` | `frontier`, `shadow`, `legacy`, or mutation-free `off` |
+| `COMPLIANCE_CANARY_PROBE_IDS` | frontier verification probe | exact comma-separated `skill:id` selection; replaces skill-level selection |
+| `COMPLIANCE_CANARY_TELEMETRY_PATH` | state dir `telemetry.jsonl` | redacted append-only telemetry path |
 | `COMPLIANCE_CANARY_DISABLED=1` | — | emergency off-switch — kills **all** mechanisms |
 | `COMPLIANCE_CANARY_COOLDOWN` | 3 | turns to suppress the same probe after it fires |
 | `COMPLIANCE_CANARY_PULSE_EVERY` | 4 | re-anchor cadence (floored to 2); `0` disables **just** the re-anchor. Alias: `SKILL_PULSE_EVERY` |
@@ -279,6 +310,7 @@ tools/
 ├── hook.py        # probes + periodic re-anchor + request ledger + correction ledger + state (one process)
 ├── install.sh     # wires UserPromptSubmit into project-local .claude/
 ├── test.sh        # regression suite: probes + re-anchor + ledgers + hardening
+├── test_profiles.py # frontier/shadow/off + evidence freshness/class gates
 └── measure.py     # standalone offline probe analyzer
 ```
 

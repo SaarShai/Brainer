@@ -1,6 +1,9 @@
 ---
 name: plan-first-execute
-description: Plan before executing non-trivial or spec-worthy tasks. Trigger when work has more than 3 steps, unclear scope, multiple files, risk, user-visible behavior, or architecture decisions; inspect reality, separate WHAT from HOW, plan with verification gates, simplify, then execute.
+description: Experimental/manual planning protocol retained for paired evaluation. Invoke explicitly for a FULL evaluation arm; frontier leads do not auto-load it.
+status: experimental
+disable-model-invocation: true
+auto-install: false
 effort: medium
 ---
 

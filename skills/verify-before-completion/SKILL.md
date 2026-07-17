@@ -1,6 +1,9 @@
 ---
 name: verify-before-completion
-description: Use before claiming work is done, fixed, passing, committed, or ready. Evidence before claims. Run the verification fresh; report exact command + output + remaining risk. For high-stakes or hard-to-reverse results, escalate to a separate cross-vendor verifier before shipping.
+description: Experimental/manual FULL verification workflow retained for paired evaluation. The compact compliance-aware canary probe remains default; invoke this body explicitly with `/verify-before-completion`.
+status: experimental
+disable-model-invocation: true
+auto-install: false
 effort: low
 pulse_reminder: before claiming done/fixed/passing, run a fresh verification command and quote its exact output. Evidence beats claims. High-stakes/irreversible result → cross-vendor verify before shipping.
 ---

@@ -66,6 +66,11 @@ CADENCE_FLOOR = 2                 # a cadence below 2 re-anchors every turn — 
 MAX_SKILLS_IN_PULSE = 8          # cap re-anchor payload
 MAX_REMINDER_CHARS = 280         # cap one re-anchor line (a runaway pulse_reminder)
 
+PROFILES = {"frontier", "shadow", "legacy", "off"}
+FRONTIER_VERIFY_PROBE_IDS = {
+    "verify-before-completion:claim-without-evidence",
+}
+
 # Hard wall-clock budget for the probe phase. drift_probes.json regexes are
 # author-supplied; a catastrophic-backtracking pattern (e.g. `(a+)+$`) would
 # otherwise wedge the user's prompt — and this is the single mandatory drift
@@ -100,6 +105,27 @@ def _as_int(value, default: int = 0) -> int:
 def log_err(msg: str) -> None:
     ts = time.strftime("%FT%TZ", time.gmtime())
     sys.stderr.write(f"{ts} compliance-canary: {msg}\n")
+
+
+def active_profile() -> str:
+    """Return the deployment profile, failing quiet and lean on bad input."""
+    raw = os.environ.get("COMPLIANCE_CANARY_PROFILE", "frontier").strip().lower()
+    if raw in PROFILES:
+        return raw
+    log_err(f"unknown-profile value={raw!r}; using frontier")
+    return "frontier"
+
+
+def selected_probe_ids(defaults: set[str] | None = None) -> set[str]:
+    """Exact probe-ID selector (`skill:id`), replacing skill-level selection.
+
+    An unset variable uses ``defaults``. An explicitly empty value selects no
+    probes, which is useful for controlled experiments without disabling state.
+    """
+    raw = os.environ.get("COMPLIANCE_CANARY_PROBE_IDS")
+    if raw is None:
+        return set(defaults or ())
+    return {part.strip() for part in raw.split(",") if part.strip()}
 
 
 def state_dir() -> Path:
@@ -428,7 +454,8 @@ def recent_assistant_messages(events: list[dict], n: int) -> list[dict]:
     """Return up to n most-recent assistant text-content messages, oldest-first.
     Each: {"text": "...", "uuid": "...", "timestamp": "..."}."""
     out: list[dict] = []
-    for e in reversed(events):
+    for event_index in range(len(events) - 1, -1, -1):
+        e = events[event_index]
         if e.get("type") != "assistant":
             continue
         msg = e.get("message") or {}
@@ -444,6 +471,7 @@ def recent_assistant_messages(events: list[dict], n: int) -> list[dict]:
             "raw_text": joined,
             "uuid": e.get("uuid", ""),
             "timestamp": e.get("timestamp", ""),
+            "event_index": event_index,
         })
         if len(out) >= n:
             break
@@ -468,6 +496,108 @@ def recent_tool_uses(events: list[dict], n: int = 10) -> list[dict]:
             break
     out.reverse()
     return out
+
+
+_FAILED_RESULT_RE = re.compile(
+    r"(?:^|\n)\s*(?:FAILED\b|ERROR\b|Traceback\b)|"
+    r"(?:exit (?:code )?[1-9]\d*|\b[1-9]\d* failed\b|permission denied)",
+    re.IGNORECASE,
+)
+_MUTATING_TOOL_NAMES = {"Edit", "Write", "NotebookEdit", "apply_patch"}
+_MUTATING_COMMAND_RE = re.compile(
+    r"(?i)(?:\bapply_patch\b|\bsed\s+-i\b|\b(?:rm|mv|cp|mkdir|touch|chmod)\b|"
+    r"\bgit\s+(?:commit|merge|rebase|cherry-pick|add)\b|\b(?:npm|pnpm|yarn|pip)\s+install\b|"
+    r"(?:^|[;&|]\s*)[^\n]*?(?:>>?|\btee\b)\s*[^&|;]+)"
+)
+
+
+def _command_from_input(inp: dict) -> str:
+    return str(inp.get("command") or inp.get("cmd") or "")
+
+
+def _evidence_classes(name: str, inp: dict, result_text: str) -> set[str]:
+    """Classify successful execution evidence conservatively by artifact type."""
+    command = _command_from_input(inp).lower()
+    # Class comes from the invoked tool and its input, never free-form output:
+    # `echo tests pass` is not a test and a compiler mentioning "server" is not
+    # live-service evidence. The paired result establishes success only.
+    name_lower = name.lower()
+    args = json.dumps(inp, sort_keys=True).lower()
+    classes: set[str] = set()
+    if re.search(
+        r"(?:^|[;&|]\s*)(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:sudo\s+)?"
+        r"(?:pytest|python\S*\s+-m\s+pytest|"
+        r"python\S*\s+(?:[^;&|\s]+/)?(?:check|test)[A-Za-z0-9_.-]*\.py|"
+        r"\./(?:[^;&|\s]+/)?(?:check|test)[A-Za-z0-9_.-]*(?:\.py|\.sh)?|"
+        r"npm\s+(?:run\s+)?(?:test|build|lint)|pnpm\s+(?:test|build|lint)|"
+        r"yarn\s+(?:test|build|lint)|make\s+(?:check|test|build|lint)|"
+        r"cargo\s+(?:test|build|clippy)|go\s+(?:test|build))\b",
+        command,
+    ):
+        classes.add("test/build")
+    if name_lower in {"read", "view_file"} or re.search(
+        r"(?:^|[;&|]\s*)(?:git\s+(?:diff|status)|stat|ls|find|rg|grep|"
+        r"shasum|sha256sum)\b", command
+    ):
+        classes.add("filesystem/diff")
+    if re.search(r"(?:^|[;&|]\s*)(?:curl|wget)\b", command):
+        classes.add("live service")
+    if (re.search(r"(?:screenshot|view_image|take_screenshot|preview)", name_lower)
+            or (name_lower in {"read", "view_file"}
+                and re.search(r"\.(?:png|jpe?g|svg|pdf)(?:\b|\")", args))):
+        classes.add("visual")
+    return classes
+
+
+def execution_timeline(events: list[dict]) -> dict:
+    """Correlate tool uses with results and derive mutation/evidence ordering.
+
+    A typed command is never evidence: only a tool_use with its matching,
+    successful tool_result is returned. Event indexes make the post-mutation
+    freshness rule independent of unreliable/missing timestamps.
+    """
+    uses: dict[str, dict] = {}
+    results: dict[str, dict] = {}
+    last_mutation = -1
+    for event_index, event in enumerate(events):
+        msg = event.get("message") or {}
+        content = msg.get("content")
+        if not isinstance(content, list):
+            continue
+        if event.get("type") == "assistant":
+            for block in content:
+                if not isinstance(block, dict) or block.get("type") != "tool_use":
+                    continue
+                name = str(block.get("name") or "")
+                inp = block.get("input") or {}
+                tid = str(block.get("id") or "")
+                mutates = name in _MUTATING_TOOL_NAMES
+                if name == "Bash" and _MUTATING_COMMAND_RE.search(_command_from_input(inp)):
+                    mutates = True
+                if mutates:
+                    last_mutation = max(last_mutation, event_index)
+                if tid:
+                    uses[tid] = {"name": name, "input": inp, "use_index": event_index}
+        elif event.get("type") == "user":
+            for block in content:
+                if not isinstance(block, dict) or block.get("type") != "tool_result":
+                    continue
+                tid = str(block.get("tool_use_id") or "")
+                if tid:
+                    results[tid] = {
+                        "result_index": event_index,
+                        "text": _tool_result_text(block.get("content")),
+                        "is_error": bool(block.get("is_error")),
+                    }
+    evidence: list[dict] = []
+    for tid, use in uses.items():
+        result = results.get(tid)
+        if not result or result["is_error"] or _FAILED_RESULT_RE.search(result["text"]):
+            continue
+        classes = _evidence_classes(use["name"], use["input"], result["text"])
+        if classes:
+            evidence.append({**use, **result, "classes": classes})
+    return {"last_mutation_index": last_mutation, "evidence": evidence}
 
 
 def final_assistant_has_tool_use(events: list[dict]) -> bool:
@@ -646,6 +776,19 @@ def detect_word_count_per_message(probe: dict, messages: list[dict], _tool_uses,
     return None
 
 
+def _claim_evidence_class(text: str, probe: dict) -> str:
+    explicit = probe.get("evidence_class")
+    if explicit in {"test/build", "filesystem/diff", "live service", "visual"}:
+        return explicit
+    if re.search(r"(?i)\b(visual|looks?|render|screenshot|layout|aligned|legible|image|pdf|slide|ui)\b", text):
+        return "visual"
+    if re.search(r"(?i)\b(live|deployed|service|server|endpoint|website|responding|reachable)\b", text):
+        return "live service"
+    if re.search(r"(?i)\b(test|tests|build|lint|check|passes|passing|green)\b", text):
+        return "test/build"
+    return "filesystem/diff"
+
+
 def detect_claim_without_evidence(probe: dict, messages: list[dict], tool_uses: list[dict], _tool_errors=None, user_prompt: str = "", traj_stats: dict | None = None) -> dict | None:
     if not messages:
         return None
@@ -659,38 +802,40 @@ def detect_claim_without_evidence(probe: dict, messages: list[dict], tool_uses: 
     claim_match = claim_pat.search(last_text)
     if not claim_match:
         return None
-    verify_tools = set(probe.get("verify_tools", ["Bash"]))
-    verify_keywords = [kw.lower() for kw in probe.get(
-        "verify_keywords",
-        ["test", "pytest", "make", "build", "check", "lint", "curl", "verify"],
-    )]
-    # Word-boundary match, not plain substring: short keywords (ls, cat, wc, rg)
-    # otherwise match inside unrelated words (results, category, rebuild), so an
-    # incidental Bash command falsely counts as verification and the done-claim
-    # warning is wrongly suppressed.
-    verify_re = None
-    if verify_keywords:
-        verify_re = re.compile(r"\b(" + "|".join(re.escape(k) for k in verify_keywords) + r")\b")
     try:
         lookback = int(probe.get("lookback_tool_uses", 5))
     except (TypeError, ValueError):
         log_err(f"bad-lookback probe={probe.get('_probe_id')} value={probe.get('lookback_tool_uses')!r}")
         lookback = 5
-    for tu in tool_uses[-lookback:]:
-        if tu["name"] not in verify_tools:
+    if (traj_stats or {}).get("profile") == "legacy":
+        verify_tools = set(probe.get("verify_tools", ["Bash"]))
+        keywords = [str(k).lower() for k in probe.get("verify_keywords", [])]
+        verify_re = (re.compile(r"\b(" + "|".join(re.escape(k) for k in keywords) + r")\b")
+                     if keywords else None)
+        for tool_use in tool_uses[-lookback:]:
+            if tool_use.get("name") not in verify_tools:
+                continue
+            inp = tool_use.get("input") or {}
+            haystack = (_command_from_input(inp) if tool_use.get("name") == "Bash"
+                        else json.dumps(inp)).lower()
+            if verify_re is not None and verify_re.search(haystack):
+                return None
+    evidence_class = _claim_evidence_class(last_text, probe)
+    timeline = (traj_stats or {}).get("execution_timeline", {})
+    last_mutation = _as_int(timeline.get("last_mutation_index"), -1)
+    claim_index = _as_int(messages[-1].get("event_index"), 1 << 30)
+    candidates = timeline.get("evidence", [])[-lookback:]
+    for evidence in candidates:
+        result_index = _as_int(evidence.get("result_index"), -1)
+        if result_index <= last_mutation or result_index >= claim_index:
             continue
-        haystack_parts = []
-        if tu["name"] == "Bash":
-            haystack_parts.append(str(tu["input"].get("command", "")))
-        else:
-            haystack_parts.append(json.dumps(tu["input"]))
-        haystack = " ".join(haystack_parts).lower()
-        if verify_re is not None and verify_re.search(haystack):
-            return None  # evidence found
+        if evidence_class in evidence.get("classes", set()):
+            return None
     return {
         "claim": claim_match.group(0),
         "snippet": last_text[max(0, claim_match.start() - 20): claim_match.end() + 40].replace("\n", " "),
         "lookback": lookback,
+        "evidence_class": evidence_class,
     }
 
 
@@ -1788,6 +1933,7 @@ def run_probes(
     tool_errors: list[str] | None = None,
     user_prompt: str = "",
     traj_stats: dict | None = None,
+    max_fired: int | None = MAX_PROBES_TRIGGERED,
 ) -> list[dict]:
     """Returns list of fired probes (each dict has _skill, _probe_id, _result)."""
     fired: list[dict] = []
@@ -1805,7 +1951,7 @@ def run_probes(
         if result:
             probe["_result"] = result
             fired.append(probe)
-            if len(fired) >= MAX_PROBES_TRIGGERED:
+            if max_fired is not None and len(fired) >= max_fired:
                 break
     return fired
 
@@ -1869,6 +2015,34 @@ def build_output(fired: list[dict], pulse_skills: list[tuple[str, str]], turn: i
     return "\n".join(lines)
 
 
+def _session_hash(session_id: str) -> str:
+    return hashlib.sha256(session_id.encode("utf-8", errors="replace")).hexdigest()[:16]
+
+
+def append_telemetry(session_id: str, turn: int, mechanism: str, probe_id: str,
+                     emitted: bool, content: str) -> None:
+    """Append content-free experiment telemetry; never expose transcript text."""
+    record = {
+        "session_hash": _session_hash(session_id),
+        "turn": turn,
+        "mechanism": mechanism,
+        "probe_id": probe_id,
+        "emitted": bool(emitted),
+        "injected_bytes": len(content.encode("utf-8")) if emitted else 0,
+        "content_hash": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+    }
+    path = Path(os.environ.get("COMPLIANCE_CANARY_TELEMETRY_PATH") or
+                (state_dir() / "telemetry.jsonl"))
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "a", encoding="utf-8") as handle:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            handle.write(json.dumps(record, sort_keys=True) + "\n")
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+    except Exception as e:
+        log_err(f"telemetry-write-fail path={path} err={e!r}")
+
+
 # -------------------------- main --------------------------------------------
 
 def main() -> int:
@@ -1877,6 +2051,12 @@ def main() -> int:
     # must NEVER stop the ledger from RECORDING a request (user directive: the kill
     # must not disable the ledger). Capture runs unconditionally; only the nagging
     # is silenced.
+    profile = active_profile()
+    # A true experimental control: no state directory, lock, counter, ledger,
+    # telemetry, transcript read, or activation trace is touched.
+    if profile == "off":
+        return 0
+
     cooldown = COOLDOWN_TURNS_DEFAULT
     try:
         cooldown = max(0, int(os.environ.get("COMPLIANCE_CANARY_COOLDOWN", COOLDOWN_TURNS_DEFAULT)))
@@ -1972,6 +2152,7 @@ def main() -> int:
     fired: list[dict] = []
     all_probes = discover_probes(skills_root())
     probes = all_probes
+    frontier_ids = selected_probe_ids(FRONTIER_VERIFY_PROBE_IDS)
     # C4 — scope probes to a deployment's ACTIVE skills. Default (unset) = every
     # discovered skill's probes run, exactly as before (no regression). Set
     # COMPLIANCE_CANARY_PROBE_SKILLS=a,b,c to fire ONLY those skills' probes — so a
@@ -1987,9 +2168,21 @@ def main() -> int:
     # of the allowlist; `probes` (display-filtered) still governs `fired`/output.
     _probe_allow = {s.strip() for s in
                     os.environ.get("COMPLIANCE_CANARY_PROBE_SKILLS", "").split(",") if s.strip()}
-    if _probe_allow:
-        probes = [p for p in probes if p.get("_skill") in _probe_allow]
-    ledger_probes = [p for p in all_probes if p.get("kind") == "user_correction"]
+    if profile == "legacy":
+        explicit_ids = selected_probe_ids()
+        if explicit_ids:
+            probes = [p for p in probes if p.get("_probe_id") in explicit_ids]
+        elif _probe_allow:
+            probes = [p for p in probes if p.get("_skill") in _probe_allow]
+        ledger_probes = [p for p in all_probes if p.get("kind") == "user_correction"]
+    else:
+        # Frontier evaluates only the compact verification guard. Shadow also
+        # evaluates the suppressed legacy surface for observational telemetry,
+        # but its emitted/task-decision surface remains byte-identical.
+        probes = [
+            p for p in all_probes if p.get("_probe_id") in frontier_ids
+        ]
+        ledger_probes = []
     # One transcript read feeds the probes, the ledger's wrap-up check, and the
     # correction ledger's bank-resolution check (needs recent Bash tool_uses
     # PAIRED with their tool_results — execution evidence, not just command
@@ -1997,6 +2190,9 @@ def main() -> int:
     events: list[dict] = []
     tool_uses: list[dict] = []
     bash_results: list[dict] = []
+    messages: list[dict] = []
+    tool_errors: list[str] = []
+    traj: dict = {}
     if probes or ledger_probes or ledger or correction_ledger:
         events = read_transcript_tail(transcript_path)
         if events:
@@ -2048,6 +2244,8 @@ def main() -> int:
             }
 
             traj = trajectory_stats(events)
+            traj["profile"] = profile
+            traj["execution_timeline"] = execution_timeline(events)
             traj["final_assistant_has_tool_use"] = final_assistant_has_tool_use(events)
             # Feed the requirements-ledger cross-check (ledger_not_materialized).
             # open_ledger_count counts only items from PRIOR turns (this turn's
@@ -2091,9 +2289,22 @@ def main() -> int:
                 # not part of this session's locked state.
                 _record_trigger_matched_activations(fired)
 
+    suppressed_fired: list[dict] = []
+    if profile == "shadow" and events:
+        shadow_probes = [p for p in all_probes if p.get("_probe_id") not in frontier_ids]
+        try:
+            with probe_time_limit(PROBE_TIMEOUT_SECONDS):
+                # No cooldown and no output cap: shadow must record every legacy
+                # mechanism that would have fired, including repeated noise.
+                suppressed_fired = run_probes(
+                    shadow_probes, messages, tool_uses, set(), tool_errors,
+                    user_prompt=prompt_text_user, traj_stats=traj, max_fired=None)
+        except _ProbeBudgetExceeded:
+            log_err(f"probe-budget-exceeded: skipped shadow probes (>{PROBE_TIMEOUT_SECONDS}s)")
+
     # --- periodic re-anchor (yields to fired probes — no double-nag) -----
     pulse_skills: list[tuple[str, str]] = []
-    if is_pulse_turn and not fired:
+    if profile == "legacy" and is_pulse_turn and not fired:
         allow_raw = os.environ.get(
             "COMPLIANCE_CANARY_PULSE_SKILLS",
             os.environ.get("SKILL_PULSE_SKILLS", ""))
@@ -2112,7 +2323,8 @@ def main() -> int:
     ledger_lines: list[str] = []
     if closed_now or ledger:
         completion_claim = has_completion_claim(events) if ledger else False
-        show = bool(closed_now) or (bool(ledger) and (completion_claim or bool(fired) or is_pulse_turn))
+        show = bool(closed_now) or (bool(ledger) and (
+            completion_claim or (profile == "legacy" and (bool(fired) or is_pulse_turn))))
         if show:
             ledger_lines = build_ledger_lines(ledger, closed_now, completion_claim, turn)
 
@@ -2124,28 +2336,45 @@ def main() -> int:
     # `fired + ledger_only_fired`: ledger OPENING sees every fired user_correction
     # probe regardless of COMPLIANCE_CANARY_PROBE_SKILLS (the allowlist scopes
     # DISPLAY only — `fired` alone still drives `build_output`/nagging).
-    correction_closed_now, correction_action = [], "none"
-    correction_ledger, correction_closed_now, correction_action = update_correction_ledger(
-        correction_ledger, fired + ledger_only_fired, bash_results, prompt_text_user, turn)
-    if correction_action != "none":
-        with state_lock(path):
-            state = load_state(path)
-            state["correction_ledger"] = correction_ledger
-            save_state(path, state)
-    correction_ledger_lines: list[str] = build_correction_ledger_lines(
-        correction_ledger, correction_closed_now, turn)
+    correction_ledger_lines: list[str] = []
+    if profile == "legacy":
+        correction_closed_now, correction_action = [], "none"
+        correction_ledger, correction_closed_now, correction_action = update_correction_ledger(
+            correction_ledger, fired + ledger_only_fired, bash_results, prompt_text_user, turn)
+        if correction_action != "none":
+            with state_lock(path):
+                state = load_state(path)
+                state["correction_ledger"] = correction_ledger
+                save_state(path, state)
+        correction_ledger_lines = build_correction_ledger_lines(
+            correction_ledger, correction_closed_now, turn)
 
     # --- Mechanism 5: probe escalation (advisory → closeout-blocking) -----
     # Reload state so this turn's just-appended fires are included; stateless
     # derivation from probe_history — see build_probe_escalation_lines.
-    escalation_lines: list[str] = build_probe_escalation_lines(
-        load_state(path).get("probe_history", []), turn)
-    correction_ledger_lines = escalation_lines + correction_ledger_lines
+    if profile == "legacy":
+        escalation_lines: list[str] = build_probe_escalation_lines(
+            load_state(path).get("probe_history", []), turn)
+        correction_ledger_lines = escalation_lines + correction_ledger_lines
+
+    for probe in suppressed_fired:
+        append_telemetry(session_id, turn, "symptomatic_probe",
+                         probe.get("_probe_id", "unknown"), False,
+                         format_one_probe(probe))
 
     if not fired and not pulse_skills and not ledger_lines and not correction_ledger_lines:
         return 0
 
-    sys.stdout.write(build_output(fired, pulse_skills, turn, ledger_lines, correction_ledger_lines))
+    output = build_output(fired, pulse_skills, turn, ledger_lines, correction_ledger_lines)
+    if profile in {"frontier", "shadow"}:
+        for probe in fired:
+            append_telemetry(session_id, turn, "symptomatic_probe",
+                             probe.get("_probe_id", "unknown"), True,
+                             format_one_probe(probe))
+        if ledger_lines:
+            append_telemetry(session_id, turn, "intent_wrap_up", "request-ledger:wrap-up",
+                             True, "\n".join(ledger_lines))
+    sys.stdout.write(output)
     sys.stdout.write("\n")
     return 0
 

@@ -91,6 +91,9 @@ def run_hook(prompt: str, sid: str) -> str:
             "COMPLIANCE_CANARY_STATE_DIR": str(Path(td) / "st"),
             "COMPLIANCE_CANARY_SKILLS_ROOT": str(SKILLS),
             "COMPLIANCE_CANARY_PULSE_EVERY": "0",
+            # This suite measures the retained FULL probe arm. Frontier and
+            # shadow intentionally suppress standing-orders output.
+            "COMPLIANCE_CANARY_PROFILE": "legacy",
         }
         r = subprocess.run(
             [sys.executable, str(HOOK)],

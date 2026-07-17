@@ -85,22 +85,22 @@ python3 ~/.local/share/brainer/skills/wiki-memory/tools/wiki.py init
 graphify extract .
 ```
 
-`./install.sh` installs `graphify` from our maintained fork ([SaarShai/graphify@token-economy-patches](https://github.com/SaarShai/graphify/tree/token-economy-patches)) — published `graphifyy` 0.8.17 ships four bugs that affect our skill flow (see [skills/index-first/EVAL.md](skills/index-first/EVAL.md) for the bug list and impact). The installer prefers `pipx` and falls back to `python3 -m pip install --user`. Opt out with `./install.sh --no-graphify` (the wiki-memory and index-first skills degrade gracefully when the graph isn't present). After bootstrap the stack is on automatically — hooks fire per event, descriptions trigger on prompt shape.
+`./install.sh` installs `graphify` from our maintained fork ([SaarShai/graphify@token-economy-patches](https://github.com/SaarShai/graphify/tree/token-economy-patches)) — published `graphifyy` 0.8.17 ships four bugs that affect our skill flow (see [skills/index-first/EVAL.md](skills/index-first/EVAL.md) for the bug list and impact). The installer prefers `pipx` and falls back to `python3 -m pip install --user`. Opt out with `./install.sh --no-graphify` (the wiki-memory and index-first skills degrade gracefully when the graph isn't present). After bootstrap only default-on hooks fire automatically; experimental process skills require explicit invocation during the effectiveness evaluation.
 
 ## The catalog (30 skills)
 
-**All 30 are symlinked and listed by `./install.sh` (as of v1.13; `loop-engineering`, `self-improvement-loops`, `eval-gate`, `requirements-ledger`, `brainer-audit`, `learn-skill`, and model-invokable Wayfinder are in the catalog).** `compliance-canary` (the single drift watcher — it absorbed `skill-pulse` at v1.10) and `learn-skill` auto-wire their hooks by default; `index-first` remains opt-in, while `think` and `self-improvement-loops` remain manually invoked slash-only skills. To disable a default-on hook, remove its entry from `.claude/settings.json` by hand.
+**All 30 are symlinked and listed by `./install.sh`.** `compliance-canary` retains the default frontier service. Every suspect body is experimental/manual while paired evaluations run; bodies and tools remain installed for explicit FULL arms and rollback. Reinstall removes old managed hooks—including caveman's user-global SessionStart injection—for skills marked `auto-install: false`.
 
 | Skill | Trigger | Desc tokens | Notes |
 |---|---|---:|---|
-| [caveman-ultra](skills/caveman-ultra/SKILL.md) | session-start, "be terse" | 68 | Terse output style. ~65% output reduction reported (juliusbrussee/caveman lineage). |
-| [plan-first-execute](skills/plan-first-execute/SKILL.md) | task > 3 steps | 50 | Plan-mode gate. |
-| [wayfinder](skills/wayfinder/SKILL.md) | `/wayfinder` or automatic handoff | 56 | Trusted pre-spec flow for multi-session work whose destination is known but decision route remains foggy. |
+| [caveman-ultra](skills/caveman-ultra/SKILL.md) | explicit `/caveman-ultra` | 68 | Experimental FULL terse style; no default SessionStart injection. |
+| [plan-first-execute](skills/plan-first-execute/SKILL.md) | explicit/manual evaluation arm | 50 | Experimental FULL planning protocol; compact planning rules live in the builder brief. |
+| [wayfinder](skills/wayfinder/SKILL.md) | explicit/manual evaluation arm | 56 | Experimental pre-spec flow retained for paired testing. |
 | [think](skills/think/SKILL.md) | `/think` (manual; slash-only) | 81 | How an agent should think: first-principles, reduce/simplify, research-and-borrow, experiment-to-falsify, no flattery; ideation + 5-whys + pre-mortem/inversion. Frontier A/B: posture **neutral for Opus** (+0.07) but **load-bearing for weak models** (7b failed the traps); restructured Always/When-relevant; slash-only `/think`. See [EVAL](skills/think/EVAL.md). |
-| [lean-execution](skills/lean-execution/SKILL.md) | "simplify / lean / prune" | 51 | Pruning rule. |
-| [verify-before-completion](skills/verify-before-completion/SKILL.md) | before any "done" claim | 34 | Evidence-first. |
+| [lean-execution](skills/lean-execution/SKILL.md) | explicit/manual evaluation arm | 51 | Experimental FULL pruning protocol; compact stop rules live in the builder brief. |
+| [verify-before-completion](skills/verify-before-completion/SKILL.md) | explicit/manual FULL arm | 34 | Canary's compact compliance-aware verification probe remains default. |
 | [wiki-memory](skills/wiki-memory/SKILL.md) | retrieve OR write durable | 90 | Tier-aware (L0–L4) repo-local markdown wiki. |
-| [prompt-triage](skills/prompt-triage/SKILL.md) | UserPromptSubmit hook | 69 | Pre-model regex+Ollama classifier; routes simple tasks to cheap models. |
+| [prompt-triage](skills/prompt-triage/SKILL.md) | explicit opt-in only | 69 | Experimental pre-model router; root reinstall removes prior per-prompt hooks. |
 | [context-keeper](skills/context-keeper/SKILL.md) | PreCompact hook | 55 | Structured memory before compaction. |
 | [semantic-diff](skills/semantic-diff/SKILL.md) | file re-read | 80 | AST-node diff. 95.5% measured savings on argparse.py re-reads. |
 | [index-first](skills/index-first/SKILL.md) | "where is X used / what calls Y" | 81 | Prefer pre-built indexes / composite verbs over grep+read chains. Eval pending. (colbymchenry/codegraph lineage.) |
@@ -109,9 +109,9 @@ graphify extract .
 | [write-gate](skills/write-gate/SKILL.md) | before any persistent write | 72 | Content-quality gate on durable memory. Signal-score (ogham lineage) + why-clause enforcement (codenamev lineage). Prevents reasonless decisions and recap-style writes. |
 | [wiki-refresh](skills/wiki-refresh/SKILL.md) | "refresh wiki / audit vs code" | 76 | Code-grounded reconcile of wiki pages (Keep/Update/Consolidate/Replace/Delete) via `audit-refs`; emits typed `contradicts:` edges. Ground-truth reconcile. |
 | [cache-lint](skills/cache-lint/SKILL.md) | before merging hooks/skills, CI | 71 | Static audit against Anthropic's 6 prompt-cache rules (ussumant lineage). FAIL on dynamic content above breakpoint, prefix mutation by Stop-hooks, etc. |
-| [task-retrospective](skills/task-retrospective/SKILL.md) | explicit task audit / `/retro` / after-the-fact reconstruction | 105 | User-triggered task audit mode for repeatable project work. Arm it before the task when possible, or reconstruct after the fact; it produces a project-learning report and routes at most 3 durable lessons to project memory, SOPs, checklists, project-specific skills, or broad repo instructions through write-gate. It does not audit Brainer skill obedience or edit canonical Brainer skills. Default-installed. |
+| [task-retrospective](skills/task-retrospective/SKILL.md) | explicit `/retro` evaluation arm | 105 | Experimental/manual workflow retained for paired testing. |
 | [brainer-audit](skills/brainer-audit/SKILL.md) | explicit Brainer/session audit | 67 | Report-only Brainer skill-use audit mode over normalized events. Detects missed skill triggers, unverified completion claims, output-filter opportunities, dropped requirements, write-gate bypasses, and task-retrospective boundary violations. Claude/Codex hooks are opt-in and marker-gated; Antigravity uses lower-fidelity sidecar snapshots. |
-| [loop-engineering](skills/loop-engineering/SKILL.md) | before building a loop / fleet / verifier pipeline | 96 | Use BEFORE building any multi-step agentic loop, generator→verifier pipeline, fan-out/fleet, or iterate-until-correct/retry loop. Picks the loop shape (open/closed · inner/outer · single/fleet), pairs a generator with a SEPARATE verifier, and forces a concrete gate + stop + budget cap up front. Ships loop_lint.py to refuse no-gate / self-grading / unbounded specs. Override with ONE SHOT. **Default-installed** (v1.11). |
+| [loop-engineering](skills/loop-engineering/SKILL.md) | explicit `/loop-engineering` arm | 96 | Experimental/manual prose; deterministic loop tools remain independently callable. |
 | [self-improvement-loops](skills/self-improvement-loops/SKILL.md) | `/self-improvement-loops` (manual; slash-only) | 9 | Proposed policy for loops that may modify their own prompt, context, workflow, harness, or optimizer; adds locked surfaces, hidden held-out gates, artifact binding, and human approval boundaries over `loop-engineering`. |
 | [eval-gate](skills/eval-gate/SKILL.md) | "is this good enough / score this" | 117 | Score AI output against a written rubric before it ships — an LLM-as-judge quality gate for content output (drafts, posts, answers) and product output (an agent's reply, an extraction, a generated payload). Use when asked "is this good enough", "score/grade this", "would this pass", to gate output on quality, to regression-check a prompt/model/pipeline change, or to turn a flagged bad output into a permanent test case. Returns 0-5 + reason; exit code gates. **Default-installed** (v1.11; N≥50 validation pending). |
 
@@ -160,7 +160,7 @@ file is the authoritative, copy-pasteable clone/update/install/verify procedure.
 | Copilot / VS Code | per-project | use the root `AGENTS.md` shim from the Brainer checkout; there is no `install.sh --host copilot` flag |
 | any supported host (inside the brainer clone itself, e.g. contributing) | for that clone only | `./install.sh` (all supported hosts) or `./install.sh --host <claude-code|codex|gemini>` |
 
-The plugin (`brainer` v1.13.0) bundles all 29 skills. Its manifest declares the default-on `compliance-canary` hook plus optional `prompt-triage` and `context-keeper` hooks; `index-first` remains opt-in.
+The plugin (`brainer` v1.13.0) bundles all 30 skills. Its manifest declares the default-on `compliance-canary` hook plus optional `prompt-triage` and `context-keeper` hooks; `index-first` remains opt-in.
 
 ### Host install matrix
 

@@ -2,6 +2,10 @@
 # compliance-canary self-test.
 set -uo pipefail
 
+# This is the legacy behavior regression suite. Profile-specific frontier,
+# shadow, and off gates live in test_profiles.py.
+export COMPLIANCE_CANARY_PROFILE=legacy
+
 TOOLS_DIR="$(cd "$(dirname "$0")" && pwd)"
 HOOK=(bash "$TOOLS_DIR/hook.sh")
 STATE_ROOT="$(mktemp -d -t cc-test-XXXX)"

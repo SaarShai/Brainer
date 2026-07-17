@@ -1,9 +1,11 @@
 ---
 name: loop-engineering
-description: Use BEFORE building any multi-step agentic loop, generator→verifier pipeline, fan-out/fleet, or iterate-until-correct/retry loop — including any unattended / scheduled / nightly process that regenerates artifacts and retries until a check passes, and any build-and-verify or generate-and-grade pipeline. Picks the loop shape (open/closed · inner/outer · single/fleet), pairs the generator with a SEPARATE verifier, and forces a concrete gate + stop + budget cap up front (loop_lint.py refuses no-gate / self-grading / unbounded specs). A fixed once-through pipeline is the budget=1 case. Override with ONE SHOT.
+description: Experimental/manual loop-design workflow retained for paired evaluation. Invoke explicitly with `/loop-engineering`; deterministic loop tools remain callable.
+status: experimental
+disable-model-invocation: true
 effort: medium
 tools: [Bash, Read, Write]
-auto-install: true
+auto-install: false
 pulse_reminder: before wiring a multi-step loop, name its generator, its SEPARATE verifier, the concrete pass/fail gate, the stop condition, and the budget cap, then run loop_lint.py. No gate or generator==verifier ⇒ not a loop, just an open-ended spin. A fixed once-through pipeline is the budget=1 case — still name a gate + a SEPARATE verifier and set the budget to max_iterations=1, don't skip the gate just because nothing retries.
 ---
 

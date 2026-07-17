@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "currency": "USD",
+  "prices_per_million_tokens": {},
+  "note": "Populate only from a dated authoritative price source before a paid campaign. Empty means cost missing, never zero."
+}

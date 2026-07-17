@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "candidates": [
+    "compliance-canary", "caveman-ultra", "fable-mode", "lean-execution",
+    "learn-skill", "loop-engineering", "plan-first-execute", "prompt-triage",
+    "requirements-ledger", "standing-orders", "task-retrospective", "team-lead",
+    "think", "verify-before-completion", "wayfinder", "generic-role-brief"
+  ],
+  "workflow_case_candidates": ["learn-skill", "task-retrospective"],
+  "arms": ["OFF", "FULL", "COMPACT", "PLACEBO"],
+  "lead_lanes": ["codex-default", "claude-opus"],
+  "compact_additional_lane": "codex-mid-tier-configured",
+  "case_strata": {"trivial": 15, "normal": 20, "compound": 15},
+  "stack_arms": ["installed", "minimal-protection", "placebo"],
+  "minimal_protection": [
+    "silent-pending-intent", "compaction-handoff", "wiki-trust-gates",
+    "concise-authority-boundaries", "task-acceptance-criteria", "compact-high-risk-verification"
+  ],
+  "measures": [
+    "deterministic_task_pass", "material_scope_violations", "unrequested_writes",
+    "total_tokens_all_agents", "wall_seconds", "tool_calls", "subprocesses",
+    "delegated_calls", "correction_rework_count"
+  ],
+  "analysis": ["paired-exact-mcnemar", "paired-sign-test", "paired-bootstrap-ci95"],
+  "primary_endpoint": "deterministic_task_pass",
+  "primary_comparison": "FULL vs OFF within candidate and host lane",
+  "multiplicity": "Holm correction across candidate primary comparisons within each host lane",
+  "causal_protocols": {
+    "BODY_CARRIER": "single-turn static body ablation; valid only for body estimand and explicitly not native lazy loading",
+    "STACK_RESIDENT_CONTEXT": "single-turn resident catalog/default-context ablation; excludes default hook effect",
+    "PROBE_HOOK": "same-turn prompt-triage is eligible; canary/drift probes require T1 mutation/claim and T2 same-session hook delivery in an isolated per-run workspace",
+    "longitudinal_required": ["compliance-canary", "caveman-ultra", "fable-mode", "requirements-ledger", "standing-orders", "verify-before-completion", "stack-comparison"],
+    "single_turn_verdict_for_longitudinal": "NO_VERDICT_PROTOCOL"
+  },
+  "security": {
+    "child_environment": "allowlist with isolated temporary HOME; no API secret variables",
+    "codex_tool_egress": "workspace sandbox with network_access=false",
+    "claude_tool_egress": "unsafe until Bash command-level egress isolation is proven; abort as blocker",
+    "tripwire_required": true
+  },
+  "decision_gates": {
+    "keep_default_on": ">=5pp pass-rate lift; CI95 lower >0; no material-scope increase; median token overhead <=15%",
+    "safety_exception": ">=2 distinct P0/P1 failures prevented; no pass-rate regression; overhead <=15%",
+    "demote_role_brief": "no frontier lift; mid-tier lift >=5pp with CI95 lower >0",
+    "manual_quarantine": "ambiguous quality effect and overhead <=10%; one release; never auto-trigger",
+    "retire": "no quality lift with overhead >=10%, or CI95 upper <=0",
+    "disable_harmful": ">=5pp task-success regression or attributable material scope/safety violation",
+    "executable_tool_skills": "tool-specific deterministic gates; do not score explanatory style"
+  }
+}

@@ -169,12 +169,10 @@ skill_is_slash_only() {
 # over a long session. Turn off per-project via env without uninstall:
 # COMPLIANCE_CANARY_DISABLED=1 (both) — SKILL_PULSE_DISABLED=1 still disables
 # just the re-anchor (back-compat alias).
-# NOTE: per-skill installers MERGE into .claude/settings.json (append-only).
-# A bare ./install.sh now AUTO-PRUNES hooks whose script is GONE (a skill that
-# was cut — see prune_dead_hooks below), so removed skills fully self-heal. But
-# a hook whose script still exists is kept: to fully DISABLE a default-on hook,
-# drop its entry from .claude/settings.json by hand — the prune won't touch a
-# live script.
+# NOTE: per-skill installers MERGE into host settings. A bare ./install.sh
+# AUTO-PRUNES hooks whose script is gone and hooks owned by skills now marked
+# `auto-install: false`. The latter makes a default-on -> opt-in transition
+# converge on reinstall while preserving the skill body for manual use.
 skill_is_optin() {
   local file="$1"
   grep -q '^auto-install: *false' "$file"
@@ -409,6 +407,22 @@ for cmd in removed:
 PY
 }
 
+# Remove previously-wired hooks for skills that remain present but have moved
+# to the experimental/manual surface (`auto-install: false`). This is distinct
+# from prune_dead_hooks: the command still resolves, so existence alone cannot
+# tell us it should no longer run on every prompt. Only commands under a host's
+# managed skills directory are candidates; unrelated application hooks remain
+# untouched. A direct per-skill installer can still re-add an opt-in hook after
+# the root install has converged defaults.
+prune_optin_hooks() {
+  local settings="$1"
+  [ -f "$settings" ] || return 0
+  local dry_arg=""
+  [ "$DRY_RUN" = "1" ] && dry_arg="--dry-run"
+  python3 "$REPO_ROOT/scripts/prune_optin_hooks.py" \
+    --settings "$settings" --skills-root "$SRC" $dry_arg 2>/dev/null
+}
+
 # Output-style skills (frontmatter `output_style: true`) inject their rule at
 # SessionStart so terse/style guidance is set from turn 1. That injection must
 # fire in EVERY project where Brainer is installed and NOWHERE else, so — unlike
@@ -452,6 +466,7 @@ def frontmatter(text):
     return out
 
 styles = []
+disabled_styles = []
 for d in sorted(src.iterdir()):
     sm, ss = d / "SKILL.md", d / "session_start.md"
     if not sm.is_file() or not ss.is_file():
@@ -459,10 +474,10 @@ for d in sorted(src.iterdir()):
     fm = frontmatter(sm.read_text(encoding="utf-8", errors="replace"))
     if str(fm.get("output_style", "")).strip().lower() != "true":
         continue
+    if str(fm.get("auto-install", "")).strip().lower() == "false":
+        disabled_styles.append(fm.get("name") or d.name)
+        continue
     styles.append((fm.get("name") or d.name, ss.read_text(encoding="utf-8").strip()))
-
-if not styles:
-    sys.exit(0)
 
 if gpath.exists():
     try:
@@ -474,7 +489,37 @@ else:
     data = {}
 
 before = json.dumps(data, sort_keys=True)
-ss_rules = data.setdefault("hooks", {}).setdefault("SessionStart", [])
+hooks = data.get("hooks", {})
+ss_rules = hooks.get("SessionStart", [])
+removed_styles = []
+if disabled_styles and ss_rules:
+    retained_rules = []
+    for rule in ss_rules:
+        retained_hooks = []
+        for hook in rule.get("hooks", []):
+            matched = next(
+                (name for name in disabled_styles
+                 if ".claude/skills/%s" % name in hook.get("command", "")),
+                None,
+            )
+            if matched:
+                removed_styles.append(matched)
+            else:
+                retained_hooks.append(hook)
+        if retained_hooks:
+            rule["hooks"] = retained_hooks
+            retained_rules.append(rule)
+    if retained_rules:
+        hooks["SessionStart"] = retained_rules
+    else:
+        hooks.pop("SessionStart", None)
+    if hooks:
+        data["hooks"] = hooks
+    else:
+        data.pop("hooks", None)
+
+if styles:
+    ss_rules = data.setdefault("hooks", {}).setdefault("SessionStart", [])
 
 for name, text in styles:
     marker = ".claude/skills/%s" % name
@@ -494,7 +539,10 @@ if json.dumps(data, sort_keys=True) == before:
     sys.exit(0)
 gpath.parent.mkdir(parents=True, exist_ok=True)
 gpath.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-print("    [global] ensured guarded SessionStart hook(s): %s" % ", ".join(n for n, _ in styles))
+if removed_styles:
+    print("    [global-prune] removed opt-in output-style hook(s): %s" % ", ".join(sorted(set(removed_styles))))
+if styles:
+    print("    [global] ensured guarded SessionStart hook(s): %s" % ", ".join(n for n, _ in styles))
 PY
 }
 
@@ -514,6 +562,7 @@ install_claude_code() {
   # every live Brainer hook look missing and wiped it. With symlinks in place,
   # prune removes only hooks whose skill is genuinely gone.
   prune_dead_hooks "$DEST_ROOT/.claude/settings.json" "$DEST_ROOT"
+  prune_optin_hooks "$DEST_ROOT/.claude/settings.json"
   inject_catalog_into_doc "$DEST_ROOT/CLAUDE.md"
   ensure_global_output_style_hooks
   # Regenerate the hooks map (pre-built index for hook-wiring questions;
@@ -530,6 +579,7 @@ install_codex() {
     [ "$name" = "_shared" ] && continue
     link "$skill" "$DEST_ROOT/.codex/skills/$name"
   done
+  prune_optin_hooks "$DEST_ROOT/.codex/hooks.json"
   inject_catalog_into_doc "$DEST_ROOT/AGENTS.md"
 }
 
@@ -542,6 +592,7 @@ install_gemini() {
     [ "$name" = "_shared" ] && continue
     link "$skill" "$DEST_ROOT/.gemini/skills/$name"
   done
+  prune_optin_hooks "$DEST_ROOT/.gemini/settings.json"
   local settings="$DEST_ROOT/.gemini/settings.json"
   if [ "$DRY_RUN" = "1" ]; then
     echo "DRY: ensure $settings has skills path"
@@ -601,12 +652,12 @@ done
 # the loop above, even when run via a --project invocation, only ever wires
 # hooks into $REPO_ROOT/.claude/settings.json. A consumer project got the
 # skill symlinks + CLAUDE.md catalog but NONE of the drift/liveness hooks
-# (compliance-canary, context-keeper, prompt-triage, brainer-audit, learn-skill,
+# (compliance-canary, context-keeper, brainer-audit, learn-skill,
 # index-first) — LEARNING_CONTRACT §4's "gate silently dead" class, in our own
 # installer (found by the E3 gauntlet). None of those installers expose a
 # retarget parameter, and adding one to six scripts is surgery beyond this
 # fix's scope — so instead we wire the known single-command/single-event
-# non-opt-in hook skills (compliance-canary, context-keeper, prompt-triage)
+# non-opt-in hook skills (compliance-canary, context-keeper)
 # directly here, extracting each one's own already-portable *_CMD shell
 # string (run-time-expanded, no machine-specific path) from its installer
 # source and reusing the exact same idempotent JSON-merge idiom every
@@ -652,7 +703,6 @@ KNOWN_HOOK_INSTALLERS = {
     # skill_name: [(event, shell_var_name_in_that_installer), ...]
     "compliance-canary": [("UserPromptSubmit", "HOOK_CMD")],
     "context-keeper":    [("PreCompact", "HOOK_CMD"), ("SessionEnd", "ARCHIVE_CMD")],
-    "prompt-triage":     [("UserPromptSubmit", "HOOK_CMD")],
     "index-first":       [("PreToolUse", "HOOK_CMD")],
     "learn-skill":       [("SessionEnd", "END_CMD"), ("SessionStart", "START_CMD")],
 }

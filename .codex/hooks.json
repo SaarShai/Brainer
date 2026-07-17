@@ -65,15 +65,6 @@
       {
         "hooks": [
           {
-            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.codex/skills/learn-skill/tools/hook_codex_stop.sh\"",
-            "type": "command"
-          }
-        ],
-        "matcher": "*"
-      },
-      {
-        "hooks": [
-          {
             "command": "python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/skills/brainer-audit/tools/hook.py\" --host codex --event Stop",
             "type": "command"
           }
@@ -82,23 +73,6 @@
       }
     ],
     "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.codex/skills/prompt-triage/tools/hook.sh\"",
-            "type": "command"
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.codex/skills/learn-skill/tools/hook_session_start.sh\"",
-            "type": "command"
-          }
-        ],
-        "matcher": "*"
-      },
       {
         "hooks": [
           {

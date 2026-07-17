@@ -8,7 +8,8 @@ one command from local skill frontmatter only.
 Stdlib only. Frontmatter parsing is intentionally small: read `pulse_reminder:`
 from a single line inside the leading `---` block of `SKILL.md`, stripping one
 optional pair of matching quotes. Missing or reminder-less explicit skills warn
-on stderr and are skipped; discovery caps the default rule list at eight.
+on stderr and are skipped. Rules are included only when named with ``--skills``;
+``--list`` remains available for discovery without injecting them into a brief.
 """
 from __future__ import annotations
 
@@ -103,8 +104,7 @@ def discover(root: str) -> list[SkillReminder]:
 
 def select(root: str, names: str | None) -> tuple[list[SkillReminder], int]:
     if not names:
-        all_reminders = discover(root)
-        return all_reminders[:8], max(0, len(all_reminders) - 8)
+        return [], 0
 
     selected: list[SkillReminder] = []
     seen: set[str] = set()
@@ -132,6 +132,8 @@ def render_header(args: argparse.Namespace, root: str) -> str:
         lines.extend(["", PHASE0_BLOCK])
     lines.extend(["", GATE_BLOCK, "", "ACTIVE RULES:"])
     lines.extend(f"- {r.name}: {r.reminder}" for r in reminders)
+    if not reminders:
+        lines.append("- none (add only task-required rules with --skills)")
     if hidden_count:
         lines.append(f"- +{hidden_count} more (use --skills)")
     if not args.no_report:

@@ -1,5 +1,14 @@
 # Measurement queue — pay down the eval debt
 
+> **2026-07-16 campaign hold:** the 8,300-run frontier remeasurement is
+> preregistered under `eval/skills_effectiveness/` but has not been launched.
+> Deterministic trigger/profile results are complete; paid outcome runs remain
+> blocked on isolated Codex authentication, Claude tool-egress isolation, and a
+> production-faithful resumable two-turn protocol for next-turn hooks. Do not
+> interpret absent N=50 files as null effects. The suspect bodies are manual and
+> experimental during this hold; compliance-canary frontier remains the compact
+> default protection.
+
 Catalog policy: only measured-win or cheap load-bearing skills stay on the
 default path. 10 of 24 skills are unmeasured/pending. This queue orders them by
 **resident-cost × uncertainty** (a default-installed skill with no number is the

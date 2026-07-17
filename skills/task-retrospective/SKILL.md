@@ -2,6 +2,8 @@
 name: task-retrospective
 disable-model-invocation: true
 description: "Use only when the user explicitly arms task audit mode: /retro, asks for task-retrospective, says this task will repeat and should be learned from, or requests an after-the-fact task learning audit. Reconstructs the task, extracts reusable project lessons, and routes sparse durable updates through write-gate to project memory, SOPs, checklists, or project-specific skills. Never audits Brainer skill obedience or edits canonical Brainer skills."
+status: experimental
+auto-install: false
 effort: medium
 tools: [Bash, Read, Write, Grep]
 pulse_reminder: when task-retrospective is armed, record corrections and evidence; at close, produce a task learning report and persist only sparse project-specific lessons that pass write-gate or an explicit user-directed override. Do not auto-launch on ordinary task end or unarmed corrections.

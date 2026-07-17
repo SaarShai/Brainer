@@ -54,6 +54,18 @@ def test_skills_subset_includes_only_named_skills():
             and "- beta: keep beta active" not in out)
 
 
+def test_default_discovers_but_injects_no_skill_rules():
+    with tempfile.TemporaryDirectory() as root:
+        _write_skill(root, "alpha", "keep alpha active")
+        _write_skill(root, "beta", "keep beta active")
+        rc, out, err = _run(["--skills-root", root, "--task", "default"])
+    return (rc == 0
+            and err == ""
+            and "keep alpha active" not in out
+            and "keep beta active" not in out
+            and "none (add only task-required rules with --skills)" in out)
+
+
 def test_unknown_skill_warns_but_exits_zero():
     with tempfile.TemporaryDirectory() as root:
         _write_skill(root, "alpha", "keep alpha active")

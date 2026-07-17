@@ -1,10 +1,11 @@
 ---
 name: learn-skill
-description: Turn a pointed-at source (local dir, doc URL, a workflow you just did, or pasted notes) into a reusable Brainer skill. Use on "/learn <source>", "turn this into a skill", "capture this workflow as a skill", "make a skill from these docs/this repo". Prompt-only over existing tools; the learned skill is born untrusted (slash-only) and gated by write-gate. Port of Hermes' /learn.
-status: trusted
+description: Experimental/manual skill-learning workflow retained for paired evaluation. Invoke explicitly with `/learn` or `/learn-skill`; it does not auto-load or install hooks.
+status: experimental
+disable-model-invocation: true
 effort: low
 tools: [Bash, Read, Grep, WebFetch]
-auto-install: true
+auto-install: false
 pulse_reminder: a learned skill is born `proposed` (slash-only, won't auto-fire) and its rationale must clear write-gate. Dedup before you create — patch, don't duplicate.
 ---
 
@@ -223,7 +224,8 @@ Honest limits (see [`EVAL.md`](EVAL.md)): transcript-mined outcomes are heuristi
 (`source: inferred`); a strict operator counts `--manual-only`. Slash-literal invocations
 that don't surface as a `Skill` tool_use aren't counted.
 
-## Unattended wiring (default-on)
+## Optional evaluation wiring
+The root installer leaves these hooks disabled. For an explicit FULL arm,
 `bash skills/learn-skill/tools/install.sh` wires two hooks into `.claude/settings.json`:
 - **SessionEnd** → `telemetry scan` the transcript (APPEND-only usage log).
 - **SessionStart** → a read-only nudge listing promote-ready / demote / stale skills.

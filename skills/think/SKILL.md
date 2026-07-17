@@ -2,6 +2,8 @@
 name: think
 description: "How an agent should think and approach problems — first-principles, reduce/simplify before adding, research-and-borrow before building, experiment-and-falsify, never hallucinate or flatter. Manual-only: invoke deliberately with `/think` when planning an approach, ideating, stuck, choosing build-vs-research, or tackling a non-trivial / open-ended problem. Does not auto-fire."
 disable-model-invocation: true
+status: experimental
+auto-install: false
 pulse_reminder: think from evidence, the actual goal, and real constraints; correct material false premises; compare distinct approaches; test the smallest safe path; never fabricate or flatter.
 ---
 
@@ -9,7 +11,7 @@ pulse_reminder: think from evidence, the actual goal, and real constraints; corr
 
 How to think and approach problems. **Manual-only** — invoke with `/think` (a literal token recognised across hosts, even where no such command is installed); it does not auto-fire. Use it when the task benefits from deliberate method: ideation, root-causing, pre-mortems, or an open-ended or high-stakes decision.
 
-`/think` governs the **diverge/approach** phase (frame the problem, generate approaches, pick one); [`fable-mode`](../fable-mode/SKILL.md) governs the **converge/execute** phase (scope → evidence → adversarial → verify → report) and auto-fires on hard tasks. They stack: think at the start, fable throughout. If framing shows that the destination is known but the decision route is too foggy for a complete plan, invoke [`wayfinder`](../wayfinder/SKILL.md) automatically before settling the approach; users may also invoke `/wayfinder` directly. Where they touch — falsify-your-approach, don't-fabricate/flatter, define-the-real-goal — perform it once; don't restate the other's rules here.
+`/think` governs the **diverge/approach** phase; [`fable-mode`](../fable-mode/SKILL.md) is the FULL converge/execute arm. During evaluation neither loads automatically. A result may recommend an explicit `/wayfinder` follow-up when the destination is known but the decision route remains foggy.
 
 ## How to apply this
 

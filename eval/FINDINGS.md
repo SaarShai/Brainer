@@ -2,6 +2,55 @@
 
 Aggregating per-skill A/B + session-level replay. Updated as new measurements land.
 
+## 2026-07-16 skill-effectiveness verification campaign
+
+**Wave 1 deterministic verdict:** the new default `frontier` compliance-canary
+profile clears the frozen trigger gate; the rollback `legacy` profile fails it
+decisively. The corpus SHA-256 is
+`a6ad89582077faf83722be5ec2e9c9e1323ae058bb9db5116c57e89ee860c276`.
+
+| profile | expected emissions | TP | FP on 400 hard negatives | FN | reviewed precision | hard-negative FIR upper 95% | verdict |
+|---|---:|---:|---:|---:|---:|---:|---|
+| frontier | 50 | 50 | 0 | 0 | 1.000 | 0.00672 | pass |
+| shadow | 50 | 50 | 0 | 0 | 1.000 | 0.00672 | pass; byte-identical output and complete suppressed-probe telemetry |
+| legacy | 100 | 85 | 250 | 15 | 0.254 | 0.66385 | fail |
+
+Legacy false-injected on every quoted-article, fenced-code, bare-`again`, casual
+`vs`, and simple-draft negative (50 each). It also incorrectly treated failed,
+stale, and wrong-class checks as sufficient evidence in 15 verification cases.
+Frontier suppressed all of those cases while retaining all 25 genuine
+post-mutation verification fires and all 25 genuine pending-intent wrap-up
+fires. Results are committed under `eval/results/skills-effectiveness/`.
+
+**Observational transcript result:** the selected sibling transcript contains
+80 reminder blocks. Its historical `176,507 bytes` figure is actually Unicode
+code points; exact UTF-8 size is 178,092 bytes. Across all six available
+`screenery-design-master` raw sessions the analyzer found 440 reminders,
+1,025,672 code points, and 1,034,484 exact UTF-8 bytes. These measurements do
+not establish causal outcome lift; the five-sample immediate-action labels in
+the original sibling report remain observational.
+
+**N=50 outcome status: no verdict yet.** The preregistered campaign now contains
+8,300 runs, 50 distinct task families per candidate, paired statistics,
+worst-case intent-to-treat sensitivity for transport/load blockers, and
+separate static-body versus longitudinal-hook estimands. It was deliberately
+not launched because current production-faithfulness and safety gates block it:
+
+- isolated safe HOME has no Codex authentication, and credentials are not
+  copied into model-readable fixtures;
+- Claude Bash egress isolation is not proven;
+- next-turn canary/drift probes require a resumable two-turn session, which the
+  requested ephemeral/bare nonpersistent transports do not provide;
+- native lazy loading remains a separate validation from exact-body
+  `AGENTS.md`/`CLAUDE.md` carrier ablation;
+- dated authoritative model pricing is not yet populated, so USD cost must
+  remain missing rather than zero.
+
+Kimi K3 was used as an independent pre-launch adversarial reviewer. Its useful
+contribution was to block the paid run on hook-timing, differential-exclusion,
+and secret/egress validity failures; it is optional and never part of the
+default prompt stack or deterministic scoring path.
+
 > **As-of note (catalog drift):** the static-cost and default-install figures below
 > (16-skill default path, ~1080-token tax, the `skill-pulse` hook) were measured for
 > the **v1.6–v1.7-era catalog** and are kept as the **historical measurement record** —

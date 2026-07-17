@@ -62,6 +62,8 @@ S|core|python3|skills/_shared/test_knowledge_liveness.py|-|-
 S|core|python3|eval/test_judge.py|-|-
 S|core|python3|skills/_shared/test_model_roster.py|-|-
 S|core|python3|skills/_shared/test_brief_header.py|-|-
+S|core|python3|tests/test_frontier_defaults.py|-|-
+S|core|python3|skills/compliance-canary/tools/test_profiles.py|-|-
 S|core|python3|skills/_shared/test_orchestration_trace.py|-|-
 S|core|python3|skills/_shared/test_activation_trace.py|-|-
 S|core|python3|skills/team-lead/tools/test_team_lead_eval.py|-|-

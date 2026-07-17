@@ -1,6 +1,9 @@
 ---
 name: prompt-triage
-description: "Use on every UserPromptSubmit (pre-model hook) to classify the prompt and emit a directive telling the main model which subagent/model should handle it. Regex fast-path then local-Ollama fallback. Goal: avoid spending opus tokens on tasks solvable by haiku/sonnet/local. Override per prompt by typing NO TRIAGE."
+description: "Experimental manual router for paired evaluation. When explicitly enabled, classifies a prompt and suggests a subagent/model. It is not installed or invoked by default on frontier leads."
+status: experimental
+disable-model-invocation: true
+auto-install: false
 effort: low
 tools: [Bash]
 ---
