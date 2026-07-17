@@ -7,8 +7,8 @@ domain: "framework"
 tier: semantic
 confidence: 0.8
 created: "2026-06-27"
-updated: "2026-07-05"
-verified: "2026-07-05"
+updated: "2026-07-16"
+verified: "2026-07-16"
 sources: ["log.md", "scripts/sibling_sync_audit.py", "scripts/test_sibling_sync_audit.py"]
 resource: scripts/sibling_sync_audit.py
 supersedes: []
@@ -64,6 +64,14 @@ FORKED.
   hand, not a real lane.
 - **screenery-lean** — has sibling-local roster lanes `gemini-executor` + `judge`
   (`AGENT-ONLY`); adoption/fast-forward never touch them.
+- **screenery-design-master** — an explicit Brainer sibling because it vendors
+  `skills/` and `install.sh` and is auto-discovered by
+  `sibling_sync_audit.py`. Preserve its sibling-only `long-mission-launch`
+  skill, `kimi-critic` agent, and customized `SKILLS_INDEX.md`, `team-lead`, and
+  `wayfinder` surfaces during propagation.
+- **product images repo** — a Screenery sibling with its own image-production
+  skills; classify before applying so its local tools and agent definitions are
+  never mistaken for canonical drift.
 - **Hermes** — pre-rebrand; expects older naming.
 - **alfred** — this is the PROMPTER folder.
 
