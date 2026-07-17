@@ -640,7 +640,8 @@ def check_h6a() -> tuple[str, str, bool, str]:
         checked += 1
         claimed_kb = float(m.group(1))
         tools_dir = skill_dir / "tools"
-        actual_bytes = sum(f.stat().st_size for f in tools_dir.rglob("*") if f.is_file()) if tools_dir.is_dir() else 0
+        actual_bytes = sum(f.stat().st_size for f in tools_dir.rglob("*")
+                           if f.is_file() and "__pycache__" not in f.parts and f.suffix != ".pyc") if tools_dir.is_dir() else 0
         actual_kb = round(actual_bytes / 1024, 1)
         abs_diff = abs(actual_kb - claimed_kb)
         rel_diff = abs_diff / claimed_kb if claimed_kb else (1.0 if actual_kb else 0.0)

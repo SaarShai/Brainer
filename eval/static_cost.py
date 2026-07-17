@@ -41,7 +41,11 @@ def parse_frontmatter(text: str) -> tuple[dict, str]:
 
 
 def dir_size(p: Path) -> int:
-    return sum(f.stat().st_size for f in p.rglob("*") if f.is_file())
+    # Generated caches (__pycache__/*.pyc) are runtime noise, not shipped
+    # payload — counting them makes the size claim drift with whichever
+    # Python version last imported the tools (H6a false-FAIL, 2026-07-17).
+    return sum(f.stat().st_size for f in p.rglob("*")
+               if f.is_file() and "__pycache__" not in f.parts and f.suffix != ".pyc")
 
 
 def measure(skill_dir: Path) -> dict[str, Any]:
