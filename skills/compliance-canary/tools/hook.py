@@ -84,12 +84,29 @@ PROBE_TIMEOUT_SECONDS = 1.5
 # filler regex. Detectors should fire on the model's *prose*, not on code
 # the model is quoting.
 _CODE_BLOCK_RE = re.compile(r"```[\s\S]*?```")
-_INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
+_INLINE_CODE_RE = re.compile(r"`([^`\n]+)`")
+
+
+def _unwrap_inline_span(m: "re.Match") -> str:
+    """Inline single-backtick spans are UNWRAPPED (backticks dropped, content
+    kept) when the span contains whitespace — i.e. it reads as a natural-
+    language PHRASE/SENTENCE styled in backticks (e.g. a closing claim like
+    `` `Done and dusted.` ``), not a code token. Pre-fix, strip_code() removed
+    the ENTIRE span including its text, so a done-claim wrapped wholly in
+    backticks was invisible to claim_without_evidence before the detector
+    ever ran (red-team 2026-07-11). A single-token span with NO whitespace
+    (a flag/identifier/filename someone is quoting for reference, e.g.
+    `done`, `census.py`, `print("Certainly!")`) is still fully REMOVED, not
+    unwrapped — that's the code-quoting false-positive case strip_code exists
+    to prevent in the first place ("I added a `done` flag" must NOT read as a
+    claim; a fenced ```block``` is unaffected either way — handled above)."""
+    inner = m.group(1)
+    return inner if re.search(r"\s", inner) else " "
 
 
 def strip_code(text: str) -> str:
     text = _CODE_BLOCK_RE.sub(" ", text)
-    text = _INLINE_CODE_RE.sub(" ", text)
+    text = _INLINE_CODE_RE.sub(_unwrap_inline_span, text)
     return text
 
 
@@ -789,6 +806,24 @@ def _claim_evidence_class(text: str, probe: dict) -> str:
     return "filesystem/diff"
 
 
+_HAYSTACK_DQUOTE_RE = re.compile(r'"(?:\\.|[^"\\])*"', re.S)
+_HAYSTACK_SQUOTE_RE = re.compile(r"'(?:\\.|[^'\\])*'", re.S)
+
+
+def _strip_quoted_args(cmd: str) -> str:
+    """Strip double/single-quoted STRING CONTENTS from a Bash command before
+    scanning verify_keywords — a keyword landing only inside a quoted
+    argument (e.g. the commit MESSAGE of `git commit -m "render this PR
+    obsolete, closing"`) is ordinary English inside a string literal, not
+    evidence the command actually invoked a verification tool (red-team
+    2026-07-11: this decoy shape defeated all 8 claim_without_evidence
+    probes in the catalog via each probe's own keyword list). Applied only
+    to the Bash `command` string on the legacy keyword-scan path."""
+    cmd = _HAYSTACK_DQUOTE_RE.sub(" ", cmd)
+    cmd = _HAYSTACK_SQUOTE_RE.sub(" ", cmd)
+    return cmd
+
+
 def detect_claim_without_evidence(probe: dict, messages: list[dict], tool_uses: list[dict], _tool_errors=None, user_prompt: str = "", traj_stats: dict | None = None) -> dict | None:
     if not messages:
         return None
@@ -816,7 +851,7 @@ def detect_claim_without_evidence(probe: dict, messages: list[dict], tool_uses: 
             if tool_use.get("name") not in verify_tools:
                 continue
             inp = tool_use.get("input") or {}
-            haystack = (_command_from_input(inp) if tool_use.get("name") == "Bash"
+            haystack = (_strip_quoted_args(_command_from_input(inp)) if tool_use.get("name") == "Bash"
                         else json.dumps(inp)).lower()
             if verify_re is not None and verify_re.search(haystack):
                 return None
@@ -1937,12 +1972,34 @@ def run_probes(
 ) -> list[dict]:
     """Returns list of fired probes (each dict has _skill, _probe_id, _result)."""
     fired: list[dict] = []
+    # requires_context_regex haystack, built lazily once: recent tool_uses +
+    # messages serialized. Lets a probe declare "only arm me when the session
+    # actually shows this context" — e.g. vision/judge done-claim probes arm
+    # only when .ai/Illustrator activity is present, so a docs-only session
+    # doesn't get render/verdict nags (2026-07-01: 3 false fires observed in
+    # one meta-work session; alarm fatigue is how real alarms get ignored).
+    ctx_hay: str | None = None
     for probe in probes:
         kind = probe.get("kind")
         if kind not in DETECTORS:
             continue
         if probe["_probe_id"] in suppressed:
             continue
+        ctx_pat = probe.get("requires_context_regex")
+        if ctx_pat:
+            try:
+                cre = re.compile(ctx_pat)
+            except re.error as e:
+                log_err(f"bad-context-regex probe={probe['_probe_id']} err={e!r}")
+                cre = None
+            if cre is not None:
+                if ctx_hay is None:
+                    try:
+                        ctx_hay = json.dumps(tool_uses[-60:]) + json.dumps(messages[-30:]) + (user_prompt or "")
+                    except Exception:
+                        ctx_hay = user_prompt or ""
+                if not cre.search(ctx_hay):
+                    continue
         try:
             result = DETECTORS[kind](probe, messages, tool_uses, tool_errors, user_prompt=user_prompt, traj_stats=traj_stats)
         except Exception as e:

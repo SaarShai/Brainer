@@ -1929,6 +1929,48 @@ else
   no "message must say 'stalling' and must NOT claim same-signature semantics" "got: $(echo "$out" | head -c400)"
 fi
 
+echo "[104] Inline backtick PHRASE unwrapped: backtick-wrapped done-claim still triggers claim probe"
+PROBES='[{"id":"unverified","kind":"claim_without_evidence","claim_pattern":"(?i)\\b(done|fixed)\\b","verify_tools":["Bash"]}]'
+make_skill_with_probes sk104 uwp "$PROBES"
+TX="$TRANSCRIPT_DIR/t104.jsonl"
+python3 <<PY > "$TX"
+import json
+bt = chr(96)
+msg = f"{bt}Done and dusted.{bt}"
+print(json.dumps({"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":msg}]}}))
+PY
+out=$(call cc104 sk104 "$TX" s104)
+if emitted "$out" && echo "$out" | grep -q 'claim_without_evidence'; then ok "backtick-wrapped phrase claim still triggers"; else no "backtick-wrapped phrase claim still triggers" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[105] Quoted-args decoy: verify keyword inside a quoted Bash string is NOT evidence"
+PROBES='[{"id":"unverified","kind":"claim_without_evidence","claim_pattern":"(?i)\\b(done|fixed)\\b","verify_tools":["Bash"],"verify_keywords":["test","verified"]}]'
+make_skill_with_probes sk105 qad "$PROBES"
+TX="$TRANSCRIPT_DIR/t105.jsonl"
+write_transcript "$TX" \
+  "$(assistant_tool_use Bash '{"command":"git commit -m \"verified and tested end to end\""}')" \
+  "$(assistant_text 'Done.' u105)"
+out=$(call cc105 sk105 "$TX" s105)
+if emitted "$out" && echo "$out" | grep -q 'claim_without_evidence'; then ok "quoted-string keyword decoy does not suppress claim probe"; else no "quoted-string keyword decoy does not suppress" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[106] requires_context_regex: probe stays silent when session lacks the context"
+PROBES='[{"id":"ai-only","kind":"claim_without_evidence","claim_pattern":"(?i)\\b(done|fixed)\\b","verify_tools":["Bash"],"verify_keywords":["render"],"requires_context_regex":"(?i)\\.ai\\b|illustrator|dump-paths"}]'
+make_skill_with_probes sk106 ctx "$PROBES"
+TX="$TRANSCRIPT_DIR/t106.jsonl"
+write_transcript "$TX" \
+  "$(assistant_tool_use Edit '{"file_path":"/repo/README.md","old_string":"a","new_string":"b"}')" \
+  "$(assistant_text 'all done!' u106)"
+out=$(call cc106 sk106 "$TX" s106)
+if [ -z "$out" ] || ! echo "$out" | grep -q 'claim_without_evidence'; then ok "context-gated probe silent on docs-only session"; else no "context-gated probe silent on docs-only session" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[107] requires_context_regex: probe fires when session shows the context"
+TX="$TRANSCRIPT_DIR/t107.jsonl"
+write_transcript "$TX" \
+  "$(assistant_tool_use Bash '{"command":"./cli/bin/screenery-design illustrator dump-paths --doc Space.ai"}')" \
+  "$(assistant_tool_use Edit '{"file_path":"/repo/parts.json","old_string":"a","new_string":"b"}')" \
+  "$(assistant_text 'all done!' u107)"
+out=$(call cc107 sk106 "$TX" s107)
+if emitted "$out" && echo "$out" | grep -q 'claim_without_evidence'; then ok "context-gated probe fires on .ai session"; else no "context-gated probe fires on .ai session" "got: $(echo "$out" | head -c200)"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then

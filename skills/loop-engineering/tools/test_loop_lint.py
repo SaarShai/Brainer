@@ -723,6 +723,15 @@ def test_unattended_on_error_retry_only_warns_r14():
     assert _has(spec, 14, "WARN"), _rules(spec)
 
 
+def test_unattended_on_error_stop_negated_by_continue_anyway_warns_r14():
+    # A halt word ("stop") is negated by a continue-anyway clause ("otherwise
+    # keep trying") — every failure still retries forever past the stated cap,
+    # the exact blanket-retry anti-pattern R14 targets. Must still warn even
+    # though "stop" (a halt/escalate token) is textually present.
+    spec = _UNATTENDED_R14_BASE + "on_error: stop after 3 retries, otherwise keep trying\n"
+    assert _has(spec, 14, "WARN"), _rules(spec)
+
+
 
 
 def test_fenced_loop_block_in_markdown():

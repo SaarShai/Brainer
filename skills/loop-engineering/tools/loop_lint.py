@@ -855,6 +855,15 @@ _HALT_OR_ESCALATE = re.compile(
     r"\b(halt|stop|abort|escalate|interrupt|human|bubble|fail[\s-]?fast|page|alert)\b", re.I)
 
 
+# A halt/escalate word is NEGATED — and so does not silence R14 — when a
+# continue-anyway clause follows it ("stop after 3 retries, otherwise keep
+# trying"): every failure still retries forever past the stated cap, the
+# exact blanket-retry anti-pattern R14 targets. If both a halt word and one of
+# these continue-anyway tokens are present, R14 still fires.
+_CONTINUE_ANYWAY = re.compile(
+    r"\b(otherwise|keep\s+trying|retry\s+until|continue)\b", re.I)
+
+
 # A SIDE-EFFECTING world action — something an UNATTENDED loop mutates outside
 # itself: a comment, an issue/PR state, a label, a merge/commit/push, an email/
 # message, a published/deployed/charged side effect. Broader than _IRREVERSIBLE
@@ -1197,7 +1206,7 @@ def check_spec(report: Report, spec: Spec, rule_filter: int | None, *, strict_me
                                "with backoff (cap ~2) · recoverable-by-generator (bad output) → return the error "
                                "as an observation · user-fixable (config/auth/permissions) → interrupt, don't retry "
                                "· unexpected (halt and surface). Declare the mapping in on_error."))
-        elif not _HALT_OR_ESCALATE.search(on_error):
+        elif not _HALT_OR_ESCALATE.search(on_error) or _CONTINUE_ANYWAY.search(on_error):
             report.add(Finding(14, "WARN", f"spec '{label}' has an `on_error` policy where every failure class retries",
                                src, spec.line_of("on_error"),
                                "the on_error policy names no halt/escalate/interrupt-class token — meaning every "
