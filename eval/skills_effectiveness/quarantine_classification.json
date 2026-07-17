@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "classified_at": "2026-07-16",
+  "policy": {
+    "auto_surface": "none",
+    "expiry_days": 30,
+    "delete_by_default": true,
+    "scope": "The 14 experimental/manual prompt bodies; deterministic tools and compact canary mechanisms are classified separately from prose."
+  },
+  "skills": [
+    {
+      "name": "caveman-ultra",
+      "skill_sha256": "3399674dbeab371801c67baaad9b6170dc04ab9315c5c12e1dd7e02ef5224efb",
+      "class": "generic-model-patch",
+      "disposition": "retire",
+      "reason": "A generic output-style override with no private context, tool, or workflow; its word-count probe was ignored in the sibling audit.",
+      "retain": [],
+      "remove_after_expiry": ["SKILL.md body", "filler and word-count probes"]
+    },
+    {
+      "name": "fable-mode",
+      "skill_sha256": "563b01993b028fdcf02116b5b9a99e6c70d0a9850e36d68289cf9920c31d1bd9",
+      "class": "generic-work-discipline",
+      "disposition": "demote-role-brief",
+      "reason": "Its five gates largely restate frontier execution defaults; the useful scope, adversarial, and verification rules fit the builder and verifier briefs.",
+      "retain": ["non-duplicated scope and adversarial rules in builder/verifier briefs"],
+      "remove_after_expiry": ["standalone SKILL.md body", "pulse reminder"]
+    },
+    {
+      "name": "lean-execution",
+      "skill_sha256": "b862656dc4a5a01702794da09a67ccccfc94e3559c252b5c7050987f091112dc",
+      "class": "generic-work-discipline",
+      "disposition": "demote-role-brief",
+      "reason": "The prose is generic frontier guidance; surgical-scope and stop rules belong in the builder brief while deterministic drift probes can be judged independently.",
+      "retain": ["compact builder rules", "dependency-manifest and whitespace probes pending their own deterministic gates"],
+      "remove_after_expiry": ["standalone SKILL.md body"]
+    },
+    {
+      "name": "learn-skill",
+      "skill_sha256": "115400b3a37f4409681ebf8945d202ebb42deeff59f34c2ade0d0d3b7c336217",
+      "class": "custom-tool-workflow",
+      "disposition": "retain-manual",
+      "reason": "Brainer-specific dedup, scaffold, lint, telemetry, promotion, and demotion tools implement a concrete workflow unavailable from model weights.",
+      "retain": ["explicit /learn workflow", "deterministic tools and tests"],
+      "remove_after_expiry": []
+    },
+    {
+      "name": "loop-engineering",
+      "skill_sha256": "62ed15b2c711cf8204b63b55b5f4d93da18f51459fe1d902b6c5c20ecf5b4712",
+      "class": "custom-tool-workflow",
+      "disposition": "retain-manual",
+      "reason": "The loop-spec schema, linter, resolved snapshot, diagram, and runtime monitor are executable domain tooling rather than a style prompt.",
+      "retain": ["explicit /loop-engineering workflow", "loop_lint.py", "loop_run_monitor.py", "schema"],
+      "remove_after_expiry": []
+    },
+    {
+      "name": "plan-first-execute",
+      "skill_sha256": "dcd98474300f73b024d11a0cf6c2362cc0602cb19d1581314469ecfd4369782a",
+      "class": "generic-work-discipline",
+      "disposition": "demote-role-brief",
+      "reason": "Planning, scoping, and verification are generic frontier capabilities; only the compact spec and stop rules merit residence in the builder brief.",
+      "retain": ["compact builder spec and acceptance rules"],
+      "remove_after_expiry": ["standalone SKILL.md body"]
+    },
+    {
+      "name": "prompt-triage",
+      "skill_sha256": "fda47f0702cf771609fd77868b682a1b5288d87ffbd544dac842f353bbfda73b",
+      "class": "generic-model-router",
+      "disposition": "retire",
+      "reason": "A per-prompt cache-busting router with stale host/model assumptions and added failure paths; frontier delegation can select roles directly without an injected classifier directive.",
+      "retain": [],
+      "remove_after_expiry": ["SKILL.md body", "default hook and classifier", "bundled duplicate agent descriptions"]
+    },
+    {
+      "name": "requirements-ledger",
+      "skill_sha256": "3a428d0fbd69bd9c631dd799521f6d79e188766d1ae3d001ac6edc277cb8af4f",
+      "class": "generic-compliance-wrapper",
+      "disposition": "retire",
+      "reason": "A visible per-turn file and task-list protocol duplicates the retained silent pending-intent state and imposes compulsory writes and closeout nags.",
+      "retain": ["silent pending-intent state in compliance-canary"],
+      "remove_after_expiry": ["visible ledger body", "materialization probe", "compulsory user-confirmed closure protocol"]
+    },
+    {
+      "name": "standing-orders",
+      "skill_sha256": "bb8f08de1c7533a3f6eb42c323d495731c9a83a213b8e8200fbfb1b524f7464d",
+      "class": "generic-compliance-wrapper",
+      "disposition": "retire",
+      "reason": "Broad regex-triggered orchestration and deep-thinking directives are the measured prompt-surface failure mode and duplicate compact role briefs and explicit user requests.",
+      "retain": ["shadow-only trigger telemetry during expiry window"],
+      "remove_after_expiry": ["SKILL.md body", "ORCH and DEEP prompt-intent probes", "pulse reminder"]
+    },
+    {
+      "name": "task-retrospective",
+      "skill_sha256": "314c8ffd1838f91434e6c12b2aa03cd0abf84fc86f91ade6ec2be488650fea7c",
+      "class": "custom-tool-workflow",
+      "disposition": "retain-manual",
+      "reason": "An explicitly armed Brainer learning workflow produces governed artifacts and routes durable lessons through project-specific write gates.",
+      "retain": ["explicit /retro workflow", "artifact and write-gate tooling"],
+      "remove_after_expiry": []
+    },
+    {
+      "name": "team-lead",
+      "skill_sha256": "1473575de757c74a65ac2d2fe66bda7bdca84a862e031db72b6d6bfd4731d3e0",
+      "class": "generic-work-discipline",
+      "disposition": "demote-role-brief",
+      "reason": "Generic orchestration doctrine is already supported by native agents; the useful ownership, independence, and verification constraints fit the builder brief.",
+      "retain": ["compact builder delegation rules"],
+      "remove_after_expiry": ["standalone SKILL.md body"]
+    },
+    {
+      "name": "think",
+      "skill_sha256": "414be21144064f7a96e46b4d3dd14944fee204518c1fcf1209f19abc58812a15",
+      "class": "generic-work-discipline",
+      "disposition": "demote-role-brief",
+      "reason": "First-principles, simplify, research, and falsify instructions are generic frontier reasoning guidance with no private context or executable mechanism.",
+      "retain": ["non-duplicated falsification and source rules in builder/researcher briefs"],
+      "remove_after_expiry": ["standalone SKILL.md body"]
+    },
+    {
+      "name": "verify-before-completion",
+      "skill_sha256": "cfe5e2418c2acffecbe7699a60099af11028fa0dc7605fb7363546c0edd15050",
+      "class": "mixed-generic-and-tooling",
+      "disposition": "split",
+      "reason": "The full prose repeats frontier verification habits, but the compliance-aware compact probe and mechanical artifact verifier supply distinct enforceable behavior.",
+      "retain": ["compact claim-without-evidence canary probe", "verify_artifact.py and negative tests", "compact verifier brief rules"],
+      "remove_after_expiry": ["standalone full-prose invocation surface", "duplicated generic verification exposition"]
+    },
+    {
+      "name": "wayfinder",
+      "skill_sha256": "fe9ab6cd3f1ff5f29b11f288dbd87177e2c5403adede9210ed95e4f8bfbca506",
+      "class": "custom-artifact-workflow",
+      "disposition": "retain-manual",
+      "reason": "It defines a specific sourced decision-map and ticket artifact protocol for multi-session ambiguity, including concurrency and human-input gates.",
+      "retain": ["explicit /wayfinder workflow and artifact contract"],
+      "remove_after_expiry": []
+    }
+  ]
+}

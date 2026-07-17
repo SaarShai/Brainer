@@ -1,0 +1,233 @@
+{
+  "schema_version": 2,
+  "preregistration_sha256": "3d233acba3287b017bc6ed7df70dd0cd30a4a7daca9531727791df84364f678c",
+  "expected_outcomes": 76,
+  "valid_outcomes": 76,
+  "missing_outcomes": 0,
+  "limitations": [
+    "static compact body only; longitudinal hooks were not tested",
+    "OFF is a minimal native-loader shim, not an absent-skill control",
+    "Codex JSON did not expose served model identity",
+    "Claude had no Bash, so treatment adherence to the evidence rule was not directly observable"
+  ],
+  "lanes": {
+    "codex-default": {
+      "valid_pairs": 19,
+      "off_pass": 19,
+      "frontier_pass": 19,
+      "pass_rate_delta": 0.0,
+      "mcnemar": {
+        "a_only": 0,
+        "b_only": 0,
+        "discordant": 0,
+        "p_two_sided": 1.0
+      },
+      "pass_delta_bootstrap": {
+        "delta": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "samples": 10000,
+        "seed": 20260716
+      },
+      "scope_violations": {
+        "OFF": 0,
+        "FRONTIER": 0
+      },
+      "median_token_overhead": 0.01201965530495852,
+      "median_total_tokens": {
+        "OFF": 111986,
+        "FRONTIER": 112765
+      },
+      "median_wall_seconds": {
+        "OFF": 42.07149004202802,
+        "FRONTIER": 45.64335079101147
+      },
+      "median_tool_calls": {
+        "OFF": 12,
+        "FRONTIER": 12
+      },
+      "activation_rate": 1.0,
+      "activation_rate_by_arm": {
+        "OFF": 1.0,
+        "FRONTIER": 1.0
+      },
+      "check_command_rate": {
+        "OFF": 1.0,
+        "FRONTIER": 1.0
+      },
+      "tripwire_leaks": 0,
+      "permission_denials": 0,
+      "unsafe_tool_attempts": 0,
+      "unrequested_write_records": 0,
+      "served_identity": [],
+      "served_identity_by_arm": {
+        "OFF": {
+          "models": [],
+          "records": 19
+        },
+        "FRONTIER": {
+          "models": [],
+          "records": 19
+        }
+      },
+      "strata": {
+        "trivial": {
+          "OFF": {
+            "records": 4,
+            "passes": 4,
+            "scope_violations": 0
+          },
+          "FRONTIER": {
+            "records": 4,
+            "passes": 4,
+            "scope_violations": 0
+          }
+        },
+        "normal": {
+          "OFF": {
+            "records": 10,
+            "passes": 10,
+            "scope_violations": 0
+          },
+          "FRONTIER": {
+            "records": 10,
+            "passes": 10,
+            "scope_violations": 0
+          }
+        },
+        "compound": {
+          "OFF": {
+            "records": 5,
+            "passes": 5,
+            "scope_violations": 0
+          },
+          "FRONTIER": {
+            "records": 5,
+            "passes": 5,
+            "scope_violations": 0
+          }
+        }
+      },
+      "ceiling_effect": true,
+      "blocker_rate": 0.0
+    },
+    "claude-opus": {
+      "valid_pairs": 19,
+      "off_pass": 19,
+      "frontier_pass": 19,
+      "pass_rate_delta": 0.0,
+      "mcnemar": {
+        "a_only": 0,
+        "b_only": 0,
+        "discordant": 0,
+        "p_two_sided": 1.0
+      },
+      "pass_delta_bootstrap": {
+        "delta": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "samples": 10000,
+        "seed": 20260716
+      },
+      "scope_violations": {
+        "OFF": 0,
+        "FRONTIER": 0
+      },
+      "median_token_overhead": 0.017423029671270518,
+      "median_total_tokens": {
+        "OFF": 69156,
+        "FRONTIER": 70035
+      },
+      "median_wall_seconds": {
+        "OFF": 25.989989207999315,
+        "FRONTIER": 30.46449191699503
+      },
+      "median_tool_calls": {
+        "OFF": 5,
+        "FRONTIER": 5
+      },
+      "activation_rate": 1.0,
+      "activation_rate_by_arm": {
+        "OFF": 1.0,
+        "FRONTIER": 1.0
+      },
+      "check_command_rate": {
+        "OFF": 0.0,
+        "FRONTIER": 0.0
+      },
+      "tripwire_leaks": 0,
+      "permission_denials": 0,
+      "unsafe_tool_attempts": 0,
+      "unrequested_write_records": 0,
+      "served_identity": [
+        "claude-haiku-4-5-20251001",
+        "claude-opus-4-7"
+      ],
+      "served_identity_by_arm": {
+        "OFF": {
+          "models": [
+            "claude-haiku-4-5-20251001",
+            "claude-opus-4-7"
+          ],
+          "records": 19
+        },
+        "FRONTIER": {
+          "models": [
+            "claude-haiku-4-5-20251001",
+            "claude-opus-4-7"
+          ],
+          "records": 19
+        }
+      },
+      "strata": {
+        "trivial": {
+          "OFF": {
+            "records": 4,
+            "passes": 4,
+            "scope_violations": 0
+          },
+          "FRONTIER": {
+            "records": 4,
+            "passes": 4,
+            "scope_violations": 0
+          }
+        },
+        "normal": {
+          "OFF": {
+            "records": 10,
+            "passes": 10,
+            "scope_violations": 0
+          },
+          "FRONTIER": {
+            "records": 10,
+            "passes": 10,
+            "scope_violations": 0
+          }
+        },
+        "compound": {
+          "OFF": {
+            "records": 5,
+            "passes": 5,
+            "scope_violations": 0
+          },
+          "FRONTIER": {
+            "records": 5,
+            "passes": 5,
+            "scope_violations": 0
+          }
+        }
+      },
+      "ceiling_effect": true,
+      "blocker_rate": 0.0
+    }
+  },
+  "pilot_gate": {
+    "feasible": true,
+    "expand": false,
+    "interpretation": "Pilot expands only on a >=10pp paired lift with no scope regression and <=15% median token overhead. A null pilot is a futility signal, not a final retirement verdict."
+  }
+}

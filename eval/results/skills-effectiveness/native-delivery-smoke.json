@@ -1,0 +1,98 @@
+{
+  "auth_mode": "host auth store inherited by CLI; API-key environment variables excluded; credentials not copied into fixtures; validity requires zero host-reported tool calls",
+  "cli_versions": {
+    "claude": "2.1.146 (Claude Code)",
+    "codex": "codex-cli 0.144.1"
+  },
+  "egress_controls": {
+    "claude-opus": "only the native Skill loader is enabled; empty strict MCP config; project settings only",
+    "codex-default": "read-only sandbox; workspace network disabled; user config and rules ignored"
+  },
+  "evaluation_kind": "native-delivery-feasibility-smoke",
+  "lane_valid": {
+    "claude-opus": true,
+    "codex-default": true
+  },
+  "marker_sha256": "a19364dbec40b1690634b6f5dba8ef1088dbc3ee8ea34dce1f7f7ee6ba90e50f",
+  "outcome_verdict": "NOT_AN_OUTCOME_EVALUATION",
+  "prompt_identical_across_arms": {
+    "claude-opus": true,
+    "codex-default": true
+  },
+  "runs": [
+    {
+      "arm": "FRONTIER",
+      "carrier_used": false,
+      "failure_kind": null,
+      "lane": "codex-default",
+      "marker_observed": true,
+      "native_skill_path": ".codex/skills/eval-native-marker/SKILL.md",
+      "prompt_sha256": "1bd6193a7e88f3c8575cd6d31b901c22fae379a161fa7356caf0d7e732487817",
+      "returncode": 0,
+      "stderr_bytes": 196,
+      "stderr_sha256": "aa0eba3e8a9eaa522ca5e3d2453be3d405b6b797a96cdf68f0a95c4b34b2fba5",
+      "stdout_bytes": 358,
+      "stdout_sha256": "c2e4e72d5c01d64222b7af2502cb8b4efe9591addfd262bd26206e3a8cd8fbe2",
+      "tool_calls_observed": 0,
+      "tripwire_leaked": false,
+      "valid": true,
+      "wall_seconds": 7.797473166021518
+    },
+    {
+      "arm": "OFF",
+      "carrier_used": false,
+      "failure_kind": null,
+      "lane": "codex-default",
+      "marker_observed": false,
+      "native_skill_path": null,
+      "prompt_sha256": "1bd6193a7e88f3c8575cd6d31b901c22fae379a161fa7356caf0d7e732487817",
+      "returncode": 0,
+      "stderr_bytes": 196,
+      "stderr_sha256": "d325acb9e8e57017d5ca04b5c399f1237039995d6e37301d423a8321e2e23023",
+      "stdout_bytes": 428,
+      "stdout_sha256": "b19f2719cc1ac4d0cf591c2edc12de00ff97cf3c26e8883167784a4a751e8558",
+      "tool_calls_observed": 0,
+      "tripwire_leaked": false,
+      "valid": true,
+      "wall_seconds": 4.495178042037878
+    },
+    {
+      "arm": "FRONTIER",
+      "carrier_used": false,
+      "failure_kind": null,
+      "lane": "claude-opus",
+      "marker_observed": true,
+      "native_skill_path": ".claude/skills/eval-native-marker/SKILL.md",
+      "prompt_sha256": "af92fe9b3cd8adb2cfd2a189351a31966ae5eccede10c9a85794af5e6b459e7a",
+      "returncode": 0,
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 1419,
+      "stdout_sha256": "8299ef18d122ce95e2964e8b6433de7b328238eb78d92f0c91d6e2bc0cb8c395",
+      "tool_calls_observed": 0,
+      "tripwire_leaked": false,
+      "valid": true,
+      "wall_seconds": 2.1265772920451127
+    },
+    {
+      "arm": "OFF",
+      "carrier_used": false,
+      "failure_kind": null,
+      "lane": "claude-opus",
+      "marker_observed": false,
+      "native_skill_path": null,
+      "prompt_sha256": "af92fe9b3cd8adb2cfd2a189351a31966ae5eccede10c9a85794af5e6b459e7a",
+      "returncode": 0,
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 685,
+      "stdout_sha256": "f22ab603be84ec5f6c43b79ad3f097496277b412f8521ebcebde6e0a6f3a235f",
+      "tool_calls_observed": 0,
+      "tripwire_leaked": false,
+      "valid": true,
+      "wall_seconds": 0.7766522910096683
+    }
+  ],
+  "schema_version": 1,
+  "valid": true
+}

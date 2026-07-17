@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+"""Validate and render the hash-pinned quarantine classification."""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+from collections import Counter
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+REPO = HERE.parents[1]
+DEFAULT_SOURCE = HERE / "quarantine_classification.json"
+EXPECTED = {
+    "caveman-ultra", "fable-mode", "lean-execution", "learn-skill",
+    "loop-engineering", "plan-first-execute", "prompt-triage",
+    "requirements-ledger", "standing-orders", "task-retrospective",
+    "team-lead", "think", "verify-before-completion", "wayfinder",
+}
+DISPOSITIONS = {"retire", "demote-role-brief", "retain-manual", "split"}
+
+
+def load_and_validate(path: Path = DEFAULT_SOURCE) -> dict:
+    data = json.loads(path.read_text())
+    if data.get("schema_version") != 1:
+        raise ValueError("unsupported classification schema")
+    rows = data.get("skills", [])
+    names = [row.get("name") for row in rows]
+    if len(names) != len(set(names)):
+        raise ValueError("duplicate skill classification")
+    if set(names) != EXPECTED:
+        raise ValueError(f"classification set mismatch: {sorted(set(names) ^ EXPECTED)}")
+    if data.get("policy", {}).get("auto_surface") != "none":
+        raise ValueError("quarantined skills must have no automatic prompt surface")
+    for row in rows:
+        if row.get("disposition") not in DISPOSITIONS:
+            raise ValueError(f"invalid disposition for {row['name']}")
+        if not row.get("reason") or not isinstance(row.get("retain"), list):
+            raise ValueError(f"incomplete rationale for {row['name']}")
+        skill = REPO / "skills" / row["name"] / "SKILL.md"
+        actual = hashlib.sha256(skill.read_bytes()).hexdigest()
+        if actual != row.get("skill_sha256"):
+            raise ValueError(f"stale classification for {row['name']}: body hash changed")
+        frontmatter = skill.read_text().split("---", 2)[1]
+        if "status: experimental" not in frontmatter or "disable-model-invocation: true" not in frontmatter:
+            raise ValueError(f"{row['name']} is no longer quarantined")
+    return data
+
+
+def render(data: dict) -> str:
+    counts = Counter(row["disposition"] for row in data["skills"])
+    lines = [
+        "# Quarantined skill classification",
+        "",
+        f"Reviewed: {data['classified_at']}. Scope: {len(data['skills'])} experimental/manual prompt bodies.",
+        "No body is default-on. Hash changes invalidate the classification and require re-review.",
+        "",
+        "## Decision summary",
+        "",
+        f"- Retire after expiry: {counts['retire']}",
+        f"- Demote into compact role briefs: {counts['demote-role-brief']}",
+        f"- Retain as explicit tool/workflow skills: {counts['retain-manual']}",
+        f"- Split prose from retained mechanisms: {counts['split']}",
+        "",
+        "| Skill | Class | Disposition | Reason |",
+        "|---|---|---|---|",
+    ]
+    for row in data["skills"]:
+        reason = row["reason"].replace("|", "\\|")
+        lines.append(f"| `{row['name']}` | {row['class']} | **{row['disposition']}** | {reason} |")
+    lines.extend([
+        "",
+        "## Expiry rule",
+        "",
+        f"The quarantine clock is {data['policy']['expiry_days']} days. A body scheduled for removal survives only with a named dependency or positive native-delivery evidence. Git history is the rollback path.",
+        "",
+        "Executable tools and compact canary mechanisms are retained or removed independently from their explanatory prose. No classification here authorizes propagation to consumer repositories.",
+        "",
+    ])
+    return "\n".join(lines)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--source", type=Path, default=DEFAULT_SOURCE)
+    parser.add_argument("--markdown-out", type=Path)
+    parser.add_argument("--json", action="store_true")
+    args = parser.parse_args()
+    data = load_and_validate(args.source)
+    output = render(data)
+    if args.markdown_out:
+        args.markdown_out.parent.mkdir(parents=True, exist_ok=True)
+        args.markdown_out.write_text(output)
+    if args.json:
+        print(json.dumps({"valid": True, "skills": len(data["skills"]),
+                          "dispositions": Counter(r["disposition"] for r in data["skills"])},
+                         sort_keys=True))
+    elif not args.markdown_out:
+        print(output, end="")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

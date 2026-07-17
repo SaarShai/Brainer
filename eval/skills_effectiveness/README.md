@@ -187,9 +187,61 @@ make no network calls.
 Transport failures and reasoning-only/empty responses are recorded as blocked
 reviews, never accepted as empty findings. Timeout is bounded to 30–600 seconds.
 
+## Quarantine classification and native-delivery smoke
+
+Validate the hash-pinned classification of the 14 experimental/manual bodies
+and regenerate its human-readable report:
+
+```bash
+python3 eval/skills_effectiveness/quarantine_classification.py \
+  --markdown-out eval/results/skills-effectiveness/quarantine-classification.md \
+  --json
+```
+
+The classification separates explanatory prose from retained deterministic
+tools. A changed `SKILL.md` hash invalidates the verdict and forces re-review.
+No classification authorizes propagation outside canonical Brainer.
+
+Before any paid outcome campaign, run the four-call carrier-free feasibility
+smoke. It installs a nonce-bearing project skill only in `FRONTIER`, uses the
+same nonce-free prompt in `OFF`, and creates a fresh git fixture for every call:
+
+```bash
+python3 eval/skills_effectiveness/native_delivery_smoke.py --execute \
+  --out eval/results/skills-effectiveness/native-delivery-smoke.json
+```
+
+Codex runs read-only with workspace network disabled and user configuration
+ignored; shell commands inherit no host environment. Claude runs with only its
+native `Skill` loader, an empty strict MCP surface, and project settings. Host
+authentication stores are inherited by the CLIs, but API-key environment
+variables are excluded and credentials are never copied into fixtures. A run
+is invalid if the host reports any tool call. Use this only with the controlled
+nonce skill, never an untrusted skill body. This proves only native skill
+delivery and a clean OFF control; it is explicitly not a task-outcome verdict.
+
 The manifest preregisters candidates, strata, measures, stack comparison,
 paired statistics, and decision gates. Subjective criteria may use a blind
 cross-family judge; deterministic acceptance and scope checks remain primary.
+
+## Focused native pilot
+
+The full matrix is preserved but frozen. The completed focused v2 protocol uses
+19 frozen cases, native loading of the same skill name in both arms, fresh
+single-use fixtures, and separate Codex-default and Claude-opus-alias lanes:
+
+```bash
+python3 eval/skills_effectiveness/focused_pilot.py --plan
+python3 eval/skills_effectiveness/focused_pilot.py --analyze \
+  --campaign-dir eval/results/skills-effectiveness/focused-pilot-v2-2026-07-16 \
+  --out eval/results/skills-effectiveness/focused-pilot-v2-analysis.json
+```
+
+The 76 valid v2 outcomes plus four excluded transport-preflight calls exhaust
+the approved 80-call cap. Do not rerun the campaign merely to remove the
+ceiling effect. The result is a static compact-body estimand; it does not test
+longitudinal hook behavior. See
+`eval/results/skills-effectiveness/focused-pilot-v2-analysis.md`.
 
 ## Tests
 

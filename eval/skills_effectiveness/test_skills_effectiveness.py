@@ -1,18 +1,24 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
+import subprocess
 import tempfile
 import unittest
+from collections import Counter
 from pathlib import Path
 
 import ab_harness
 import analyze_campaign
 import cases
 import fire_value
+import focused_pilot
 import native_activation
+import native_delivery_smoke
 import kimi_reviewer
+import quarantine_classification
 import statistics as skill_stats
 
 
@@ -201,6 +207,198 @@ class HarnessTests(unittest.TestCase):
             self.assertFalse((root / "AGENTS.md").exists())
         finally:
             shutil.rmtree(root)
+
+    def test_quarantine_classification_is_complete_and_hash_pinned(self):
+        data = quarantine_classification.load_and_validate()
+        self.assertEqual(14, len(data["skills"]))
+        counts = Counter(r["disposition"] for r in data["skills"])
+        self.assertEqual({"retire": 4, "demote-role-brief": 5,
+                          "retain-manual": 4, "split": 1}, dict(counts))
+        self.assertIn("`verify-before-completion`", quarantine_classification.render(data))
+
+    def test_native_delivery_smoke_uses_fresh_carrier_free_fixtures(self):
+        marker = "NATIVE_SKILL_LOADED_test"
+        seen = []
+
+        def fake_runner(cmd, *, cwd, **kwargs):
+            seen.append(Path(cwd))
+            skill = next(Path(cwd).glob(".*/skills/eval-native-marker/SKILL.md"), None)
+            output = marker if skill else "skill unavailable"
+            return subprocess.CompletedProcess(cmd, 0, stdout=output, stderr="")
+
+        frontier = native_delivery_smoke.execute_one("codex-default", "FRONTIER", marker,
+                                                     runner=fake_runner)
+        off = native_delivery_smoke.execute_one("codex-default", "OFF", marker,
+                                                runner=fake_runner)
+        self.assertTrue(frontier["valid"])
+        self.assertTrue(off["valid"])
+        self.assertTrue(frontier["marker_observed"])
+        self.assertFalse(off["marker_observed"])
+        self.assertFalse(frontier["carrier_used"])
+        self.assertEqual(0, frontier["tool_calls_observed"])
+        self.assertEqual(2, len(set(seen)))
+        self.assertTrue(all(not path.exists() for path in seen))
+
+    def test_native_delivery_commands_disable_egress_surfaces(self):
+        root = Path("/tmp/native-smoke-command-test")
+        codex = native_delivery_smoke.build_command("codex-default", root)
+        claude = native_delivery_smoke.build_command("claude-opus", root)
+        self.assertIn("$eval-native-marker", codex[-1])
+        self.assertEqual("/eval-native-marker", claude[-1])
+        self.assertIn("read-only", codex)
+        self.assertIn("sandbox_workspace_write.network_access=false", codex)
+        self.assertIn("shell_environment_policy.inherit=none", codex)
+        self.assertEqual("Skill", claude[claude.index("--tools") + 1])
+        self.assertEqual('{"mcpServers":{}}', claude[claude.index("--mcp-config") + 1])
+        old = os.environ.get("ANTHROPIC_API_KEY")
+        os.environ["ANTHROPIC_API_KEY"] = "must-not-pass"
+        try:
+            self.assertNotIn("ANTHROPIC_API_KEY", native_delivery_smoke.host_auth_env())
+        finally:
+            if old is None:
+                os.environ.pop("ANTHROPIC_API_KEY", None)
+            else:
+                os.environ["ANTHROPIC_API_KEY"] = old
+
+    def test_native_delivery_rejects_reported_tool_use(self):
+        payload = json.dumps({"type": "item.completed", "item": {"type": "command_execution"}})
+        self.assertEqual(1, native_delivery_smoke._tool_calls(payload))
+        self.assertEqual(0, native_delivery_smoke._tool_calls(json.dumps({"type": "result"})))
+
+    def test_focused_pilot_v2_preserves_eighty_call_total(self):
+        rows = focused_pilot.plan_rows()
+        self.assertEqual(76, len(rows))
+        self.assertEqual(19, len(focused_pilot.selected_cases()))
+        self.assertEqual(80, len(rows) + focused_pilot.PREREG["preflight_calls_excluded"])
+        self.assertEqual({"FRONTIER", "OFF"}, {row["arm"] for row in rows})
+        self.assertEqual({"codex-default", "claude-opus"}, {row["lane"] for row in rows})
+        self.assertNotEqual(focused_pilot.body("FRONTIER"), focused_pilot.body("OFF"))
+        for arm, marker in focused_pilot.MARKERS.items():
+            self.assertIn(marker, focused_pilot.body(arm))
+
+    def test_focused_pilot_native_commands_are_bounded(self):
+        root = Path("/tmp/focused-pilot-test")
+        codex = focused_pilot.command("codex-default", root, "task")
+        claude = focused_pilot.command("claude-opus", root, "task")
+        self.assertIn("sandbox_workspace_write.network_access=false", codex)
+        self.assertIn("shell_environment_policy.inherit=none", codex)
+        allowed = claude[claude.index("--allowedTools") + 1]
+        self.assertEqual("Skill,Read,Edit,Write", allowed)
+        self.assertIn("$eval-frontier-protection", codex[-1])
+        self.assertIn("/eval-frontier-protection", claude[-1])
+
+    def test_focused_pilot_trace_parsing(self):
+        codex = json.dumps({"item": {"type": "command_execution", "command": "python3 check.py"}})
+        codex += "\n" + json.dumps({"item": {"type": "agent_message", "text": "FRONTIER_PROTECTION_ACTIVE"}})
+        parsed = focused_pilot.parse_trace("codex-default", codex)
+        self.assertTrue(parsed["check_command_observed"])
+        self.assertIn("FRONTIER_PROTECTION_ACTIVE", parsed["final"])
+        claude = json.dumps({"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "name": "Bash", "input": {"command": "curl bad"}}]}})
+        parsed = focused_pilot.parse_trace("claude-opus", claude)
+        self.assertEqual(1, parsed["unsafe_tool_attempts"])
+
+    def test_focused_pilot_median(self):
+        self.assertEqual(2.5, focused_pilot.median([4, 1, 3, 2]))
+        self.assertIsNone(focused_pilot.median([]))
+
+    def test_focused_pilot_terminal_usage_only(self):
+        codex = "\n".join([
+            json.dumps({"type": "turn.completed", "usage": {"input_tokens": 100, "output_tokens": 20}}),
+        ])
+        self.assertEqual(120, focused_pilot.parse_usage("codex-default", codex)["total_tokens_all_agents"])
+        claude = json.dumps({"type": "result", "usage": {"input_tokens": 5,
+            "cache_creation_input_tokens": 10, "cache_read_input_tokens": 20, "output_tokens": 3},
+            "modelUsage": {"claude-opus-x": {}}})
+        parsed = focused_pilot.parse_usage("claude-opus", claude)
+        self.assertEqual(38, parsed["total_tokens_all_agents"])
+        self.assertEqual(["claude-opus-x"], parsed["served_identity"])
+
+    def test_focused_pilot_analysis_reports_ceiling_and_operational_metrics(self):
+        directory = Path(tempfile.mkdtemp(prefix="focused-analysis-test-"))
+        try:
+            for lane in focused_pilot.PREREG["lanes"]:
+                for arm, tokens in (("OFF", 100), ("FRONTIER", 110)):
+                    for index, case_id in enumerate(focused_pilot.PREREG["case_ids"]):
+                        planned = next(row for row in focused_pilot.plan_rows()
+                                       if row["lane"] == lane and row["arm"] == arm
+                                       and row["case"]["id"] == case_id)
+                        case = planned["case"]
+                        record = {
+                            "schema_version": 2, "harness_version": 2,
+                            "record_status": "completed",
+                            "preregistration_sha256": focused_pilot.PREREG_SHA256,
+                            "lane": lane, "arm": arm, "case_id": case_id,
+                            "stratum": case["stratum"], "family": case["family"],
+                            "case_sha256": cases.case_digest([case]),
+                            "fixture_reused": False,
+                            "deterministic_task_pass": True,
+                            "material_scope_violation": False,
+                            "total_tokens_all_agents": tokens,
+                            "wall_seconds": 2.0 + index,
+                            "tool_calls_observed": 3,
+                            "activation_marker_observed": True,
+                            "check_command_observed": lane == "codex-default",
+                            "tripwire_leaked": False, "permission_denials": 0,
+                            "unsafe_tool_attempts": 0, "unrequested_writes": [],
+                            "served_identity": [lane],
+                            "body_sha256": hashlib.sha256(
+                                focused_pilot.body(arm).encode()).hexdigest(),
+                            "prompt_sha256": hashlib.sha256(focused_pilot.prompt(
+                                lane, case["prompt"]).encode()).hexdigest(),
+                            "user_task_sha256": hashlib.sha256(
+                                case["prompt"].encode()).hexdigest(),
+                        }
+                        focused_pilot.atomic_json(
+                            directory / "outcomes" / f"{focused_pilot.run_id(planned)}.json", record)
+            report = focused_pilot.analyze(directory)
+            for lane in focused_pilot.PREREG["lanes"]:
+                summary = report["lanes"][lane]
+                self.assertTrue(summary["ceiling_effect"])
+                self.assertAlmostEqual(0.1, summary["median_token_overhead"])
+                self.assertEqual(3, summary["median_tool_calls"]["FRONTIER"])
+                self.assertEqual(0, summary["tripwire_leaks"])
+                self.assertEqual(4, summary["strata"]["trivial"]["OFF"]["passes"])
+                self.assertEqual(19, summary["served_identity_by_arm"]["OFF"]["records"])
+            self.assertIn("longitudinal hooks were not tested", report["limitations"][0])
+        finally:
+            shutil.rmtree(directory)
+
+    def test_focused_pilot_rejects_corrupt_or_renamed_outcome(self):
+        directory = Path(tempfile.mkdtemp(prefix="focused-validation-test-"))
+        try:
+            planned = focused_pilot.plan_rows()[0]
+            record = {
+                "schema_version": 2, "harness_version": 2,
+                "record_status": "completed",
+                "preregistration_sha256": focused_pilot.PREREG_SHA256,
+                "lane": planned["lane"], "arm": planned["arm"],
+                "case_id": planned["case"]["id"],
+                "stratum": planned["case"]["stratum"],
+                "family": planned["case"]["family"],
+                "case_sha256": cases.case_digest([planned["case"]]),
+                "fixture_reused": False, "activation_marker_observed": True,
+                "tripwire_leaked": False,
+                "body_sha256": hashlib.sha256(
+                    focused_pilot.body(planned["arm"]).encode()).hexdigest(),
+                "prompt_sha256": hashlib.sha256(focused_pilot.prompt(
+                    planned["lane"], planned["case"]["prompt"]).encode()).hexdigest(),
+                "user_task_sha256": hashlib.sha256(
+                    planned["case"]["prompt"].encode()).hexdigest(),
+                "unsafe_tool_attempts": 0,
+            }
+            correct = directory / "outcomes" / f"{focused_pilot.run_id(planned)}.json"
+            focused_pilot.atomic_json(correct, record)
+            self.assertEqual([record], focused_pilot.validated_outcomes(directory))
+            record["body_sha256"] = "corrupt"
+            focused_pilot.atomic_json(correct, record)
+            with self.assertRaisesRegex(ValueError, "frozen-spec validation"):
+                focused_pilot.validated_outcomes(directory)
+            correct.rename(correct.with_name("renamed.json"))
+            with self.assertRaisesRegex(ValueError, "unexpected outcome"):
+                focused_pilot.validated_outcomes(directory)
+        finally:
+            shutil.rmtree(directory)
 
     def test_full_hook_arm_installs_and_invokes_but_off_does_not(self):
         case = cases.outcome_cases("prompt-triage")[20]

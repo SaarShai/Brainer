@@ -30,21 +30,43 @@ code points; exact UTF-8 size is 178,092 bytes. Across all six available
 not establish causal outcome lift; the five-sample immediate-action labels in
 the original sibling report remain observational.
 
-**N=50 outcome status: no verdict yet.** The preregistered campaign now contains
+**Outcome status: full matrix frozen; focused experiment completed with a
+ceilinged null.** The preregistered campaign contains
 8,300 runs, 50 distinct task families per candidate, paired statistics,
 worst-case intent-to-treat sensitivity for transport/load blockers, and
 separate static-body versus longitudinal-hook estimands. It was deliberately
-not launched because current production-faithfulness and safety gates block it:
+not launched because its production-faithfulness and construct-validity gates
+remain unsatisfied:
 
-- isolated safe HOME has no Codex authentication, and credentials are not
-  copied into model-readable fixtures;
-- Claude Bash egress isolation is not proven;
+- its exact-body carriers are not native lazy loading;
+- its unrestricted Claude Bash design does not isolate egress;
 - next-turn canary/drift probes require a resumable two-turn session, which the
   requested ephemeral/bare nonpersistent transports do not provide;
-- native lazy loading remains a separate validation from exact-body
-  `AGENTS.md`/`CLAUDE.md` carrier ablation;
 - dated authoritative model pricing is not yet populated, so USD cost must
   remain missing rather than zero.
+
+After independent adversarial review, the 8,300-run matrix was replaced as the
+active plan rather than merely held for those blockers. Fourteen quarantined
+bodies were hash-classified: 4 retire, 5 demote into role briefs, 4 retain as
+explicit custom tool/workflow skills, and `verify-before-completion` splits its
+generic prose from the retained compact probe and mechanical verifier. This is
+a content/taxonomy verdict plus observational evidence, not a causal task
+outcome verdict.
+
+The carrier-free native-delivery smoke ran four fresh fixtures with an identical
+nonce-free prompt. After Claude authentication was restored, Codex and Claude
+both proved native `FRONTIER` and clean `OFF` delivery. Exact hashes and timings
+are in `eval/results/skills-effectiveness/native-delivery-smoke.json`.
+
+The focused v2 campaign then completed 76 valid outcomes: 19 frozen coding cases
+in `FRONTIER` and `OFF` on each host. Both arms passed 19/19 in both lanes, with
+zero discordant pairs, scope violations, blockers, tripwire leaks, unsafe tool
+attempts, or unrequested writes. Paired median token overhead was +1.20% on
+Codex and +1.74% on Claude. This fails the preregistered expansion gate because
+the task-success delta is zero. It is a futility signal for the broad paid
+matrix, not a retirement verdict for longitudinal hooks or minimum protection
+mechanisms. The all-pass sample has a ceiling effect; details and caveats are in
+`eval/results/skills-effectiveness/focused-pilot-v2-analysis.md`.
 
 Kimi K3 was used as an independent pre-launch adversarial reviewer. Its useful
 contribution was to block the paid run on hook-timing, differential-exclusion,
@@ -59,6 +81,8 @@ default prompt stack or deterministic scoring path.
 > `compliance-canary` at v1.10, and `learn-skill` (v1.13) + `brainer-audit` ship `auto-install: false`.
 > Re-measuring the static cost for the 21-skill catalog is tracked in GOAL.md; until then read
 > the absolute token counts as that era's, not today's.
+> The historical install/load recommendations below are not current defaults;
+> use the 2026-07-16 quarantine classification for current prompt-surface decisions.
 
 ## Stacking & anti-patterns (read before tuning install)
 

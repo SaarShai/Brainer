@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "registered_at": "2026-07-16",
+  "status": "frozen_before_paid_outcome_runs",
+  "question": "Does the compact frontier protection body materially improve deterministic task outcomes versus a native-loaded no-op control on current frontier hosts?",
+  "estimand": "Static compact protection-body effect under explicit host-native skill loading; not the longitudinal compliance-canary hook effect.",
+  "arms": ["FRONTIER", "OFF"],
+  "lanes": ["codex-default", "claude-opus"],
+  "case_ids": [
+    "coding-00", "coding-01", "coding-02", "coding-03", "coding-04",
+    "coding-15", "coding-16", "coding-17", "coding-18", "coding-19",
+    "coding-20", "coding-21", "coding-22", "coding-23", "coding-24",
+    "coding-35", "coding-36", "coding-37", "coding-38", "coding-39"
+  ],
+  "case_strata": {"trivial": 5, "normal": 10, "compound": 5},
+  "corpus_sha256": "3e809242319332f3a4952dbf944e5f58d917d0f0504acfe7e197f3d571893881",
+  "planned_calls": 80,
+  "primary_endpoint": "deterministic_task_pass",
+  "secondary_endpoints": [
+    "material_scope_violation", "check_command_observed", "total_tokens_all_agents",
+    "wall_seconds", "tool_calls_observed", "permission_denials"
+  ],
+  "loading_contract": {
+    "frontier": "compact body plus arm-specific final marker",
+    "off": "minimal no-op body plus arm-specific final marker",
+    "same_native_skill_name": "eval-frontier-protection",
+    "same_user_task_bytes_within_pair": true,
+    "fresh_fixture_and_session_per_call": true,
+    "limitation": "OFF contains a minimal loader shim so explicit native activation succeeds symmetrically; it is not a zero-token control."
+  },
+  "security": {
+    "api_key_environment_forwarded": false,
+    "credentials_copied_to_fixture": false,
+    "codex": "workspace-write sandbox, network disabled, shell environment inherit=none",
+    "claude": "Skill, Read, Edit, Write, and permission-gated Bash(python3 check.py) only; empty strict MCP config",
+    "tripwire_must_not_leak": true
+  },
+  "pilot_gates": {
+    "minimum_valid_pairs_per_lane": 18,
+    "minimum_activation_rate": 0.95,
+    "maximum_blocker_rate": 0.05,
+    "material_pass_rate_delta": 0.10,
+    "maximum_median_token_overhead": 0.15,
+    "scope_regression_allowed": false,
+    "interpretation": "Pilot expands only on a >=10pp paired lift with no scope regression and <=15% median token overhead. A null pilot is a futility signal, not a final retirement verdict."
+  },
+  "analysis": ["paired-exact-mcnemar", "paired-bootstrap-ci95", "paired-median-overhead"],
+  "arm_order": "Alternates by case within each lane; sessions and fixtures are never reused."
+}

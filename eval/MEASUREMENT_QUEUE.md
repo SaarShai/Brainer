@@ -1,13 +1,13 @@
 # Measurement queue — pay down the eval debt
 
-> **2026-07-16 campaign hold:** the 8,300-run frontier remeasurement is
-> preregistered under `eval/skills_effectiveness/` but has not been launched.
-> Deterministic trigger/profile results are complete; paid outcome runs remain
-> blocked on isolated Codex authentication, Claude tool-egress isolation, and a
-> production-faithful resumable two-turn protocol for next-turn hooks. Do not
-> interpret absent N=50 files as null effects. The suspect bodies are manual and
-> experimental during this hold; compliance-canary frontier remains the compact
-> default protection.
+> **2026-07-16 campaign replacement:** preserve but do not launch the 8,300-run
+> matrix. A carrier-free four-call smoke ultimately proved both native host
+> lanes. The focused compact-bundle pilot then completed 76 valid outcomes and
+> found 19/19 passes in both arms on both hosts, zero scope regressions, and
+> +1.20%/+1.74% paired median token overhead. The expansion gate failed on zero
+> outcome lift. The 14 bodies remain hash-classified as
+> 4 retire, 5 role-brief demotions, 4 explicit manual tool/workflows, and 1
+> split. Missing outcome runs remain missing evidence, never null effects.
 
 Catalog policy: only measured-win or cheap load-bearing skills stay on the
 default path. 10 of 24 skills are unmeasured/pending. This queue orders them by
@@ -26,15 +26,15 @@ upgrades without added scaffolding.
 
 | # | Skill / question | Why this rank | Method pointer |
 |---|---|---|---|
-| 1 | requirements-ledger drop-rate | default-on + hook cost every turn; the no-drop guarantee has no number | EVAL.md (multi-conjunct corpus, with/without) |
-| 2 | loop-engineering N≥50 | default-on, largest body in catalog | EVAL.md (cross-family, pending since v1.8) |
+| 1 | 30-day quarantine expiry review | focused pilot was a ceilinged null; deletion remains default for generic bodies unless named dependencies or positive native evidence emerge | `quarantine_classification.json` + live shadow precision |
+| 2 | hard-case follow-up only on a named residual risk | do not spend more calls on the compact body without a failure hypothesis from trigger tests or shadow telemetry | `focused-pilot-v2-analysis.md` |
 | 3 | eval-gate rubric-gate A/B | default-on; 79% judge-human agreement needs N≥50 | EVAL.md |
 | 4 | usage-vs-mention instrumentation | per-repo skill profiles are BLOCKED on it (2026-07-01 mining showed sessions-touched ≈ catalog residency, not usage) | extend measure.py to aggregate canary state (probes fired per skill per session) across repos |
 | 5 | wiki-refresh A/B savings | default, pending live run | EVAL.md |
 | 6 | write-gate project-local A/B | default, pending | EVAL.md |
 | 7 | context-keeper preservation metrics | default, extraction measured but preservation-through-compaction not | EVAL.md |
 | 8 | index-first static cost | pending measurement note in EVAL | EVAL.md |
-| 9 | prompt-triage research-lite leg | one routing leg unmeasured | EVAL.md |
+| 9 | prompt-triage removal check | confirm no named dependency before expiry; do not run a per-prompt N=50 leg | quarantine classification |
 | 10 | think 2026-07 edits (doc-bloat governor, smallest-verifiable-steps) | slash-only so cheap, but repo culture A/Bs think edits (premortem precedent) | premortem-style eval (wiki: premortem-and-think-edits-measured) |
 | 11 | impact-of-change / security-oversight | opt-in → lowest urgency | new EVAL.md stubs (2026-07-01) |
 | 12 | cache-lint rule 7 + loop-lint R14 (2026-07-03 harness-article additions) | report-only sub-rules of default skills; fire-rate + real catch-rate unknown (rule 7: unused-server WARNs across repos with project MCP config; R14: on_error warns on real loop specs) | each skill's EVAL.md |
