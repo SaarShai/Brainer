@@ -59,20 +59,25 @@ Operational docs:
 - [`docs/INSTALL_SAFETY.md`](docs/INSTALL_SAFETY.md) explains installer effects, dry-run behavior, and restore posture.
 - [`docs/MEMORY_MODEL.md`](docs/MEMORY_MODEL.md) separates canonical wiki memory from derived indexes and scratch output.
 
-## Most-recommended stack
+## Current default and historical component measurements
 
-If you only install one combination, install this. Each item earns its slot with measured numbers — see [`eval/FINDINGS.md`](eval/FINDINGS.md) for the full breakdown.
+The current automatic prompt surface is deliberately small: the frontier
+`compliance-canary` profile plus host continuity mechanisms such as
+`context-keeper`. Tool and private-context skills remain callable. The table
+below preserves historical per-component measurements; it is not a recommendation
+to auto-compose every listed body on current frontier models. See
+[`eval/FINDINGS.md`](eval/FINDINGS.md) for measurement eras and limitations.
 
 | Slot | Skill | Why it's in the stack |
 |---|---|---|
-| Output style | [`caveman-ultra`](skills/caveman-ultra/SKILL.md) + [`lean-execution`](skills/lean-execution/SKILL.md) | **−87.7%** output on verbose-prone prompts (measured combo, [eval/results/caveman+lean.json](eval/results/caveman+lean.json)) |
-| Routing | [`prompt-triage`](skills/prompt-triage/SKILL.md) | −20.9% total tokens, 100% classification accuracy on mixed prompts |
+| Output style | [`caveman-ultra`](skills/caveman-ultra/SKILL.md) + [`lean-execution`](skills/lean-execution/SKILL.md) | Historical verbose-prompt result: **−87.7%** output; both bodies are now manual/unproven on current frontier hosts ([result](eval/results/caveman+lean.json)) |
+| Routing | [`prompt-triage`](skills/prompt-triage/SKILL.md) | Historical N=13 result: −20.9% total tokens; current native-host lift is unmeasured, so the hook is opt-in |
 | Memory across compaction | [`context-keeper`](skills/context-keeper/SKILL.md) | 97.7% transcript compression, 100% URL recall, hook-driven (zero per-prompt cost) |
 | Retrieval (*what / how / connected*) | [graphify](https://github.com/safishamsi/graphify) (`graphify-out/graph.json`, external) | **−93% tokens** vs grep+read at parity evidence using `graphify explain` ([eval/results/graphify_retrieval.json](eval/results/graphify_retrieval.json)) |
 | Retrieval (*why / decision*) | [`wiki-memory`](skills/wiki-memory/SKILL.md) | 100% evidence on project-history questions; combo with graphify hits 100% evidence at **−87% vs grep** ([eval/results/graphify_combo.json](eval/results/graphify_combo.json)) |
 | Re-reads | [`semantic-diff`](skills/semantic-diff/SKILL.md) | 95.5% reduction on unchanged re-reads (slim Bash CLI, every host; optional MCP `read_file_smart`) |
 | Terminal output | [`output-filter`](skills/output-filter/SKILL.md) | −88.8% bytes on noisy logs, all error lines preserved |
-| Claims of done | [`verify-before-completion`](skills/verify-before-completion/SKILL.md) | −33.5% output on "is this fixed?" prompts; fires only on done-claims |
+| Claims of done | [`verify-before-completion`](skills/verify-before-completion/SKILL.md) | Historical FULL-body result: −33.5% output; current default keeps only the compact compliance-aware probe |
 
 These compose **across axes** (output × routing × memory × retrieval × re-read). Per [`eval/FINDINGS.md`](eval/FINDINGS.md), within-axis stacking diminishes (two output-reducers don't sum) — across-axis stacking compounds. The full eight-slot stack has not yet been measured end-to-end as a single number; per-axis wins are independent and additive on their own dimension.
 
@@ -105,7 +110,7 @@ graphify extract .
 | [semantic-diff](skills/semantic-diff/SKILL.md) | file re-read | 80 | AST-node diff. 95.5% measured savings on argparse.py re-reads. |
 | [index-first](skills/index-first/SKILL.md) | "where is X used / what calls Y" | 81 | Prefer pre-built indexes / composite verbs over grep+read chains. Eval pending. (colbymchenry/codegraph lineage.) |
 | [output-filter](skills/output-filter/SKILL.md) | terminal output hook | 70 | Strip ANSI/progress/dup noise; preserves errors. |
-| [compliance-canary](skills/compliance-canary/SKILL.md) | UserPromptSubmit hook | 74 | **Default-on since v1.7** (`auto-install: true`). The single drift watcher: a periodic skill-rule re-anchor every N turns (paper-calibrated, arXiv 2510.07777) **plus** symptomatic per-skill `drift_probes.json` scans; the re-anchor yields to a fired probe (no double-nag). Absorbed `skill-pulse` at v1.10. |
+| [compliance-canary](skills/compliance-canary/SKILL.md) | UserPromptSubmit hook | 74 | **Default-on** in `frontier`: silent pending-intent state plus one compact compliance-aware verification probe. Periodic re-anchor and broad legacy probes are disabled; `shadow`, `legacy`, and `off` remain available for measurement and rollback. |
 | [write-gate](skills/write-gate/SKILL.md) | before any persistent write | 72 | Content-quality gate on durable memory. Signal-score (ogham lineage) + why-clause enforcement (codenamev lineage). Prevents reasonless decisions and recap-style writes. |
 | [wiki-refresh](skills/wiki-refresh/SKILL.md) | "refresh wiki / audit vs code" | 76 | Code-grounded reconcile of wiki pages (Keep/Update/Consolidate/Replace/Delete) via `audit-refs`; emits typed `contradicts:` edges. Ground-truth reconcile. |
 | [cache-lint](skills/cache-lint/SKILL.md) | before merging hooks/skills, CI | 71 | Static audit against Anthropic's 6 prompt-cache rules (ussumant lineage). FAIL on dynamic content above breakpoint, prefix mutation by Stop-hooks, etc. |

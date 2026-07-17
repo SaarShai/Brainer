@@ -47,11 +47,12 @@ remain unsatisfied:
 
 After independent adversarial review, the 8,300-run matrix was replaced as the
 active plan rather than merely held for those blockers. Fourteen quarantined
-bodies were hash-classified: 4 retire, 5 demote into role briefs, 4 retain as
-explicit custom tool/workflow skills, and `verify-before-completion` splits its
-generic prose from the retained compact probe and mechanical verifier. This is
-a content/taxonomy verdict plus observational evidence, not a causal task
-outcome verdict.
+bodies were hash-classified into candidate dispositions: 4 proposed retire, 5
+proposed demotion into role briefs, 4 retain as explicit custom tool/workflow
+skills, and `verify-before-completion` proposed split of generic prose from the
+retained compact probe and mechanical verifier. This is a content/taxonomy
+hypothesis plus observational evidence, not a causal task-outcome verdict or
+authorization to delete a body.
 
 The carrier-free native-delivery smoke ran four fresh fixtures with an identical
 nonce-free prompt. After Claude authentication was restored, Codex and Claude
@@ -77,18 +78,19 @@ default prompt stack or deterministic scoring path.
 > (16-skill default path, ~1080-token tax, the `skill-pulse` hook) were measured for
 > the **v1.6–v1.7-era catalog** and are kept as the **historical measurement record** —
 > the *deltas and mechanisms* (canary +0.44 ×2 families, prompt-triage −20.9%, memory>cold)
-> still hold. The **current catalog is 21 skills (v1.13)**; `skill-pulse` was absorbed into
+> still hold. The **current catalog is 30 skills**; `skill-pulse` was absorbed into
 > `compliance-canary` at v1.10, and `learn-skill` (v1.13) + `brainer-audit` ship `auto-install: false`.
-> Re-measuring the static cost for the 21-skill catalog is tracked in GOAL.md; until then read
+> Re-measuring the static cost for the 30-skill catalog is tracked in GOAL.md; until then read
 > the absolute token counts as that era's, not today's.
 > The historical install/load recommendations below are not current defaults;
-> use the 2026-07-16 quarantine classification for current prompt-surface decisions.
+> use the 2026-07-16 quarantine classification as a set of manual/unproven
+> candidate dispositions, not retirement verdicts.
 
-## Stacking & anti-patterns (read before tuning install)
+## Historical stacking record (not current install guidance)
 
 Skills compound across axes (output × input × routing × memory) but **diminish within the same axis** — two output-reducers don't sum, they compound on the remainder.
 
-**Workload → which bodies actually earn their cost:**
+**Historical workload mapping used by the v1.6-v1.7 evaluations:**
 
 | Signal in the user's prompt | Load body |
 |---|---|
@@ -111,9 +113,15 @@ Skills compound across axes (output × input × routing × memory) but **diminis
 - **Verbose-prone workloads** (planning, explanation, code review, multi-step bug fixing): catalog is a clear net win. Stack output reducers on top of the input reducers and expect −60% to −85% total tokens.
 - **Short imperative workloads** (commits, fixes, one-line answers): catalog adds marginal cost without proportional savings. Even with prompt caching, expect roughly flat to +10% total.
 
-**Workload-aware install:** keep the auto-wired hook skills (`prompt-triage`, `context-keeper`) and `caveman-ultra` everywhere; `output-filter` is worth wiring on noisy-Bash workloads but ships no auto-installer — wire it by hand (pipe form or a PostToolUse/Bash hook). Trim the discipline skills (`plan-first-execute`, `lean-execution`, `verify-before-completion`) on machines that mostly do quick imperative work.
+**Historical workload-aware recommendation (superseded):** the v1.6-v1.7
+record recommended auto-wiring `prompt-triage` and `caveman-ultra`. Current
+frontier installs do not do so. The old prompt-triage result remains useful
+historical evidence, but it does not establish current native-host outcome lift.
 
-**Default install path:** all 16 skills are default-installed since v1.7. `skill-pulse` and `compliance-canary` (anti-drift UserPromptSubmit hooks) were opt-in until the cross-model long-run replicated their uplift on a second model family (canary +0.44 ×2 families, pulse +0.27; see *Cross-model long-run*) — promoted to `auto-install: true` in `bc2ec0d` alongside the caveman-ultra drift-hardening they enforce. Exp9's "canary > pulse, `both` ≯ canary" still holds: on constrained installs keep canary, drop pulse first. The default hook path: `prompt-triage` (UserPromptSubmit, measured −20.9%), `context-keeper` (PreCompact, measured), `skill-pulse` + `compliance-canary` (UserPromptSubmit). The former auto-wired `loop-breaker` (PreToolUse) and the opt-in `compress-context` were **cut at v1.6.0** (see *Catalog cuts*).
+**Historical default install path:** all 16 skills were default-installed in the
+v1.7-era measurement. That path included `prompt-triage`, `caveman-ultra`, and
+the pre-frontier canary behavior. It is preserved here to interpret old result
+files, not to describe or recommend the current installer.
 
 ## Headline numbers
 

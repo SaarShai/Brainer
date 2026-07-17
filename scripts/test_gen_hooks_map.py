@@ -46,6 +46,9 @@ def main() -> int:
         for want in ("PreCompact", "SessionEnd", "Stop"):
             check(f"live context-keeper has {want}", want in evs, True)
 
+    check("prompt-triage is opt-in", rows["prompt-triage"]["root_default"], False)
+    check("compliance-canary is root-default", rows["compliance-canary"]["root_default"], True)
+
     print()
     if FAILS:
         print(f"FAILED: {len(FAILS)}")

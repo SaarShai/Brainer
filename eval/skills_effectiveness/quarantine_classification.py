@@ -22,7 +22,7 @@ DISPOSITIONS = {"retire", "demote-role-brief", "retain-manual", "split"}
 
 def load_and_validate(path: Path = DEFAULT_SOURCE) -> dict:
     data = json.loads(path.read_text())
-    if data.get("schema_version") != 1:
+    if data.get("schema_version") != 2:
         raise ValueError("unsupported classification schema")
     rows = data.get("skills", [])
     names = [row.get("name") for row in rows]
@@ -32,6 +32,11 @@ def load_and_validate(path: Path = DEFAULT_SOURCE) -> dict:
         raise ValueError(f"classification set mismatch: {sorted(set(names) ^ EXPECTED)}")
     if data.get("policy", {}).get("auto_surface") != "none":
         raise ValueError("quarantined skills must have no automatic prompt surface")
+    policy = data.get("policy", {})
+    if policy.get("delete_by_default") is not False:
+        raise ValueError("quarantine must not authorize automatic deletion")
+    if policy.get("decision_status") != "proposal_pending_candidate_specific_evidence":
+        raise ValueError("classification must remain a proposal until candidate-specific evidence lands")
     for row in rows:
         if row.get("disposition") not in DISPOSITIONS:
             raise ValueError(f"invalid disposition for {row['name']}")
@@ -55,14 +60,16 @@ def render(data: dict) -> str:
         f"Reviewed: {data['classified_at']}. Scope: {len(data['skills'])} experimental/manual prompt bodies.",
         "No body is default-on. Hash changes invalidate the classification and require re-review.",
         "",
-        "## Decision summary",
+        "## Candidate disposition summary",
         "",
-        f"- Retire after expiry: {counts['retire']}",
-        f"- Demote into compact role briefs: {counts['demote-role-brief']}",
+        f"- Proposed retire, pending a candidate-specific gate: {counts['retire']}",
+        f"- Proposed demotion into compact role briefs: {counts['demote-role-brief']}",
         f"- Retain as explicit tool/workflow skills: {counts['retain-manual']}",
-        f"- Split prose from retained mechanisms: {counts['split']}",
+        f"- Proposed split of prose from retained mechanisms: {counts['split']}",
         "",
-        "| Skill | Class | Disposition | Reason |",
+        "These are content-taxonomy hypotheses, not causal outcome verdicts.",
+        "",
+        "| Skill | Class | Candidate disposition | Reason |",
         "|---|---|---|---|",
     ]
     for row in data["skills"]:
@@ -70,9 +77,9 @@ def render(data: dict) -> str:
         lines.append(f"| `{row['name']}` | {row['class']} | **{row['disposition']}** | {reason} |")
     lines.extend([
         "",
-        "## Expiry rule",
+        "## Review rule",
         "",
-        f"The quarantine clock is {data['policy']['expiry_days']} days. A body scheduled for removal survives only with a named dependency or positive native-delivery evidence. Git history is the rollback path.",
+        f"Re-review after {data['policy']['review_after_days']} days. Time alone never deletes a body. Removal requires candidate-specific evidence that clears the preregistered retirement or harmfulness gate, plus an explicit implementation change.",
         "",
         "Executable tools and compact canary mechanisms are retained or removed independently from their explanatory prose. No classification here authorizes propagation to consumer repositories.",
         "",

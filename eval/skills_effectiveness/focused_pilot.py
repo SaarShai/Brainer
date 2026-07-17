@@ -296,6 +296,26 @@ def validated_outcomes(directory: Path) -> list[dict]:
     return rows
 
 
+def campaign_summary(attempted: int, completed: int, blockers: int, skipped: int,
+                     cumulative_outcomes: int, cumulative_blockers: int) -> dict:
+    return {
+        "schema_version": 3,
+        "preregistration_sha256": PREREG_SHA256,
+        "planned_outcomes": PREREG["planned_calls"],
+        "this_invocation": {
+            "attempted": attempted,
+            "newly_completed": completed,
+            "new_blockers": blockers,
+            "already_valid": skipped,
+        },
+        "totals": {
+            "valid_outcomes": cumulative_outcomes,
+            "blockers": cumulative_blockers,
+            "missing_outcomes": PREREG["planned_calls"] - cumulative_outcomes,
+        },
+    }
+
+
 def campaign(directory: Path, timeout: int, max_runs: int | None) -> int:
     attempted = completed = blockers = skipped = 0
     for index, row in enumerate(plan_rows(), 1):
@@ -322,11 +342,8 @@ def campaign(directory: Path, timeout: int, max_runs: int | None) -> int:
         print(f"[{index:02d}/{PREREG['planned_calls']}] {row['lane']} {row['arm']} {row['case']['id']} -> {record['record_status']}", flush=True)
     cumulative_outcomes = len(list((directory / "outcomes").glob("*.json")))
     cumulative_blockers = len(list((directory / "blockers").glob("*.json")))
-    summary = {"schema_version": 2, "preregistration_sha256": PREREG_SHA256,
-               "planned": PREREG["planned_calls"], "attempted": attempted, "completed": completed,
-               "blockers": blockers, "skipped": skipped,
-               "cumulative_outcomes": cumulative_outcomes,
-               "cumulative_blockers": cumulative_blockers}
+    summary = campaign_summary(attempted, completed, blockers, skipped,
+                               cumulative_outcomes, cumulative_blockers)
     atomic_json(directory / "campaign-summary.json", summary)
     print(json.dumps(summary, sort_keys=True), flush=True)
     return 1 if blockers else 0

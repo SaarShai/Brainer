@@ -302,6 +302,13 @@ class HarnessTests(unittest.TestCase):
         self.assertEqual(2.5, focused_pilot.median([4, 1, 3, 2]))
         self.assertIsNone(focused_pilot.median([]))
 
+    def test_focused_pilot_summary_separates_resume_from_outcomes(self):
+        summary = focused_pilot.campaign_summary(0, 0, 0, 76, 76, 0)
+        self.assertEqual(0, summary["this_invocation"]["newly_completed"])
+        self.assertEqual(76, summary["this_invocation"]["already_valid"])
+        self.assertEqual(76, summary["totals"]["valid_outcomes"])
+        self.assertEqual(0, summary["totals"]["missing_outcomes"])
+
     def test_focused_pilot_terminal_usage_only(self):
         codex = "\n".join([
             json.dumps({"type": "turn.completed", "usage": {"input_tokens": 100, "output_tokens": 20}}),

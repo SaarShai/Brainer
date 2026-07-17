@@ -1,11 +1,16 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "preregistration_sha256": "3d233acba3287b017bc6ed7df70dd0cd30a4a7daca9531727791df84364f678c",
-  "planned": 76,
-  "attempted": 0,
-  "completed": 0,
-  "blockers": 0,
-  "skipped": 76,
-  "cumulative_outcomes": 76,
-  "cumulative_blockers": 0
+  "planned_outcomes": 76,
+  "this_invocation": {
+    "attempted": 0,
+    "newly_completed": 0,
+    "new_blockers": 0,
+    "already_valid": 76
+  },
+  "totals": {
+    "valid_outcomes": 76,
+    "blockers": 0,
+    "missing_outcomes": 0
+  }
 }

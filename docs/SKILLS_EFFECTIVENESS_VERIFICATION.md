@@ -42,9 +42,11 @@ protocol. More runs do not repair that construct mismatch.
 The replacement outcome experiment was `FRONTIER` versus `OFF`: 19 frozen task
 families, current Codex and Claude frontier lanes, native delivery, and a
 preregistered materiality threshold. The 14 experimental/manual bodies did not
-each receive N=50. Their current decisions are hash-pinned in
+each receive N=50. Their candidate dispositions are hash-pinned in
 `eval/skills_effectiveness/quarantine_classification.json` and reviewed again
-if a body changes.
+if a body changes. Those labels are content-taxonomy hypotheses, not causal
+retirement verdicts; the 30-day point is a review date, never an automatic
+deletion date.
 
 The carrier-free feasibility smoke is a prerequisite, not an outcome verdict.
 After Claude authentication was restored, both native host lanes cleared it.
@@ -54,6 +56,14 @@ zero scope violations and paired median token overhead of +1.20% on Codex and
 +1.74% on Claude. The preregistered expansion gate failed on zero observed
 pass-rate lift. See
 `eval/results/skills-effectiveness/focused-pilot-v2-analysis.md`.
+
+Quiet frontier defaults are a reversible invocation policy, not a finding that
+all 14 bodies are harmful. `prompt-triage` remains manual because its historical
+N=13 token result did not test the current native host path, and the focused
+pilot did not isolate it. `learn-skill` and `loop-engineering` retain their
+deterministic tools and explicit workflows. `learn-skill` telemetry/nudge hooks
+remain opt-in pending a present-host disable trial; `loop-engineering` has no
+host hook to restore.
 
 ## Frozen full-matrix contract
 
