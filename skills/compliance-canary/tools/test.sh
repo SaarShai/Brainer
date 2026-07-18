@@ -1986,6 +1986,31 @@ write_transcript "$TX" \
 out=$(call cc107 sk106 "$TX" s107)
 if emitted "$out" && echo "$out" | grep -q 'claim_without_evidence'; then ok "context-gated probe fires on .ai session"; else no "context-gated probe fires on .ai session" "got: $(echo "$out" | head -c200)"; fi
 
+echo "[108] new_machinery_no_borrow_checkpoint: new solver file with no checkpoint line fires"
+PROBES='[{"id":"borrow","kind":"new_machinery_no_borrow_checkpoint","message":"state what existing tool was checked before building bespoke machinery"}]'
+make_skill_with_probes sk108 le "$PROBES"
+TX="$TRANSCRIPT_DIR/t108.jsonl"
+write_transcript "$TX" \
+  "$(assistant_text 'Building a placement solver for this.' u108)" \
+  "$(assistant_tool_use Write '{"file_path":"/proj/src/placement_solver.py","content":"class Solver: pass"}')"
+out=$(call cc108 sk108 "$TX" s108)
+if emitted "$out" && echo "$out" | grep -q 'new_machinery_no_borrow_checkpoint'; then ok "new solver file, no checkpoint → fires"; else no "new solver file, no checkpoint → fires" "got: $(echo "$out"|head -c200)"; fi
+
+echo "[109] new_machinery_no_borrow_checkpoint: same file WITH a borrow-checkpoint line stays silent"
+TX="$TRANSCRIPT_DIR/t109.jsonl"
+write_transcript "$TX" \
+  "$(assistant_text 'Checked build123d and CadQuery — neither offers a constraint solver that fits this geometry; building bespoke.' u109)" \
+  "$(assistant_tool_use Write '{"file_path":"/proj/src/placement_solver.py","content":"class Solver: pass"}')"
+out=$(call cc109 sk108 "$TX" s109)
+if [ -z "$out" ]; then ok "checkpoint present → silent"; else no "checkpoint present → silent" "got: $(echo "$out"|head -c200)"; fi
+
+echo "[110] new_machinery_no_borrow_checkpoint: an ordinary file write stays silent"
+TX="$TRANSCRIPT_DIR/t110.jsonl"
+write_transcript "$TX" \
+  "$(assistant_tool_use Write '{"file_path":"/proj/src/utils.py","content":"def helper(): pass"}')"
+out=$(call cc110 sk108 "$TX" s110)
+if [ -z "$out" ]; then ok "non-machinery filename → silent"; else no "non-machinery filename → silent" "got: $(echo "$out"|head -c200)"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then

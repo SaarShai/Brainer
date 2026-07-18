@@ -2589,6 +2589,55 @@ def detect_whitespace_only_edit(probe: dict, _messages, tool_uses: list[dict], _
 DETECTORS["whitespace_only_edit"] = detect_whitespace_only_edit
 
 
+# Detector for the borrow-checkpoint rule (research-and-borrow doctrine,
+# CLAUDE.md code-craft directives). Fires when a Write tool commissions a NEW
+# file whose path names build machinery (solver/cache/gate/orchestrator/
+# pipeline/scheduler/queue) and no recent assistant message states what
+# existing tool was checked. Path-pattern heuristic, not semantic
+# understanding — false negatives (bespoke machinery under an unnamed path)
+# are expected and acceptable; the probe only needs to catch the common case
+# where the filename itself announces new infrastructure.
+_BORROW_MACHINERY_PATH_RE = re.compile(
+    r"(?:^|/)(?:[a-z0-9_]*(?:solver|scheduler|orchestrat\w*|pipeline)[a-z0-9_]*"
+    r"|(?:cache|queue)_[a-z0-9_]*|[a-z0-9_]*_(?:cache|queue)|gate_[a-z0-9_]*|[a-z0-9_]*_gate)\.[a-z0-9]+$",
+    re.IGNORECASE,
+)
+_BORROW_CHECKPOINT_RE = re.compile(
+    r"\b(?:checked|borrow[- ]check(?:ed|point)?|no existing (?:tool|library|framework)|"
+    r"none (?:fit|fits)|evaluated)\b.{0,120}?\b(?:fit|exist|library|framework|tool|package)",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def detect_new_machinery_no_borrow_checkpoint(probe: dict, messages: list[dict], tool_uses: list[dict],
+                                              _tool_errors=None, user_prompt: str = "",
+                                              traj_stats: dict | None = None) -> dict | None:
+    pat = _BORROW_MACHINERY_PATH_RE
+    custom = probe.get("path_pattern")
+    if custom:
+        try:
+            pat = re.compile(custom, re.IGNORECASE)
+        except re.error as e:
+            log_err(f"bad-regex probe={probe.get('_probe_id')} err={e!r}")
+            return None
+    hit_path = None
+    for tu in (tool_uses or []):
+        if tu.get("name", "") != "Write":
+            continue
+        fp = str((tu.get("input") or {}).get("file_path", ""))
+        if fp and pat.search(fp):
+            hit_path = fp
+    if not hit_path:
+        return None
+    for m in (messages or []):
+        if _BORROW_CHECKPOINT_RE.search(m.get("text", "")):
+            return None
+    return {"path": hit_path}
+
+
+DETECTORS["new_machinery_no_borrow_checkpoint"] = detect_new_machinery_no_borrow_checkpoint
+
+
 class _ProbeBudgetExceeded(BaseException):
     """Raised by the SIGALRM handler to abort a runaway probe phase. Derives
     from BaseException (not Exception) on purpose: run_probes' per-detector

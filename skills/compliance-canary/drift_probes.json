@@ -12,5 +12,10 @@
     "pattern": "(?:hook[^\\n]{0,40}(?:exit(?:ed|ing)?\\s+(?:code\\s+)?[1-9]|non-?zero\\s+exit|traceback)|(?:PreToolUse|UserPromptSubmit|PreCompact|SessionEnd)\\s+hook[^\\n]{0,60}(?:fail|error|block|denied))",
     "severity": "warn",
     "message": "a hook appears to have exited non-zero, blocked a call, or leaked a traceback — hooks MUST exit 0 on every path and emit their stdout payload exactly once at the end. Run `python3 skills/compliance-canary/tools/hook_validate.py` to find the offending entrypoint; wrap slow work in skills/compliance-canary/tools/deadline.py (hard_deadline / run_or_exit0)."
+  },
+  {
+    "id": "new-machinery-no-borrow-checkpoint",
+    "kind": "new_machinery_no_borrow_checkpoint",
+    "message": "new build machinery (solver/cache/gate/orchestrator/pipeline) was written without a borrow-checkpoint line — state in one line which existing framework/library/tool was checked and why it doesn't fit before commissioning bespoke infrastructure. Building bespoke after a real check is a legitimate pass; skipping the check is the Reinvented Wheel failure mode."
   }
 ]

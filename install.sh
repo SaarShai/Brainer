@@ -256,8 +256,18 @@ a skill happens to trigger:
   `dependency-manifest-changed` `compliance-canary` probes enforce it mechanically.)
 - **Failure-mode interrupt.** If mid-task you slide into scope-creep (Kitchen
   Sink), premature abstraction (abstract only on the 3rd repeat — rule of three),
-  happy-path-only (error path ignored), or a fix cascading across files (Runaway
-  Refactor) — STOP, restate the goal, narrow scope.
+  happy-path-only (error path ignored), a fix cascading across files (Runaway
+  Refactor), or building what an existing tool already provides (Reinvented
+  Wheel — STOP, run a borrow check) — STOP, restate the goal, narrow scope.
+- **Borrow-checkpoint.** Before commissioning new machinery (a solver, cache,
+  gate, orchestration primitive, or pipeline), state in one line which
+  existing framework/library/tool was checked and why it doesn't fit. A lane
+  brief commissioning new machinery without that line is malformed. The
+  checkpoint's job is to force the check, not to forbid building — "checked
+  X/Y/Z, none fit because …, building bespoke" is a legitimate pass. For the
+  deep version (multi-source comparison, trade-off writeup) use `/think`;
+  this is the always-on one-line gate that makes sure the check happens at
+  all.
 CRAFT
   cat <<'MATRIX'
 
