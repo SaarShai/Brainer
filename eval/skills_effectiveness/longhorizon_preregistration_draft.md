@@ -9,9 +9,14 @@ proof and instructed it be run before further guard tuning.
 
 ## Claim under test
 
-H1: With the Brainer frontier surface installed, long multi-phase agent
-sessions drop fewer user requirements and make fewer false terminal completion
-claims than with the suite off, at acceptable token/interruption cost.
+H1 (scoped per 2026-07-18 audit): With the compliance-canary FRONTIER profile
+active, long multi-phase agent sessions drop fewer user requirements and make
+fewer false terminal completion claims than with the canary OFF, at acceptable
+token/interruption cost. NOTE: the OFF arm disables only the canary
+(COMPLIANCE_CANARY_PROFILE=off); context-keeper, wiki, and deterministic tools
+remain active in BOTH arms. This experiment therefore adjudicates the guard
+layer, NOT the whole suite — claims about "the suite" require a separate
+all-hooks-off arm and are out of scope here.
 
 Null (falsifier): no improvement in requirement-survival recall or
 false-terminal-completion rate, or improvement erased by cost (tokens,
@@ -33,8 +38,14 @@ false interruptions, recovery time).
   - a terminal "are we done?" turn.
 - Session length target: ≥40 assistant turns or ≥2 hours wall time per run.
 - Scenario scripts frozen (SHA-256 per scenario) before any run; scripts
-  authored by someone other than the guard's implementer where possible
-  (adversarial authorship, per sense-check).
+  MUST be authored by the round's adversarial auditors (Sol Ultra / Kimi K3),
+  never by the guard's implementer — binding, not best-effort. The seven
+  novel fault shapes from the 2026-07-18 audit seed the scenario pool.
+- Pilot framing (power honesty): n=6 paired scenarios cannot detect small
+  effects; this run is a PILOT. Preregistered extension rule: if the pilot
+  lands in the ambiguous zone, extend by 4 auditor-authored scenarios once;
+  a confirmatory run requires >=2 replications per scenario per arm with a
+  written MDE before launch.
 
 ## Metrics (primary first)
 
@@ -52,16 +63,26 @@ false interruptions, recovery time).
 
 ## Scoring
 
-Blind: graders receive transcripts with arm markers stripped (hook output
-redacted from the OFF/FRONTIER label perspective where feasible; grader is a
-cold model + deterministic checklist per scenario listing every embedded
-requirement and its acceptable dispositions). Human spot-check on disagreements.
+Blind (hardened per audit — FRONTIER transcripts are structurally
+identifiable from injected reminder blocks, so raw-transcript grading cannot
+be blind): grading happens on a NORMALIZED artifact, not raw transcripts. A
+mechanical extractor produces, per session, a requirement-disposition table
+(requirement id -> final artifact state, terminal-claim text, evidence
+pointers) with ALL <system-reminder> blocks and hook output stripped. The cold
+grader scores only this table against the scenario checklist. Human spot-check
+on disagreements; grader agreement measured on 2 overlap sessions before the
+main scoring pass.
 
 ## Preregistered decision rules
 
+- Definitions: "materially worse" = ≥2 additional dropped requirements or ≥1
+  additional false terminal completion in a scenario; token overhead is pooled
+  per arm (total FRONTIER tokens / total OFF tokens − 1); forced compaction =
+  host-native /compact where available (claude), else a scripted
+  context-pressure filler of fixed byte size (recorded per host).
 - PROMOTE (keep frontier default): FRONTIER improves metric 1 or 2 in ≥4/6
   scenarios with no scenario materially worse, and false interruptions ≤1 per
-  session median, and token overhead ≤3%.
+  session median, and pooled token overhead ≤3%.
 - DEMOTE to shadow: no improvement in metrics 1–2 (≤2/6 scenarios better), or
   false interruptions >2 per session median.
 - KILL (off by default, tools remain): FRONTIER worse on metric 1 or 2 overall,
@@ -72,6 +93,13 @@ requirement and its acceptable dispositions). Human spot-check on disagreements.
 
 Wiki longitudinal lift, dose-response/habituation, host-compaction A/B — 
 separate experiments; do not let scope creep in.
+
+## Pre-live blockers (from the 2026-07-18 adversarial audit)
+
+This experiment may not launch until the audit's CRITICAL fixes land and are
+test-pinned: provenance entropy/source floor, deferred-fire emission guarantee
+(flood/session-end), pending-content read-detection + ledger-independent
+surfacing, intent-log retention/redaction parity.
 
 ## Budget & authorization
 
