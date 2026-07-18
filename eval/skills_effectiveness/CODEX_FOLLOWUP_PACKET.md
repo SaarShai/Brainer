@@ -7,6 +7,16 @@ Prepared 2026-07-18, after the long-horizon probe verdict (commit `0a5c927`:
 previous packet (`CODEX_HANDOFF_PACKET.md`): verify every fact fresh; this
 document decays.
 
+**Lane split (2026-07-18): lanes 2 and 4 are reassigned to a separate,
+possibly concurrent Kimi-K3 run (`CODEX_KIMI_PACKET.md`). You own lanes 1
+and 3 only. Do not edit `longhorizon_score_counted.py`,
+`test_longhorizon_score_counted.py`, or run the suite-health/cache-lint
+sweeps — and expect those files to change under you; `git pull --ff-only`
+before each commit. Lane 3 still sequences after lanes 1 AND 2 (check
+that lane 2's commit has landed on `main` before regenerating the
+bundle; if it hasn't, finish lane 1 and report rather than waiting
+indefinitely).**
+
 **None of these lanes involves paid counted sessions.** All four are
 offline/deterministic (lane 1 may use cheap grading only if its own eval
 requires it — check before spending). The frozen experiment is scored and
