@@ -1332,6 +1332,12 @@ def intent_capture_text(prompt_text: str, prompt_text_user: str) -> str:
         return ""
     if _TASK_NOTIFICATION_BLOCK_RE.search(prompt_text or ""):
         return _INTENT_MECHANICAL_BLOCK_RE.sub("", prompt_text or "")
+    if not (_HARNESS_BLOCK_RE.search(prompt_text or "")
+            or _HARNESS_OPEN_RE.search(prompt_text or "")):
+        # No harness content anywhere: the raw prompt IS the user's text —
+        # store it byte-identical (the stripped remainder loses outer
+        # whitespace, breaking the verbatim guarantee; R3-1).
+        return prompt_text or ""
     return prompt_text_user
 
 
@@ -1672,28 +1678,28 @@ def notification_task_id_provenanced(transcript_path: str, task_id: str) -> bool
     if not p.is_file():
         return False
     try:
-        raw = p.read_text(encoding="utf-8", errors="replace")
+        # Streaming line iteration — never materializes the whole transcript
+        # (long sessions are exactly where this path runs; R3-4).
+        with open(p, encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                if task_id not in line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(obj, dict):
+                    continue
+                try:
+                    candidates = _normalize_events([obj])
+                except Exception:
+                    candidates = [obj]
+                for cand in candidates:
+                    if isinstance(cand, dict) and _task_id_in_tool_or_substrate_content(cand, task_id):
+                        return True
     except OSError as e:
         log_err(f"transcript-read-fail path={transcript_path} err={e!r}")
         return False
-    if task_id not in raw:
-        return False
-    for line in raw.splitlines():
-        if task_id not in line:
-            continue
-        try:
-            obj = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if not isinstance(obj, dict):
-            continue
-        try:
-            candidates = _normalize_events([obj])
-        except Exception:
-            candidates = [obj]
-        for cand in candidates:
-            if isinstance(cand, dict) and _task_id_in_tool_or_substrate_content(cand, task_id):
-                return True
     return False
 
 
@@ -1791,14 +1797,10 @@ def _notification_output_read(events: list[dict], out_path: str) -> bool:
                     continue  # Edit/Write/NotebookEdit/other: not read-shaped
                 if matched:
                     return True
-            elif b.get("type") == "tool_result":
-                if b.get("is_error"):
-                    continue
-                text = _tool_result_text(b.get("content"))
-                if _DELETION_TOKEN_RE.search(text) or _DELETION_RESULT_RE.search(text):
-                    continue
-                if _path_matches_event_text(text, out_path, base, parent):
-                    return True
+            # NOTE: no standalone tool_result branch — an uncorrelated result
+            # merely CONTAINING the path (printf/echo/ls output) is not a
+            # read; clearing correlates exclusively with a successful
+            # read-shaped tool_use (R3-2).
     return False
 
 

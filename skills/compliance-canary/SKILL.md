@@ -111,7 +111,9 @@ deliberately keeps the pre-fix behavior for rollback.
 The remainder of this document describes `legacy` rollback behavior.
 
 The single, non-optional drift defense for long sessions. One `UserPromptSubmit`
-hook runs **four orthogonal mechanisms** in one process (skill-pulse was folded
+hook runs **four orthogonal mechanisms** in one process — plus a fifth,
+legacy-profile-only probe-escalation mechanism (§ escalation below) that
+frontier/shadow never run (skill-pulse was folded
 in here 2026-06-16 — the leaner "one reactive hook instead of two" the eval
 notes had flagged; the request ledger was added 2026-06-17; the correction
 ledger closes the LEARNING_CONTRACT §2 gap — a user correction must become a
@@ -252,7 +254,10 @@ blocks the hook.
 **The sole verbatim exception** (2026-07-18 audit): the shared secret
 scrubber (`skills/_shared/audit_redact.py`, key-like strings only) runs
 over the text before writing — credential-shaped strings never persist;
-everything else stays byte-identical (whitespace included — no trimming).
+everything else stays byte-identical (whitespace included — no trimming)
+for any prompt free of harness-injected blocks; a prompt that DID carry
+harness blocks stores the user-authored remainder after block removal
+(outer whitespace around removed blocks is necessarily lost).
 If the scrubber itself FAILS, the record degrades to the
 `[REDACTION-FAILED]` placeholder plus the ORIGINAL text's sha256 — raw
 text never reaches disk on any path. Hygiene riders from the same audit:
