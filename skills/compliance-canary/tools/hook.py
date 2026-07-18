@@ -1233,6 +1233,121 @@ def strip_harness_injected(text: str) -> str:
     return out.strip()
 
 
+# ---- task-notification evidence boundary (frontier/shadow only) -------------
+# A harness <task-notification> arrives on the UserPromptSubmit channel. When
+# it reports a TERMINAL SUCCESS for a self-contained substrate job kind (timer
+# wakeup / background command / advisor consult), the notification IS the
+# evidence boundary for this turn: the agent authored no claim here, so scoring
+# its prior prose against claim_without_evidence false-fires (2/2 live field
+# FPs, 2026-07-18 review). The predicate is deliberately NARROW and FAIL-OPEN —
+# every condition must POSITIVELY match; anything ambiguous (delegate prose
+# quoting a notification, a user ask riding along, a failed/killed job, an
+# unrecognized job kind, world-state assertion prose) leaves the probe surface
+# untouched. Marker shape confirmed against live transcripts:
+#   <task-notification><task-id>…</task-id><tool-use-id>…</tool-use-id>
+#   <output-file>…</output-file><status>completed</status>
+#   <summary>Background command "…" completed (exit code 0)</summary>
+#   [<result>…</result>]</task-notification>
+_TASK_NOTIFICATION_BLOCK_RE = re.compile(r"<task-notification>(.*?)</task-notification>", re.S)
+_TASK_NOTIFICATION_TAG_RES = {
+    tag: re.compile(rf"<{tag}>(.*?)</{tag}>", re.S)
+    for tag in ("task-id", "tool-use-id", "output-file", "status", "summary", "result")
+}
+_NOTIFICATION_SUCCESS_STATUS = {"completed", "complete", "succeeded", "success", "ok"}
+_NOTIFICATION_FAILURE_STATUS = {"failed", "failure", "error", "errored", "killed",
+                                "timed out", "timeout", "cancelled", "canceled", "aborted"}
+_NOTIFICATION_SUCCESS_RE = re.compile(r"(?i)\bexit code 0\b")
+_NOTIFICATION_FAILURE_RE = re.compile(r"(?i)\bexit code [1-9]\d*\b")
+# Allowlisted self-contained job kinds, matched on the summary's LEADING label
+# (the substrate's own job-type marker). Anything unlisted — e.g. `Dynamic
+# workflow "…"` (an implementation subagent) — is unclassified → no suppression.
+_NOTIFICATION_KIND_RES = (
+    ("timer", re.compile(r"(?i)^\s*(?:timer|reminder|alarm|wake-?up|scheduled wakeup)\b")),
+    ("background-command", re.compile(r"(?i)^\s*background (?:command|task|job|process)\b")),
+    ("advisor", re.compile(r"(?i)^\s*(?:advisor(?:\s+consult)?|consult(?:ation)?)\b")),
+)
+# The substrate's own terminal-status vocabulary, removed before scanning the
+# notification's prose for world-state assertions — the `… completed (exit
+# code 0)` wrapper IS the status report, never a claim.
+_NOTIFICATION_STATUS_WORDS_RE = re.compile(
+    r"(?i)\bcompleted\b|\bsucceeded\b|\bsuccessfully\b|\bfinished\b|\bfailed\b|"
+    r"\bexit code \d+\b|\(exit code \d+\)")
+# World-state ASSERTION prose (the forwarded-subagent-claim shape: "files
+# moved", "tests pass", "DONE", "READY FOR JUDGING"). Present anywhere in the
+# notification's own prose → the evidence gate stays armed.
+_NOTIFICATION_WORLD_STATE_RE = re.compile(
+    r"(?i)\bfiles? (?:moved|created|deleted|written|updated|renamed|copied|modified)\b|"
+    r"\btests? (?:pass|passed|passing|green)\b|"
+    r"\bready for judging\b|"
+    r"\b(?:done|fixed|verified|shipped|deployed|merged|committed)\b")
+NOTIFICATION_PENDING_CAP = 20  # bound state-file growth of pointer-only records
+
+
+def _notification_tag(body: str, tag: str) -> str:
+    m = _TASK_NOTIFICATION_TAG_RES[tag].search(body)
+    return m.group(1).strip() if m else ""
+
+
+def notification_suppression_decision(prompt_text: str, prompt_text_user: str) -> dict:
+    """Classify the current UserPromptSubmit payload for the notification
+    evidence boundary. FAIL-OPEN by construction: every condition must
+    POSITIVELY match, else ``active`` stays False and the turn is scored
+    exactly as before. Suppression requires ALL of:
+      (a) substrate-authored — no user-authored remainder after harness
+          stripping, exactly one CLOSED <task-notification> block, with a
+          task-id (delegate prose quoting a notification, a pasted fake, or a
+          real ask riding along → out);
+      (b) terminal SUCCESS — completed-class status / exit code 0, with no
+          failure signal anywhere;
+      (c) allowlisted self-contained job kind — timer wakeup, background
+          command, or advisor consult — and NO world-state assertion prose in
+          the notification's own text (an implementation subagent's "files
+          moved / tests pass / DONE / READY FOR JUDGING" keeps the gate armed:
+          that forwarded claim is the guard's one proven live catch);
+      (d) the notification carries its own result content or an output-file
+          pointer (pointer-only → the caller records a pending_content entry).
+    """
+    decision = {"active": False, "kind": "", "pointer_only": False,
+                "output_file": "", "recorded_iso": ""}
+    try:
+        if prompt_text_user:
+            return decision
+        blocks = _TASK_NOTIFICATION_BLOCK_RE.findall(prompt_text or "")
+        if len(blocks) != 1:
+            return decision
+        body = blocks[0]
+        if not _notification_tag(body, "task-id"):
+            return decision
+        status = _notification_tag(body, "status").lower()
+        summary = _notification_tag(body, "summary")
+        result = _notification_tag(body, "result")
+        success = status in _NOTIFICATION_SUCCESS_STATUS or bool(
+            _NOTIFICATION_SUCCESS_RE.search(summary))
+        failure = (status in _NOTIFICATION_FAILURE_STATUS
+                   or bool(_NOTIFICATION_FAILURE_RE.search(summary)))
+        if not success or failure:
+            return decision
+        kind = next((name for name, rx in _NOTIFICATION_KIND_RES if rx.search(summary)), "")
+        if not kind:
+            return decision
+        prose = _NOTIFICATION_STATUS_WORDS_RE.sub(" ", summary + "\n" + result)
+        if _NOTIFICATION_WORLD_STATE_RE.search(prose):
+            return decision
+        output_file = _notification_tag(body, "output-file")
+        if not result and not output_file:
+            return decision
+        decision.update({
+            "active": True,
+            "kind": kind,
+            "pointer_only": not result and bool(output_file),
+            "output_file": output_file,
+            "recorded_iso": time.strftime("%FT%TZ", time.gmtime()),
+        })
+    except Exception as e:  # fail-open on any classification error
+        log_err(f"notification-classify-fail err={e!r}")
+    return decision
+
+
 # Pure acknowledgements / answers — not new trackable requests. Skipped.
 _LEDGER_TRIVIAL_RE = re.compile(
     r"(?i)^\s*(?:ok(?:ay)?|k|yes|yep|yeah|sure|got it|sounds good|thanks?(?: you)?|"
@@ -2031,8 +2146,9 @@ def format_one_probe(probe: dict) -> str:
         )
     if kind == "claim_without_evidence":
         return (
-            f"- {skill} [claim_without_evidence]: claim {r.get('claim')!r} appears "
-            f"without a verification tool call in last {r.get('lookback')} tool_uses"
+            f"- {skill} [claim_without_evidence]: claim {r.get('claim')!r} has no "
+            f"matching verification evidence in last {r.get('lookback')} tool_uses "
+            f"(no fresh, successful, right-class result)"
         )
     return f"- {skill} [{kind}]: triggered"
 
@@ -2159,6 +2275,10 @@ def main() -> int:
     # Ledger + prompt-scanning probes see only user-AUTHORED text; harness
     # injections (task-notifications, command transcripts) are stripped.
     prompt_text_user = strip_harness_injected(prompt_text)
+    # Task-notification evidence boundary (applied to the frontier/shadow probe
+    # surface below; legacy keeps pre-fix behavior for rollback). Pure fail-open
+    # classification here — no state or telemetry mutation at this point.
+    notification = notification_suppression_decision(prompt_text, prompt_text_user)
 
     with state_lock(path):
         state = load_state(path)
@@ -2240,6 +2360,43 @@ def main() -> int:
             p for p in all_probes if p.get("_probe_id") in frontier_ids
         ]
         ledger_probes = []
+        if notification["active"]:
+            # The current turn is a substrate-authored terminal-SUCCESS
+            # task-notification for an allowlisted self-contained job kind —
+            # suppress claim_without_evidence for THIS turn (the notification
+            # is the evidence boundary; the agent made no claim). Logged as a
+            # suppressed_notification telemetry event so the counterfactual
+            # stays measurable; confined to the frontier/shadow surface so
+            # shadow output stays byte-identical to frontier and legacy keeps
+            # its frozen rollback behavior. Fail-open already happened in the
+            # classifier — reaching this point means every condition matched.
+            kept: list[dict] = []
+            for p in probes:
+                if p.get("kind") != "claim_without_evidence":
+                    kept.append(p)
+                    continue
+                append_telemetry(
+                    session_id, turn, "suppressed_notification",
+                    p.get("_probe_id", "unknown"), False,
+                    f"task-notification kind={notification['kind']} "
+                    f"pointer_only={notification['pointer_only']}")
+            probes = kept
+            if notification["pointer_only"]:
+                # Pointer-only success: the result content has not been seen —
+                # record the output-file pointer as pending_content so the gap
+                # is visible in state instead of silently dropped.
+                with state_lock(path):
+                    state = load_state(path)
+                    pending = state.get("notification_pending_content", [])
+                    if not isinstance(pending, list):
+                        pending = []
+                    pending.append({
+                        "output_file": notification["output_file"],
+                        "turn": turn,
+                        "recorded_iso": notification["recorded_iso"],
+                    })
+                    state["notification_pending_content"] = pending[-NOTIFICATION_PENDING_CAP:]
+                    save_state(path, state)
     # One transcript read feeds the probes, the ledger's wrap-up check, and the
     # correction ledger's bank-resolution check (needs recent Bash tool_uses
     # PAIRED with their tool_results — execution evidence, not just command

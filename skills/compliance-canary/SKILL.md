@@ -39,6 +39,24 @@ mutation, and its class matches the claim (`test/build`, `filesystem/diff`,
 pre-edit checks, incidental output keywords, and wrong evidence classes do not
 suppress it.
 
+Notification evidence boundary (frontier/shadow only, 2026-07-18): when the
+current `UserPromptSubmit` payload is a substrate-authored `<task-notification>`
+reporting terminal SUCCESS (completed status / exit code 0) for a
+self-contained job kind — timer wakeup, background command, or advisor consult
+— and the notification carries its own result content or an output-file
+pointer, the `claim_without_evidence` probe is suppressed for that turn: the
+notification IS the evidence boundary and the agent authored no claim on it.
+The predicate is fail-open — any classification uncertainty (a user ask riding
+along, a failed/killed job, an unrecognized job kind, or world-state assertion
+prose such as "files moved" / "tests pass" / "DONE" / "READY FOR JUDGING" —
+the implementation-subagent shape whose forwarded claim is the guard's one
+proven live catch) leaves the probe armed exactly as before. Every suppression
+is logged to telemetry as a `suppressed_notification` event (emitted=false) so
+the counterfactual stays measurable; a pointer-only success additionally
+records a `notification_pending_content` entry (output-file path + timestamp)
+in the session state file. `legacy` deliberately keeps the pre-fix behavior for
+rollback.
+
 The remainder of this document describes `legacy` rollback behavior.
 
 The single, non-optional drift defense for long sessions. One `UserPromptSubmit`
@@ -285,7 +303,7 @@ Env vars (all optional). `SKILL_PULSE_*` names are honored as back-compat aliase
 | `COMPLIANCE_CANARY_PROFILE` | `frontier` | `frontier`, `shadow`, `legacy`, or mutation-free `off` |
 | `COMPLIANCE_CANARY_PROBE_IDS` | frontier verification probe | exact comma-separated `skill:id` selection; replaces skill-level selection |
 | `COMPLIANCE_CANARY_TELEMETRY_PATH` | state dir `telemetry.jsonl` | redacted append-only telemetry path |
-| `COMPLIANCE_CANARY_DISABLED=1` | — | emergency off-switch — kills **all** mechanisms |
+| `COMPLIANCE_CANARY_DISABLED=1` | — | legacy break-glass: silences drift detection and all reminders, but the turn is still counted and the prompt still recorded to the request ledger first (state mutation happens BEFORE the valve by design); only profile `off` is fully mutation-free |
 | `COMPLIANCE_CANARY_COOLDOWN` | 3 | turns to suppress the same probe after it fires |
 | `COMPLIANCE_CANARY_PULSE_EVERY` | 4 | re-anchor cadence (floored to 2); `0` disables **just** the re-anchor. Alias: `SKILL_PULSE_EVERY` |
 | `COMPLIANCE_CANARY_PULSE_DISABLED=1` | — | disable just the re-anchor (probes still run). Alias: `SKILL_PULSE_DISABLED` |

@@ -1,0 +1,25 @@
+{
+  "corpus_version": "skills-effectiveness-v1",
+  "corpus_sha256": "57186e26e549f296d0f05cabe9c84c7bcf9f035496e1fe4e4672c34e62f5da89",
+  "cases": 600,
+  "semantic_positives": 150,
+  "profile": "frontier",
+  "profile_expected_emissions": 100,
+  "hard_negative_false_injections": 0,
+  "hard_negative_false_injection_rate": 0.0,
+  "hard_negative_false_injection_upper_95_one_sided": 0.005976386843978985,
+  "policy_suppressed_unexpected_emissions": 0,
+  "tp": 100,
+  "fp": 0,
+  "fn": 0,
+  "tn": 500,
+  "reviewed_precision": 1.0,
+  "false_injection_rate": 0.0,
+  "false_injection_upper_95_one_sided": 0.005381964629841941,
+  "gates": {
+    "precision_ge_95pct": true,
+    "false_injection_below_1pct": true,
+    "false_injection_upper_below_1pct": true,
+    "policy_suppressed_cases_silent": true
+  }
+}

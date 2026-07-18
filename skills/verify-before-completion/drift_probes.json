@@ -6,7 +6,7 @@
     "verify_tools": ["Bash"],
     "verify_keywords": ["test", "pytest", "npm test", "make", "build", "check", "lint", "curl", "verify"],
     "lookback_tool_uses": 5,
-    "message": "recent reply claims work is done/fixed/passing without a verification tool call in the last 5 tool uses — run a fresh check (test, build, lint, curl, etc.) and quote its output",
+    "message": "recent reply claims work is done/fixed/passing, but no verification evidence matching the claim appears in the last 5 tool uses (no fresh, successful, post-edit check of the right class) — run a fresh check (test, build, lint, curl, etc.) and quote its output",
     "severity": "warn"
   },
   {

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import subprocess
 import tempfile
@@ -27,6 +28,36 @@ def tool_result(tid: str, text: str, error: bool = False) -> dict:
 
 def claim(text: str = "The tests pass; this is ready.") -> dict:
     return event("assistant", [{"type": "text", "text": text}])
+
+
+def notification(summary: str, status: str = "completed", result: str | None = None,
+                 output_file: str | None = "/tmp/cc-notify.output") -> str:
+    """Harness-shaped <task-notification> UserPromptSubmit payload."""
+    lines = ["<task-notification>", "<task-id>t-1</task-id>",
+             "<tool-use-id>toolu_t1</tool-use-id>"]
+    if output_file:
+        lines.append(f"<output-file>{output_file}</output-file>")
+    lines.append(f"<status>{status}</status>")
+    lines.append(f"<summary>{summary}</summary>")
+    if result is not None:
+        lines.append(f"<result>{result}</result>")
+    lines.append("</task-notification>")
+    return "\n".join(lines)
+
+
+def state_file(root: Path, session: str) -> dict:
+    sid = hashlib.sha256(session.encode()).hexdigest()[:16]
+    path = root / "state" / f"{sid}.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+
+
+def telemetry_records(root: Path, session: str) -> list[dict]:
+    path = root / "telemetry.jsonl"
+    if not path.is_file():
+        return []
+    sid = hashlib.sha256(session.encode()).hexdigest()[:16]
+    return [row for row in (json.loads(line) for line in path.read_text().splitlines())
+            if row.get("session_hash") == sid]
 
 
 def run(root: Path, transcript: list[dict], profile: str | None, session: str,
@@ -178,6 +209,53 @@ def main() -> int:
             "session_hash", "turn", "mechanism", "probe_id", "emitted",
             "injected_bytes", "content_hash"
         } for r in records))
+
+        # --- notification evidence boundary (2026-07-18) -------------------
+        timer_prompt = notification('Timer "focus-25m" completed (exit code 0)')
+        out = run(root, [claim("Your focus timer is ready — I will report back when it fires.")],
+                  "frontier", "notif-timer", prompt=timer_prompt)
+        check("notification-timer-success-suppresses", not out.stdout, out.stdout)
+        suppressed = [r for r in telemetry_records(root, "notif-timer")
+                      if r["mechanism"] == "suppressed_notification"]
+        check("notification-suppression-telemetry-logged",
+              len(suppressed) == 1 and not suppressed[0]["emitted"]
+              and suppressed[0]["probe_id"] == "verify-before-completion:claim-without-evidence",
+              repr(suppressed))
+        pending = state_file(root, "notif-timer").get("notification_pending_content", [])
+        check("notification-pointer-only-records-pending-content",
+              len(pending) == 1 and pending[0]["output_file"] == "/tmp/cc-notify.output"
+              and pending[0]["turn"] == 1 and bool(pending[0]["recorded_iso"]),
+              repr(pending))
+
+        advisor_prompt = notification(
+            'Advisor consult "ledger-wording" completed (exit code 0)',
+            result='{"recommendation": "tighten the ledger wording"}')
+        out = run(root, [claim("The background advisor consult is done.")],
+                  "frontier", "notif-advisor", prompt=advisor_prompt)
+        check("notification-advisor-success-with-result-suppresses", not out.stdout, out.stdout)
+        check("notification-with-result-records-no-pending-content",
+              not state_file(root, "notif-advisor").get("notification_pending_content"))
+
+        failed_prompt = notification('Background command "python3 check.py" failed (exit code 1)',
+                                     status="failed")
+        out = run(root, [claim("The background re-index is done and everything is ready.")],
+                  "frontier", "notif-failed", prompt=failed_prompt)
+        check("notification-failed-job-still-fires",
+              "claim_without_evidence" in out.stdout, out.stdout)
+
+        subagent_prompt = notification(
+            'Dynamic workflow "implement-feature" completed',
+            result="Files moved into place; tests pass. DONE — READY FOR JUDGING.")
+        out = run(root, [claim("The implementation subagent finished: files are moved and tests pass — this is done and ready.")],
+                  "frontier", "notif-subagent", prompt=subagent_prompt)
+        check("notification-subagent-worldstate-still-fires",
+              "claim_without_evidence" in out.stdout, out.stdout)
+
+        mixed_prompt = timer_prompt + "\nplease also review the draft"
+        out = run(root, [claim("Your focus timer is ready — I will report back when it fires.")],
+                  "frontier", "notif-mixed", prompt=mixed_prompt)
+        check("notification-with-user-remainder-still-fires",
+              "claim_without_evidence" in out.stdout, out.stdout)
     return 0
 
 

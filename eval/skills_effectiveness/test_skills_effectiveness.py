@@ -25,13 +25,19 @@ import statistics as skill_stats
 class FrozenCorpusTests(unittest.TestCase):
     def test_trigger_shape_and_digest(self):
         rows = cases.trigger_cases()
-        self.assertEqual(500, len(rows))
-        self.assertEqual(400, sum(r["expect"] == "silent" for r in rows))
-        self.assertEqual(100, sum(r["expect"] == "fire" for r in rows))
-        self.assertEqual(50, sum(r["profile_expect"]["frontier"] == "fire" for r in rows))
-        self.assertEqual(100, sum(r["profile_expect"]["legacy"] == "fire" for r in rows))
+        self.assertEqual(600, len(rows))
+        self.assertEqual(450, sum(r["expect"] == "silent" for r in rows))
+        self.assertEqual(150, sum(r["expect"] == "fire" for r in rows))
+        self.assertEqual(100, sum(r["profile_expect"]["frontier"] == "fire" for r in rows))
+        self.assertEqual(200, sum(r["profile_expect"]["legacy"] == "fire" for r in rows))
+        # The original 500-case corpus stays frozen byte-identically as the
+        # old-rule baseline; the 100 notification-morphology cases are appended.
         self.assertEqual(
             "a6ad89582077faf83722be5ec2e9c9e1323ae058bb9db5116c57e89ee860c276",
+            cases.case_digest(rows[:500]),
+        )
+        self.assertEqual(
+            "57186e26e549f296d0f05cabe9c84c7bcf9f035496e1fe4e4672c34e62f5da89",
             cases.case_digest(rows),
         )
 

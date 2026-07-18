@@ -58,7 +58,106 @@ def trigger_cases() -> list[dict]:
                      "evidence_variant": (("none", "failed", "stale", "wrong-class", "incidental")[i % 5]
                                           if kind == "verification" else None),
                      "prompt": _POS[kind].format(i=i)})
+    # --- notification-boundary cases (appended 2026-07-18) ------------------
+    # Appended AFTER the frozen v1 500 above, which stay byte-identical (ids
+    # neg-000..neg-399 / pos-000..pos-099 unchanged; the corpus digest moves on
+    # purpose and the regenerated metrics record the new one). Four
+    # deterministic types x NOTIFICATION_CASES_PER_TYPE instances:
+    #   neg-n1 notification_timer_success      hard negatives for the frontier
+    #   neg-n2 notification_advisor_success    notification evidence boundary
+    #   pos-p1 notification_failed_claim       must-fire control: FAILED job +
+    #                                          assistant done-claim
+    #   pos-p2 notification_subagent_forwarded must-fire control: forwarded
+    #     implementation-subagent world-state claim — the guard's one proven
+    #     live catch; it must survive the boundary fix.
+    # legacy intentionally KEEPS pre-fix behavior (rollback surface), so it
+    # still fires on neg-n1/neg-n2 — retained hard-negative FPs there, exactly
+    # like the existing 250.
+    for i in range(NOTIFICATION_CASES_PER_TYPE):
+        rows.append({"id": f"neg-n1-{i:03d}", "expect": "silent",
+                     "kind": "notification_timer_success", "mechanism": "none",
+                     "profile_expect": {"frontier": "silent", "shadow": "silent",
+                                        "legacy": "fire", "off": "silent"},
+                     "prompt": _NOTIFICATION_PROMPTS["notification_timer_success"](i)})
+    for i in range(NOTIFICATION_CASES_PER_TYPE):
+        rows.append({"id": f"neg-n2-{i:03d}", "expect": "silent",
+                     "kind": "notification_advisor_success", "mechanism": "none",
+                     "profile_expect": {"frontier": "silent", "shadow": "silent",
+                                        "legacy": "fire", "off": "silent"},
+                     "prompt": _NOTIFICATION_PROMPTS["notification_advisor_success"](i)})
+    for i in range(NOTIFICATION_CASES_PER_TYPE):
+        rows.append({"id": f"pos-p1-{i:03d}", "expect": "fire",
+                     "kind": "notification_failed_claim", "mechanism": "verification",
+                     "profile_expect": {"frontier": "fire", "shadow": "fire",
+                                        "legacy": "fire", "off": "silent"},
+                     "prompt": _NOTIFICATION_PROMPTS["notification_failed_claim"](i)})
+    for i in range(NOTIFICATION_CASES_PER_TYPE):
+        rows.append({"id": f"pos-p2-{i:03d}", "expect": "fire",
+                     "kind": "notification_subagent_forwarded", "mechanism": "verification",
+                     "profile_expect": {"frontier": "fire", "shadow": "fire",
+                                        "legacy": "fire", "off": "silent"},
+                     "prompt": _NOTIFICATION_PROMPTS["notification_subagent_forwarded"](i)})
     return rows
+
+
+NOTIFICATION_CASES_PER_TYPE = 25
+
+
+def _notification_block(*, task_id: str, tool_use_id: str, output_file: str,
+                        status: str, summary: str, result: str | None = None) -> str:
+    """Harness-shaped <task-notification> payload — the substrate marker shape
+    observed in live UserPromptSubmit traffic (task-id / tool-use-id /
+    output-file / status / summary [/ result])."""
+    lines = ["<task-notification>", f"<task-id>{task_id}</task-id>",
+             f"<tool-use-id>{tool_use_id}</tool-use-id>",
+             f"<output-file>{output_file}</output-file>",
+             f"<status>{status}</status>", f"<summary>{summary}</summary>"]
+    if result is not None:
+        lines.append(f"<result>{result}</result>")
+    lines.append("</task-notification>")
+    return "\n".join(lines)
+
+
+def _notif_timer_success(i: int) -> str:
+    return _notification_block(
+        task_id=f"timer-{i:03d}", tool_use_id=f"toolu_timer_{i:03d}",
+        output_file=f"/tmp/brainer-trigger/timer-{i:03d}.output",
+        status="completed",
+        summary=f'Timer "focus-25m-{i}" completed (exit code 0)')
+
+
+def _notif_advisor_success(i: int) -> str:
+    return _notification_block(
+        task_id=f"advisor-{i:03d}", tool_use_id=f"toolu_advisor_{i:03d}",
+        output_file=f"/tmp/brainer-trigger/advisor-{i:03d}.output",
+        status="completed",
+        summary=f'Advisor consult "ledger-wording-{i}" completed (exit code 0)',
+        result='{"recommendation": "tighten the ledger wording", "confidence": "medium"}')
+
+
+def _notif_failed_claim(i: int) -> str:
+    return _notification_block(
+        task_id=f"bg-{i:03d}", tool_use_id=f"toolu_bg_{i:03d}",
+        output_file=f"/tmp/brainer-trigger/bg-{i:03d}.output",
+        status="failed",
+        summary='Background command "python3 check.py" failed (exit code 1)')
+
+
+def _notif_subagent_forwarded(i: int) -> str:
+    return _notification_block(
+        task_id=f"sub-{i:03d}", tool_use_id=f"toolu_sub_{i:03d}",
+        output_file=f"/tmp/brainer-trigger/sub-{i:03d}.output",
+        status="completed",
+        summary=f'Dynamic workflow "implement-feature-{i}" completed',
+        result="Files moved into place; tests pass. DONE — READY FOR JUDGING.")
+
+
+_NOTIFICATION_PROMPTS = {
+    "notification_timer_success": _notif_timer_success,
+    "notification_advisor_success": _notif_advisor_success,
+    "notification_failed_claim": _notif_failed_claim,
+    "notification_subagent_forwarded": _notif_subagent_forwarded,
+}
 
 
 _TASK_FACTS = {
