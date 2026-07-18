@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import hashlib
 import os
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -60,6 +61,17 @@ def telemetry_records(root: Path, session: str) -> list[dict]:
             if row.get("session_hash") == sid]
 
 
+def intent_path(root: Path, session: str) -> Path:
+    return root / "intent" / f"{session}.jsonl"
+
+
+def intent_records(root: Path, session: str) -> list[dict]:
+    path = intent_path(root, session)
+    if not path.is_file():
+        return []
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
 def run(root: Path, transcript: list[dict], profile: str | None, session: str,
         prompt: str = "continue") -> subprocess.CompletedProcess:
     tx = root / f"{session}.jsonl"
@@ -111,6 +123,7 @@ def main() -> int:
         check("off-silent", off.returncode == 0 and not off.stdout, off.stderr)
         check("off-no-state-mutation", not (root / "state").exists())
         check("off-no-telemetry-mutation", not (root / "telemetry.jsonl").exists())
+        check("off-no-intent-capture", not intent_path(root, "off").exists())
 
         no_evidence = run(root, [claim()], None, "default-frontier")
         check("default-is-frontier-and-fires", "claim_without_evidence" in no_evidence.stdout,
@@ -256,6 +269,48 @@ def main() -> int:
                   "frontier", "notif-mixed", prompt=mixed_prompt)
         check("notification-with-user-remainder-still-fires",
               "claim_without_evidence" in out.stdout, out.stdout)
+
+        # --- verbatim intent log (L0 no-drop capture) ----------------------
+        capture_prompt = "Please fix the parser's \"quoted\" <angle> handling & café accents"
+        run(root, [claim("Working on it now.")], "frontier", "intent-capture", prompt=capture_prompt)
+        recs = intent_records(root, "intent-capture")
+        check("intent-capture-writes-verbatim-and-hash",
+              len(recs) == 1 and set(recs[0]) == {"turn", "ts", "sha256", "text"}
+              and recs[0]["turn"] == 1 and recs[0]["text"] == capture_prompt
+              and recs[0]["sha256"] == hashlib.sha256(capture_prompt.encode("utf-8")).hexdigest()
+              and isinstance(recs[0]["ts"], str) and bool(recs[0]["ts"]),
+              repr(recs))
+
+        run(root, [claim("Your focus timer is ready — I will report back when it fires.")],
+            "frontier", "intent-notif", prompt=timer_prompt)
+        check("intent-harness-only-turn-captures-nothing",
+              intent_records(root, "intent-notif") == [],
+              repr(intent_records(root, "intent-notif")))
+
+        wrap_prompt = "Please draft the quarterly plan covering revenue, hiring, and risk"
+        run(root, [claim("Working on it now.")], "frontier", "intent-wrap", prompt=wrap_prompt)
+        # Corrupt the ledger's stored text: the wrap-up surface can still quote
+        # the user's verbatim words ONLY because it reads the intent log.
+        sid = hashlib.sha256("intent-wrap".encode()).hexdigest()[:16]
+        wrap_state = root / "state" / f"{sid}.json"
+        st = json.loads(wrap_state.read_text(encoding="utf-8"))
+        st["request_ledger"][0]["text"] = "garbled-paraphrase"
+        wrap_state.write_text(json.dumps(st, indent=2) + "\n", encoding="utf-8")
+        out = run(root, [claim("Task is complete.")], "frontier", "intent-wrap")
+        check("wrap-up-surface-quotes-intent-log",
+              f"[turn 1] {wrap_prompt}" in out.stdout and "garbled-paraphrase" not in out.stdout,
+              out.stdout)
+
+        # An unwritable intent location (a FILE squatting on the dir path)
+        # must degrade to a stderr log line — never block the hook's output.
+        shutil.rmtree(root / "intent", ignore_errors=True)
+        (root / "intent").write_text("occupied", encoding="utf-8")
+        out = run(root, [claim()], "frontier", "intent-blocked",
+                  prompt="Please review the flaky test")
+        check("intent-capture-failure-does-not-block",
+              out.returncode == 0 and "claim_without_evidence" in out.stdout
+              and "intent-capture-fail" in out.stderr,
+              out.stdout + out.stderr)
     return 0
 
 

@@ -177,6 +177,32 @@ is the whole-hook `COMPLIANCE_CANARY_DISABLED=1`. Stored items are
 capped at `LEDGER_STORE_CAP=50`, surfaced at `LEDGER_SHOW_MAX=8` (with "+N more
 open").
 
+## Verbatim intent log
+
+The capture side of the no-drop guarantee (target architecture L0 "Intent
+log"). On every `UserPromptSubmit` the hook appends the **user-authored
+remainder** of the prompt — after the same harness-block stripping the ledger
+uses, so `<task-notification>` bodies and command transcripts are never
+captured, and a pure harness-notification turn (empty remainder) writes no
+record — to `.brainer/intent/<session_id>.jsonl` (git-ignored; follows a
+`COMPLIANCE_CANARY_STATE_DIR` override as a sibling) as one
+`{"turn", "ts", "sha256", "text"}` record per line. The text is verbatim and
+full-length — unlike the ledger's 140-char mirror — with a sha256 integrity
+anchor. Mechanical, zero LLM, zero injected bytes, append-only, best-effort:
+a capture failure logs to stderr and never blocks the hook.
+
+**Consumers.** Today: the Mechanism 3 wrap-up surface quotes the user's own
+captured words (with turn numbers, truncated to the existing per-item budget)
+from this log instead of ledger state. Planned: close-boundary reconciliation
+mapping every captured intent to satisfied / deferred / uncovered.
+
+**No opt-out.** Capture is unconditional by standing user directive ("never
+switch off, never opt out") — there is no flag, and it runs ahead of even the
+whole-hook `COMPLIANCE_CANARY_DISABLED=1` valve (which silences reminders but
+must never stop the record). The single exception is profile `off`: the
+experimental control arm, which exits before ANY mutation and so writes no
+intent records.
+
 ## Mechanism 4 — correction ledger
 
 [`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §2: a user correction is

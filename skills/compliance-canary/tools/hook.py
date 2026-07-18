@@ -1195,6 +1195,87 @@ def detect_completion_without_closure(probe: dict, messages: list[dict], _tool_u
 DETECTORS["completion_without_closure"] = detect_completion_without_closure
 
 
+# ---- verbatim intent log (L0 capture side of the no-drop guarantee) ---------
+# docs/TARGET_ARCHITECTURE.md L0 "Intent log": every user-AUTHORED prompt,
+# verbatim, append-only — zero LLM, zero injected bytes. One capture, several
+# consumers: TODAY the wrap-up pending-intent surface quotes from it
+# (build_ledger_lines); PLANNED close-boundary reconciliation maps every
+# captured intent to satisfied / deferred / uncovered. Standing user
+# directive: capture has NO opt-out flag — frontier/shadow/legacy all capture,
+# and it runs ahead of even the whole-hook COMPLIANCE_CANARY_DISABLED valve
+# (the request ledger's posture exactly). The ONE exception is profile `off`,
+# the experimental control arm: it exits before ANY mutation, so it writes no
+# records. Best-effort: any failure logs to stderr and never blocks the hook
+# (the always-exit-0 contract).
+
+
+def intent_dir() -> Path:
+    # Sibling of the canary state dir: <base>/.brainer/intent by default
+    # (.brainer/ is git-ignored); a COMPLIANCE_CANARY_STATE_DIR override
+    # redirects it as a sibling, so test/sandbox isolation holds.
+    return state_dir().parent / "intent"
+
+
+def intent_log_path(session_id: str) -> Path:
+    # Literal <session_id>.jsonl, with path-hostile characters flattened so a
+    # garbage session id can never escape the intent dir.
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", session_id or "unknown")
+    return intent_dir() / f"{safe}.jsonl"
+
+
+def capture_intent(session_id: str, turn: int, user_text: str) -> bool:
+    """Append one user-authored prompt to the session's intent log, VERBATIM
+    (full-length — unlike the ledger's capped mirror). An empty remainder (a
+    pure harness-notification turn) writes no record. NEVER raises — capture
+    is best-effort and must not block the user's prompt."""
+    text = (user_text or "").strip()
+    if not text:
+        return False
+    record = {
+        "turn": turn,
+        "ts": time.strftime("%FT%TZ", time.gmtime()),
+        "sha256": hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest(),
+        "text": text,
+    }
+    try:
+        path = intent_log_path(session_id)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "a", encoding="utf-8") as handle:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            handle.write(json.dumps(record) + "\n")
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        return True
+    except Exception as e:
+        log_err(f"intent-capture-fail err={e!r}")
+        return False
+
+
+def read_intent_turn_texts(session_id: str) -> dict[int, str]:
+    """{turn: verbatim text} from the session's intent log. Best-effort: a
+    missing/unreadable file or a torn trailing line degrades quietly (never
+    raises) — the caller falls back to ledger state text."""
+    out: dict[int, str] = {}
+    try:
+        path = intent_log_path(session_id)
+        if not path.is_file():
+            return out
+        with open(path, "r", encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                try:
+                    obj = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(obj, dict):
+                    continue
+                text = obj.get("text")
+                if isinstance(text, str) and text:
+                    out[_as_int(obj.get("turn"), -1)] = text
+    except OSError as e:
+        log_err(f"intent-read-fail err={e!r}")
+    out.pop(-1, None)
+    return out
+
+
 # ---- Mechanism 3: request ledger (never silently drop a user request) -------
 # Persistent, across-turn tracker. Each substantive user request is recorded as
 # OPEN and stays open until the USER closes it ("open until completed or the
@@ -1478,7 +1559,8 @@ def has_completion_claim(events: list[dict]) -> bool:
         return False
 
 
-def build_ledger_lines(open_items: list, closed_now: list, completion_claim: bool, turn: int) -> list[str]:
+def build_ledger_lines(open_items: list, closed_now: list, completion_claim: bool, turn: int,
+                       intent_texts: dict[int, str] | None = None) -> list[str]:
     # Deferred items are visibly parked, not open — exclude from the "still open"
     # count so an agreed deferral never trips the wrap-up nag.
     open_items = [it for it in open_items if not it.get("deferred")]
@@ -1503,7 +1585,17 @@ def build_ledger_lines(open_items: list, closed_now: list, completion_claim: boo
                 f"— none may be dropped. Make progress on each, or note explicitly why it's deferred:"
             )
         for it in open_items[:LEDGER_SHOW_MAX]:
-            lines.append(f"- [turn {it.get('turn','?')}] {it.get('text','')}")
+            text = it.get("text", "")
+            if completion_claim and intent_texts:
+                # Wrap-up grounding (L0 intent log): quote the user's OWN
+                # captured words for this turn — verbatim, not the ledger's
+                # state mirror — truncated to the same per-item budget the
+                # ledger capture used. Fall back to the ledger text when the
+                # log has no record for the turn (best-effort read).
+                verbatim = intent_texts.get(_as_int(it.get("turn"), -1))
+                if verbatim:
+                    text = (verbatim[:LEDGER_TEXT_CAP - 1] + "…") if len(verbatim) > LEDGER_TEXT_CAP else verbatim
+            lines.append(f"- [turn {it.get('turn','?')}] {text}")
         extra = len(open_items) - LEDGER_SHOW_MAX
         if extra > 0:
             lines.append(f"- (+{extra} more still open)")
@@ -2302,6 +2394,13 @@ def main() -> int:
     if is_new_session:
         gc_old_state(path.parent, time.time())
 
+    # Verbatim intent log (L0 no-drop capture). UNCONDITIONAL — no opt-out
+    # (standing user directive) — and ahead of the whole-hook DISABLED valve
+    # below for the same reason as the request ledger: silencing reminders
+    # must never stop the record. Profile `off` never reaches here (it exited
+    # before any mutation). Best-effort: a failure logs to stderr, never blocks.
+    capture_intent(session_id, turn, prompt_text_user)
+
     # Whole-hook break-glass valve. Checked HERE (not at entry) so the ledger
     # capture above has already run — the kill silences drift detection + all
     # reminders, but the request is still on the record. Re-enabling resumes with
@@ -2540,7 +2639,13 @@ def main() -> int:
         show = bool(closed_now) or (bool(ledger) and (
             completion_claim or (profile == "legacy" and (bool(fired) or is_pulse_turn))))
         if show:
-            ledger_lines = build_ledger_lines(ledger, closed_now, completion_claim, turn)
+            # Ground the wrap-up surface in the verbatim intent log (L0) —
+            # quote the user's own captured words instead of ledger state
+            # text. Read only when the wrap-up detector fired (no new emission
+            # point, no extra read on ordinary turns); best-effort fallback to
+            # ledger text when the log is missing/unreadable.
+            intent_texts = read_intent_turn_texts(session_id) if completion_claim else None
+            ledger_lines = build_ledger_lines(ledger, closed_now, completion_claim, turn, intent_texts)
 
     # --- Mechanism 4: correction ledger (LEARNING_CONTRACT §2) ------------
     # UNCONDITIONAL, same as Mechanism 3: opens on every fired `user_correction`
