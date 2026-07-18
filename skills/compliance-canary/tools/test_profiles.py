@@ -370,8 +370,47 @@ def main() -> int:
               not state_file(root, "notif-timer").get("notification_pending_content"),
               repr(state_file(root, "notif-timer").get("notification_pending_content")))
 
-        # --- D4b: unresolved entries ride the EXISTING wrap-up surface (no
-        # new emission point), one compact line each.
+        # F9: the paired read may have scrolled beyond the 400-line detector
+        # tail. Full-file reconciliation must still find it and stay silent.
+        early_pointer_prompt = notification(
+            'Timer "early-read" completed (exit code 0)',
+            output_file="/tmp/cc-early-read.output", task_id="early-read-001")
+        run(root, [claim("Still gathering the remaining details; nothing to report yet.")],
+            "frontier", "notif-earlyread", prompt=early_pointer_prompt)
+        early_read = [
+            tool_use("rb-early", "Read", {"file_path": "/tmp/cc-early-read.output"}),
+            tool_result("rb-early", "timer fired at 10:25"),
+            *[claim(f"Working note {j}: still exploring the draft.") for j in range(450)],
+        ]
+        out = run(root, early_read, "frontier", "notif-earlyread", prompt="continue")
+        check("notification-pending-content-clears-when-read-beyond-tail",
+              not out.stdout
+              and not state_file(root, "notif-earlyread").get("notification_pending_content"),
+              out.stdout + repr(state_file(root, "notif-earlyread").get(
+                  "notification_pending_content")))
+
+        # R3-2: a successful non-read command/result pair that merely echoes
+        # the full path is not read evidence and must leave the marker armed.
+        echoed_pointer_prompt = notification(
+            'Timer "echoed-path" completed (exit code 0)',
+            output_file="/tmp/cc-echoed-path.output", task_id="echoed-path-001")
+        run(root, [claim("Still gathering the remaining details; nothing to report yet.")],
+            "frontier", "notif-echoed-path", prompt=echoed_pointer_prompt)
+        echoed_path = [
+            tool_use("not-read", "Bash", {
+                "command": "printf '%s\\n' /tmp/cc-echoed-path.output"}),
+            tool_result("not-read", "/tmp/cc-echoed-path.output"),
+            claim("Task is complete."),
+        ]
+        out = run(root, echoed_path, "frontier", "notif-echoed-path", prompt="continue")
+        check("notification-non-read-path-result-does-not-clear",
+              out.stdout.count(
+                  "- timer output never read: /tmp/cc-echoed-path.output") == 1,
+              out.stdout)
+
+        # --- D4b: the existing must-fire no-read control remains armed:
+        # unresolved entries ride the EXISTING wrap-up surface (no new
+        # emission point), one compact line each.
         run(root, [claim("Working on the ledger draft now.")], "frontier", "notif-wrap",
             prompt="Please draft the ledger wording section")
         advisor_pointer_prompt = notification(

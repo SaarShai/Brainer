@@ -25,18 +25,19 @@ import statistics as skill_stats
 class FrozenCorpusTests(unittest.TestCase):
     def test_trigger_shape_and_digest(self):
         rows = cases.trigger_cases()
-        self.assertEqual(850, len(rows))
-        self.assertEqual(475, sum(r["expect"] == "silent" for r in rows))
-        self.assertEqual(375, sum(r["expect"] == "fire" for r in rows))
-        self.assertEqual(325, sum(r["profile_expect"]["frontier"] == "fire" for r in rows))
-        self.assertEqual(450, sum(r["profile_expect"]["legacy"] == "fire" for r in rows))
+        self.assertEqual(852, len(rows))
+        self.assertEqual(476, sum(r["expect"] == "silent" for r in rows))
+        self.assertEqual(376, sum(r["expect"] == "fire" for r in rows))
+        self.assertEqual(326, sum(r["profile_expect"]["frontier"] == "fire" for r in rows))
+        self.assertEqual(452, sum(r["profile_expect"]["legacy"] == "fire" for r in rows))
         # Earlier corpus generations stay frozen byte-identically as baselines:
         # first 500 = old-rule, first 600 = notification morphologies, 675 adds
         # the deferred-fire / provenance / timer-with-result hardening cases,
         # and 850 appends the 2026-07-18 adversarial audit's seven fault
         # shapes (flood, low-entropy id, destructive-pending, relative-read
         # reconcile, quoted-notification verbatim, ledger-empty-pending,
-        # world-state rephrase) x25 each.
+        # world-state rephrase) x25 each. The 852 generation appends F9's
+        # early-read-beyond-tail silent case and never-read must-fire control.
         self.assertEqual(
             "a6ad89582077faf83722be5ec2e9c9e1323ae058bb9db5116c57e89ee860c276",
             cases.case_digest(rows[:500]),
@@ -51,6 +52,10 @@ class FrozenCorpusTests(unittest.TestCase):
         )
         self.assertEqual(
             "1302bc23331159d8fcb4413fa2d9b31e21d6effb2b629ffc5057d1c200c9958a",
+            cases.case_digest(rows[:850]),
+        )
+        self.assertEqual(
+            "81c4a9c145e6a5da11c12d7143f79f10490f7250c82bd3b75bc633ff669ac1de",
             cases.case_digest(rows),
         )
 

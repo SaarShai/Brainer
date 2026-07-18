@@ -1,21 +1,38 @@
 #!/usr/bin/env python3
 r"""compliance-canary UserPromptSubmit hook — the single drift watcher.
 
-Two ORTHOGONAL anti-drift mechanisms in ONE hook process (skill-pulse was
-folded in here 2026-06-16 — one reactive hook instead of two, the leaner
-target the eval notes had flagged):
+Five anti-drift mechanisms in ONE hook process (skill-pulse was folded in
+here 2026-06-16 — one reactive hook instead of two, the leaner target the
+eval notes had flagged; the request ledger was added 2026-06-17; the
+correction ledger and probe escalation close the LEARNING_CONTRACT §2/§8
+gaps):
 
   1. SYMPTOMATIC probes (every turn) — detect per-skill drift symptoms in
      recent assistant messages / tool results and inject a targeted,
      evidence-quoting corrective. Silent until a symptom shows.
-  2. PERIODIC re-anchor (every Nth turn) — unconditionally re-state the
-     active skills' rules before they fade from attention. Paper-calibrated
-     cadence (arXiv 2510.07777). Covers rules that have NO symptom probe.
+  2. PERIODIC re-anchor (every Nth turn, legacy profile) — unconditionally
+     re-state the active skills' rules before they fade from attention.
+     Paper-calibrated cadence (arXiv 2510.07777). Covers rules that have NO
+     symptom probe.
+  3. REQUEST ledger (every turn, every profile) — no user request is
+     dropped until it is completed or the user says so; open items surface
+     at wrap-up turns.
+  4. CORRECTION ledger (legacy profile) — a user correction stays
+     closeout-blocking until banked as a durable artifact or user-closed.
+  5. PROBE escalation (legacy profile) — repeated probe fires escalate from
+     advisory to closeout-blocking (LEARNING_CONTRACT §8).
+
+Cross-cutting, same process: the verbatim INTENT LOG (every user-authored
+prompt, append-only — L0 of the no-drop guarantee) and, on the
+frontier/shadow profiles, the task-NOTIFICATION evidence boundary (a
+qualifying substrate notification IS the turn's evidence; suppression
+defers, never destroys — with full-transcript provenance and full-
+transcript pending-output read reconciliation).
 
 One process, one dir-walk, one transcript read, one state file, one injected
 <system-reminder>. The re-anchor YIELDS to fired probes on a shared turn
 (symptom correction is higher-signal and itself re-anchors) — a single global
-budget, so the two mechanisms never double-nag.
+budget, so the mechanisms never double-nag.
 
 Per-skill probes are declared in `<.claude/skills>/<name>/drift_probes.json`:
 
@@ -1739,8 +1756,8 @@ def _path_matches_event_text(hay: str, out_path: str, base: str, parent: str) ->
     return bool(parent and base and base in hay and parent in hay)
 
 
-def _notification_output_read(events: list[dict], out_path: str) -> bool:
-    """F3 read-detection: True iff the transcript shows an actual READ of
+def _notification_output_read(transcript_path: str, out_path: str) -> bool:
+    """F3 read-detection: True iff the full transcript shows an actual READ of
     `out_path` — read-shaped tool events ONLY (a Read/view tool_use, or a
     Bash content-display command), credited only when the tool_use's PAIRED
     tool_result is observed and non-error (a failed Read is not a read).
@@ -1749,58 +1766,99 @@ def _notification_output_read(events: list[dict], out_path: str) -> bool:
     clear the entry."""
     if not out_path:
         return False
+    p = Path(transcript_path or "")
+    if not p.is_file():
+        return False
     base = out_path.rsplit("/", 1)[-1]
     parent = out_path.rsplit("/", 2)[-2] if out_path.count("/") >= 2 else ""
-    # Pass 1: pair tool_use ids with their result status — a read-shaped use
-    # counts only when its paired result exists in-window and is not an error.
-    result_ok: dict[str, bool] = {}
-    for e in events or []:
-        msg = e.get("message") or {}
-        content = msg.get("content")
-        if not isinstance(content, list):
-            continue
-        for b in content:
-            if isinstance(b, dict) and b.get("type") == "tool_result":
-                tid = str(b.get("tool_use_id") or "")
-                if tid:
-                    result_ok[tid] = not b.get("is_error")
-    for e in events or []:
-        msg = e.get("message") or {}
-        content = msg.get("content")
-        if not isinstance(content, list):
-            continue
-        for b in content:
-            if not isinstance(b, dict):
-                continue
-            if b.get("type") == "tool_use":
-                tid = str(b.get("id") or "")
-                if not result_ok.get(tid, False):
-                    continue  # no paired successful result — not an actual read
-                inp = b.get("input") or {}
-                name = str(b.get("name") or "")
-                command = str(inp.get("command") or inp.get("cmd") or "")
-                if name == "Bash":
-                    if (_DELETION_TOKEN_RE.search(command)
-                            or _INPLACE_FLAG_RE.search(command)
-                            or _MUTATING_COMMAND_RE.search(command)):
+    read_ids: set[str] = set()
+    try:
+        # Pass 1: stream the full transcript and retain only tool_use ids whose
+        # invocation is both read-shaped and path-matched. This mirrors the
+        # full-file provenance scan without materializing a long transcript.
+        with open(p, encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                if not _path_matches_event_text(line, out_path, base, parent):
+                    continue
+                try:
+                    obj = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(obj, dict):
+                    continue
+                try:
+                    candidates = _normalize_events([obj])
+                except Exception:
+                    candidates = [obj]
+                for e in candidates:
+                    if not isinstance(e, dict):
                         continue
-                    if not _READ_COMMAND_RE.search(command):
+                    msg = e.get("message") or {}
+                    content = msg.get("content")
+                    if not isinstance(content, list):
                         continue
-                    matched = _path_matches_event_text(command, out_path, base, parent)
-                elif name.lower() in _READ_TOOL_NAMES:
-                    try:
-                        hay = json.dumps(inp, ensure_ascii=False)
-                    except (TypeError, ValueError):
+                    for b in content:
+                        if not isinstance(b, dict) or b.get("type") != "tool_use":
+                            continue
+                        tid = str(b.get("id") or "")
+                        if not tid:
+                            continue
+                        inp = b.get("input") or {}
+                        name = str(b.get("name") or "")
+                        command = str(inp.get("command") or inp.get("cmd") or "")
+                        if name == "Bash":
+                            if (_DELETION_TOKEN_RE.search(command)
+                                    or _INPLACE_FLAG_RE.search(command)
+                                    or _MUTATING_COMMAND_RE.search(command)
+                                    or not _READ_COMMAND_RE.search(command)):
+                                continue
+                            matched = _path_matches_event_text(
+                                command, out_path, base, parent)
+                        elif name.lower() in _READ_TOOL_NAMES:
+                            try:
+                                hay = json.dumps(inp, ensure_ascii=False)
+                            except (TypeError, ValueError):
+                                continue
+                            matched = _path_matches_event_text(
+                                hay, out_path, base, parent)
+                        else:
+                            continue  # Edit/Write/NotebookEdit/other: not read-shaped
+                        if matched:
+                            read_ids.add(tid)
+        if not read_ids:
+            return False
+        # Pass 2: require a successful result paired to one of those exact
+        # read-shaped uses. An uncorrelated result containing the path
+        # (printf/echo/ls) therefore cannot clear pending content (R3-2).
+        with open(p, encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                if not any(tid in line for tid in read_ids):
+                    continue
+                try:
+                    obj = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(obj, dict):
+                    continue
+                try:
+                    candidates = _normalize_events([obj])
+                except Exception:
+                    candidates = [obj]
+                for e in candidates:
+                    if not isinstance(e, dict):
                         continue
-                    matched = _path_matches_event_text(hay, out_path, base, parent)
-                else:
-                    continue  # Edit/Write/NotebookEdit/other: not read-shaped
-                if matched:
-                    return True
-            # NOTE: no standalone tool_result branch — an uncorrelated result
-            # merely CONTAINING the path (printf/echo/ls output) is not a
-            # read; clearing correlates exclusively with a successful
-            # read-shaped tool_use (R3-2).
+                    msg = e.get("message") or {}
+                    content = msg.get("content")
+                    if not isinstance(content, list):
+                        continue
+                    for b in content:
+                        if (isinstance(b, dict)
+                                and b.get("type") == "tool_result"
+                                and str(b.get("tool_use_id") or "") in read_ids
+                                and not b.get("is_error")):
+                            return True
+    except OSError as e:
+        log_err(f"transcript-read-fail path={transcript_path} err={e!r}")
     return False
 
 
@@ -3185,11 +3243,11 @@ def main() -> int:
     # notification_pending_content gets a consumer: an entry recorded at an
     # EARLIER turn leaves the pending set once the transcript shows its
     # output-file actually being READ (F3: full path, or basename + parent-dir
-    # substring in the same event, in a tool_use input or non-error
-    # tool_result with no rm/unlink/rmdir in its command/content — destruction
-    # does not clear). Entries still unresolved are listed at the existing
-    # wrap-up surface below (D4b — no new emission point), independent of
-    # request-ledger state (F3).
+    # substring in the same read-shaped tool_use, with a successful paired
+    # tool_result and no rm/unlink/rmdir in its command — destruction and
+    # uncorrelated results do not clear). Entries still unresolved are listed
+    # at the existing wrap-up surface below (D4b — no new emission point),
+    # independent of request-ledger state (F3).
     pending_content: list[dict] = []
     if profile in {"frontier", "shadow"}:
         with state_lock(path):
@@ -3197,13 +3255,13 @@ def main() -> int:
             raw_pending = state.get("notification_pending_content", [])
             if isinstance(raw_pending, list):
                 entries = [e for e in raw_pending if isinstance(e, dict)]
-                if entries and events:
+                if entries:
                     kept: list[dict] = []
                     cleared_any = False
                     for entry in entries:
                         out_path = str(entry.get("output_file") or "")
                         if (out_path and _as_int(entry.get("turn"), turn) < turn
-                                and _notification_output_read(events, out_path)):
+                                and _notification_output_read(transcript_path, out_path)):
                             cleared_any = True
                             continue
                         kept.append(entry)

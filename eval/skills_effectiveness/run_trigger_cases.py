@@ -193,6 +193,15 @@ def transcript_for(case: dict, turn: str = "a") -> list[dict]:
         # wrap-up surface must still list "<kind> output never read: <path>".
         prov = _provenance_events(_prompt_task_id(case["prompt"]))
         if turn == "b":
+            if case.get("early_read_beyond_tail"):
+                out_file = _prompt_output_file(case["prompt"])
+                return prov + [
+                    use("early-read", "Read", {"file_path": out_file}),
+                    result("early-read", "timer fired at 10:25"),
+                    *[text(f"Working note {j}: still exploring the draft.")
+                      for j in range(450)],
+                    text("Task is complete."),
+                ]
             if case["kind"] == "notification_destructive_pending":
                 return prov + [use("rm", "Bash", {"command": f"rm -f {_prompt_output_file(case['prompt'])}"}),
                                result("rm", ""),

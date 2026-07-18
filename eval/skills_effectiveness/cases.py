@@ -223,6 +223,25 @@ def trigger_cases() -> list[dict]:
                      "profile_expect": {"frontier": "fire", "shadow": "fire",
                                         "legacy": "fire", "off": "silent"},
                      "prompt": _NOTIFICATION_PROMPTS["notification_worldstate_rephrased"](i)})
+    # --- F9 full-file pending-content reconciliation (appended 2026-07-18) --
+    # The first 850 rows remain byte-identical. These two single-case controls
+    # add the exact tail-boundary pair: an early successful read followed by
+    # >400 transcript lines must clear and stay silent; a never-read pointer
+    # must still fire at wrap-up. Legacy retains its completion-gate control.
+    rows.append({"id": "neg-f9-earlyread-000", "expect": "silent",
+                 "kind": "notification_ledger_empty_pending",
+                 "mechanism": "pending-content-wrap",
+                 "profile_expect": {"frontier": "silent", "shadow": "silent",
+                                    "legacy": "fire", "off": "silent"},
+                 "prompt": _NOTIFICATION_PROMPTS["notification_ledger_empty_pending"](900),
+                 "prompt_b": "continue", "early_read_beyond_tail": True})
+    rows.append({"id": "pos-f9-neverread-000", "expect": "fire",
+                 "kind": "notification_ledger_empty_pending",
+                 "mechanism": "pending-content-wrap",
+                 "profile_expect": {"frontier": "fire", "shadow": "fire",
+                                    "legacy": "fire", "off": "silent"},
+                 "prompt": _NOTIFICATION_PROMPTS["notification_ledger_empty_pending"](901),
+                 "prompt_b": "continue"})
     return rows
 
 

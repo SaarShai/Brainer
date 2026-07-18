@@ -29,7 +29,7 @@ Set `COMPLIANCE_CANARY_PROFILE=frontier|shadow|legacy|off` (default:
 `COMPLIANCE_CANARY_PROBE_IDS=skill:id,...` selects exact probes (not entire
 skills). In frontier/shadow it overrides the compact default. Telemetry defaults
 to `.brainer/compliance-canary/telemetry.jsonl` and contains only session hash,
-turn, mechanism, probe ID, emitted flag, exact injected UTF-8 bytes, and content
+turn, mechanism, probe ID, emitted flag, injected UTF-8 byte count, and content
 hash—never prompt or transcript text.
 
 The compact verification probe accepts evidence only when a tool use has a
@@ -96,8 +96,10 @@ audit — all fail-open):
   parent-dir name within the same event — appearing in a READ-SHAPED
   tool_use input (Read/view tool, or a Bash content-display command like
   `cat`/`grep`; never Edit/Write or an interpreter write) whose paired
-  result is non-error, or in a non-error tool_result, with no deletion
-  token (`rm`/`mv`/`unlink`/`delete`/`removed`/…) in its command/content.
+  result is non-error, with no deletion token
+  (`rm`/`mv`/`unlink`/`delete`/`removed`/…) in its command. The correlation
+  scans the full transcript so a genuine read older than the 400-line tail
+  still clears; an uncorrelated tool result containing the path never does.
   Destruction does not clear;
   a failed read does not clear; a bare basename does not clear. Entries
   still unresolved are listed, one compact line each (`<kind> output never
@@ -281,7 +283,7 @@ other mechanism (2026-07-18 audit — the request LEDGER is the sole record
 that stays ahead of the valve; the intent log is its verbatim mirror and
 follows the operator valve).
 
-## Mechanism 4 — correction ledger
+## Mechanism 4 — correction ledger (legacy profile only)
 
 [`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §2: a user correction is
 **closeout-blocking** — it must become a durable artifact (rule + gate +
@@ -290,6 +292,9 @@ only "if a retrospective is armed". The `user_correction` probe (Mechanism 1)
 already detects the correction at the turn it lands; the correction ledger is
 the stateful guard that keeps it from being forgotten — mirroring the request
 ledger's shape exactly, one mechanism level up.
+
+This mechanism is live only in the `legacy` rollback profile. Frontier and
+shadow do not open, surface, or resolve correction-ledger items.
 
 Lifecycle (per-session state under `COMPLIANCE_CANARY_STATE_DIR`, key
 `correction_ledger`):
@@ -396,7 +401,8 @@ A skill can do both. `drift_probes.json` example for caveman-ultra:
 ]
 ```
 
-Two bootstrapped skills ship probes out of the box: `caveman-ultra` (filler-regex + word-creep) and `verify-before-completion` (claim-without-evidence). Other skills opt in over time.
+Eighteen shipped skill directories currently include `drift_probes.json`;
+additional skills opt in by adding the same file beside their `SKILL.md`.
 
 ## Tuning
 
@@ -417,7 +423,12 @@ Env vars (all optional). `SKILL_PULSE_*` names are honored as back-compat aliase
 
 ## Rules
 
-- Read at most `TRANSCRIPT_LINE_CAP=400` trailing lines of the transcript (bound transcript-read cost). The ONE exception is the notification-provenance check (F1): a substring-prefiltered streaming scan of the FULL transcript file, only on turns carrying a qualifying `<task-notification>` — a legit announcement older than the tail must still suppress.
+- The general transcript path reads at most `TRANSCRIPT_LINE_CAP=400` trailing
+  lines from an at-most 8,000,000-byte tail (the 8MB scan cap bounds hot-path
+  cost). Two notification checks stream the FULL transcript line-by-line:
+  provenance (F1), only on qualifying `<task-notification>` turns, and pending-
+  output read reconciliation (F9). Legitimate provenance or a successful paired
+  read older than the tail must still count without materializing the full file.
 - Anti-spam: each probe is suppressed for `COMPLIANCE_CANARY_COOLDOWN` turns after it fires.
 - Cap symptomatic output at `MAX_PROBES_TRIGGERED=4` and the re-anchor at `MAX_SKILLS_IN_PULSE=8`. On a shared turn the re-anchor yields, so output never exceeds one block.
 - The re-anchor reads no transcript and the probes need no frontmatter — one dir-walk feeds both.
@@ -428,12 +439,17 @@ Env vars (all optional). `SKILL_PULSE_*` names are honored as back-compat aliase
 
 ```
 tools/
-├── hook.sh        # UserPromptSubmit shell shim
-├── hook.py        # probes + periodic re-anchor + request ledger + correction ledger + state (one process)
-├── install.sh     # wires UserPromptSubmit into project-local .claude/
-├── test.sh        # regression suite: probes + re-anchor + ledgers + hardening
-├── test_profiles.py # frontier/shadow/off + evidence freshness/class gates
-└── measure.py     # standalone offline probe analyzer
+├── coherence_drift_meter.py # offline coherence-drift metric
+├── deadline.py              # bounded subprocess deadline helper
+├── hook.sh                  # UserPromptSubmit shell shim
+├── hook.py                  # profiled probes + ledgers + state
+├── hook_validate.py         # hook/settings validation helper
+├── install.sh               # wires UserPromptSubmit into project-local .claude/
+├── measure.py               # standalone offline probe analyzer
+├── PROBES.md                # probe schema and detector semantics
+├── test.sh                  # regression suite: probes + re-anchor + ledgers + hardening
+├── test_hook_safety.py      # hook fail-open and safety regression tests
+└── test_profiles.py         # frontier/shadow/off + evidence freshness/class gates
 ```
 
 REFERENCE.md — deep-dive: offline `measure.py` usage, host compatibility, known gaps.
