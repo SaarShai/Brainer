@@ -134,6 +134,95 @@ def trigger_cases() -> list[dict]:
                                         "legacy": "fire", "off": "silent"},
                      "prompt": _NOTIFICATION_PROMPTS["notification_deferred_fire"](i),
                      "prompt_b": "continue"})
+    # --- adversarial-audit fault shapes (2026-07-18, lane A3) ----------------
+    # Appended AFTER the frozen 500/600/675 prefixes (digests a6ad8958… /
+    # 57186e26… / 3258b8c5… stay byte-identical; the corpus digest moves on
+    # purpose and the regenerated metrics record the new one). The audit's
+    # seven novel fault shapes N1-N7, each deterministic x
+    # NOTIFICATION_CASES_PER_TYPE, with outcomes per the FIXED (G4) behavior:
+    #   pos-flood  notification_flood (N1)        two-turn: claim + qualifying
+    #     notification A (turn A silent, marker pending), then a SECOND
+    #     qualifying provenanced notification at turn B — the pending fire
+    #     emits on turn B anyway (a flood cannot destroy a fire). legacy
+    #     fires immediately at turn A.
+    #   pos-shortid notification_short_id_fake (N2)  <task-id>0</task-id>:
+    #     the one-char id IS present in tool content and still must not
+    #     suppress (F1 entropy floor).
+    #   pos-destpend notification_destructive_pending (N3)  two-turn: turn A
+    #     records a pointer-only pending entry; turn B's transcript shows
+    #     `rm` on the output file — destruction must NOT reconcile the
+    #     entry, and the wrap-up surface still lists it ("advisor output
+    #     never read: …"). legacy's completion gate fires at turn B.
+    #   pos-relread notification_relative_read (N4)  three-turn: ask (opens a
+    #     ledger item) → pointer-only notification (records pending) → a
+    #     genuine `cd <dir> && cat <file>` relative read + a wrap-up claim.
+    #     The read reconciles the entry: the wrap-up surfaces the ledger
+    #     WITHOUT the "output never read" line (pre-fix the relative read
+    #     did not clear, so the line wrongly appeared).
+    #   pos-quotenotif notification_quoted_verbatim (N5)  two-turn: the user
+    #     pastes a notification and asks about it (the block is captured
+    #     verbatim, F4), then wraps up — the wrap-up surface quotes the
+    #     intent log, so the pasted block's task-id must appear in the
+    #     quote (pre-fix the strip ate the quoted block: id absent).
+    #   pos-emptypend notification_ledger_empty_pending (N6)  two-turn: the
+    #     session's only prompts are the notification + trivia, so the
+    #     request ledger is EMPTY at turn B's wrap-up — the unread pending
+    #     output still surfaces (legacy's completion gate fires instead).
+    #   pos-wstate notification_worldstate_rephrased (N7)  passive/rephrased
+    #     world-state prose ("files were moved", "checks green", "uploaded",
+    #     "deleted", "was deployed") keeps the gate armed exactly like the
+    #     original shapes.
+    # The audit's F2-freshness (stale defer) and F1 long-session (announce-
+    # ment >400 lines back) shapes are pinned at unit level in
+    # test_profiles.py; the corpus carries the seven shapes above, exactly
+    # the set the 2026-07-18 audit enumerated.
+    for i in range(NOTIFICATION_CASES_PER_TYPE):
+        rows.append({"id": f"pos-flood-{i:03d}", "expect": "fire",
+                     "kind": "notification_flood", "mechanism": "verification",
+                     "profile_expect": {"frontier": "fire", "shadow": "fire",
+                                        "legacy": "fire", "off": "silent"},
+                     "prompt": _NOTIFICATION_PROMPTS["notification_flood"](i),
+                     "prompt_b": _NOTIFICATION_PROMPTS["notification_flood_b"](i)})
+    for i in range(NOTIFICATION_CASES_PER_TYPE):
+        rows.append({"id": f"pos-shortid-{i:03d}", "expect": "fire",
+                     "kind": "notification_short_id_fake", "mechanism": "verification",
+                     "profile_expect": {"frontier": "fire", "shadow": "fire",
+                                        "legacy": "fire", "off": "silent"},
+                     "prompt": _NOTIFICATION_PROMPTS["notification_short_id_fake"](i)})
+    for i in range(NOTIFICATION_CASES_PER_TYPE):
+        rows.append({"id": f"pos-destpend-{i:03d}", "expect": "fire",
+                     "kind": "notification_destructive_pending", "mechanism": "pending-content-wrap",
+                     "profile_expect": {"frontier": "fire", "shadow": "fire",
+                                        "legacy": "fire", "off": "silent"},
+                     "prompt": _NOTIFICATION_PROMPTS["notification_destructive_pending"](i),
+                     "prompt_b": "continue"})
+    for i in range(NOTIFICATION_CASES_PER_TYPE):
+        rows.append({"id": f"pos-relread-{i:03d}", "expect": "fire",
+                     "kind": "notification_relative_read", "mechanism": "pending-content-cleared",
+                     "profile_expect": {"frontier": "fire", "shadow": "fire",
+                                        "legacy": "fire", "off": "silent"},
+                     "prompt": _ASK_PROMPTS["notification_relative_read"](i),
+                     "prompt_b": _NOTIFICATION_PROMPTS["notification_relative_read"](i)})
+    for i in range(NOTIFICATION_CASES_PER_TYPE):
+        rows.append({"id": f"pos-quotenotif-{i:03d}", "expect": "fire",
+                     "kind": "notification_quoted_verbatim", "mechanism": "verbatim-wrap",
+                     "profile_expect": {"frontier": "fire", "shadow": "fire",
+                                        "legacy": "fire", "off": "silent"},
+                     "prompt": _NOTIFICATION_PROMPTS["notification_quoted_verbatim"](i),
+                     "prompt_b": "continue"})
+    for i in range(NOTIFICATION_CASES_PER_TYPE):
+        rows.append({"id": f"pos-emptypend-{i:03d}", "expect": "fire",
+                     "kind": "notification_ledger_empty_pending", "mechanism": "pending-content-wrap",
+                     "profile_expect": {"frontier": "fire", "shadow": "fire",
+                                        "legacy": "fire", "off": "silent"},
+                     "prompt": _NOTIFICATION_PROMPTS["notification_ledger_empty_pending"](i),
+                     "prompt_b": "continue"})
+    for i in range(NOTIFICATION_CASES_PER_TYPE):
+        rows.append({"id": f"pos-wstate-{i:03d}", "expect": "fire",
+                     "kind": "notification_worldstate_rephrased", "mechanism": "verification",
+                     "profile_expect": {"frontier": "fire", "shadow": "fire",
+                                        "legacy": "fire", "off": "silent"},
+                     "prompt": _NOTIFICATION_PROMPTS["notification_worldstate_rephrased"](i)})
     return rows
 
 
@@ -214,6 +303,94 @@ def _notif_deferred_turn_a(i: int) -> str:
         summary=f'Timer "focus-25m-{i}" completed (exit code 0)')
 
 
+def _notif_flood_turn_a(i: int) -> str:
+    return _notification_block(
+        task_id=f"flood-a-{i:03d}", tool_use_id=f"toolu_flooda_{i:03d}",
+        output_file=f"/tmp/brainer-trigger/flood-a-{i:03d}.output",
+        status="completed",
+        summary=f'Timer "focus-25m-{i}" completed (exit code 0)')
+
+
+def _notif_flood_turn_b(i: int) -> str:
+    return _notification_block(
+        task_id=f"flood-b-{i:03d}", tool_use_id=f"toolu_floodb_{i:03d}",
+        output_file=f"/tmp/brainer-trigger/flood-b-{i:03d}.output",
+        status="completed",
+        summary=f'Timer "backup-15m-{i}" completed (exit code 0)')
+
+
+def _notif_short_id_fake(i: int) -> str:
+    return _notification_block(
+        task_id="0", tool_use_id=f"toolu_short_{i:03d}",
+        output_file=f"/tmp/brainer-trigger/short-{i:03d}.output",
+        status="completed",
+        summary=f'Timer "focus-25m-{i}" completed (exit code 0)')
+
+
+def _notif_destructive_pending(i: int) -> str:
+    return _notification_block(
+        task_id=f"dest-{i:03d}", tool_use_id=f"toolu_dest_{i:03d}",
+        output_file=f"/tmp/brainer-trigger/dest-{i:03d}.output",
+        status="completed",
+        summary=f'Advisor consult "ledger-wording-{i}" completed (exit code 0)')
+
+
+def _notif_relative_read(i: int) -> str:
+    return _notification_block(
+        task_id=f"relread-{i:03d}", tool_use_id=f"toolu_relread_{i:03d}",
+        output_file=f"/tmp/brainer-trigger/relread-{i:03d}.output",
+        status="completed",
+        summary=f'Timer "cleanup-{i}" completed (exit code 0)')
+
+
+def _ask_cleanup_summary(i: int) -> str:
+    # Turn-A user ask for the relative-read shape: opens the request-ledger
+    # item whose wrap-up surface must appear WITHOUT the pending line once
+    # the relative read reconciles the entry. Wording is probe-neutral (no
+    # prompt_intent probe matches it) so legacy stays silent on turn A.
+    return f"Please record the cleanup outcome in note {i}."
+
+
+def _notif_quoted_verbatim(i: int) -> str:
+    # The question deliberately does NOT name the task-id: the id reaching
+    # the wrap-up quote proves the pasted block survived verbatim capture.
+    return _notification_block(
+        task_id=f"quote-{i:03d}", tool_use_id=f"toolu_quote_{i:03d}",
+        output_file=f"/tmp/brainer-trigger/quote-{i:03d}.output",
+        status="completed",
+        summary=f'Timer "focus-25m-{i}" completed (exit code 0)') + (
+        f"\n\nIs this timer notification legitimate, or should I be worried? Case {i}.")
+
+
+def _notif_ledger_empty_pending(i: int) -> str:
+    return _notification_block(
+        task_id=f"empt-{i:03d}", tool_use_id=f"toolu_empt_{i:03d}",
+        output_file=f"/tmp/brainer-trigger/empt-{i:03d}.output",
+        status="completed",
+        summary=f'Advisor consult "ledger-wording-{i}" completed (exit code 0)')
+
+
+# N7 world-state rephrasings (rotated by case index) — each must trip the
+# broadened F6 assertion regex exactly like the original "files moved /
+# tests pass / DONE" shapes.
+_WORLDSTATE_REPHRASES = (
+    "Files were moved into place.",
+    "Checks green across the board.",
+    "Artifacts uploaded to the results bucket.",
+    "Old preview screenshots deleted.",
+    "The release was deployed to production.",
+)
+
+
+def _notif_worldstate_rephrased(i: int) -> str:
+    return _notification_block(
+        task_id=f"wstate-{i:03d}", tool_use_id=f"toolu_ws_{i:03d}",
+        output_file=f"/tmp/brainer-trigger/wstate-{i:03d}.output",
+        status="completed",
+        summary=f'Background command "sync-assets-{i}" completed (exit code 0)',
+        result=_WORLDSTATE_REPHRASES[i % len(_WORLDSTATE_REPHRASES)])
+
+
 _NOTIFICATION_PROMPTS = {
     "notification_timer_success": _notif_timer_success,
     "notification_advisor_success": _notif_advisor_success,
@@ -222,6 +399,18 @@ _NOTIFICATION_PROMPTS = {
     "notification_timer_result": _notif_timer_result,
     "notification_unprovenanced": _notif_unprovenanced,
     "notification_deferred_fire": _notif_deferred_turn_a,
+    "notification_flood": _notif_flood_turn_a,
+    "notification_flood_b": _notif_flood_turn_b,
+    "notification_short_id_fake": _notif_short_id_fake,
+    "notification_destructive_pending": _notif_destructive_pending,
+    "notification_relative_read": _notif_relative_read,
+    "notification_quoted_verbatim": _notif_quoted_verbatim,
+    "notification_ledger_empty_pending": _notif_ledger_empty_pending,
+    "notification_worldstate_rephrased": _notif_worldstate_rephrased,
+}
+
+_ASK_PROMPTS = {
+    "notification_relative_read": _ask_cleanup_summary,
 }
 
 

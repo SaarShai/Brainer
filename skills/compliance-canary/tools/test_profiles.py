@@ -9,7 +9,10 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
+import time
+import types
 from pathlib import Path
 
 
@@ -34,9 +37,12 @@ def claim(text: str = "The tests pass; this is ready.") -> dict:
 
 
 def notification(summary: str, status: str = "completed", result: str | None = None,
-                 output_file: str | None = "/tmp/cc-notify.output") -> str:
-    """Harness-shaped <task-notification> UserPromptSubmit payload."""
-    lines = ["<task-notification>", "<task-id>t-1</task-id>",
+                 output_file: str | None = "/tmp/cc-notify.output",
+                 task_id: str = "task-t1") -> str:
+    """Harness-shaped <task-notification> UserPromptSubmit payload. task_id
+    defaults to a realistic >=6-char substrate id (F1 entropy floor: shorter
+    ids fail provenance open by design)."""
+    lines = ["<task-notification>", f"<task-id>{task_id}</task-id>",
              "<tool-use-id>toolu_t1</tool-use-id>"]
     if output_file:
         lines.append(f"<output-file>{output_file}</output-file>")
@@ -77,9 +83,10 @@ def intent_records(root: Path, session: str) -> list[dict]:
 _TASK_ID_RE = re.compile(r"<task-id>(.*?)</task-id>")
 
 
-def run(root: Path, transcript: list[dict], profile: str | None, session: str,
-        prompt: str = "continue", provenance: bool = True) -> subprocess.CompletedProcess:
-    tx = root / f"{session}.jsonl"
+def run(root: Path, transcript: list[dict], profile: str | None, session: str | None,
+        prompt: str = "continue", provenance: bool = True,
+        extra_env: dict | None = None) -> subprocess.CompletedProcess:
+    tx = root / f"{session if session is not None else 'anon'}.jsonl"
     rows = list(transcript)
     # D2 provenance fixture realism (2026-07-19): a REAL substrate notification
     # is always preceded by the tool_result that announced its task id. When the
@@ -107,7 +114,11 @@ def run(root: Path, transcript: list[dict], profile: str | None, session: str,
         env.pop("COMPLIANCE_CANARY_PROFILE", None)
     else:
         env["COMPLIANCE_CANARY_PROFILE"] = profile
-    payload = {"session_id": session, "transcript_path": str(tx), "prompt": prompt}
+    if extra_env:
+        env.update(extra_env)
+    payload = {"transcript_path": str(tx), "prompt": prompt}
+    if session is not None:
+        payload["session_id"] = session
     return subprocess.run(["python3", str(HOOK)], input=json.dumps(payload), text=True,
                           capture_output=True, env=env, timeout=10)
 
@@ -146,7 +157,8 @@ def main() -> int:
         check("off-no-intent-capture", not intent_path(root, "off").exists())
 
         no_evidence = run(root, [claim()], None, "default-frontier")
-        check("default-is-frontier-and-fires", "claim_without_evidence" in no_evidence.stdout,
+        check("default-is-frontier-and-fires",
+              no_evidence.stdout.count("[claim_without_evidence]:") == 1,
               no_evidence.stdout)
 
         fresh_success = [
@@ -177,7 +189,8 @@ def main() -> int:
             tool_result("v2", "1 failed", True), claim(),
         ]
         out = run(root, failed, "frontier", "failed")
-        check("failed-evidence-fires", "claim_without_evidence" in out.stdout, out.stdout)
+        check("failed-evidence-fires", out.stdout.count("[claim_without_evidence]:") == 1,
+              out.stdout)
 
         stale = [
             tool_use("v3", "Bash", {"command": "pytest -q"}), tool_result("v3", "12 passed"),
@@ -185,21 +198,24 @@ def main() -> int:
             tool_result("m3", "updated"), claim(),
         ]
         out = run(root, stale, "frontier", "stale")
-        check("pre-mutation-evidence-fires", "claim_without_evidence" in out.stdout, out.stdout)
+        check("pre-mutation-evidence-fires", out.stdout.count("[claim_without_evidence]:") == 1,
+              out.stdout)
 
         wrong = [
             tool_use("v4", "Bash", {"command": "curl localhost:8000/healthz"}),
             tool_result("v4", "ok"), claim(),
         ]
         out = run(root, wrong, "frontier", "wrong")
-        check("wrong-evidence-class-fires", "claim_without_evidence" in out.stdout, out.stdout)
+        check("wrong-evidence-class-fires", out.stdout.count("[claim_without_evidence]:") == 1,
+              out.stdout)
 
         incidental = [
             tool_use("v5", "Bash", {"command": "echo status"}),
             tool_result("v5", "tests pass; server healthy; screenshot looks good"), claim(),
         ]
         out = run(root, incidental, "frontier", "incidental")
-        check("incidental-result-keywords-do-not-create-evidence", "claim_without_evidence" in out.stdout,
+        check("incidental-result-keywords-do-not-create-evidence",
+              out.stdout.count("[claim_without_evidence]:") == 1,
               out.stdout)
         incidental_path = [
             tool_use("v6", "Bash", {"command": "cat test-results.txt"}),
@@ -207,14 +223,16 @@ def main() -> int:
         ]
         out = run(root, incidental_path, "frontier", "incidental-path")
         check("incidental-command-path-does-not-create-test-evidence",
-              "claim_without_evidence" in out.stdout, out.stdout)
+              out.stdout.count("[claim_without_evidence]:") == 1,
+              out.stdout)
         quoted_check = [
             tool_use("v7", "Bash", {"command": "echo python3 check.py"}),
             tool_result("v7", "python3 check.py"), claim(),
         ]
         out = run(root, quoted_check, "frontier", "quoted-check")
         check("mentioned-check-script-is-not-execution-evidence",
-              "claim_without_evidence" in out.stdout, out.stdout)
+              out.stdout.count("[claim_without_evidence]:") == 1,
+              out.stdout)
 
         # Pending intent must exist before a genuine wrap-up. A single isolated
         # completion fixture is not a ledger test because there is no prior ask.
@@ -223,7 +241,7 @@ def main() -> int:
         check("pending-intent-capture-is-silent", not first.stdout, first.stdout)
         second = run(root, [claim("Task is complete.")], "frontier", "wrap-up")
         check("genuine-wrap-up-surfaces-pending-intent",
-              "request(s) are still OPEN" in second.stdout, second.stdout)
+              second.stdout.count("request(s) are still OPEN") == 1, second.stdout)
 
         mixed = [claim("Certainly. The tests pass; this is ready.")]
         frontier = run(root, mixed, "frontier", "frontier-equivalence")
@@ -274,7 +292,7 @@ def main() -> int:
         out = run(root, [claim("The background re-index is done and everything is ready.")],
                   "frontier", "notif-failed", prompt=failed_prompt)
         check("notification-failed-job-still-fires",
-              "claim_without_evidence" in out.stdout, out.stdout)
+              out.stdout.count("[claim_without_evidence]:") == 1, out.stdout)
 
         subagent_prompt = notification(
             'Dynamic workflow "implement-feature" completed',
@@ -282,13 +300,13 @@ def main() -> int:
         out = run(root, [claim("The implementation subagent finished: files are moved and tests pass — this is done and ready.")],
                   "frontier", "notif-subagent", prompt=subagent_prompt)
         check("notification-subagent-worldstate-still-fires",
-              "claim_without_evidence" in out.stdout, out.stdout)
+              out.stdout.count("[claim_without_evidence]:") == 1, out.stdout)
 
         mixed_prompt = timer_prompt + "\nplease also review the draft"
         out = run(root, [claim("Your focus timer is ready — I will report back when it fires.")],
                   "frontier", "notif-mixed", prompt=mixed_prompt)
         check("notification-with-user-remainder-still-fires",
-              "claim_without_evidence" in out.stdout, out.stdout)
+              out.stdout.count("[claim_without_evidence]:") == 1, out.stdout)
 
         # --- D1 (2026-07-19): suppression DEFERS, never destroys. The
         # suppressed probe is still EVALUATED on the notification turn; a
@@ -312,7 +330,7 @@ def main() -> int:
                 claim("Still gathering the remaining details; nothing to report yet.")]
         second = run(root, slid, "frontier", "notif-defer", prompt="continue")
         check("deferred-fire-emits-on-next-non-notification-turn",
-              "claim_without_evidence" in second.stdout, second.stdout)
+              second.stdout.count("[claim_without_evidence]:") == 1, second.stdout)
         check("deferred-fire-marker-cleared-after-emission",
               not state_file(root, "notif-defer").get("deferred_fires"),
               repr(state_file(root, "notif-defer").get("deferred_fires")))
@@ -324,7 +342,7 @@ def main() -> int:
         fake = run(root, [claim("Your focus timer is ready — I will report back when it fires.")],
                    "frontier", "notif-fake", prompt=timer_prompt, provenance=False)
         check("notification-without-provenance-fires",
-              "claim_without_evidence" in fake.stdout, fake.stdout)
+              fake.stdout.count("[claim_without_evidence]:") == 1, fake.stdout)
 
         # --- D3: terminal-SUCCESS timer notification WITH the result attached
         # (the live FP shape the pointer-only corpus negative missed) — a hard
@@ -363,7 +381,7 @@ def main() -> int:
             prompt=advisor_pointer_prompt)
         out = run(root, [claim("Task is complete.")], "frontier", "notif-wrap")
         check("notification-unresolved-pending-listed-at-wrap-up",
-              "- advisor output never read: /tmp/cc-advisor.output" in out.stdout,
+              out.stdout.count("- advisor output never read: /tmp/cc-advisor.output") == 1,
               out.stdout)
 
         # --- D5: the hook's format_one_probe fallback and drift_probes.json's
@@ -413,7 +431,8 @@ def main() -> int:
         wrap_state.write_text(json.dumps(st, indent=2) + "\n", encoding="utf-8")
         out = run(root, [claim("Task is complete.")], "frontier", "intent-wrap")
         check("wrap-up-surface-quotes-intent-log",
-              f"[turn 1] {wrap_prompt}" in out.stdout and "garbled-paraphrase" not in out.stdout,
+              out.stdout.count(f"[turn 1] {wrap_prompt}") == 1
+              and "garbled-paraphrase" not in out.stdout,
               out.stdout)
 
         # An unwritable intent location (a FILE squatting on the dir path)
@@ -423,9 +442,318 @@ def main() -> int:
         out = run(root, [claim()], "frontier", "intent-blocked",
                   prompt="Please review the flaky test")
         check("intent-capture-failure-does-not-block",
-              out.returncode == 0 and "claim_without_evidence" in out.stdout
+              out.returncode == 0 and out.stdout.count("[claim_without_evidence]:") == 1
               and "intent-capture-fail" in out.stderr,
               out.stdout + out.stderr)
+
+        # --- 2026-07-18 adversarial-audit fixes (F1-F6) ---------------------
+        # Restore a writable intent dir (the intent-blocked fixture above
+        # squatted a FILE on the path) for the capture checks below.
+        (root / "intent").unlink()
+        # F1: full-file provenance — a legit substrate announcement that
+        # scrolled past the 400-line tail still suppresses (the whole file is
+        # scanned for the task-id, not just the tail).
+        filler = [claim(f"Working note {j}: still exploring the draft.") for j in range(450)]
+        out = run(root, filler + [claim("Your focus timer is ready — I will report back when it fires.")],
+                  "frontier", "notif-longtail",
+                  prompt=notification('Timer "focus-25m" completed (exit code 0)',
+                                      task_id="longtail-000"))
+        check("notification-provenance-found-beyond-tail-suppresses", not out.stdout, out.stdout)
+
+        # F1: the <task-id>0</task-id> bypass — a one-char id present as an
+        # incidental substring in tool content proves nothing (entropy floor).
+        short_tx = [tool_use("s0", "Bash", {"command": "brainer-timer start focus-25m"}),
+                    tool_result("s0", "Background task 0 started; will notify on completion."),
+                    claim("Your focus timer is ready — I will report back when it fires.")]
+        out = run(root, short_tx, "frontier", "notif-shortid",
+                  prompt=notification('Timer "focus-25m" completed (exit code 0)', task_id="0"),
+                  provenance=False)
+        check("notification-short-task-id-fails-open-fires",
+              out.stdout.count("[claim_without_evidence]:") == 1, out.stdout)
+
+        # F1: an id mentioned only in arbitrary USER PROSE is not substrate
+        # provenance (tool_use/tool_result/substrate content is required).
+        prose_tx = [event("user", [{"type": "text", "text": "can you check on prose-id-123 later?"}]),
+                    claim("Your focus timer is ready — I will report back when it fires.")]
+        out = run(root, prose_tx, "frontier", "notif-proseid",
+                  prompt=notification('Timer "focus-25m" completed (exit code 0)',
+                                      task_id="prose-id-123"),
+                  provenance=False)
+        check("notification-task-id-in-user-prose-fails-open-fires",
+              out.stdout.count("[claim_without_evidence]:") == 1, out.stdout)
+
+        # F6: passive/rephrased world-state prose ("were moved", "checks
+        # green", "uploaded") keeps the evidence gate armed exactly like the
+        # original "files moved / tests pass" shapes.
+        rephrased_prompt = notification(
+            'Background command "sync-assets" completed (exit code 0)',
+            result="Files were moved into place; checks green; artifacts uploaded.",
+            task_id="ws-0001")
+        out = run(root, [claim("The sync finished: files are moved and checks green — this is ready.")],
+                  "frontier", "notif-ws-rephrased", prompt=rephrased_prompt)
+        check("notification-worldstate-rephrased-still-fires",
+              out.stdout.count("[claim_without_evidence]:") == 1, out.stdout)
+
+        # F2: a notification FLOOD cannot destroy a fire — the second
+        # qualifying notification while a marker is pending emits it anyway.
+        first = run(root, [claim("The interim summary is ready.")], "frontier", "notif-flood",
+                    prompt=notification('Timer "one" completed (exit code 0)', task_id="flood-aa"))
+        check("notification-flood-first-turn-stays-silent", not first.stdout, first.stdout)
+        second = run(root, [claim("The interim summary is ready."),
+                            claim("Still gathering the remaining details; nothing to report yet.")],
+                     "frontier", "notif-flood",
+                     prompt=notification('Timer "two" completed (exit code 0)', task_id="flood-bb"))
+        check("notification-flood-second-notification-emits-deferred",
+              second.stdout.count("[claim_without_evidence]:") == 1, second.stdout)
+        check("notification-flood-markers-cleared-after-forced-emission",
+              not state_file(root, "notif-flood").get("deferred_fires"),
+              repr(state_file(root, "notif-flood").get("deferred_fires")))
+
+        # F2: the agent verified in the meantime — the stale marker drops
+        # silently instead of nagging (emission-time freshness re-check).
+        # ("tests pass" → the claim's evidence class is test/build, matching
+        # the later check.py run; "checks pass" would classify otherwise.)
+        first = run(root, [claim("The interim summary is ready and the tests pass.")],
+                    "frontier", "notif-stale",
+                    prompt=notification('Timer "focus-25m" completed (exit code 0)', task_id="stale-01"))
+        check("notification-stale-defer-turn-stays-silent", not first.stdout, first.stdout)
+        verified_tx = [tool_use("prov", "Bash", {"command": "brainer-timer start focus-25m"}),
+                       tool_result("prov", "Background task stale-01 started; will notify on completion."),
+                       claim("The interim summary is ready and the tests pass."),
+                       tool_use("vs", "Bash", {"command": "python3 check.py"}),
+                       tool_result("vs", "12 passed"),
+                       claim("The fresh check came back green; continuing.")]
+        second = run(root, verified_tx, "frontier", "notif-stale", prompt="continue")
+        check("stale-deferred-marker-drops-silently-after-verification",
+              not second.stdout, second.stdout)
+        check("stale-deferred-marker-cleared",
+              not state_file(root, "notif-stale").get("deferred_fires"),
+              repr(state_file(root, "notif-stale").get("deferred_fires")))
+        third = run(root, verified_tx, "frontier", "notif-stale", prompt="continue")
+        check("stale-marker-drop-is-final", not third.stdout, third.stdout)
+
+        # F3: DESTRUCTION does not clear a pending entry (rm on the output
+        # file), and a FAILED read does not clear either.
+        run(root, [claim("Your focus timer is set; I will report back when it fires.")],
+            "frontier", "notif-rm",
+            prompt=notification('Timer "focus-25m" completed (exit code 0)', task_id="rm-0001",
+                                output_file="/tmp/cc-rm/rm-0001.output"))
+        check("notification-rm-session-records-pending",
+              len(state_file(root, "notif-rm").get("notification_pending_content", [])) == 1,
+              repr(state_file(root, "notif-rm")))
+        rm_tx = [tool_use("rm1", "Bash", {"command": "rm -f /tmp/cc-rm/rm-0001.output"}),
+                 tool_result("rm1", ""),
+                 tool_use("er1", "Read", {"file_path": "/tmp/cc-rm/rm-0001.output"}),
+                 tool_result("er1", "No such file or directory", True),
+                 claim("Still gathering the remaining details; nothing to report yet.")]
+        run(root, rm_tx, "frontier", "notif-rm", prompt="continue")
+        check("notification-pending-content-survives-deletion-and-error",
+              len(state_file(root, "notif-rm").get("notification_pending_content", [])) == 1,
+              repr(state_file(root, "notif-rm").get("notification_pending_content")))
+
+        # F3 (audit round 1): mv (rename) and an Edit-overwrite are NOT reads
+        # — neither reconciles the entry.
+        run(root, [claim("Your focus timer is set; I will report back when it fires.")],
+            "frontier", "notif-mv",
+            prompt=notification('Timer "focus-25m" completed (exit code 0)', task_id="mv-0001",
+                                output_file="/tmp/cc-mv/mv-0001.output"))
+        mv_tx = [tool_use("mv1", "Bash", {"command": "mv /tmp/cc-mv/mv-0001.output /tmp/cc-mv/archived.output"}),
+                 tool_result("mv1", ""),
+                 tool_use("ed1", "Edit", {"file_path": "/tmp/cc-mv/mv-0001.output",
+                                          "old_string": "a", "new_string": "b"}),
+                 tool_result("ed1", "updated"),
+                 claim("Still gathering the remaining details; nothing to report yet.")]
+        run(root, mv_tx, "frontier", "notif-mv", prompt="continue")
+        check("notification-pending-content-survives-mv-and-edit",
+              len(state_file(root, "notif-mv").get("notification_pending_content", [])) == 1,
+              repr(state_file(root, "notif-mv").get("notification_pending_content")))
+
+        # F3: a bare basename with NO parent-dir anchor does not clear…
+        run(root, [claim("Your focus timer is set; I will report back when it fires.")],
+            "frontier", "notif-basename",
+            prompt=notification('Timer "focus-25m" completed (exit code 0)', task_id="base-01",
+                                output_file="/tmp/cc-base/base-01.output"))
+        base_tx = [tool_use("rb", "Bash", {"command": "cat base-01.output"}),
+                   tool_result("rb", "contents"),
+                   claim("Still gathering the remaining details; nothing to report yet.")]
+        run(root, base_tx, "frontier", "notif-basename", prompt="continue")
+        check("notification-bare-basename-does-not-clear",
+              len(state_file(root, "notif-basename").get("notification_pending_content", [])) == 1,
+              repr(state_file(root, "notif-basename").get("notification_pending_content")))
+
+        # F3: …but a genuine `cd <dir> && cat <file>` relative read DOES.
+        run(root, [claim("Your focus timer is set; I will report back when it fires.")],
+            "frontier", "notif-relread",
+            prompt=notification('Timer "focus-25m" completed (exit code 0)', task_id="rel-001",
+                                output_file="/tmp/cc-rel/rel-001.output"))
+        rel_tx = [tool_use("rr", "Bash", {"command": "cd /tmp/cc-rel && cat rel-001.output"}),
+                  tool_result("rr", "timer fired at 10:25"),
+                  claim("Still gathering the remaining details; nothing to report yet.")]
+        run(root, rel_tx, "frontier", "notif-relread", prompt="continue")
+        check("notification-pending-content-clears-on-relative-read",
+              not state_file(root, "notif-relread").get("notification_pending_content"),
+              repr(state_file(root, "notif-relread").get("notification_pending_content")))
+
+        # F3: unresolved entries surface at wrap-up INDEPENDENT of the
+        # request ledger — this session only ever saw a notification and
+        # trivial prompts, so the ledger is empty at wrap-up.
+        run(root, [claim("Your focus timer is set; I will report back when it fires.")],
+            "frontier", "notif-solo",
+            prompt=notification('Advisor consult "solo" completed (exit code 0)', task_id="solo-01",
+                                output_file="/tmp/cc-solo.output"))
+        out = run(root, [claim("Task is complete.")], "frontier", "notif-solo", prompt="continue")
+        check("notification-pending-surfaces-at-wrap-up-without-ledger-items",
+              out.stdout.count("- advisor output never read: /tmp/cc-solo.output") == 1,
+              out.stdout)
+
+        # F4: a user ask ABOUT a pasted notification captures the FULL
+        # original prompt verbatim — the pasted block is the object of the
+        # ask and must not be stripped from the record.
+        pasted = notification('Timer "focus-25m" completed (exit code 0)', task_id="paste-1") + \
+            "\n\nIs this notification legitimate, or should I be worried?"
+        run(root, [claim("Looking into it now.")], "frontier", "intent-pasted", prompt=pasted)
+        recs = intent_records(root, "intent-pasted")
+        check("intent-capture-keeps-full-prompt-with-pasted-block",
+              len(recs) == 1 and recs[0]["text"] == pasted
+              and recs[0]["sha256"] == hashlib.sha256(pasted.encode()).hexdigest(),
+              repr(recs))
+
+        # F5a: GC parity — intent logs older than the 7-day horizon are
+        # removed by the same new-session gc pass; fresh logs survive.
+        run(root, [claim("Working on it now.")], "frontier", "intent-gc-old",
+            prompt="Please draft the old quarterly plan")
+        old_intent = intent_path(root, "intent-gc-old")
+        check("intent-gc-fixture-written", old_intent.is_file())
+        stale_time = time.time() - (8 * 24 * 3600)
+        os.utime(old_intent, (stale_time, stale_time))
+        run(root, [claim("Working on it now.")], "frontier", "intent-gc-fresh",
+            prompt="Please draft the new quarterly plan")
+        check("intent-gc-removes-stale-logs-keeps-fresh",
+              not old_intent.exists() and intent_path(root, "intent-gc-fresh").is_file())
+
+        # F5b: the shared secret scrubber runs over the text before writing —
+        # key-like strings only; the rest of the prompt stays verbatim.
+        secret_prompt = ("Please put API_KEY=sk-1234567890abcdef1234 in the config and keep "
+                         "ghp_abcdefghij1234567890abcd out of the logs")
+        run(root, [claim("Working on it now.")], "frontier", "intent-redact", prompt=secret_prompt)
+        recs = intent_records(root, "intent-redact")
+        check("intent-capture-redacts-key-like-strings-only",
+              len(recs) == 1
+              and "sk-1234567890abcdef1234" not in recs[0]["text"]
+              and "ghp_abcdefghij1234567890abcd" not in recs[0]["text"]
+              and "[REDACTED]" in recs[0]["text"]
+              and recs[0]["text"].endswith("out of the logs")
+              and recs[0]["sha256"] == hashlib.sha256(recs[0]["text"].encode()).hexdigest(),
+              repr(recs))
+
+        # R2-3: verbatim means verbatim — the persisted record keeps the
+        # prompt's exact whitespace (capture_intent's own .strip() is gone).
+        quoted_ws = ("\n\n" + notification('Timer "focus-25m" completed (exit code 0)',
+                                          task_id="ws-ver01") + "\n\nIs this real?  \n")
+        run(root, [claim("Looking into it now.")], "frontier", "intent-ws", prompt=quoted_ws)
+        recs = intent_records(root, "intent-ws")
+        check("intent-capture-preserves-exact-whitespace",
+              len(recs) == 1 and recs[0]["text"] == quoted_ws
+              and recs[0]["sha256"] == hashlib.sha256(quoted_ws.encode()).hexdigest(),
+              repr(recs))
+
+        # R2-2: a FAILING redactor must never fall back to raw text — the
+        # record degrades to "[REDACTION-FAILED]" + the ORIGINAL text's
+        # hash (integrity anchor kept, secret bytes never persisted).
+        broken = types.ModuleType("audit_redact")
+
+        def _boom(_text):
+            raise RuntimeError("scrubber exploded")
+
+        broken.redact_secrets = _boom
+        old_env = os.environ.get("COMPLIANCE_CANARY_STATE_DIR")
+        os.environ["COMPLIANCE_CANARY_STATE_DIR"] = str(root / "state")
+        old_mod = sys.modules.get("audit_redact")
+        sys.modules["audit_redact"] = broken
+        raw_secret = "  Please keep sk-1234567890abcdef1234 safe  "
+        try:
+            ok = hook_mod.capture_intent("intent-redact-broken", 1, raw_secret)
+        finally:
+            if old_mod is None:
+                sys.modules.pop("audit_redact", None)
+            else:
+                sys.modules["audit_redact"] = old_mod
+            if old_env is None:
+                os.environ.pop("COMPLIANCE_CANARY_STATE_DIR", None)
+            else:
+                os.environ["COMPLIANCE_CANARY_STATE_DIR"] = old_env
+        recs = intent_records(root, "intent-redact-broken")
+        check("intent-redaction-failure-stores-placeholder-never-raw",
+              ok and len(recs) == 1 and recs[0]["text"] == "[REDACTION-FAILED]"
+              and "sk-1234567890abcdef1234" not in json.dumps(recs)
+              and recs[0]["sha256"] == hashlib.sha256(raw_secret.encode()).hexdigest(),
+              repr(recs))
+
+        # F5d: a payload WITHOUT session_id writes a timestamped fallback —
+        # never a shared unknown.jsonl.
+        out = run(root, [claim("Working on it now.")], "frontier", None,
+                  prompt="Please draft the anonymous thing")
+        fallbacks = list((root / "intent").glob("unknown-*.jsonl"))
+        check("intent-missing-session-id-uses-timestamped-fallback",
+              out.returncode == 0 and len(fallbacks) == 1
+              and not (root / "intent" / "unknown.jsonl").exists(),
+              repr((out.returncode, fallbacks, out.stderr)))
+
+        # F1: a >=6-char but ZERO-ENTROPY id fails open even when the
+        # substrate-style announcement IS present in tool content (the
+        # run() helper prepends it) — all-same-char / trivial-sequence ids
+        # collide with incidental substrings and prove nothing.
+        for bad_id in ("000000", "123456"):
+            out = run(root, [claim("Your focus timer is ready — I will report back when it fires.")],
+                      "frontier", f"notif-entropy-{bad_id}",
+                      prompt=notification('Timer "focus-25m" completed (exit code 0)',
+                                          task_id=bad_id))
+            check(f"notification-low-entropy-id-{bad_id}-fails-open-fires",
+                  out.stdout.count("[claim_without_evidence]:") == 1, out.stdout)
+
+        # F5c: COMPLIANCE_CANARY_DISABLED=1 suppresses intent capture like
+        # every other mechanism — while the request LEDGER still records the
+        # ask (standing user directive: the ledger stays ahead of the valve).
+        disabled_prompt = "Please draft the disabled-valve plan"
+        out = run(root, [claim("Working on it now.")], "frontier", "intent-disabled",
+                  prompt=disabled_prompt,
+                  extra_env={"COMPLIANCE_CANARY_DISABLED": "1"})
+        check("intent-capture-suppressed-when-disabled",
+              out.returncode == 0 and not out.stdout
+              and not intent_path(root, "intent-disabled").exists(),
+              repr((out.returncode, out.stdout, out.stderr)))
+        check("request-ledger-still-records-when-disabled",
+              len(state_file(root, "intent-disabled").get("request_ledger", [])) == 1,
+              repr(state_file(root, "intent-disabled")))
+        out = run(root, [claim("Working on it now.")], "frontier", "intent-disabled-resume",
+                  prompt="Please draft the resumed plan")
+        check("intent-capture-resumes-after-disabled",
+              len(intent_records(root, "intent-disabled-resume")) == 1,
+              repr(intent_records(root, "intent-disabled-resume")))
+
+        # F6: an interpreter-mediated file write IS a mutation — a check run
+        # BEFORE `python3 -c "open(...,'w')..."` is stale evidence, exactly
+        # like a check run before an Edit.
+        pywrite = [
+            tool_use("v8", "Bash", {"command": "pytest -q"}),
+            tool_result("v8", "12 passed"),
+            tool_use("m8", "Bash", {"command": "python3 -c \"open('x.py','w').write('print(1)')\""}),
+            tool_result("m8", ""),
+            claim(),
+        ]
+        out = run(root, pywrite, "frontier", "py-oneliner-write")
+        check("python-one-liner-write-makes-prior-evidence-stale-fires",
+              out.stdout.count("[claim_without_evidence]:") == 1, out.stdout)
+        pyprint = [
+            tool_use("v9", "Bash", {"command": "pytest -q"}),
+            tool_result("v9", "12 passed"),
+            tool_use("m9", "Bash", {"command": "python3 -c \"print('hi')\""}),
+            tool_result("m9", "hi"),
+            claim(),
+        ]
+        out = run(root, pyprint, "frontier", "py-oneliner-print")
+        check("python-one-liner-print-is-not-a-mutation-stays-silent",
+              not out.stdout, out.stdout)
     return 0
 
 

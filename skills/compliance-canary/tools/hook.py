@@ -257,6 +257,33 @@ def gc_old_state(dir_path: Path, now: float) -> int:
     return removed
 
 
+def gc_old_intent_logs(dir_path: Path, now: float) -> int:
+    """F5a (2026-07-18 audit): GC parity with state files — intent logs older
+    than the same GC_AGE_SECONDS (7-day) horizon are removed by the same
+    new-session gc pass. Only *.jsonl in the intent dir are touched."""
+    if not dir_path.is_dir():
+        return 0
+    removed = 0
+    try:
+        with os.scandir(dir_path) as it:
+            for i, entry in enumerate(it):
+                if i >= GC_SCAN_MAX:
+                    break
+                if not entry.is_file():
+                    continue
+                if not entry.name.endswith(".jsonl"):
+                    continue
+                try:
+                    if now - entry.stat().st_mtime > GC_AGE_SECONDS:
+                        os.unlink(entry.path)
+                        removed += 1
+                except OSError:
+                    pass
+    except OSError as e:
+        log_err(f"gc-scandir-fail dir={dir_path} err={e!r}")
+    return removed
+
+
 # -------------------------- probe discovery --------------------------------
 
 def discover_probes(root: Path) -> list[dict]:
@@ -523,7 +550,23 @@ _FAILED_RESULT_RE = re.compile(
 _MUTATING_TOOL_NAMES = {"Edit", "Write", "NotebookEdit", "apply_patch"}
 _MUTATING_COMMAND_RE = re.compile(
     r"(?i)(?:\bapply_patch\b|\bsed\s+-i\b|\b(?:rm|mv|cp|mkdir|touch|chmod)\b|"
-    r"\bgit\s+(?:commit|merge|rebase|cherry-pick|add)\b|\b(?:npm|pnpm|yarn|pip)\s+install\b|"
+    r"\bgit\s+(?:commit|merge|rebase|cherry-pick|add|reset|restore|clean)\b|\b(?:npm|pnpm|yarn|pip)\s+install\b|"
+    # (`git mv` / `git rm` are already caught by the bare-word mv/rm branch
+    # above; reset/restore/clean rewrite the tree with no bare-word anchor —
+    # a check run BEFORE one is stale evidence. audit F6)
+    # Interpreter-mediated file writes (2026-07-18 audit F6): a one-liner like
+    # `python3 -c "open('x','w').write(...)"` mutates the tree without any of
+    # the shell shapes above. Conservative: the interpreter flag PLUS a
+    # write-shaped call later in the same command (the span crosses `;` —
+    # one-liners chain statements with it — but not `&` / `|` / newline);
+    # stdout/stderr writes excluded.
+    r"\bpython[0-9.]*\s+-c\b[^&|\n]*(?:\bopen\s*\([^)]*['\"]\s*[wax]b?\+?\s*['\"]|"
+    r"(?<!\.stdout)(?<!\.stderr)\.write(?:_text|_bytes)?\s*\(|"
+    r"\bshutil\.(?:copy2?|move)\s*\(|\bos\.(?:remove|unlink|rename|replace|makedirs?|rmdir)\s*\()|"
+    r"\bperl\s+-[A-Za-z]*e\b[^&|\n]*(?:\bopen\s*\([^)]*['\"]\s*>>?|"
+    r"\b(?:unlink|rename|mkdir|syswrite)\s*\(?)|"
+    r"\bnode\s+-e\b[^&|\n]*\bfs\.(?:writeFile|appendFile|unlink|rename|mkdir|rm|copyFile|"
+    r"createWriteStream)(?:Sync)?\s*\(|"
     r"(?:^|[;&|]\s*)[^\n]*?(?:>>?|\btee\b)\s*[^&|;]+)"
 )
 
@@ -1197,16 +1240,28 @@ DETECTORS["completion_without_closure"] = detect_completion_without_closure
 
 # ---- verbatim intent log (L0 capture side of the no-drop guarantee) ---------
 # docs/TARGET_ARCHITECTURE.md L0 "Intent log": every user-AUTHORED prompt,
-# verbatim, append-only — zero LLM, zero injected bytes. One capture, several
-# consumers: TODAY the wrap-up pending-intent surface quotes from it
-# (build_ledger_lines); PLANNED close-boundary reconciliation maps every
-# captured intent to satisfied / deferred / uncovered. Standing user
-# directive: capture has NO opt-out flag — frontier/shadow/legacy all capture,
-# and it runs ahead of even the whole-hook COMPLIANCE_CANARY_DISABLED valve
-# (the request ledger's posture exactly). The ONE exception is profile `off`,
-# the experimental control arm: it exits before ANY mutation, so it writes no
-# records. Best-effort: any failure logs to stderr and never blocks the hook
-# (the always-exit-0 contract).
+# verbatim, append-only — zero LLM, zero injected bytes. "User-authored" is
+# decided by harness-block stripping: a turn whose remainder is EMPTY (pure
+# notification / command transcript) writes no record; a turn with ANY
+# remainder captures the user-authored text verbatim — and when the prompt
+# carries a pasted <task-notification> block (the object of the user's ask),
+# the pasted block is preserved with it (F4, 2026-07-18 audit) while
+# always-mechanical command/system transcripts are still stripped
+# (intent_capture_text). One capture, several consumers: TODAY the wrap-up pending-intent
+# surface quotes from it (build_ledger_lines); PLANNED close-boundary
+# reconciliation maps every captured intent to satisfied / deferred /
+# uncovered. Standing user directive: capture has NO opt-out flag —
+# frontier/shadow/legacy all capture. Two exceptions: profile `off` (the
+# experimental control arm) exits before ANY mutation, so it writes no
+# records; and the whole-hook COMPLIANCE_CANARY_DISABLED valve suppresses
+# capture like every other mechanism (F5c, 2026-07-18 audit — the request
+# LEDGER is the sole record that stays ahead of the valve). Hygiene riders
+# (F5, same audit): key-like strings are scrubbed by the shared secret
+# redactor before writing (the sole verbatim exception), intent logs age out
+# on the same 7-day GC horizon as state files, and a missing session id gets
+# a timestamped fallback name instead of a shared unknown.jsonl. Best-effort:
+# any failure logs to stderr and never blocks the hook (the always-exit-0
+# contract).
 
 
 def intent_dir() -> Path:
@@ -1219,24 +1274,96 @@ def intent_dir() -> Path:
 def intent_log_path(session_id: str) -> Path:
     # Literal <session_id>.jsonl, with path-hostile characters flattened so a
     # garbage session id can never escape the intent dir.
-    safe = re.sub(r"[^A-Za-z0-9._-]", "_", session_id or "unknown")
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", session_id or "")
+    if not safe:
+        # F5d (2026-07-18 audit): NO unknown.jsonl co-mingling — a missing
+        # session id gets a timestamped (+pid) fallback so anonymous sessions
+        # never share one append target. main() passes the RAW (possibly
+        # empty) id through, so this fallback actually fires (R2-1). Without
+        # a stable id there is no read-back either — wrap-up quoting falls
+        # back to ledger text, best-effort.
+        safe = "unknown-" + time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()) + f"-{os.getpid()}"
     return intent_dir() / f"{safe}.jsonl"
+
+
+def _scrub_intent_text(text: str) -> str | None:
+    """F5b (2026-07-18 audit): run the shared secret scrubber
+    (skills/_shared/audit_redact.py, key-like strings ONLY —
+    `redact_secrets`, not the path-rewriting `redact`) over the prompt
+    before it hits disk. This is the SOLE exception to the verbatim rule:
+    credential-shaped strings never persist. Returns None on ANY scrubber
+    failure (R2-2: secrets must never reach disk on ANY path, so a failed
+    scrubber must never fall back to storing the raw text — the caller
+    persists the "[REDACTION-FAILED]" placeholder plus the ORIGINAL text's
+    hash instead, keeping an integrity anchor without the bytes)."""
+    try:
+        shared = Path(__file__).resolve().parent.parent.parent / "_shared"
+        if str(shared) not in sys.path:
+            sys.path.insert(0, str(shared))
+        import audit_redact
+        return audit_redact.redact_secrets(text)
+    except Exception as e:
+        log_err(f"intent-redact-fail err={e!r}")
+        return None
+
+
+# Blocks that are ALWAYS mechanical harness transcripts, never user-authored
+# content — stripped from intent capture even when the user authored the
+# surrounding text. A <task-notification> is the ONE block kind that can be
+# user-PASTED content (the object of an ask) — it is preserved (F4).
+_INTENT_MECHANICAL_BLOCK_RE = re.compile(
+    r"<(local-command-caveat|local-command-stdout|local-command-stderr|"
+    r"command-name|command-message|command-args|system-reminder)>.*?</\1>",
+    re.S,
+)
+
+
+def intent_capture_text(prompt_text: str, prompt_text_user: str) -> str:
+    """F4 (2026-07-18 audit): decide what the verbatim intent log stores.
+    An empty user remainder (a pure harness-notification turn) stores
+    nothing. A turn whose prompt carries a CLOSED <task-notification> block
+    inside otherwise organic user text treats the block as USER-PASTED
+    content — the literal subject of the ask ("what does this mean?") —
+    and keeps it, stripping only the always-mechanical command/system
+    transcripts. Any other turn stores the stripped user-authored
+    remainder (pre-audit behavior). Ambiguity errs toward preserving the
+    user's literal text."""
+    if not prompt_text_user:
+        return ""
+    if _TASK_NOTIFICATION_BLOCK_RE.search(prompt_text or ""):
+        return _INTENT_MECHANICAL_BLOCK_RE.sub("", prompt_text or "")
+    return prompt_text_user
 
 
 def capture_intent(session_id: str, turn: int, user_text: str) -> bool:
     """Append one user-authored prompt to the session's intent log, VERBATIM
-    (full-length — unlike the ledger's capped mirror). An empty remainder (a
-    pure harness-notification turn) writes no record. NEVER raises — capture
-    is best-effort and must not block the user's prompt."""
-    text = (user_text or "").strip()
-    if not text:
+    (full-length, whitespace intact — the .strip() below only DECIDES
+    emptiness, it never edits what is persisted; R2-3). An empty remainder
+    (a pure harness-notification turn) writes no record. The ONE verbatim
+    exception: key-like strings are scrubbed by the shared secret redactor
+    before writing (F5b; the sha256 anchors the stored, scrubbed text). On
+    scrubber failure the record degrades to the "[REDACTION-FAILED]"
+    placeholder with the sha256 anchoring the ORIGINAL text (R2-2) — raw
+    text never reaches disk on any path. NEVER raises — capture is
+    best-effort and must not block the user's prompt."""
+    text = user_text or ""
+    if not text.strip():
         return False
-    record = {
-        "turn": turn,
-        "ts": time.strftime("%FT%TZ", time.gmtime()),
-        "sha256": hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest(),
-        "text": text,
-    }
+    scrubbed = _scrub_intent_text(text)
+    if scrubbed is None:
+        record = {
+            "turn": turn,
+            "ts": time.strftime("%FT%TZ", time.gmtime()),
+            "sha256": hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest(),
+            "text": "[REDACTION-FAILED]",
+        }
+    else:
+        record = {
+            "turn": turn,
+            "ts": time.strftime("%FT%TZ", time.gmtime()),
+            "sha256": hashlib.sha256(scrubbed.encode("utf-8", errors="replace")).hexdigest(),
+            "text": scrubbed,
+        }
     try:
         path = intent_log_path(session_id)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -1335,9 +1462,29 @@ def strip_harness_injected(text: str) -> str:
 #        state marker and emitted once on the next non-notification turn,
 #        regardless of message-window slide (see main()).
 #   D2 — provenance: suppression additionally requires the notification's
-#        task-id string to appear EARLIER in the transcript
-#        (notification_task_id_seen); a pasted, syntactically valid fake has
-#        no such anchor and fails open (the turn fires as before).
+#        task-id to be ≥6 chars AND to appear inside tool_use input,
+#        tool_result content, or a substrate-announcement event ANYWHERE in
+#        the full transcript file (notification_task_id_provenanced); a
+#        pasted, syntactically valid fake — or a one-char id like "0" that
+#        matches incidental substrings — has no such anchor and fails open
+#        (the turn fires as before).
+# Hardened 2026-07-18 (lane A3, adversarial audit — fail-open throughout):
+#   F1 — provenance entropy + source floor: the D2 lookup requires a ≥6-char
+#        task-id found in tool/substrate content of the FULL transcript file
+#        (not the 400-line tail, not arbitrary user/assistant prose) — closes
+#        both the `<task-id>0</task-id>` bypass and the legit-announcement-
+#        500-lines-ago false fire.
+#   F2 — a pending deferred_fire marker survives at most ONE qualifying-
+#        notification turn: a second qualifying notification while a marker
+#        is pending emits it that turn anyway (a notification flood cannot
+#        destroy a fire). At emission, freshness is re-checked: matching
+#        successful evidence appearing AFTER the original claim drops the
+#        marker silently instead of emitting (no stale nag).
+#   F3 — pending_content clears only on evidence of an actual READ (full
+#        path, or basename + parent-dir substring in the same event, in a
+#        tool_use input or non-error tool_result whose command/content shows
+#        no rm/unlink/rmdir); destruction never clears; unresolved entries
+#        surface at wrap-up independent of request-ledger state.
 _TASK_NOTIFICATION_BLOCK_RE = re.compile(r"<task-notification>(.*?)</task-notification>", re.S)
 _TASK_NOTIFICATION_TAG_RES = {
     tag: re.compile(rf"<{tag}>(.*?)</{tag}>", re.S)
@@ -1364,13 +1511,41 @@ _NOTIFICATION_STATUS_WORDS_RE = re.compile(
     r"\bexit code \d+\b|\(exit code \d+\)")
 # World-state ASSERTION prose (the forwarded-subagent-claim shape: "files
 # moved", "tests pass", "DONE", "READY FOR JUDGING"). Present anywhere in the
-# notification's own prose → the evidence gate stays armed.
+# notification's own prose → the evidence gate stays armed. Broadened
+# 2026-07-18 (audit F6) to passive/rephrased forms — "files were moved",
+# "checks green", "uploaded", "deployed", "deleted" — while timer/advisor
+# status prose (stripped above: completed/exit code N) stays unmatched.
 _NOTIFICATION_WORLD_STATE_RE = re.compile(
-    r"(?i)\bfiles? (?:moved|created|deleted|written|updated|renamed|copied|modified)\b|"
-    r"\btests? (?:pass|passed|passing|green)\b|"
+    r"(?i)\bfiles? (?:were |was |are |is |have been |has been |got |being )?"
+    r"(?:moved|created|deleted|written|updated|renamed|copied|modified|uploaded)\b|"
+    r"\b(?:tests?|checks?) (?:pass|passed|passing|green|succeeded)\b|"
+    r"\b(?:were|was|have been|has been|got) (?:moved|created|deleted|written|updated|"
+    r"renamed|copied|modified|uploaded|deployed)\b|"
     r"\bready for judging\b|"
-    r"\b(?:done|fixed|verified|shipped|deployed|merged|committed)\b")
+    r"\b(?:done|fixed|verified|shipped|deployed|merged|committed|uploaded|deleted)\b")
 NOTIFICATION_PENDING_CAP = 20  # bound state-file growth of pointer-only records
+# F1 provenance entropy floor: a task-id shorter than this matches incidental
+# substrings everywhere ("0" rides every "exit code 0") and proves nothing.
+MIN_NOTIFICATION_TASK_ID_LEN = 6
+
+
+def _task_id_low_entropy(task_id: str) -> bool:
+    """F1 entropy floor: True when a task-id is too predictable to anchor
+    provenance even at sufficient length — all-same-char ("000000",
+    "aaaaaa"), a <3-distinct-char repetition ("ababab", "010101"), or a
+    trivial monotone sequence ("123456", "abcdef", "987654"). These
+    collide with incidental substrings in arbitrary transcripts, so finding
+    one "in the transcript" proves nothing either."""
+    if len(set(task_id)) <= 2:
+        return True
+    low = task_id.lower()
+    for seq in ("0123456789", "abcdefghijklmnopqrstuvwxyz"):
+        if low in seq or low in seq[::-1]:
+            return True
+    deltas = {ord(b) - ord(a) for a, b in zip(low, low[1:])}
+    if len(deltas) == 1 and (1 in deltas or -1 in deltas):
+        return True
+    return False
 
 
 def _notification_tag(body: str, tag: str) -> str:
@@ -1389,8 +1564,9 @@ def notification_suppression_decision(prompt_text: str, prompt_text_user: str) -
           riding along → out). Syntax alone CANNOT distinguish a substrate
           event from a pasted, syntactically valid fake — this function does
           NOT establish provenance. The caller MUST also require
-          ``notification_task_id_seen`` (the task-id string appears EARLIER
-          in the transcript) before acting on ``active``; id absent there →
+          ``notification_task_id_provenanced`` (a ≥6-char task-id found in
+          tool_use/tool_result/substrate-announcement content of the FULL
+          transcript file) before acting on ``active``; id absent there →
           no suppression, the turn fires exactly as before;
       (b) terminal SUCCESS — completed-class status / exit code 0, with no
           failure signal anywhere;
@@ -1445,34 +1621,143 @@ def notification_suppression_decision(prompt_text: str, prompt_text_user: str) -
     return decision
 
 
-def notification_task_id_seen(events: list[dict], task_id: str) -> bool:
-    """D2 mechanical provenance: True iff `task_id` appears anywhere in the
-    EARLIER transcript events (e.g. inside the tool_result that announced the
-    background task). The notification under classification is the current
-    PROMPT — never a transcript event — so any sighting here is strictly
-    earlier. A pasted, syntactically valid <task-notification> has no such
-    anchor and fails open (no suppression). Serialized-event substring match:
-    the substrate announces task ids as plain text inside tool payloads, so a
-    substring scan over each event's JSON serialization is the whole check —
-    no assumption about which block shape carries the id."""
-    if not task_id:
-        return False
-    for e in events or []:
+def _task_id_in_tool_or_substrate_content(event: dict, task_id: str) -> bool:
+    """True iff `task_id` rides tool/substrate content of ONE (normalized)
+    transcript event: a tool_use input, a tool_result body, or an event the
+    substrate itself authored (a non-user/assistant record, e.g. a system
+    event). Text blocks inside user/assistant events are PROSE — a user
+    typing "check on task abc123", an agent quoting an id, or a pasted fake
+    replayed into the transcript as a user message is NOT provenance."""
+    msg = event.get("message") or {}
+    content = msg.get("content")
+    if isinstance(content, list):
+        for b in content:
+            if not isinstance(b, dict):
+                continue
+            if b.get("type") == "tool_use":
+                try:
+                    if task_id in json.dumps(b.get("input") or {}, ensure_ascii=False):
+                        return True
+                except (TypeError, ValueError):
+                    continue
+            elif b.get("type") == "tool_result":
+                if task_id in _tool_result_text(b.get("content")):
+                    return True
+    if event.get("type") not in ("user", "assistant"):
         try:
-            if task_id in json.dumps(e, ensure_ascii=False):
+            if task_id in json.dumps(event, ensure_ascii=False):
                 return True
         except (TypeError, ValueError):
-            continue
+            pass
     return False
 
 
-def _path_seen_in_events(events: list[dict], needle: str) -> bool:
-    """True iff `needle` (an output-file path) appears inside any tool_use
-    input or tool_result content in the transcript tail — the mechanical
-    \"the pointer was read back\" signal reconciling
-    notification_pending_content (D4a). Substring match across both halves of
-    a tool pair: a Read/Edit carrying the path in its input, or a result
-    whose content quotes it."""
+def notification_task_id_provenanced(transcript_path: str, task_id: str) -> bool:
+    """F1 mechanical provenance (fail-open). True iff `task_id` is at least
+    MIN_NOTIFICATION_TASK_ID_LEN chars AND appears inside tool_use input,
+    tool_result content, or a substrate-announcement event ANYWHERE in the
+    FULL transcript file. Three audit fixes over the tail-scan original: the
+    length floor kills the `<task-id>0</task-id>` bypass (a one-char id
+    matches incidental substrings in every transcript), the entropy floor
+    kills its longer siblings ("000000" / "123456" — the same incidental-
+    collision class), and the whole-file scan (not the 400-line tail) keeps a
+    legit notification whose substrate announcement scrolled past the tail
+    from false-firing. Cheap: one whole-file read with a substring prefilter
+    — only lines containing the id are parsed, and only their tool/substrate
+    content is inspected."""
+    if (not task_id or len(task_id) < MIN_NOTIFICATION_TASK_ID_LEN
+            or _task_id_low_entropy(task_id)):
+        return False
+    p = Path(transcript_path or "")
+    if not p.is_file():
+        return False
+    try:
+        raw = p.read_text(encoding="utf-8", errors="replace")
+    except OSError as e:
+        log_err(f"transcript-read-fail path={transcript_path} err={e!r}")
+        return False
+    if task_id not in raw:
+        return False
+    for line in raw.splitlines():
+        if task_id not in line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(obj, dict):
+            continue
+        try:
+            candidates = _normalize_events([obj])
+        except Exception:
+            candidates = [obj]
+        for cand in candidates:
+            if isinstance(cand, dict) and _task_id_in_tool_or_substrate_content(cand, task_id):
+                return True
+    return False
+
+
+# F3 (2026-07-18 audit, round 1): pending_content reconciles ONLY on an
+# actual READ of the output file — a Read/view tool_use, or a Bash
+# content-DISPLAY command (cat/head/tail/grep/…), whose PAIRED tool_result
+# is present and non-error (a failed Read shows no content). Destruction
+# never reconciles: `rm`/`mv`/`delete` on the pending file must not clear
+# the entry (audit: destruction falsely cleared it), and neither does an
+# Edit/Write or an interpreter write — overwriting the unread output is not
+# reading it.
+_DELETION_TOKEN_RE = re.compile(
+    r"(?i)\b(?:rm|rmdir|unlink|mv|move|del|delete|trash|shred|truncate)\b")
+# Result-side destruction markers (a verbose rm/mv reports "removed '…'" /
+# "renamed '…' -> '…'" with no rm token in the result text itself).
+_DELETION_RESULT_RE = re.compile(
+    r"(?i)\b(?:removed|deleted|renamed|moved|trashed|unlinked)\b")
+# Content-DISPLAY commands (a read whose output the agent actually sees).
+# Interpreter names qualify only for non-mutating one-liners — the
+# _MUTATING_COMMAND_RE guard below excludes `python3 -c "open(…,'w')…"` and
+# friends. In-place flags (sed -i, perl -i) mutate without displaying.
+_READ_COMMAND_RE = re.compile(
+    r"(?i)(?:^|[;&|]\s*)(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:sudo\s+)?"
+    r"(?:cat|head|tail|less|more|bat|nl|grep|egrep|fgrep|rg|awk|gawk|jq|"
+    r"xxd|od|column|sed|perl|python[0-9.]*|ruby|node)\b")
+_INPLACE_FLAG_RE = re.compile(r"(?i)(?:^|\s)-i(?:\s|$)")
+_READ_TOOL_NAMES = {"read", "view", "view_file"}
+
+
+def _path_matches_event_text(hay: str, out_path: str, base: str, parent: str) -> bool:
+    """Full path, OR basename together with the containing dir's name in the
+    SAME text — the `cd <dir> && cat <file>` relative-read shape (F3b: a
+    genuine relative read must reconcile; a bare basename never matches —
+    it collides across dirs)."""
+    if out_path and out_path in hay:
+        return True
+    return bool(parent and base and base in hay and parent in hay)
+
+
+def _notification_output_read(events: list[dict], out_path: str) -> bool:
+    """F3 read-detection: True iff the transcript shows an actual READ of
+    `out_path` — read-shaped tool events ONLY (a Read/view tool_use, or a
+    Bash content-display command), credited only when the tool_use's PAIRED
+    tool_result is observed and non-error (a failed Read is not a read).
+    Destruction (rm/mv/delete), mutation (Edit/Write, interpreter writes,
+    redirects, in-place sed/perl), failed reads, and bare basenames never
+    clear the entry."""
+    if not out_path:
+        return False
+    base = out_path.rsplit("/", 1)[-1]
+    parent = out_path.rsplit("/", 2)[-2] if out_path.count("/") >= 2 else ""
+    # Pass 1: pair tool_use ids with their result status — a read-shaped use
+    # counts only when its paired result exists in-window and is not an error.
+    result_ok: dict[str, bool] = {}
+    for e in events or []:
+        msg = e.get("message") or {}
+        content = msg.get("content")
+        if not isinstance(content, list):
+            continue
+        for b in content:
+            if isinstance(b, dict) and b.get("type") == "tool_result":
+                tid = str(b.get("tool_use_id") or "")
+                if tid:
+                    result_ok[tid] = not b.get("is_error")
     for e in events or []:
         msg = e.get("message") or {}
         content = msg.get("content")
@@ -1482,13 +1767,37 @@ def _path_seen_in_events(events: list[dict], needle: str) -> bool:
             if not isinstance(b, dict):
                 continue
             if b.get("type") == "tool_use":
-                try:
-                    if needle in json.dumps(b.get("input") or {}, ensure_ascii=False):
-                        return True
-                except (TypeError, ValueError):
-                    continue
+                tid = str(b.get("id") or "")
+                if not result_ok.get(tid, False):
+                    continue  # no paired successful result — not an actual read
+                inp = b.get("input") or {}
+                name = str(b.get("name") or "")
+                command = str(inp.get("command") or inp.get("cmd") or "")
+                if name == "Bash":
+                    if (_DELETION_TOKEN_RE.search(command)
+                            or _INPLACE_FLAG_RE.search(command)
+                            or _MUTATING_COMMAND_RE.search(command)):
+                        continue
+                    if not _READ_COMMAND_RE.search(command):
+                        continue
+                    matched = _path_matches_event_text(command, out_path, base, parent)
+                elif name.lower() in _READ_TOOL_NAMES:
+                    try:
+                        hay = json.dumps(inp, ensure_ascii=False)
+                    except (TypeError, ValueError):
+                        continue
+                    matched = _path_matches_event_text(hay, out_path, base, parent)
+                else:
+                    continue  # Edit/Write/NotebookEdit/other: not read-shaped
+                if matched:
+                    return True
             elif b.get("type") == "tool_result":
-                if needle in _tool_result_text(b.get("content")):
+                if b.get("is_error"):
+                    continue
+                text = _tool_result_text(b.get("content"))
+                if _DELETION_TOKEN_RE.search(text) or _DELETION_RESULT_RE.search(text):
+                    continue
+                if _path_matches_event_text(text, out_path, base, parent):
                     return True
     return False
 
@@ -1655,7 +1964,12 @@ def build_ledger_lines(open_items: list, closed_now: list, completion_claim: boo
                 # captured words for this turn — verbatim, not the ledger's
                 # state mirror — truncated to the same per-item budget the
                 # ledger capture used. Fall back to the ledger text when the
-                # log has no record for the turn (best-effort read).
+                # log has no record for the turn (best-effort read). The log
+                # already holds exactly what should surface: selective
+                # capture stripped the always-mechanical command/system
+                # transcripts at write time, and a pasted notification block
+                # the user asked ABOUT is preserved with the quote (F4 —
+                # err toward the user's literal text, never re-strip).
                 verbatim = intent_texts.get(_as_int(it.get("turn"), -1))
                 if verbatim:
                     text = (verbatim[:LEDGER_TEXT_CAP - 1] + "…") if len(verbatim) > LEDGER_TEXT_CAP else verbatim
@@ -2378,6 +2692,45 @@ def append_telemetry(session_id: str, turn: int, mechanism: str, probe_id: str,
         log_err(f"telemetry-write-fail path={path} err={e!r}")
 
 
+def deferred_marker_verified_fresh(marker: dict, events: list[dict]) -> bool:
+    """F2 stale-nag guard (2026-07-18 audit): True iff matching SUCCESSFUL
+    evidence appears AFTER the original claim — the agent verified in the
+    meantime, so the deferred fire is stale and the marker drops silently
+    instead of nagging. FAIL-OPEN: any uncertainty (no claim anchor recorded,
+    claim scrolled out of the tail, unreadable timeline, no matching class)
+    → False (emit). The claim anchor is the claim TEXT's hash, resolved to
+    the LAST matching assistant message in the CURRENT tail — an event INDEX
+    from the suppressing turn's tail window is not comparable across turns
+    (the window slides). The freshness rule mirrors
+    detect_claim_without_evidence: post-mutation AND post-claim,
+    class-matched."""
+    if not events:
+        return False
+    try:
+        claim_sha = str(marker.get("claim_sha256") or "")
+        if not claim_sha:
+            return False
+        claim_index = -1
+        for m in recent_assistant_messages(events, TRANSCRIPT_LINE_CAP):
+            if hashlib.sha256(m["text"].encode("utf-8", "replace")).hexdigest() == claim_sha:
+                claim_index = max(claim_index, _as_int(m.get("event_index"), -1))
+        if claim_index < 0:
+            return False
+        evidence_class = str((marker.get("result") or {}).get("evidence_class") or "")
+        timeline = execution_timeline(events)
+        last_mutation = _as_int(timeline.get("last_mutation_index"), -1)
+        for ev in timeline.get("evidence", []):
+            result_index = _as_int(ev.get("result_index"), -1)
+            if result_index <= claim_index or result_index <= last_mutation:
+                continue
+            if evidence_class and evidence_class not in ev.get("classes", set()):
+                continue
+            return True
+    except Exception as e:  # fail-open on any freshness error
+        log_err(f"deferred-freshness-fail err={e!r}")
+    return False
+
+
 # -------------------------- main --------------------------------------------
 
 def main() -> int:
@@ -2416,6 +2769,11 @@ def main() -> int:
     # Coerce session_id to str: a non-string (number/array) would crash
     # .encode() in state_path. `or "unknown"` keeps falsy ids out.
     session_id = str(payload.get("session_id") or "unknown")
+    # F5c — the intent log distinguishes a MISSING session id from a real
+    # one: an absent id must not co-mingle every anonymous session into one
+    # shared unknown.jsonl, so capture sees the raw (possibly empty) id and
+    # intent_log_path maps it to a timestamped fallback filename instead.
+    intent_session_id = str(payload.get("session_id") or "")
     transcript_path = payload.get("transcript_path", "")
 
     path = state_path(session_id)
@@ -2441,18 +2799,18 @@ def main() -> int:
     # surface below; legacy keeps pre-fix behavior for rollback). Pure fail-open
     # classification here — no state or telemetry mutation at this point.
     notification = notification_suppression_decision(prompt_text, prompt_text_user)
-    # One transcript tail-read feeds the D2 provenance check here AND the
-    # probe/ledger gate below (reused via `events` — no double read).
+    # One transcript tail-read feeds the probe/ledger gate below (via
+    # `events`); the D2 provenance check scans the FULL file separately
+    # (F1 — a legit announcement older than the tail still suppresses).
     events: list[dict] = []
     if notification["active"]:
-        # D2 — mechanical provenance (fail-open): syntax alone cannot
-        # distinguish a pasted, syntactically valid <task-notification> from a
-        # substrate event. Suppress only when the notification's task-id string
-        # also appears EARLIER in the transcript (e.g. in the tool_result that
-        # announced the background task); id absent → NO suppression, the turn
-        # fires exactly as before.
-        events = read_transcript_tail(transcript_path)
-        if not notification_task_id_seen(events, notification["task_id"]):
+        # D2/F1 — mechanical provenance (fail-open): syntax alone cannot
+        # distinguish a pasted, syntactically valid <task-notification> from
+        # a substrate event. Suppress only when the notification's task-id
+        # is >=6 chars AND appears in tool_use/tool_result/substrate content
+        # ANYWHERE in the full transcript file; id absent/short/prose-only →
+        # NO suppression, the turn fires exactly as before.
+        if not notification_task_id_provenanced(transcript_path, notification["task_id"]):
             notification = dict(notification, active=False)
 
     with state_lock(path):
@@ -2476,13 +2834,26 @@ def main() -> int:
 
     if is_new_session:
         gc_old_state(path.parent, time.time())
+        # F5a — GC parity: intent logs age out on the same 7-day horizon.
+        gc_old_intent_logs(intent_dir(), time.time())
 
-    # Verbatim intent log (L0 no-drop capture). UNCONDITIONAL — no opt-out
-    # (standing user directive) — and ahead of the whole-hook DISABLED valve
-    # below for the same reason as the request ledger: silencing reminders
-    # must never stop the record. Profile `off` never reaches here (it exited
-    # before any mutation). Best-effort: a failure logs to stderr, never blocks.
-    capture_intent(session_id, turn, prompt_text_user)
+    # Verbatim intent log (L0 no-drop capture). Profile `off` never reaches
+    # here (it exited before any mutation). Best-effort: a failure logs to
+    # stderr, never blocks.
+    # F4 (2026-07-18 audit): harness-block stripping decides ONLY whether
+    # the turn is pure-notification (empty remainder → no record). A pasted
+    # notification block inside organic user text is the object of the ask
+    # and is captured with it; always-mechanical command/system transcripts
+    # are still stripped (intent_capture_text). Sole content exception:
+    # key-like strings scrubbed (F5b).
+    # F5c (2026-07-18 audit): the whole-hook DISABLED valve suppresses intent
+    # capture like every other mechanism — the no-opt-out posture belongs to
+    # the request LEDGER (standing user directive); the intent log is its
+    # verbatim mirror and follows the operator valve.
+    if os.environ.get("COMPLIANCE_CANARY_DISABLED") != "1":
+        capture_text = intent_capture_text(prompt_text, prompt_text_user)
+        if capture_text:
+            capture_intent(intent_session_id, turn, capture_text)
 
     # Whole-hook break-glass valve. Checked HERE (not at entry) so the ledger
     # capture above has already run — the kill silences drift detection + all
@@ -2598,7 +2969,7 @@ def main() -> int:
     tool_errors: list[str] = []
     traj: dict = {}
     if probes or ledger_probes or ledger or correction_ledger:
-        if not events:  # may already hold the D2 provenance pre-fetch
+        if not events:  # the D2/F1 check above scans the full file, no tail prefetch
             events = read_transcript_tail(transcript_path)
         if events:
             bash_results = recent_bash_tool_results(events, n=10)
@@ -2708,6 +3079,16 @@ def main() -> int:
                                 "result": p.get("_result") or {},
                                 "deferred_at_turn": turn,
                                 "notification_kind": notification["kind"],
+                                # F2 — emission-time freshness anchor: a hash
+                                # of the claim TEXT this fire was deferred
+                                # for (NOT an event index — tail-window
+                                # indexes slide between turns and are not
+                                # comparable). Used to drop a stale marker
+                                # when the agent verified in the meantime; a
+                                # missing/rolled-off anchor fails OPEN (emit).
+                                "claim_sha256": (hashlib.sha256(
+                                    messages[-1]["text"].encode("utf-8", "replace")
+                                ).hexdigest() if messages else ""),
                             })
                             have.add(p["_probe_id"])
                         state["deferred_fires"] = markers[-NOTIFICATION_PENDING_CAP:]
@@ -2733,16 +3114,39 @@ def main() -> int:
     # suppressing turn, so the fire survives the claim scrolling out of the
     # recent-message window). A probe that re-fired on its own this turn is
     # already delivered; its marker is cleared without a second emission.
-    if profile in {"frontier", "shadow"} and not notification["active"]:
+    # F2 (2026-07-18 audit): a marker survives at most ONE qualifying-
+    # notification turn — when a second qualifying notification arrives while
+    # a marker from an EARLIER turn is still pending, that marker emits NOW
+    # anyway (a notification flood cannot destroy a fire). At emission time
+    # freshness is re-checked: matching successful evidence after the
+    # original claim drops the marker silently instead of emitting.
+    if profile in {"frontier", "shadow"}:
         deferred_markers: list[dict] = []
         with state_lock(path):
             state = load_state(path)
             raw_markers = state.get("deferred_fires", [])
             if isinstance(raw_markers, list) and raw_markers:
-                deferred_markers = [m for m in raw_markers if isinstance(m, dict)]
-                state["deferred_fires"] = []
-                save_state(path, state)
+                candidates = [m for m in raw_markers if isinstance(m, dict)]
+                if not notification["active"]:
+                    deferred_markers = candidates
+                    state["deferred_fires"] = []
+                    save_state(path, state)
+                else:
+                    # F2 flood rule: markers persisted BEFORE this turn have
+                    # already survived their one qualifying-notification
+                    # grace — they are due now. Markers persisted THIS turn
+                    # keep their grace.
+                    due = [m for m in candidates
+                           if _as_int(m.get("deferred_at_turn"), turn) < turn]
+                    if due:
+                        deferred_markers = due
+                        state["deferred_fires"] = [m for m in candidates if m not in due]
+                        save_state(path, state)
         if deferred_markers:
+            if not events:
+                # Freshness re-check needs a transcript; none readable →
+                # fail-open and emit (never destroy a fire on uncertainty).
+                events = read_transcript_tail(transcript_path)
             by_id = {p.get("_probe_id"): p for p in all_probes}
             delivered = {p.get("_probe_id") for p in fired}
             emitted_deferred: list[dict] = []
@@ -2750,6 +3154,8 @@ def main() -> int:
                 pid = str(marker.get("probe_id") or "")
                 if not pid or pid in delivered:
                     continue
+                if deferred_marker_verified_fresh(marker, events):
+                    continue  # F2 — verified in the meantime; drop silently
                 delivered.add(pid)
                 base = by_id.get(pid)
                 probe = dict(base) if isinstance(base, dict) else {
@@ -2776,9 +3182,12 @@ def main() -> int:
     # --- D4a notification pending-content reconciliation (frontier/shadow) --
     # notification_pending_content gets a consumer: an entry recorded at an
     # EARLIER turn leaves the pending set once the transcript shows its
-    # output-file being read back (path substring in a tool_use input or
-    # tool_result content). Entries still unresolved are listed at the
-    # existing wrap-up surface below (D4b — no new emission point).
+    # output-file actually being READ (F3: full path, or basename + parent-dir
+    # substring in the same event, in a tool_use input or non-error
+    # tool_result with no rm/unlink/rmdir in its command/content — destruction
+    # does not clear). Entries still unresolved are listed at the existing
+    # wrap-up surface below (D4b — no new emission point), independent of
+    # request-ledger state (F3).
     pending_content: list[dict] = []
     if profile in {"frontier", "shadow"}:
         with state_lock(path):
@@ -2792,7 +3201,7 @@ def main() -> int:
                     for entry in entries:
                         out_path = str(entry.get("output_file") or "")
                         if (out_path and _as_int(entry.get("turn"), turn) < turn
-                                and _path_seen_in_events(events, out_path)):
+                                and _notification_output_read(events, out_path)):
                             cleared_any = True
                             continue
                         kept.append(entry)
@@ -2834,8 +3243,13 @@ def main() -> int:
     # No drift, no wrap-up, no cadence → stay quiet. This is the "remind about
     # ledger items IF there is drift" coupling.
     ledger_lines: list[str] = []
+    # F3 — the wrap-up detector also arms when unresolved pointer-only
+    # notification outputs exist, even with an EMPTY request ledger: a
+    # session whose only prompts were notifications + trivia still surfaces
+    # its unread outputs at wrap-up.
+    completion_claim = (has_completion_claim(events)
+                        if (ledger or pending_content) else False)
     if closed_now or ledger:
-        completion_claim = has_completion_claim(events) if ledger else False
         show = bool(closed_now) or (bool(ledger) and (
             completion_claim or (profile == "legacy" and (bool(fired) or is_pulse_turn))))
         if show:
@@ -2846,16 +3260,18 @@ def main() -> int:
             # ledger text when the log is missing/unreadable.
             intent_texts = read_intent_turn_texts(session_id) if completion_claim else None
             ledger_lines = build_ledger_lines(ledger, closed_now, completion_claim, turn, intent_texts)
-            if completion_claim and pending_content:
-                # D4b — unresolved pointer-only notification outputs ride the
-                # EXISTING wrap-up surface (no new emission point), one
-                # compact line each.
-                for entry in pending_content[:LEDGER_SHOW_MAX]:
-                    out_path = str(entry.get("output_file") or "")
-                    if not out_path:
-                        continue
-                    kind = str(entry.get("kind") or "task")
-                    ledger_lines.append(f"- {kind} output never read: {out_path}")
+    if completion_claim and pending_content:
+        # D4b — unresolved pointer-only notification outputs ride the
+        # EXISTING wrap-up surface (no new emission point), one compact line
+        # each — INDEPENDENT of whether the request ledger has open items
+        # (F3: the pending-content guarantee must not piggyback on an
+        # unrelated ledger).
+        for entry in pending_content[:LEDGER_SHOW_MAX]:
+            out_path = str(entry.get("output_file") or "")
+            if not out_path:
+                continue
+            kind = str(entry.get("kind") or "task")
+            ledger_lines.append(f"- {kind} output never read: {out_path}")
 
     # --- Mechanism 4: correction ledger (LEARNING_CONTRACT §2) ------------
     # UNCONDITIONAL, same as Mechanism 3: opens on every fired `user_correction`

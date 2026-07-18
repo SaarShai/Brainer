@@ -37,7 +37,12 @@ correlated successful result, the result is newer than the last material
 mutation, and its class matches the claim (`test/build`, `filesystem/diff`,
 `live service`, or `visual`). Typed-but-unrun commands, failed results, stale or
 pre-edit checks, incidental output keywords, and wrong evidence classes do not
-suppress it.
+suppress it. Mutations are recognized across Edit/Write and shell shapes
+(redirects/`tee`, `sed -i`, `rm`/`mv`/`cp`/`mkdir`/`touch`/`chmod`,
+`git commit|merge|rebase|cherry-pick|add|mv|rm|reset|restore|clean`, package
+installs, and — broadened 2026-07-18 per the adversarial audit —
+interpreter-mediated file writes such as `python3 -c "open('f','w')…"`,
+`perl -e`, and `node -e` fs writers).
 
 Notification evidence boundary (frontier/shadow only, 2026-07-18; hardened
 2026-07-19): when the current `UserPromptSubmit` payload is a
@@ -49,29 +54,55 @@ carries its own result content or an output-file pointer, the
 IS the evidence boundary and the agent authored no claim on it. The
 predicate is fail-open — any classification uncertainty (a user ask riding
 along, a failed/killed job, an unrecognized job kind, or world-state
-assertion prose such as "files moved" / "tests pass" / "DONE" / "READY FOR
-JUDGING" — the implementation-subagent shape whose forwarded claim is the
-guard's one proven live catch) leaves the probe armed exactly as before.
-Hardening (two adversarial sense-checks):
+assertion prose such as "files moved" / "files were moved" / "tests pass"
+/ "checks green" / "uploaded" / "deployed" / "deleted" / "DONE" / "READY
+FOR JUDGING" — the implementation-subagent shape whose forwarded claim is
+the guard's one proven live catch, broadened 2026-07-18 to passive and
+rephrased forms) leaves the probe armed exactly as before.
+Hardening (two adversarial sense-checks, then the 2026-07-18 adversarial
+audit — all fail-open):
 
 - **Provenance.** Suppression additionally requires the notification's
-  task-id string to appear EARLIER in the session transcript (e.g. in the
-  tool_result that announced the background task). A pasted, syntactically
-  valid `<task-notification>` has no such anchor and fails open — the turn
-  fires exactly as before.
+  task-id to be **≥6 characters AND not low-entropy** (an all-same-char,
+  <3-distinct-char, or trivial monotone-sequence id like "000000" or
+  "123456" collides with incidental substrings and proves nothing either)
+  AND to appear inside **tool_use input,
+  tool_result content, or a substrate-announcement event ANYWHERE in the
+  full transcript file** (cheap whole-file string search, not just the
+  400-line tail). A pasted, syntactically valid `<task-notification>` has
+  no such anchor and fails open — the turn fires exactly as before. A
+  one-char id like `<task-id>0</task-id>` matches incidental substrings in
+  every transcript and proves nothing (entropy floor); an id mentioned only
+  in arbitrary user or assistant prose is not substrate provenance; and a
+  legit notification whose announcement scrolled 500 lines back still
+  suppresses correctly.
 - **Deferred fire.** Suppression never destroys a fire, only defers it: the
   suppressed probe is still EVALUATED on the notification turn, and a
   would-have-fired is persisted as a `deferred_fires` marker in session
   state. On the next `UserPromptSubmit` that is NOT a qualifying
   notification, the probe emits once (marker cleared), regardless of
-  message-window slide.
+  message-window slide. A marker survives **at most one** qualifying-
+  notification turn: if a second qualifying notification arrives while a
+  marker is pending, it emits on that turn anyway — a notification flood
+  cannot destroy a fire. At emission time, freshness is re-checked: if
+  matching successful evidence appeared AFTER the original claim (the agent
+  verified in the meantime), the stale marker drops silently instead of
+  nagging.
 - **Pending content.** A pointer-only success records a
   `notification_pending_content` entry (output-file path + kind + turn +
-  timestamp) in the session state file. On later turns an entry clears once
-  the transcript shows the output file being read back (path substring in a
-  tool_use input or tool_result content); entries still unresolved are
-  listed, one compact line each (`<kind> output never read: <path>`), at the
-  existing wrap-up surface — no new emission point.
+  timestamp) in the session state file. On later turns an entry clears only
+  on evidence of an actual READ: the full path — or, for a genuine
+  `cd <dir> && cat <file>` relative read, the basename together with the
+  parent-dir name within the same event — appearing in a READ-SHAPED
+  tool_use input (Read/view tool, or a Bash content-display command like
+  `cat`/`grep`; never Edit/Write or an interpreter write) whose paired
+  result is non-error, or in a non-error tool_result, with no deletion
+  token (`rm`/`mv`/`unlink`/`delete`/`removed`/…) in its command/content.
+  Destruction does not clear;
+  a failed read does not clear; a bare basename does not clear. Entries
+  still unresolved are listed, one compact line each (`<kind> output never
+  read: <path>`), at the existing wrap-up surface — no new emission point —
+  INDEPENDENT of whether the request ledger has open items.
 
 Every suppression is logged to telemetry as a `suppressed_notification`
 event (emitted=false) so the counterfactual stays measurable. `legacy`
@@ -200,16 +231,36 @@ open").
 ## Verbatim intent log
 
 The capture side of the no-drop guarantee (target architecture L0 "Intent
-log"). On every `UserPromptSubmit` the hook appends the **user-authored
-remainder** of the prompt — after the same harness-block stripping the ledger
-uses, so `<task-notification>` bodies and command transcripts are never
-captured, and a pure harness-notification turn (empty remainder) writes no
-record — to `.brainer/intent/<session_id>.jsonl` (git-ignored; follows a
+log"). On every `UserPromptSubmit` the hook decides via harness-block
+stripping whether the turn carried anything user-authored: a turn whose
+remainder is EMPTY (a pure `<task-notification>` or command-transcript
+turn) writes no record; a turn with ANY user-authored remainder is
+captured to `.brainer/intent/<session_id>.jsonl` (git-ignored; follows a
 `COMPLIANCE_CANARY_STATE_DIR` override as a sibling) as one
-`{"turn", "ts", "sha256", "text"}` record per line. The text is verbatim and
-full-length — unlike the ledger's 140-char mirror — with a sha256 integrity
-anchor. Mechanical, zero LLM, zero injected bytes, append-only, best-effort:
-a capture failure logs to stderr and never blocks the hook.
+`{"turn", "ts", "sha256", "text"}` record per line. What gets stored
+(2026-07-18 audit, F4): a pasted `<task-notification>` block inside
+organic user text is the OBJECT of the user's ask ("is this legitimate?")
+and is preserved verbatim with the capture — it must not vanish from the
+record — while always-mechanical command/system transcripts
+(`<local-command-*>`, `<command-*>`, `<system-reminder>`) are still
+stripped; any other turn stores the user-authored remainder. The text is
+full-length — unlike the ledger's 140-char mirror — with a sha256
+integrity anchor over the stored text. Mechanical, zero LLM, zero injected
+bytes, append-only, best-effort: a capture failure logs to stderr and never
+blocks the hook.
+
+**The sole verbatim exception** (2026-07-18 audit): the shared secret
+scrubber (`skills/_shared/audit_redact.py`, key-like strings only) runs
+over the text before writing — credential-shaped strings never persist;
+everything else stays byte-identical (whitespace included — no trimming).
+If the scrubber itself FAILS, the record degrades to the
+`[REDACTION-FAILED]` placeholder plus the ORIGINAL text's sha256 — raw
+text never reaches disk on any path. Hygiene riders from the same audit:
+intent logs age out on the same 7-day horizon as state files —
+opportunistic cleanup on the next session start (the new-session gc pass
+removes them; it is not a hard 7-day enforcement) — and a missing
+`session_id` writes a timestamped fallback filename instead of co-mingling
+every anonymous session into a shared `unknown.jsonl`.
 
 **Consumers.** Today: the Mechanism 3 wrap-up surface quotes the user's own
 captured words (with turn numbers, truncated to the existing per-item budget)
@@ -217,11 +268,13 @@ from this log instead of ledger state. Planned: close-boundary reconciliation
 mapping every captured intent to satisfied / deferred / uncovered.
 
 **No opt-out.** Capture is unconditional by standing user directive ("never
-switch off, never opt out") — there is no flag, and it runs ahead of even the
-whole-hook `COMPLIANCE_CANARY_DISABLED=1` valve (which silences reminders but
-must never stop the record). The single exception is profile `off`: the
-experimental control arm, which exits before ANY mutation and so writes no
-intent records.
+switch off, never opt out") — there is no per-log flag. Two exceptions:
+profile `off` (the experimental control arm) exits before ANY mutation and
+so writes no intent records; and the whole-hook
+`COMPLIANCE_CANARY_DISABLED=1` valve suppresses intent capture like every
+other mechanism (2026-07-18 audit — the request LEDGER is the sole record
+that stays ahead of the valve; the intent log is its verbatim mirror and
+follows the operator valve).
 
 ## Mechanism 4 — correction ledger
 
@@ -349,7 +402,7 @@ Env vars (all optional). `SKILL_PULSE_*` names are honored as back-compat aliase
 | `COMPLIANCE_CANARY_PROFILE` | `frontier` | `frontier`, `shadow`, `legacy`, or mutation-free `off` |
 | `COMPLIANCE_CANARY_PROBE_IDS` | frontier verification probe | exact comma-separated `skill:id` selection; replaces skill-level selection |
 | `COMPLIANCE_CANARY_TELEMETRY_PATH` | state dir `telemetry.jsonl` | redacted append-only telemetry path |
-| `COMPLIANCE_CANARY_DISABLED=1` | — | legacy break-glass: silences drift detection and all reminders, but the turn is still counted and the prompt still recorded to the request ledger first (state mutation happens BEFORE the valve by design); only profile `off` is fully mutation-free |
+| `COMPLIANCE_CANARY_DISABLED=1` | — | legacy break-glass: silences drift detection, all reminders, and intent-log capture, but the turn is still counted and the prompt still recorded to the request ledger first (ledger state mutation happens BEFORE the valve by standing user directive); only profile `off` is fully mutation-free |
 | `COMPLIANCE_CANARY_COOLDOWN` | 3 | turns to suppress the same probe after it fires |
 | `COMPLIANCE_CANARY_PULSE_EVERY` | 4 | re-anchor cadence (floored to 2); `0` disables **just** the re-anchor. Alias: `SKILL_PULSE_EVERY` |
 | `COMPLIANCE_CANARY_PULSE_DISABLED=1` | — | disable just the re-anchor (probes still run). Alias: `SKILL_PULSE_DISABLED` |
@@ -359,7 +412,7 @@ Env vars (all optional). `SKILL_PULSE_*` names are honored as back-compat aliase
 
 ## Rules
 
-- Read at most `TRANSCRIPT_LINE_CAP=400` trailing lines of the transcript (bound transcript-read cost).
+- Read at most `TRANSCRIPT_LINE_CAP=400` trailing lines of the transcript (bound transcript-read cost). The ONE exception is the notification-provenance check (F1): a substring-prefiltered streaming scan of the FULL transcript file, only on turns carrying a qualifying `<task-notification>` — a legit announcement older than the tail must still suppress.
 - Anti-spam: each probe is suppressed for `COMPLIANCE_CANARY_COOLDOWN` turns after it fires.
 - Cap symptomatic output at `MAX_PROBES_TRIGGERED=4` and the re-anchor at `MAX_SKILLS_IN_PULSE=8`. On a shared turn the re-anchor yields, so output never exceeds one block.
 - The re-anchor reads no transcript and the probes need no frontmatter — one dir-walk feeds both.
