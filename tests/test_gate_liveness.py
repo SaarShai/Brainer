@@ -8,8 +8,10 @@ unparseable for three days and every gate consuming it went inert while looking
 healthy. A spec that does not parse must fail loudly here, not at gate time.
 
 JSON specs (``*probes*.json``, ``*gate*.json``) are always checked. YAML specs
-(``specs.yaml`` and similar) are checked when PyYAML is importable and skipped
-otherwise — JSON coverage never depends on the YAML extra.
+(``specs.yaml`` and similar), when present, FAIL the run if PyYAML is not
+importable — per B5 above, YAML is exactly the file class that rotted silently,
+so a missing parser must be loud, not a skip. When no YAML specs exist the YAML
+parametrization is empty and JSON coverage never depends on the YAML extra.
 """
 from __future__ import annotations
 
@@ -78,9 +80,11 @@ def test_json_gate_probe_spec_parses(path: Path):
 @pytest.mark.parametrize("path", YAML_SPECS, ids=_spec_id)
 def test_yaml_gate_spec_parses(path: Path):
     if importlib.util.find_spec("yaml") is None:
-        pytest.skip(
-            "PyYAML not installed — YAML spec liveness skipped "
-            "(JSON specs are still checked)"
+        pytest.fail(
+            "PyYAML not installed but YAML gate specs exist under skills/*/ — "
+            "install pyyaml (e.g. `pip install pyyaml`). Skipping here is how "
+            "the old specs.yaml rotted silently for three days (B5); a YAML "
+            "spec that cannot be parsed must fail loudly, not at gate time."
         )
     import yaml
 

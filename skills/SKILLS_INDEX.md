@@ -2,7 +2,7 @@
 
 Lean skills for AI coding agents (Claude Code · Codex · Gemini) across four pillars: **(1)** token-use optimization, **(2)** context-window optimization & management, **(3)** LLM wiki-memory framework, **(4)** self-improvement & learning.
 
-This replaces the old `start.md` boot doc. Each skill is a self-contained folder under `skills/<name>/`. Skill descriptions are the only thing always resident in the agent's context; full bodies load on trigger.
+This replaces the old `start.md` boot doc. Each skill is a self-contained folder under `skills/<name>/`. Skill descriptions are the only thing always resident in the agent's context; full bodies load on trigger. The adopted design standard for the suite is [`docs/TARGET_ARCHITECTURE.md`](../docs/TARGET_ARCHITECTURE.md).
 
 For measured per-skill deltas and the live A/B table see [`eval/FINDINGS.md`](../eval/FINDINGS.md). Twenty-five skills ship an `EVAL.md`; `baton`, `fable-mode`, `propagate`, `standing-orders`, and `wayfinder` currently do not.
 

@@ -54,6 +54,7 @@ flowchart TD
 
 Operational docs:
 
+- [`docs/TARGET_ARCHITECTURE.md`](docs/TARGET_ARCHITECTURE.md) is the adopted design standard (2026-07-18) that every round moves toward or amends with evidence.
 - [`docs/GENERATED_FILES.md`](docs/GENERATED_FILES.md) defines canonical, generated, synchronized, and local runtime surfaces.
 - [`docs/ADDING_A_SKILL.md`](docs/ADDING_A_SKILL.md) is the checklist for adding or changing a skill without drift.
 - [`docs/INSTALL_SAFETY.md`](docs/INSTALL_SAFETY.md) explains installer effects, dry-run behavior, and restore posture.
