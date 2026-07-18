@@ -2,6 +2,27 @@
 
 Aggregating per-skill A/B + session-level replay. Updated as new measurements land.
 
+## 2026-07-18 long-horizon rehearsal gate (FRONTIER-vs-OFF prereg)
+
+Both authorized paid rehearsal sessions ran to completion on the GPT/codex
+stratum (rehearsal-A FRONTIER 34 turns, rehearsal-B OFF 35 turns; 2 forced
+compactions each; artifacts committed at 448f2cc under
+`eval/results/skills-effectiveness/longhorizon-rehearsal/`). They are SPENT and
+must never be re-run; the gate re-derives everything deterministically from the
+committed transcripts plus 4 cheap glm-5.2 grader calls. Gate status at that
+commit: all components PASS except `grader_kappa`, which failed for
+infrastructure-only reasons (codex-sandbox DNS isolation — environmental, no
+code fix; secrets.env command-substitution key-loader bug — fixed;
+glm-5.2 max_tokens truncation + one transient disconnect — fixed 16384 + 3x
+retry). Reading notes: `blinded_extraction_B.escaped_defect_checks` contains a
+nested `policy-doc-retry-consistency: fail` — that is the planted stale-doc
+trap correctly captured in the OFF-arm artifact (scenario data, not a harness
+failure; do not "fix" the harness to clear it). Mechanism telemetry (R-1: 5
+post-compaction contradictions, 3 interruptions; ~6.5M/6.1M tokens per
+session) is rehearsal-only and quarantined from results. Binding freeze occurs
+only after `grader_kappa` passes; the freeze hash will be recorded here per
+the preregistration (`eval/skills_effectiveness/longhorizon_preregistration_draft.md`).
+
 ## 2026-07-16 skill-effectiveness verification campaign
 
 **Wave 1 deterministic verdict:** the new default `frontier` compliance-canary

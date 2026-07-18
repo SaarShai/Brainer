@@ -547,7 +547,14 @@ def call_grader(api_key: str, prompt: str, user_payload: str) -> tuple[str, dict
             content = payload["choices"][0]["message"]["content"]
             if not isinstance(content, str):
                 raise ValueError("grader content is not text")
-            return body, extract_json_object(content)
+            try:
+                return body, extract_json_object(content)
+            except ValueError as exc:
+                # Preserve diagnosis material: without finish_reason and the
+                # content tail, a truncation recurrence is indistinguishable
+                # from a formatting failure (2026-07-18 kappa post-mortem).
+                finish = payload["choices"][0].get("finish_reason")
+                raise ValueError(f"{exc}; finish_reason={finish}; content_tail={content[-300:]!r}") from exc
         except Exception as exc:
             last_exc = exc
     raise last_exc

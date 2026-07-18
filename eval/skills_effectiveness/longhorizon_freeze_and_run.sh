@@ -33,6 +33,7 @@ def h(p): return hashlib.sha256(Path(p).read_bytes()).hexdigest()
 bundle = {
     "frozen_at_commit": sha,
     "grader_model_id": "glm-5.2",
+    "kappa_threshold": 0.7,
     "scenarios": {f"scenario-{i:02d}.md": h(f"eval/skills_effectiveness/scenarios/scenario-{i:02d}.md") for i in range(1, 7)},
     "scenarios_readme": h("eval/skills_effectiveness/scenarios/README.md"),
     "extractor_blinded": h("eval/skills_effectiveness/longhorizon_extract_blinded.py"),
