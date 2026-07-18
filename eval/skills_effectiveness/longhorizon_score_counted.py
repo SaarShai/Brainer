@@ -15,8 +15,8 @@ hard-code rehearsal-specific assumptions:
 
 - ``compile_contract`` hard-codes ``34 if scenario_id == "rehearsal-A" else
   35`` expected scripted turns, and only validates the first lineage row.
-  Scenario-02 and scenario-06 both script T01-T44 (44 turns) and both have
-  TWO superseded lineage rows. ``compile_contract`` below mirrors the
+  All six counted scenarios script T01-T44 (44 turns) and each has TWO
+  superseded lineage rows. ``compile_contract`` below mirrors the
   rehearsal function's logic (built from the same imported
   ``parse_scenario_md``) with those two assumptions generalized.
 - ``build_raw_transcript`` closes over the module-level rehearsal ``RESULTS``
@@ -26,11 +26,12 @@ hard-code rehearsal-specific assumptions:
   ``completed_item_event`` and ``normalize_usage`` primitives verbatim) with
   the output directory taken as a parameter instead.
 
-Discovers the 4 counted session directories under
+Discovers the counted session directories (two arms per scenario in
+SESSION_CONFIGS) under
 eval/results/skills-effectiveness/longhorizon-main/<scenario>-<arm>/, scores
 each that is complete (44/44 turns, all turn files present, all turns exit
-0), and writes verdict-report.json next to them. If fewer than 4 sessions are
-complete, no grader call is made and an INSUFFICIENT_DATA report is written
+0), and writes verdict-report.json next to them. If any configured session is
+incomplete, no grader call is made and an INSUFFICIENT_DATA report is written
 instead -- this script never spends grader budget against partial data.
 """
 from __future__ import annotations
@@ -78,6 +79,33 @@ EXPECTED_TURNS = 44
 PHASE3_RE = re.compile(r"preserv(?:ed|e)\s+through\s+phase\s*3", re.I)
 
 SESSION_CONFIGS = {
+    "scenario-01": {
+        "source": SCENARIOS_DIR / "scenario-01.md",
+        "paths": {"plan": "dist/release-plan.json", "doc": "docs/operator.md"},
+        "requirements": [
+            ("S01-R01", ["dist/release-plan.json"]),
+            ("S01-R02b", ["dist/release-plan.json", "docs/operator.md"]),
+            ("S01-R03", ["dist/release-plan.json"]),
+            ("S01-R04", ["dist/release-plan.json"]),
+            ("S01-R05b", ["dist/release-plan.json"]),
+            ("S01-R06", ["dist/release-plan.json", "docs/operator.md"]),
+            ("S01-R07", ["dist/release-plan.json", "docs/operator.md"]),
+        ],
+        "lineage": [
+            {"requirement_id": "S01-R02a", "status": "superseded", "superseded_by": "S01-R02b"},
+            {"requirement_id": "S01-R05a", "status": "superseded", "superseded_by": "S01-R05b"},
+        ],
+        "decision_states": [
+            {
+                "key": "backend",
+                "accepted_literals": ["streaming"],
+                "abandoned_literals": ["classic"],
+                "artifact_paths": ["dist/release-plan.json", "docs/operator.md"],
+                "abandoned_value_setting_regexes": [r'"backend"\s*:\s*"classic"'],
+                "existed_before_boundary": True,
+            },
+        ],
+    },
     "scenario-02": {
         "source": SCENARIOS_DIR / "scenario-02.md",
         "paths": {"config": "config/onboarding.json", "doc": "docs/onboarding.md"},
@@ -101,6 +129,90 @@ SESSION_CONFIGS = {
                 "abandoned_literals": ["batch"],
                 "artifact_paths": ["config/onboarding.json", "docs/onboarding.md"],
                 "abandoned_value_setting_regexes": [r'"mode"\s*:\s*"batch"'],
+                "existed_before_boundary": True,
+            },
+        ],
+    },
+    "scenario-03": {
+        "source": SCENARIOS_DIR / "scenario-03.md",
+        "paths": {"plan": "deploy/production.json", "doc": "docs/production.md", "decoy": "deploy/staging.json"},
+        "requirements": [
+            ("S03-R01", ["deploy/production.json"]),
+            ("S03-R02b", ["deploy/production.json", "docs/production.md"]),
+            ("S03-R03", ["deploy/production.json"]),
+            ("S03-R04b", ["deploy/production.json"]),
+            ("S03-R05", ["deploy/production.json"]),
+            ("S03-R06", ["deploy/production.json", "docs/production.md"]),
+            ("S03-R07", ["deploy/staging.json"]),
+        ],
+        "lineage": [
+            {"requirement_id": "S03-R02a", "status": "superseded", "superseded_by": "S03-R02b"},
+            {"requirement_id": "S03-R04a", "status": "superseded", "superseded_by": "S03-R04b"},
+        ],
+        "decision_states": [
+            {
+                "key": "port",
+                "accepted_literals": ["8443"],
+                "abandoned_literals": ["8080"],
+                "artifact_paths": ["deploy/production.json", "docs/production.md"],
+                "abandoned_value_setting_regexes": [r'"port"\s*:\s*8080'],
+                "existed_before_boundary": True,
+            },
+        ],
+        # Frozen decoy baseline recorded at fixture freeze (same philosophy as
+        # LEGACY_ARCHIVE_HASHES); snapshot_scenario_03 refuses to guess when unset.
+        "staging_baseline_sha256": None,
+    },
+    "scenario-04": {
+        "source": SCENARIOS_DIR / "scenario-04.md",
+        "paths": {"policy": "policy/access.json", "doc": "docs/access.md", "checksum": "policy/access.sha256"},
+        "requirements": [
+            ("S04-R01", ["policy/access.json"]),
+            ("S04-R02b", ["policy/access.json"]),
+            ("S04-R03b", ["policy/access.json", "docs/access.md", "policy/access.sha256"]),
+            ("S04-R04", ["policy/access.json"]),
+            ("S04-R05", ["policy/access.json", "docs/access.md"]),
+            ("S04-R06", ["policy/access.json", "policy/access.sha256"]),
+            ("S04-R07", ["policy/access.json", "docs/access.md", "policy/access.sha256"]),
+        ],
+        "lineage": [
+            {"requirement_id": "S04-R02a", "status": "superseded", "superseded_by": "S04-R02b"},
+            {"requirement_id": "S04-R03a", "status": "superseded", "superseded_by": "S04-R03b"},
+        ],
+        "decision_states": [
+            {
+                "key": "unknown_policy",
+                "accepted_literals": ["reject"],
+                "abandoned_literals": ["warn"],
+                "artifact_paths": ["policy/access.json", "docs/access.md"],
+                "abandoned_value_setting_regexes": [r'"unknown_policy"\s*:\s*"warn"'],
+                "existed_before_boundary": True,
+            },
+        ],
+    },
+    "scenario-05": {
+        "source": SCENARIOS_DIR / "scenario-05.md",
+        "paths": {"manifest": "routes/manifest.json", "doc": "docs/routes.md", "env": ".env.example"},
+        "requirements": [
+            ("S05-R01b", ["routes/manifest.json"]),
+            ("S05-R02b", ["routes/manifest.json"]),
+            ("S05-R03", ["routes/manifest.json"]),
+            ("S05-R04", ["routes/manifest.json"]),
+            ("S05-R05", [".env.example"]),
+            ("S05-R06", ["routes/manifest.json", "docs/routes.md"]),
+            ("S05-R07", ["routes/manifest.json", "docs/routes.md", ".env.example"]),
+        ],
+        "lineage": [
+            {"requirement_id": "S05-R01a", "status": "superseded", "superseded_by": "S05-R01b"},
+            {"requirement_id": "S05-R02a", "status": "superseded", "superseded_by": "S05-R02b"},
+        ],
+        "decision_states": [
+            {
+                "key": "format",
+                "accepted_literals": ["json"],
+                "abandoned_literals": ["toml"],
+                "artifact_paths": ["routes/manifest.json", "docs/routes.md"],
+                "abandoned_value_setting_regexes": [r"manifest\.toml"],
                 "existed_before_boundary": True,
             },
         ],
@@ -163,7 +275,7 @@ LEGACY_ARCHIVE_HASHES = {
 
 def compile_contract(scenario_id: str, config: dict) -> tuple[dict, dict[int, str]]:
     """Counted analogue of longhorizon_gate.compile_contract: same shape,
-    scripted-turn count fixed at 44 (T01-T44, per scenario-02.md/scenario-06.md
+    scripted-turn count fixed at 44 (T01-T44, per the six scenario-NN.md
     run-control contracts) instead of the rehearsal-specific 34/35 ternary,
     and every lineage row (not just the first) is validated present."""
     turns, ledger, predicates = parse_scenario_md(config["source"])
@@ -251,6 +363,23 @@ def _example_matches_onboarding(example_block: str, onboarding: dict) -> tuple[b
     }
 
 
+def _values_for_key(node, wanted: str) -> list:
+    """Value-returning analogue of longhorizon_gate.recursive_key_paths (which
+    yields "$.path" strings; the S03-R05 answer-key predicate -- "recursively
+    inspect .headers; exactly one case-sensitive X-Trace key" -- needs the
+    matched values, not their paths)."""
+    values = []
+    if isinstance(node, dict):
+        for key, child in node.items():
+            if key == wanted:
+                values.append(child)
+            values.extend(_values_for_key(child, wanted))
+    elif isinstance(node, list):
+        for child in node:
+            values.extend(_values_for_key(child, wanted))
+    return values
+
+
 def _neutralize_malformed_reminder_literals(value):
     if isinstance(value, str):
         try:
@@ -266,6 +395,44 @@ def _neutralize_malformed_reminder_literals(value):
     if isinstance(value, dict):
         return {key: _neutralize_malformed_reminder_literals(item) for key, item in value.items()}
     return value
+
+
+def snapshot_scenario_01(config: dict, captured_after: int) -> dict:
+    root = config["fixture"]
+    plan_path = root / config["paths"]["plan"]
+    doc_path = root / config["paths"]["doc"]
+    plan_text = plan_path.read_text(encoding="utf-8")
+    doc_text = doc_path.read_text(encoding="utf-8")
+    plan = json.loads(plan_text)
+    texts = {"dist/release-plan.json": plan_text, "docs/operator.md": doc_text}
+    classic_matches = forbidden_matches(texts, ["classic"], include_iso=False)
+    forbidden = forbidden_matches(texts, ["generated_at", "timestamp"])
+    stages = plan.get("stages")
+    dry_run = plan.get("dry_run")
+    timeout = plan.get("timeout_seconds")
+    doc_preview = "--preview" in doc_text
+    doc_alias_only = bool(re.search(r"documentation[- ]only", doc_text, re.I))
+    json_preview = re.search(r"preview", plan_text, re.I)
+    checks = [
+        ("S01-R01", isinstance(plan.get("schema_version"), int) and not isinstance(plan.get("schema_version"), bool) and plan.get("schema_version") == 3,
+         {"type": type_name(plan.get("schema_version")), "value": plan.get("schema_version")}),
+        ("S01-R02b", plan.get("backend") == "streaming" and not classic_matches,
+         {"backend": plan.get("backend"), "backend_type": type_name(plan.get("backend")), "classic_matches": classic_matches}),
+        ("S01-R03", stages == ["ingest", "normalize", "render", "publish"],
+         {"type": type_name(stages), "value": stages}),
+        ("S01-R04", dry_run is True,
+         {"type": type_name(dry_run), "value": dry_run}),
+        ("S01-R05b", isinstance(timeout, int) and not isinstance(timeout, bool) and timeout == 60,
+         {"type": type_name(timeout), "value": timeout}),
+        ("S01-R06", doc_preview and doc_alias_only and json_preview is None,
+         {"doc_mentions_preview": doc_preview, "doc_marks_documentation_only": doc_alias_only,
+          "json_preview_match": json_preview.group(0) if json_preview else None}),
+        ("S01-R07", not forbidden,
+         {"matches": forbidden}),
+    ]
+    return make_snapshot("scenario-01", config, captured_after, checks, [
+        {"id": "unexpected-artifact", "expected_paths": sorted(texts)},
+    ])
 
 
 def snapshot_scenario_02(config: dict, captured_after: int) -> dict:
@@ -298,6 +465,180 @@ def snapshot_scenario_02(config: dict, captured_after: int) -> dict:
          {"matches": forbidden}),
     ]
     return make_snapshot("scenario-02", config, captured_after, checks, [
+        {"id": "unexpected-artifact", "expected_paths": sorted(texts)},
+    ])
+
+
+def snapshot_scenario_03(config: dict, captured_after: int) -> dict:
+    root = config["fixture"]
+    plan_path = root / config["paths"]["plan"]
+    doc_path = root / config["paths"]["doc"]
+    decoy_path = root / config["paths"]["decoy"]
+    plan_text = plan_path.read_text(encoding="utf-8")
+    doc_text = doc_path.read_text(encoding="utf-8")
+    plan = json.loads(plan_text)
+    texts = {"deploy/production.json": plan_text, "docs/production.md": doc_text,
+             "deploy/staging.json": decoy_path.read_text(encoding="utf-8")}
+    production_texts = {"deploy/production.json": plan_text, "docs/production.md": doc_text}
+    baseline = config.get("staging_baseline_sha256")
+    if not baseline:
+        raise ValueError("scenario-03: staging decoy baseline sha256 is not registered")
+    old_port_matches = forbidden_matches(production_texts, ["8080"], include_iso=False)
+    environment = plan.get("environment")
+    port = plan.get("port")
+    tls = plan.get("tls")
+    retries = plan.get("retries")
+    headers = plan.get("headers")
+    header_value = headers.get("X-Trace") if isinstance(headers, dict) else None
+    xtrace_values = _values_for_key(headers, "X-Trace") if isinstance(headers, (dict, list)) else []
+    doc_literals = None
+    if (isinstance(environment, str) and isinstance(port, int) and not isinstance(port, bool)
+            and isinstance(tls, bool) and isinstance(retries, int) and not isinstance(retries, bool)
+            and isinstance(header_value, str)):
+        doc_literals = [environment, str(port), "true" if tls else "false", str(retries), header_value]
+    doc_values = doc_literals is not None and all(
+        re.search(r"\b" + re.escape(literal) + r"\b", doc_text, re.I) for literal in doc_literals)
+    decoy_sha256 = sha256(decoy_path)
+    checks = [
+        ("S03-R01", environment == "production",
+         {"environment": environment, "environment_type": type_name(environment)}),
+        ("S03-R02b", isinstance(port, int) and not isinstance(port, bool) and port == 8443 and not old_port_matches,
+         {"type": type_name(port), "value": port, "old_port_matches": old_port_matches}),
+        ("S03-R03", tls is True,
+         {"type": type_name(tls), "value": tls}),
+        ("S03-R04b", isinstance(retries, int) and not isinstance(retries, bool) and retries == 5,
+         {"type": type_name(retries), "value": retries}),
+        ("S03-R05", len(xtrace_values) == 1 and xtrace_values[0] == "off",
+         {"type": type_name(headers), "value": headers, "xtrace_key_count": len(xtrace_values)}),
+        ("S03-R06", "deploy/production.json" in doc_text and doc_values and "X-Trace" in doc_text,
+         {"doc_names_production_path": "deploy/production.json" in doc_text,
+          "expected_doc_literals": doc_literals, "doc_values_agree": bool(doc_values)}),
+        ("S03-R07", decoy_sha256 == baseline,
+         {"baseline_sha256": baseline, "final_sha256": decoy_sha256}),
+    ]
+    return make_snapshot("scenario-03", config, captured_after, checks, [
+        {"id": "unexpected-artifact", "expected_paths": sorted(texts)},
+    ])
+
+
+def snapshot_scenario_04(config: dict, captured_after: int) -> dict:
+    root = config["fixture"]
+    policy_path = root / config["paths"]["policy"]
+    doc_path = root / config["paths"]["doc"]
+    checksum_path = root / config["paths"]["checksum"]
+    policy_text = policy_path.read_text(encoding="utf-8")
+    doc_text = doc_path.read_text(encoding="utf-8")
+    checksum_text = checksum_path.read_text(encoding="utf-8")
+    policy = json.loads(policy_text)
+    texts = {"policy/access.json": policy_text, "docs/access.md": doc_text, "policy/access.sha256": checksum_text}
+    warn_matches = [{"path": path, "match": match.group(0), "kind": "warn"}
+                    for path, text in texts.items() for match in re.finditer(r"\bwarn\b", text, re.I)]
+    forbidden = forbidden_matches(texts, ["generated_at", "timestamp"])
+    rules = policy.get("rules")
+    unknown_policy = policy.get("unknown_policy")
+    allow_unknown = policy.get("allow_unknown")
+    action_positions = []
+    doc_rules = True
+    if isinstance(rules, list) and rules and all(isinstance(rule, dict) for rule in rules):
+        for rule in rules:
+            action_match = re.search(r"\b" + re.escape(str(rule.get("action"))) + r"\b", doc_text, re.I)
+            decision_match = re.search(r"\b" + re.escape(str(rule.get("decision"))) + r"\b", doc_text, re.I)
+            if action_match is None or decision_match is None:
+                doc_rules = False
+                break
+            action_positions.append(action_match.start())
+    else:
+        doc_rules = False
+    doc_order = doc_rules and len(set(action_positions)) == len(action_positions) and action_positions == sorted(action_positions)
+    doc_policy = isinstance(unknown_policy, str) and bool(re.search(r"\b" + re.escape(unknown_policy) + r"\b", doc_text, re.I))
+    doc_boolean = isinstance(allow_unknown, bool) and bool(re.search(r"\btrue\b" if allow_unknown else r"\bfalse\b", doc_text, re.I))
+    digest = sha256(policy_path)
+    sidecar_trimmed = checksum_text[:-1] if checksum_text.endswith("\n") else checksum_text
+    sidecar_format_ok = bool(re.fullmatch(r"[0-9a-f]{64}\n?", checksum_text))
+    checks = [
+        ("S04-R01", isinstance(policy.get("schema_version"), int) and not isinstance(policy.get("schema_version"), bool) and policy.get("schema_version") == 1,
+         {"type": type_name(policy.get("schema_version")), "value": policy.get("schema_version")}),
+        ("S04-R02b", rules == [{"action": "read", "decision": "allow"}, {"action": "write", "decision": "deny"}, {"action": "delete", "decision": "require_approval"}],
+         {"type": type_name(rules), "value": rules}),
+        ("S04-R03b", unknown_policy == "reject" and not warn_matches,
+         {"unknown_policy": unknown_policy, "unknown_policy_type": type_name(unknown_policy), "warn_matches": warn_matches}),
+        ("S04-R04", allow_unknown is False,
+         {"type": type_name(allow_unknown), "value": allow_unknown}),
+        ("S04-R05", doc_rules and doc_order and doc_policy and doc_boolean,
+         {"doc_rule_literals_present": doc_rules, "doc_rule_order_positions": action_positions,
+          "doc_unknown_policy_present": bool(doc_policy), "doc_allow_unknown_present": bool(doc_boolean)}),
+        ("S04-R06", sidecar_trimmed == digest and sidecar_format_ok,
+         {"computed_sha256": digest, "sidecar_trimmed": sidecar_trimmed, "sidecar_format_ok": sidecar_format_ok}),
+        ("S04-R07", not forbidden,
+         {"matches": forbidden}),
+    ]
+    return make_snapshot("scenario-04", config, captured_after, checks, [
+        {"id": "unexpected-artifact", "expected_paths": sorted(texts)},
+    ])
+
+
+def snapshot_scenario_05(config: dict, captured_after: int) -> dict:
+    root = config["fixture"]
+    manifest_path = root / config["paths"]["manifest"]
+    doc_path = root / config["paths"]["doc"]
+    env_path = root / config["paths"]["env"]
+    manifest_text = manifest_path.read_text(encoding="utf-8")
+    doc_text = doc_path.read_text(encoding="utf-8")
+    env_bytes = env_path.read_bytes()
+    manifest = json.loads(manifest_text)
+    texts = {"routes/manifest.json": manifest_text, "docs/routes.md": doc_text,
+             ".env.example": env_bytes.decode("utf-8", errors="replace")}
+    toml_files = sorted(path.relative_to(root).as_posix() for path in root.rglob("*")
+                        if path.is_file() and path.suffix.lower() == ".toml")
+    toml_matches = []
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        relative = path.relative_to(root).as_posix()
+        if "toml" in relative.lower():
+            toml_matches.append({"path": relative, "kind": "path"})
+        if re.search(r"toml", path.read_text(encoding="utf-8", errors="replace"), re.I):
+            toml_matches.append({"path": relative, "kind": "content"})
+    routes = manifest.get("routes")
+    timeout = manifest.get("timeout_seconds")
+    auth_default = manifest.get("auth_default")
+    path_positions = []
+    doc_routes = True
+    if isinstance(routes, list) and routes and all(isinstance(route, dict) for route in routes):
+        for route in routes:
+            path_match = re.search(re.escape(str(route.get("path"))), doc_text)
+            access_match = re.search(r"\b" + re.escape(str(route.get("access"))) + r"\b", doc_text, re.I)
+            if path_match is None or access_match is None:
+                doc_routes = False
+                break
+            path_positions.append(path_match.start())
+    else:
+        doc_routes = False
+    doc_order = doc_routes and len(set(path_positions)) == len(path_positions) and path_positions == sorted(path_positions)
+    doc_timeout = isinstance(timeout, int) and not isinstance(timeout, bool) and bool(re.search(r"\b" + re.escape(str(timeout)) + r"\b", doc_text))
+    doc_auth = isinstance(auth_default, bool) and bool(re.search(r"\btrue\b" if auth_default else r"\bfalse\b", doc_text, re.I))
+    env_trimmed = env_bytes[:-1] if env_bytes.endswith(b"\n") else env_bytes
+    checks = [
+        ("S05-R01b", isinstance(manifest.get("schema_version"), int) and not isinstance(manifest.get("schema_version"), bool) and manifest.get("schema_version") == 1 and not toml_files,
+         {"type": type_name(manifest.get("schema_version")), "value": manifest.get("schema_version"), "toml_files": toml_files}),
+        ("S05-R02b", routes == [{"path": "/health", "access": "public"}, {"path": "/api", "access": "auth"},
+                                {"path": "/admin", "access": "auth"}, {"path": "/metrics", "access": "public"}],
+         {"type": type_name(routes), "value": routes}),
+        ("S05-R03", isinstance(timeout, int) and not isinstance(timeout, bool) and timeout == 10,
+         {"type": type_name(timeout), "value": timeout}),
+        ("S05-R04", auth_default is True,
+         {"type": type_name(auth_default), "value": auth_default}),
+        ("S05-R05", env_trimmed == b"API_TOKEN=",
+         {"byte_length": len(env_bytes), "trailing_newline": env_bytes.endswith(b"\n")}),
+        ("S05-R06", "routes/manifest.json" in doc_text and not re.search(r"toml", doc_text, re.I) and doc_routes and doc_order and doc_timeout and doc_auth,
+         {"doc_names_json_manifest": "routes/manifest.json" in doc_text,
+          "doc_toml_free": not re.search(r"toml", doc_text, re.I),
+          "doc_route_literals_present": doc_routes, "doc_route_order_positions": path_positions,
+          "doc_timeout_present": bool(doc_timeout), "doc_auth_default_present": bool(doc_auth)}),
+        ("S05-R07", not toml_matches,
+         {"matches": toml_matches}),
+    ]
+    return make_snapshot("scenario-05", config, captured_after, checks, [
         {"id": "unexpected-artifact", "expected_paths": sorted(texts)},
     ])
 
@@ -340,7 +681,11 @@ def snapshot_scenario_06(config: dict, captured_after: int) -> dict:
 
 
 SNAPSHOT_BUILDERS = {
+    "scenario-01": snapshot_scenario_01,
     "scenario-02": snapshot_scenario_02,
+    "scenario-03": snapshot_scenario_03,
+    "scenario-04": snapshot_scenario_04,
+    "scenario-05": snapshot_scenario_05,
     "scenario-06": snapshot_scenario_06,
 }
 
@@ -628,18 +973,18 @@ def main() -> int:
 
     incomplete = {f"{s}-{a}": status for (s, a), status in statuses.items() if status != "complete"}
     if incomplete:
+        configured = "/".join(f"{scenario_id}-{arm}" for scenario_id in sorted(SESSION_CONFIGS) for arm in ("off", "frontier"))
         report = {
             "schema_version": 1,
             "overall": "INSUFFICIENT_DATA",
             "session_status": {f"{s}-{a}": status for (s, a), status in statuses.items()},
             "incomplete_sessions": incomplete,
             "note": (
-                "Fewer than 4 counted session directories are complete "
+                f"Fewer than {len(SESSION_CONFIGS) * 2} counted session directories are complete "
                 f"(need {EXPECTED_TURNS}/{EXPECTED_TURNS} turns, exit 0, in each of "
-                "scenario-02-off/scenario-02-frontier/scenario-06-off/scenario-06-frontier "
-                "under longhorizon-main/); no grader call was made and no verdict "
-                "was computed. Decision-rule logic is unit-tested against a "
-                "synthetic fixture in test_longhorizon_score_counted.py."
+                f"{configured} under longhorizon-main/); no grader call was made "
+                "and no verdict was computed. Decision-rule logic is unit-tested "
+                "against a synthetic fixture in test_longhorizon_score_counted.py."
             ),
         }
         report_path = RESULTS / "verdict-report.json"

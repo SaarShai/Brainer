@@ -2,6 +2,23 @@
 
 Aggregating per-skill A/B + session-level replay. Updated as new measurements land.
 
+## 2026-07-18 post-DEMOTE Lane 2: long-horizon scoring wiring covers 6/6 scenarios
+
+`eval/skills_effectiveness/longhorizon_score_counted.py` now has
+`SESSION_CONFIGS` + `SNAPSHOT_BUILDERS` entries for scenarios 01, 03, 04, 05
+alongside 02/06, with predicates transcribed from each scenario's answer key
+(structured JSON parse over substring matching; agreement predicates compare
+doc against parsed values, not hard-coded truths). Wiring only: no counted
+sessions were run, no grader calls, no network. Scenario-03's decoy
+byte-preservation predicate (S03-R07) fails closed with a ValueError until a
+reset-time staging baseline sha256 is registered; blind IDs for the four new
+scenarios are likewise still unassigned, so actual scoring of the fuller set
+remains gated on new owner authorization. Unit tests: 53 passed in
+test_longhorizon_score_counted.py. Full local suite: 116 passed, 1
+pre-existing failure at HEAD in the scope-walled trigger-gate corpus test
+(`FrozenCorpusTests.test_trigger_shape_and_digest` expects 852 rows; pristine
+cases.py yields 862 — belongs to the concurrent Lane 1/3 run, not this lane).
+
 ## 2026-07-18 post-DEMOTE Lane 1: seven FRONTIER false interruptions fixed offline
 
 All seven false interruptions in the counted scenario-02/06 FRONTIER
