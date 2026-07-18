@@ -86,6 +86,37 @@ def text(content: str) -> dict:
     return event("assistant", [{"type": "text", "text": content}])
 
 
+def codex_custom_exec(tid: str, command: str, output: str) -> list[dict]:
+    """Current Codex Desktop transcript shape for functions.exec wrapping an
+    executed exec_command call. This is deliberately NOT pre-normalized: the
+    trigger gate must exercise the same host boundary the live false fires did."""
+    source = (
+        "const r = await tools.exec_command({cmd:`"
+        + command.replace("\\", "\\\\").replace("`", "\\`")
+        + "`,workdir:\"/Users/za/Documents/PROMPTER\"}); text(r.output);"
+    )
+    return [
+        {"type": "response_item", "payload": {
+            "type": "custom_tool_call", "name": "exec", "call_id": tid,
+            "status": "completed", "input": source}},
+        {"type": "response_item", "payload": {
+            "type": "custom_tool_call_output", "call_id": tid,
+            "output": [{"type": "input_text", "text":
+                        "Script completed\nWall time 0.1 seconds\nOutput:\n" + output}]}},
+    ]
+
+
+def codex_custom_raw(tid: str, source: str, output: str) -> list[dict]:
+    return [
+        {"type": "response_item", "payload": {
+            "type": "custom_tool_call", "name": "exec", "call_id": tid,
+            "status": "completed", "input": source}},
+        {"type": "response_item", "payload": {
+            "type": "custom_tool_call_output", "call_id": tid,
+            "output": [{"type": "input_text", "text": output}]}},
+    ]
+
+
 _TASK_ID_RE = re.compile(r"<task-id>(.*?)</task-id>")
 _OUTPUT_FILE_RE = re.compile(r"<output-file>(.*?)</output-file>")
 
@@ -110,6 +141,27 @@ def _provenance_events(task_id: str) -> list[dict]:
 
 
 def transcript_for(case: dict, turn: str = "a") -> list[dict]:
+    if case["kind"] == "field_ledger_false_close":
+        return [text(case["prior_reply"])]
+    if case["kind"] == "field_codex_custom_evidence":
+        return codex_custom_exec("field-check", case["command"], case["result"]) + [{
+            "type": "response_item", "payload": {
+                "type": "message", "role": "assistant",
+                "content": [{"type": "output_text", "text": case["prior_reply"]}]}}]
+    if case["kind"] == "field_codex_custom_unverified":
+        claim = {"type": "response_item", "payload": {
+            "type": "message", "role": "assistant",
+            "content": [{"type": "output_text", "text": "The tests pass; this is ready."}]}}
+        variant = case["variant"]
+        if variant == "failed":
+            return codex_custom_exec("bad-check", "python3 check.py", "1 failed") + [claim]
+        if variant == "stale":
+            return (codex_custom_exec("stale-check", "python3 check.py", "12 passed")
+                    + codex_custom_raw(
+                        "later-edit",
+                        "const r = await tools.apply_patch('*** Begin Patch\\n*** End Patch'); text(r);",
+                        "Script completed\nOutput:\nDone!") + [claim])
+        return codex_custom_exec("wrong-check", "curl localhost/healthz", "ok") + [claim]
     if case["kind"] == "verification":
         claim = text("The tests pass; this is ready.")
         variant = case["evidence_variant"]
@@ -270,6 +322,27 @@ PENDING_WRAP_KINDS = {"notification_destructive_pending",
 # through _run_audit_seq_case (N4 relative-read reconcile, three turns;
 # N5 quoted-notification verbatim capture, two turns).
 AUDIT_SEQ_KINDS = {"notification_relative_read", "notification_quoted_verbatim"}
+FIELD_LEDGER_KINDS = {"field_ledger_false_close"}
+
+
+def _run_field_ledger_case(root: Path, case: dict, profile: str) -> dict:
+    """Seed one open request, then replay the exact field prompt. A compound
+    supersession may replace the prior item internally, but none of these turns
+    is a user closure boundary and therefore none may interrupt."""
+    seed = invoke(root, case, profile, prompt=case["seed_prompt"])
+    proc = invoke(root, case, profile)
+    encoded = seed.stdout.encode() + b"\x00" + proc.stdout.encode()
+    any_emitted = bool(seed.stdout.strip() or proc.stdout.strip())
+    return {"id": case["id"], "kind": case["kind"],
+            "mechanism": case["mechanism"], "expected": False,
+            "fired": any_emitted, "any_emitted": any_emitted,
+            "mechanism_fired": any_emitted,
+            "returncode": seed.returncode or proc.returncode,
+            "stdout_utf8_bytes": len(encoded),
+            "stdout_sha256": hashlib.sha256(encoded).hexdigest(),
+            "probe_ids": sorted({f"{a}:{b}" for a, b in
+                                 PROBE_RE.findall(seed.stdout + proc.stdout)}),
+            "suppressed_probe_ids": []}
 
 
 def _run_deferred_case(root: Path, case: dict, profile: str,
@@ -441,6 +514,8 @@ def run_case(root: Path, case: dict, profile: str) -> dict:
         return _run_pending_wrap_case(root, case, profile, telemetry, before_lines)
     if case["kind"] in AUDIT_SEQ_KINDS:
         return _run_audit_seq_case(root, case, profile, telemetry, before_lines)
+    if case["kind"] in FIELD_LEDGER_KINDS:
+        return _run_field_ledger_case(root, case, profile)
     proc = invoke(root, case, profile)
     encoded = proc.stdout.encode()
     probes = sorted({f"{a}:{b}" for a, b in PROBE_RE.findall(proc.stdout)})

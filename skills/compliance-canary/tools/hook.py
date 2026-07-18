@@ -602,7 +602,7 @@ def _evidence_classes(name: str, inp: dict, result_text: str) -> set[str]:
     args = json.dumps(inp, sort_keys=True).lower()
     classes: set[str] = set()
     if re.search(
-        r"(?:^|[;&|]\s*)(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:sudo\s+)?"
+        r"(?:^|[;&|\n]\s*)(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:sudo\s+)?"
         r"(?:pytest|python\S*\s+-m\s+pytest|"
         r"python\S*\s+(?:[^;&|\s]+/)?(?:check|test)[A-Za-z0-9_.-]*\.py|"
         r"\./(?:[^;&|\s]+/)?(?:check|test)[A-Za-z0-9_.-]*(?:\.py|\.sh)?|"
@@ -613,11 +613,11 @@ def _evidence_classes(name: str, inp: dict, result_text: str) -> set[str]:
     ):
         classes.add("test/build")
     if name_lower in {"read", "view_file"} or re.search(
-        r"(?:^|[;&|]\s*)(?:git\s+(?:diff|status)|stat|ls|find|rg|grep|"
+        r"(?:^|[;&|\n]\s*)(?:git\s+(?:diff|status)|stat|ls|find|rg|grep|jq|"
         r"shasum|sha256sum)\b", command
     ):
         classes.add("filesystem/diff")
-    if re.search(r"(?:^|[;&|]\s*)(?:curl|wget)\b", command):
+    if re.search(r"(?:^|[;&|\n]\s*)(?:curl|wget)\b", command):
         classes.add("live service")
     if (re.search(r"(?:screenshot|view_image|take_screenshot|preview)", name_lower)
             or (name_lower in {"read", "view_file"}
@@ -1873,10 +1873,17 @@ _LEDGER_CLOSE_RE = re.compile(
     r"(?i)(?:\bclose (?:it|this|that|the task|out|them|all|everything)\b|"
     r"\byou can close\b|\bok(?:ay)? to close\b|\bsafe to close\b|\bwe can close\b|"
     r"\bmark (?:it|this|that|them) (?:as )?(?:done|closed|complete)\b|"
-    r"\bthat'?s all\b|\bthat'?s everything\b|\bnothing else\b|\bno(?:thing)? further\b|"
+    r"\bthat'?s all\b|\bthat'?s everything\b|(?:^\s*nothing else\s*[.!]*\s*$|"
+    r"\bnothing else (?:to do|needed|required)\b)|\bno(?:thing)? further\b|"
     r"\bwe'?re done\b|\ball done\b|\bdone with (?:it|that|this|everything)\b|"
     r"\bdrop (?:it|that|this)\b|\bnever ?mind\b|\bforget (?:it|that)\b|"
     r"\bcancel (?:it|that|this)\b|\bship it\b|\byes,? close\b|\byou can stop\b)"
+)
+# Explicitly negated closure is an instruction to KEEP working, never a user
+# closure boundary. Checked outside _LEDGER_CLOSE_RE so the affirmative grammar
+# remains readable and conservative.
+_LEDGER_NEGATED_CLOSE_RE = re.compile(
+    r"(?i)\b(?:do not|don'?t|never|without)\s+close\b"
 )
 # Distinguishes "close everything" from "close the last thing".
 _LEDGER_CLOSE_ALL_RE = re.compile(
@@ -1912,10 +1919,11 @@ _LEDGER_DEFER_RE = re.compile(
 # "close it and add a test" still captures the test (review B2/M3: never drop a
 # co-occurring ask, never junk-capture a pure meta-command).
 _LEDGER_COMPOUND_RE = re.compile(
-    r"(?i)(?:\b(?:and|also|plus|then)\b|[,;]\s)\s*(?:can you |could you |would you |please )?"
+    r"(?i)(?:\b(?:and|also|plus|then)\b|[,;]\s|[.!?]\s+)\s*"
+    r"(?:can you |could you |would you |please |let'?s )?"
     r"(?:add|create|write|fix|update|make|implement|build|remove|delete|rename|refactor|"
     r"test|document|check|pin|install|set ?up|wire|handle|support|enable|ensure|include|"
-    r"generate|run|review|audit|verify|score|investigate|answer|explain)\b"
+    r"generate|run|review|audit|verify|score|investigate|answer|explain|use|switch)\b"
 )
 
 
@@ -1945,7 +1953,7 @@ def update_ledger(ledger: list, prompt: str, turn: int) -> tuple[list, list, str
     has_new_ask = bool(_LEDGER_COMPOUND_RE.search(p))
 
     meta = None
-    if _LEDGER_CLOSE_RE.search(p):
+    if _LEDGER_CLOSE_RE.search(p) and not _LEDGER_NEGATED_CLOSE_RE.search(p):
         if not ledger:
             meta = "close-noop"
         elif _LEDGER_CLOSE_ALL_RE.search(p):
@@ -1975,7 +1983,11 @@ def update_ledger(ledger: list, prompt: str, turn: int) -> tuple[list, list, str
     item = {"id": _ledger_make_id(turn, p), "turn": turn,
             "text": p[:LEDGER_TEXT_CAP], "atomic_count": _ledger_atomic_count(p)}
     ledger = (ledger + [item])[-LEDGER_STORE_CAP:]
-    return ledger, closed, (meta or "add")
+    # A compound supersession such as "forget it; use streaming instead"
+    # legitimately replaces the prior item and records the successor, but it is
+    # not a conversational close boundary. Keep the state transition while
+    # suppressing the noisy "closed N requests" confirmation.
+    return ledger, ([] if meta and has_new_ask else closed), (meta or "add")
 
 
 def has_completion_claim(events: list[dict]) -> bool:

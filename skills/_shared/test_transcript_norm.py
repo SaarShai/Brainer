@@ -124,6 +124,35 @@ def test_codex_shell_tool_maps_to_bash_with_command_key():
     print("ok test_codex_shell_tool_maps_to_bash_with_command_key")
 
 
+def test_codex_custom_exec_maps_executed_commands_and_result():
+    codex = [
+        {"type": "response_item", "payload": {
+            "type": "custom_tool_call", "name": "exec", "call_id": "cx-1",
+            "input": "const r = await tools.exec_command({cmd:`set -e\\njq -e '.ok' x.json\\nrg -F ready x.md`}); text(r.output);"}},
+        {"type": "response_item", "payload": {
+            "type": "custom_tool_call_output", "call_id": "cx-1",
+            "output": [{"type": "input_text", "text": "Script completed\\nOutput:\\nPASS"}]}},
+    ]
+    norm = tn.normalize(codex)
+    assert len(norm) == 2, norm
+    tool_use = norm[0]["message"]["content"][0]
+    assert tool_use["name"] == "Bash", tool_use
+    assert tool_use["id"] == "cx-1", tool_use
+    assert "jq -e '.ok' x.json" in tool_use["input"]["command"], tool_use
+    result = norm[1]["message"]["content"][0]
+    assert result["tool_use_id"] == "cx-1" and result["is_error"] is False, result
+    print("ok test_codex_custom_exec_maps_executed_commands_and_result")
+
+
+def test_codex_custom_exec_failure_status():
+    codex = [{"type": "response_item", "payload": {
+        "type": "custom_tool_call_output", "call_id": "cx-bad",
+        "output": [{"type": "input_text", "text": "Script exited with code 1\\n1 failed"}]}}]
+    result = tn.normalize(codex)[0]["message"]["content"][0]
+    assert result["is_error"] is True, result
+    print("ok test_codex_custom_exec_failure_status")
+
+
 def test_codex_bad_arguments_dont_crash():
     codex = [{"type": "response_item", "payload": {
         "type": "function_call", "name": "x", "arguments": "not json"}}]
@@ -207,9 +236,11 @@ if __name__ == "__main__":
     test_codex_function_call_output_derives_failure_status()
     test_codex_function_results_pair_when_interleaved_and_reversed()
     test_codex_shell_tool_maps_to_bash_with_command_key()
+    test_codex_custom_exec_maps_executed_commands_and_result()
+    test_codex_custom_exec_failure_status()
     test_codex_bad_arguments_dont_crash()
     test_codex_user_and_assistant_messages()
     test_codex_slash_skill_synthesizes_skill_tool_use()
     test_codex_skill_block_is_canonical_invocation()
     test_codex_non_slash_user_no_synthesis()
-    print("ALL 12 TESTS PASSED")
+    print("ALL 14 TESTS PASSED")

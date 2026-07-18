@@ -2,6 +2,41 @@
 
 Aggregating per-skill A/B + session-level replay. Updated as new measurements land.
 
+## 2026-07-18 post-DEMOTE Lane 1: seven FRONTIER false interruptions fixed offline
+
+All seven false interruptions in the counted scenario-02/06 FRONTIER
+transcripts reproduced against the pre-fix hook. They split into two concrete
+implementation defects rather than seven independent probe-tuning problems:
+
+- Scenario 02 turns 16/30/38 were request-ledger close-parser false positives:
+  a supersession (`forget it. Let's use ...`) emitted a close confirmation
+  instead of silently replacing the predecessor; `do not close the task`
+  matched an affirmative close; and `changing nothing else` matched the broad
+  `nothing else` close phrase.
+- Scenario 06 turns 02/08/12/44 were evidence-normalization false positives.
+  Current Codex transcripts record the wrapper as `custom_tool_call` /
+  `custom_tool_call_output` with literal `tools.exec_command({cmd: ...})`
+  calls, but the shared normalizer recognized only the older
+  `function_call` schema. The canary therefore saw terminal claims without the
+  successful filesystem/diff evidence that immediately preceded them.
+
+The fix narrows/negates ledger closure morphology, preserves superseding asks
+without a closure nag, and normalizes current Codex custom exec calls/results
+into the existing Bash evidence timeline. Seven exact field hard negatives and
+three failed/stale/wrong-class recall controls were added. Post-fix, all seven
+field negatives are silent and all three recall controls still fire.
+
+The current expanded Frontier corpus passes 862/862 at corpus SHA-256
+`812e2857c09a863406bbfd40842a0c59380231b4e59abccd91a6beb71f588a7f`:
+TP=329, FP=0, FN=0, TN=533, reviewed precision=1.0, false-injection rate=0,
+and one-sided 95% false-injection upper bound=0.00557034 for the hard-negative
+set. Result JSONL SHA-256 is
+`938e3dd013515d75eedee6de311d507a182c522e8cfd467bd2c7dbbf8b6d32b4`.
+Canary tests pass 176/176, hook-safety tests 22/22, profile tests pass, and the
+shared transcript normalizer passes 14/14. This is an offline remediation and
+does **not** reverse or weaken the binding DEMOTE verdict; no counted or paid
+sessions were run.
+
 ## 2026-07-18 long-horizon counted probe: SCORED — verdict DEMOTE to shadow
 
 Scoring resumed same day via a codex/gpt-5.6-sol xhigh handoff

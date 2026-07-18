@@ -15,6 +15,12 @@ Codex nests everything under `payload` and uses different record/tool types:
     {"type":"response_item","payload":{"type":"function_call","name":N,
         "arguments":"<json-string>","call_id":...}}
 
+Current Codex Desktop builds may instead wrap tool orchestration as:
+
+    {"type":"response_item","payload":{"type":"custom_tool_call","name":"exec",
+        "input":"const r = await tools.exec_command({cmd:...})", "call_id":...}}
+    {"type":"response_item","payload":{"type":"custom_tool_call_output",...}}
+
 Rather than teach every downstream detector both schemas, we normalize Codex records
 INTO the Claude shape here. Claude transcripts pass through unchanged. One extra trick:
 Codex has no discrete `Skill` tool_use (skills load inline), so a skill use is invisible
@@ -52,7 +58,7 @@ SLASH_TO_SKILL = {
 # the next REAL user message).
 _CODEX_SKILL_BLOCK = re.compile(r"<skill>\s*<name>\s*([^<\s]+)\s*</name>", re.IGNORECASE)
 _PROCESS_EXIT_RE = re.compile(
-    r"(?:^|\n)\s*(?:Process exited with code|Command failed with exit code)\s+(-?\d+)\b",
+    r"(?:^|\n)\s*(?:(?:Process|Script) exited with code|Command failed with exit code)\s+(-?\d+)\b",
     re.IGNORECASE,
 )
 _COMMAND_FAILURE_RE = re.compile(
@@ -149,6 +155,54 @@ def _codex_result_status(value, depth: int = 0) -> bool | None:
     return None
 
 
+_CUSTOM_EXEC_CALL_RE = re.compile(r"\btools\.exec_command\s*\(")
+_CUSTOM_EXEC_CMD_RE = re.compile(r"\bcmd\s*:\s*")
+
+
+def _read_js_string(source: str, start: int) -> tuple[str, int] | None:
+    """Decode one quoted JS string/template literal without evaluating code.
+
+    The Codex custom `exec` record stores the functions.exec JavaScript source,
+    not the nested exec_command arguments. We only accept a literal `cmd`
+    property on a direct `tools.exec_command(...)` call; dynamic expressions
+    stay opaque and therefore cannot become verification evidence by guesswork.
+    """
+    if start >= len(source) or source[start] not in {'"', "'", "`"}:
+        return None
+    quote = source[start]
+    out: list[str] = []
+    i = start + 1
+    escapes = {"n": "\n", "r": "\r", "t": "\t", "b": "\b", "f": "\f",
+               "v": "\v", "0": "\0"}
+    while i < len(source):
+        ch = source[i]
+        if ch == quote:
+            return "".join(out), i + 1
+        if ch == "\\" and i + 1 < len(source):
+            nxt = source[i + 1]
+            out.append(escapes.get(nxt, nxt))
+            i += 2
+            continue
+        out.append(ch)
+        i += 1
+    return None
+
+
+def _custom_exec_commands(source: str) -> list[str]:
+    """Extract literal `cmd` values from direct nested exec_command calls."""
+    calls = list(_CUSTOM_EXEC_CALL_RE.finditer(source or ""))
+    commands: list[str] = []
+    for index, call in enumerate(calls):
+        stop = calls[index + 1].start() if index + 1 < len(calls) else len(source)
+        prop = _CUSTOM_EXEC_CMD_RE.search(source, call.end(), stop)
+        if not prop:
+            continue
+        parsed = _read_js_string(source, prop.end())
+        if parsed is not None:
+            commands.append(parsed[0])
+    return commands
+
+
 def _norm_codex(events: list[dict]) -> list[dict]:
     out: list[dict] = []
     for e in events:
@@ -203,6 +257,37 @@ def _norm_codex(events: list[dict]) -> list[dict]:
                 "tool_use_id": p.get("call_id", ""),
                 "is_error": result_status is True,
                 "content": p.get("output", ""),
+            }]}})
+        elif ptype == "custom_tool_call":
+            name = str(p.get("name") or "")
+            raw_input = p.get("input")
+            if name == "exec" and isinstance(raw_input, str):
+                commands = _custom_exec_commands(raw_input)
+                # functions.exec is the current host's shell-orchestration
+                # boundary. Keep the raw source for audit, but expose only
+                # directly awaited literal exec_command `cmd` values to the
+                # command-aware detectors. If the custom call used apply_patch
+                # or another nested tool, the raw source remains visible so the
+                # mutation detector can conservatively classify it.
+                args = {"command": "\n;\n".join(commands) if commands else raw_input,
+                        "_raw": raw_input}
+                name = "Bash"
+            elif isinstance(raw_input, dict):
+                args = raw_input
+            else:
+                args = {"_raw": raw_input}
+            tool_use = {"type": "tool_use", "name": name, "input": args}
+            if p.get("call_id"):
+                tool_use["id"] = p["call_id"]
+            out.append({"type": "assistant", "timestamp": ts,
+                        "message": {"content": [tool_use]}})
+        elif ptype == "custom_tool_call_output":
+            result_status = _codex_result_status(p)
+            out.append({"type": "user", "timestamp": ts, "message": {"content": [{
+                "type": "tool_result",
+                "tool_use_id": p.get("call_id", ""),
+                "is_error": result_status is True,
+                "content": p.get("output", p.get("content", "")),
             }]}})
         # reasoning / event_msg / meta: not part of the tool_use / message
         # stream the detectors count — drop.

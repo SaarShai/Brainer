@@ -1216,6 +1216,21 @@ a,L=act('close it and add a healthcheck endpoint', ledger=[{'id':'p','turn':1,'t
 print('yes' if any('healthcheck' in it['text'] for it in L) else 'no')")
 if [ "$ok78" = yes ]; then ok "close-compound captures the co-occurring ask"; else no "compound close drops ask"; fi
 
+echo "[78b] field false-close guards: supersession replaces silently; negated close and scope-only nothing-else stay open"
+ok78b=$(python3 -c "$LEDGER_PY
+seed=[{'id':'p','turn':1,'text':'prior'}]
+cases=[
+ ('OK, forget it. Let'+chr(39)+'s use streaming mode instead of batch.', 0, 1),
+ ('Take one more bounded verification step and do not close the task.', 0, 2),
+ ('Replace retry with recovery, preserving its position and changing nothing else.', 0, 2),
+]
+good=True
+for prompt,closed_count,ledger_count in cases:
+    L,c,a = hook.update_ledger(seed, prompt, 2)
+    good = good and len(c)==closed_count and len(L)==ledger_count and L[-1]['turn']==2
+print('yes' if good else 'no')")
+if [ "$ok78b" = yes ]; then ok "field false-close morphologies classified"; else no "field false-close morphology regression"; fi
+
 echo "[79] M1: editing an unrelated requirements/TASKS .md must NOT suppress the detector"
 make_skill_with_probes sk79 requirements-ledger "$LNM"
 TXP="$TRANSCRIPT_DIR/t79p.jsonl"; write_transcript "$TXP" "$(assistant_text 'ok' u)"

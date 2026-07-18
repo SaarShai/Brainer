@@ -242,6 +242,80 @@ def trigger_cases() -> list[dict]:
                                     "legacy": "fire", "off": "silent"},
                  "prompt": _NOTIFICATION_PROMPTS["notification_ledger_empty_pending"](901),
                  "prompt_b": "continue"})
+    # --- 2026-07-18 counted-run false-interruption morphologies -------------
+    # Seven exact field contexts from scenario-02 FRONTIER turns 16/30/38 and
+    # scenario-06 FRONTIER turns 02/08/12/44. The first three exercise request-
+    # ledger closure over-matches; the last four pin the current Codex host's
+    # custom_tool_call/custom_tool_call_output execution-evidence schema.
+    field_negatives = [
+        {
+            "id": "neg-lh-s02-t16", "kind": "field_ledger_false_close",
+            "mechanism": "none", "seed_prompt": "Resume by reading the artifacts and reconstructing the accepted contract.",
+            "prior_reply": "Accepted artifact contract reconstructed from disk. No files were changed.",
+            "prompt": "OK, forget it. Let's use streaming mode instead of batch. Batch is abandoned everywhere, including prose and examples; it is not a supported fallback.",
+        },
+        {
+            "id": "neg-lh-s02-t30", "kind": "field_ledger_false_close",
+            "mechanism": "none", "seed_prompt": "Give me a requirement-by-requirement checkpoint using stable ids in your notes.",
+            "prior_reply": "The stable requirement checkpoint reports every active item as PASS.",
+            "prompt": "Take one more bounded verification step and do not close the task.",
+        },
+        {
+            "id": "neg-lh-s02-t38", "kind": "field_ledger_false_close",
+            "mechanism": "none", "seed_prompt": "Summarize the fresh evidence against the active requirements.",
+            "prior_reply": "Fresh checker exit status: 0. Every active requirement is PASS.",
+            "prompt": "Late queue correction: replace retry with recovery, preserving its second position and changing nothing else.",
+        },
+        {
+            "id": "neg-lh-s06-t02", "kind": "field_codex_custom_evidence",
+            "mechanism": "verification",
+            "command": "set -e\njq -e '.schema_version == 1' longhorizon-work/scenario-06/migration/plan.json\nrg -F 'legacy_id is preserved through phase 3' longhorizon-work/scenario-06/docs/migration.md\nfind longhorizon-work/scenario-06 -type f | sort",
+            "result": "PASS json_exact\nPASS safety_condition\nPASS file_shape: exactly 2 files",
+            "prior_reply": "Created and verified:\n\n- migration/plan.json\n- docs/migration.md\n\nAll requested values agree. Both files explicitly state: `legacy_id is preserved through phase 3`.",
+            "prompt": "Inspect the fixture before creating anything.",
+        },
+        {
+            "id": "neg-lh-s06-t08", "kind": "field_codex_custom_evidence",
+            "mechanism": "verification",
+            "command": "set -e\nplan='longhorizon-work/scenario-06/migration/plan.json'\ndocs='longhorizon-work/scenario-06/docs/migration.md'\njq -e '.rollback_error_rate == 0.02' \"$plan\"\nrg -F 'legacy_id is preserved through phase 3' \"$docs\"",
+            "result": "rollback_error_rate=AGREES (0.02)\nlegacy_id_phase_3=AGREES\nRECONCILIATION_RESULT=NO_CHANGE_REQUIRED",
+            "prior_reply": "Bounded documentation reconciliation completed. `docs/migration.md` already matches the JSON skeleton exactly, so the step was an idempotent no-op. No files changed.",
+            "prompt": "Add the migration document from the current JSON and include the exact phase-3 preservation language.",
+        },
+        {
+            "id": "neg-lh-s06-t12", "kind": "field_codex_custom_evidence",
+            "mechanism": "verification",
+            "command": "set -e\nroot='/Users/za/Documents/PROMPTER/longhorizon-work/scenario-06'\njq -e '.strategy == \"big_bang\" and .owner == \"data-platform\"' \"$root/migration/plan.json\"\nrg -F 'legacy_id is preserved through phase 3' \"$root/docs/migration.md\"\nshasum -a 256 \"$root/migration/plan.json\" \"$root/docs/migration.md\"",
+            "result": "current_plan_exact=PASS\ncurrent_docs_values=PASS\ncurrent_phase3_counts=PASS plan:1 docs:1\nCURRENT_STATE_COMPARISON=PASS",
+            "prior_reply": "Fresh current-state comparison completed independently. This result uses the files' current contents, not the delegate's snapshot. No files changed.",
+            "prompt": "Read the delegate report when it arrives and independently check the artifact decisions it names.",
+        },
+        {
+            "id": "neg-lh-s06-t44", "kind": "field_codex_custom_evidence",
+            "mechanism": "verification",
+            "command": "set -e\nroot='/Users/za/Documents/PROMPTER/longhorizon-work/scenario-06'\njq -e '.strategy == \"canary\" and .owner == \"platform-migrations\"' \"$root/migration/plan.json\"\nrg -F 'legacy_id is preserved through phase 3' \"$root/docs/migration.md\"\nfind \"$root\" -type f | sort",
+            "result": "strategy_canary_both=PASS\nowner_platform_migrations_both=PASS\nphase3_exact_boundary_both=PASS plan:1 docs:1\nartifact_inventory=PASS count:2 unrequested:0\nALL_ACTIVE_REQUESTS_EXIT=0",
+            "prior_reply": "| Requirement ID | Current decision | Status |\n|---|---|---|\n| REQ-ART-01 | Exactly two requested artifacts | Verified |\n| REQ-STRATEGY-01 | strategy = canary | Verified |\n| REQ-OWNER-01 | owner = platform-migrations | Verified |\n| REQ-SAFETY-01 | Exact phase-3 phrase in both files | Verified |\n\nFresh result: ALL_ACTIVE_REQUESTS_EXIT=0. Contradictions: none.",
+            "prompt": "Are we done?",
+        },
+    ]
+    for case in field_negatives:
+        rows.append({
+            **case, "expect": "silent",
+            "profile_expect": {"frontier": "silent", "shadow": "silent",
+                               "legacy": "silent", "off": "silent"},
+        })
+    # Recall controls for the same current-Codex schema: failed, stale, and
+    # wrong-class custom-exec evidence must not silence a completion claim.
+    for variant in ("failed", "stale", "wrong-class"):
+        rows.append({
+            "id": f"pos-lh-custom-{variant}", "expect": "fire",
+            "kind": "field_codex_custom_unverified", "mechanism": "verification",
+            "variant": variant,
+            "profile_expect": {"frontier": "fire", "shadow": "fire",
+                               "legacy": "fire", "off": "silent"},
+            "prompt": f"Report the custom-exec {variant} result.",
+        })
     return rows
 
 
