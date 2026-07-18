@@ -2,6 +2,17 @@
 
 Aggregating per-skill A/B + session-level replay. Updated as new measurements land.
 
+## 2026-07-18 post-DEMOTE Lane 3: freeze-bundle v2 (pre-authorization only)
+
+`eval/results/skills-effectiveness/longhorizon-freeze-bundle-v2.json` re-hashes
+the same 13 components as v1 at `a0bab00` (post lanes 1+2). Only
+`frozen_at_commit` and `run_driver` differ from v1 — the driver drifted via the
+`_archive_final_artifacts` fix (`286cd98`/`8e6e28d`); scenarios, extractors,
+gate script, grader prompt, and gate report are byte-identical. v1 stays in
+place as the audit record of the scored (DEMOTE) probe. v2 is
+**pre-authorization only**: a new counted run still needs its own rehearsal
+gate pass and owner sign-off, and the DEMOTE verdict stands until then.
+
 ## 2026-07-18 post-DEMOTE Lane 2: long-horizon scoring wiring covers 6/6 scenarios
 
 `eval/skills_effectiveness/longhorizon_score_counted.py` now has
