@@ -139,7 +139,13 @@ Rules:
   context-fresh skeptic verdict (advisor role, preferably cross-vendor; short:
   verdict + the single deciding risk). Act on it or surface the disagreement;
   never silently ignore it. (Stuck-after-2-attempts and ship-time escalation
-  already trigger consults; this adds the *pre-decision* trigger.)
+  already trigger consults; this adds the *pre-decision* trigger.) When the
+  consult concerns bespoke machinery (a solver, cache, gate, orchestration
+  primitive, pipeline), the brief MUST include the standing question "should
+  this subsystem be replaced by an existing tool?" — sunk-cost framing ("fix
+  this solver") without that question is how months of hand-rolled machinery
+  survive advisor review (screenery 2026-07-18 handoff; borrow-checkpoint
+  directive in the code-craft block).
 - **Author down the ladder.** When a frontier lane keeps redoing the same task
   class, have it AUTHOR a skill for that class instead — skill-authoring
   converts recurring frontier spend into a permanent tier drop (author once at

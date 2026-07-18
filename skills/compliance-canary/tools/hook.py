@@ -86,6 +86,10 @@ MAX_REMINDER_CHARS = 280         # cap one re-anchor line (a runaway pulse_remin
 PROFILES = {"frontier", "shadow", "legacy", "off"}
 FRONTIER_VERIFY_PROBE_IDS = {
     "verify-before-completion:claim-without-evidence",
+    # Borrow-checkpoint enforcement (research-and-borrow handoff 2026-07-18):
+    # narrow path-name trigger + explicit checkpoint-line suppression keeps the
+    # false-fire surface small enough for the frontier emit set.
+    "compliance-canary:new-machinery-no-borrow-checkpoint",
 }
 
 # Hard wall-clock budget for the probe phase. drift_probes.json regexes are
