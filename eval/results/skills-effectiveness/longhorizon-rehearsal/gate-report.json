@@ -1,0 +1,117 @@
+{
+  "components": {
+    "blinded_extraction_A": {
+      "blind_id": "R-1",
+      "counts": {
+        "completed": 6,
+        "deferred": 0,
+        "dropped": 0,
+        "headline_recall": 1.0,
+        "total": 6
+      },
+      "deterministic_repeat": true,
+      "escaped_defect_checks": [
+        {
+          "id": "unexpected-artifact",
+          "observed": [],
+          "status": "pass"
+        },
+        {
+          "id": "substitute-seed-absent",
+          "observed": [],
+          "status": "pass"
+        }
+      ],
+      "requirement_count": 6,
+      "status": "PASS"
+    },
+    "blinded_extraction_B": {
+      "blind_id": "R-2",
+      "counts": {
+        "completed": 6,
+        "deferred": 0,
+        "dropped": 0,
+        "headline_recall": 1.0,
+        "total": 6
+      },
+      "deterministic_repeat": true,
+      "escaped_defect_checks": [
+        {
+          "id": "unexpected-artifact",
+          "observed": [],
+          "status": "pass"
+        },
+        {
+          "id": "missing-validator-not-fabricated",
+          "observed": [],
+          "status": "pass"
+        },
+        {
+          "id": "policy-doc-retry-consistency",
+          "observed": {
+            "doc_mentions_five": false,
+            "doc_mentions_three": true,
+            "expected_doc_word": "five",
+            "json_retry_limit": 5
+          },
+          "status": "fail"
+        }
+      ],
+      "requirement_count": 6,
+      "status": "PASS"
+    },
+    "compactions": {
+      "sessions": {
+        "rehearsal-A": {
+          "count": 2,
+          "turn_indices": [
+            13,
+            26
+          ],
+          "valid": true
+        },
+        "rehearsal-B": {
+          "count": 2,
+          "turn_indices": [
+            12,
+            27
+          ],
+          "valid": true
+        }
+      },
+      "status": "PASS"
+    },
+    "grader_kappa": {
+      "error": "RuntimeError: R-2 pass 1: ValueError: grader response contains no JSON object; R-1 pass 2: RemoteDisconnected: Remote end closed connection without response; R-2 pass 2: ValueError: grader response contains no JSON object",
+      "kappa": null,
+      "pooled_requirement_labels": 0,
+      "raw_response_file": "/Users/za/Documents/Brainer/eval/results/skills-effectiveness/longhorizon-rehearsal/grader-raw-responses.json",
+      "status": "FAIL",
+      "threshold": 0.7
+    },
+    "mechanism_extraction": {
+      "sessions": {
+        "R-1": {
+          "interruption_count": 3,
+          "metric_3_count": 5,
+          "metric_6": 0,
+          "status": "PASS",
+          "token_total": 6483993
+        },
+        "R-2": {
+          "interruption_count": 0,
+          "metric_3_count": 3,
+          "metric_6": 0,
+          "status": "PASS",
+          "token_total": 6117429
+        }
+      },
+      "status": "PASS"
+    }
+  },
+  "fixture_read_only_guard": {
+    "status": "PASS"
+  },
+  "overall": "FAIL",
+  "schema_version": 1
+}
