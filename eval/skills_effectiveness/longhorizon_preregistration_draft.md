@@ -27,6 +27,17 @@ false interruptions, recovery time).
 ## Design
 
 - Venue: PROMPTER project (owner-authorized live/simulated test target).
+- Subject-model strata (owner-directed 2026-07-18): three top-frontier models
+  run the full paired design INDEPENDENTLY — GPT 5.6 (codex host), Claude
+  Fable 5 (claude-code host, native hooks), Kimi K3 (claude-code-compatible
+  host via Moonshot endpoint; queued while quota-blocked). Decision rules
+  apply PER STRATUM: each model gets its own KILL/DEMOTE/PROMOTE verdict, and
+  the shipped default may differ by model tier (e.g. OFF for a model where
+  OFF wins, FRONTIER elsewhere). No pooling across strata for the primary
+  metrics. Forced-compaction mechanism is host-native where available
+  (claude /compact) else the fixed-size context-pressure filler, recorded
+  per stratum; cross-stratum comparisons are observational only because the
+  compaction mechanism differs by host.
 - Arms: FRONTIER (default install) vs OFF (`COMPLIANCE_CANARY_PROFILE=off`,
   mutation-free control). Paired: each scenario runs once per arm, same model,
   same host, fixture reset between runs. Arm order counterbalanced per scenario
@@ -183,9 +194,11 @@ for the randomized paired comparison.
 
 ## Budget & authorization
 
-Hard cap: 2 paid rehearsal sessions + 12 main sessions (6 scenarios × 2 arms)
-+ up to 8 extension sessions (4 scenarios × 2 arms), for 22 paid sessions
-maximum. Nothing beyond this cap may run without new owner authorization. The
+Hard cap PER SUBJECT-MODEL STRATUM: 2 paid rehearsal sessions + 12 main
+sessions (6 scenarios × 2 arms) + up to 8 extension sessions (4 scenarios ×
+2 arms), for 22 paid sessions maximum per stratum (66 across the three
+owner-directed strata). Nothing beyond this cap may run without new owner
+authorization. The
 rehearsals happen before the binding freeze and never count toward results;
 hashing the final document, suite SHA, and scenario bundle is free and happens
 after the rehearsal gate passes but before the first counted main session.

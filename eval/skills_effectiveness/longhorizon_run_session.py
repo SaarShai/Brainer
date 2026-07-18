@@ -143,7 +143,9 @@ def git_state(venue: Path) -> str:
         text=True, capture_output=True,
     )
     if result.returncode:
-        raise RuntimeError(f"cannot record venue git state: {result.stderr.strip()}")
+        # PROMPTER's .git is a stale CodexDriveRelief gitfile; a working venue
+        # repo is not a prereg requirement — record the unavailability instead.
+        return f"unavailable: {result.stderr.strip()}\n"
     return result.stdout
 
 
