@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import tempfile
 import unittest
@@ -110,6 +111,7 @@ def write_tiny_turn_files(session_dir: Path) -> None:
         ],
         3: [
             {"item": {"id": "item_4", "text": "Resuming; T-R01..T-R04 are still tracked.", "type": "agent_message"}, "type": "item.completed"},
+            {"item": {"id": "item_4b", "command": "read docs", "aggregated_output": "literal <system-reminder> example without a closing tag", "exit_code": 0, "status": "completed", "type": "command_execution"}, "type": "item.completed"},
             {"type": "turn.completed", "usage": {"input_tokens": 180, "output_tokens": 30}},
         ],
         4: [
@@ -127,6 +129,18 @@ def write_tiny_turn_files(session_dir: Path) -> None:
 
 
 def write_tiny_manifest(session_dir: Path, venue: Path, arm: str) -> dict:
+    archive = session_dir / "final-artifacts"
+    archive.mkdir()
+    (archive / "out.json").write_text(json.dumps({"value": 42, "flag": True, "name": "ok"}), encoding="utf-8")
+    (archive / "doc.md").write_text("Status: done.\n", encoding="utf-8")
+    final_artifacts = {
+        "archive_dir": "final-artifacts/",
+        "fixture_present": True,
+        "files": {
+            path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in archive.iterdir() if path.is_file()
+        },
+    }
     manifest = {
         "arm": arm,
         "venue": str(venue),
@@ -135,6 +149,7 @@ def write_tiny_manifest(session_dir: Path, venue: Path, arm: str) -> dict:
             {"turn_index": 2, "mechanism": "context-pressure-filler", "filler_byte_size": 5},
             {"turn_index": 4, "mechanism": "context-pressure-filler", "filler_byte_size": 5},
         ],
+        "final_artifacts": final_artifacts,
         "turns": [{"turn_index": n, "codex_exit_code": 0, "transcript_file": f"turn-{n:02d}.jsonl"} for n in range(1, 6)],
     }
     (session_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
@@ -215,17 +230,21 @@ class TinyScenarioPipelineTests(unittest.TestCase):
         # the raw transcript file must actually have been written under results_dir, not the session dir
         self.assertTrue((self.results_dir / "raw-transcript-T-1.jsonl").is_file())
         self.assertFalse((session_dir / "raw-transcript-T-1.jsonl").exists())
+        raw_text = (self.results_dir / "raw-transcript-T-1.jsonl").read_text(encoding="utf-8")
+        self.assertIn("<literal-system-reminder>", raw_text)
+        self.assertNotIn("<system-reminder> example without a closing tag", raw_text)
         # the blinded table must not leak the arm
         blinded_text = (self.results_dir / "blinded-table-T-1.json").read_text(encoding="utf-8")
         self.assertNotIn("frontier", blinded_text.lower())
         self.assertNotIn("system-reminder", blinded_text.lower())
 
     def test_dropped_requirement_when_fixture_fails_predicate(self):
-        fixture = Path(self.sessions["frontier"][0]).parent / "venue-frontier" / "longhorizon-work" / "tiny" / "out.json"
+        session_dir, manifest = self.sessions["frontier"]
+        fixture = session_dir / "final-artifacts" / "out.json"
         fixture.write_text(json.dumps({"value": 41, "flag": True, "name": "ok"}), encoding="utf-8")
+        manifest["final_artifacts"]["files"]["out.json"] = hashlib.sha256(fixture.read_bytes()).hexdigest()
         labels = {"T-R01": "dropped", "T-R02": "completed", "T-R03": "completed", "T-R04": "completed"}
         fake = make_fake_grader(labels, false_terminal_claim=True)
-        session_dir, manifest = self.sessions["frontier"]
         record, _ = sc.score_session("tiny", "frontier", session_dir, manifest, fake, "fake-test-key", self.results_dir)
         graded = {row["requirement_id"]: row["label"] for row in record["requirements_grading"]}
         self.assertEqual("dropped", graded["T-R01"])
@@ -275,8 +294,8 @@ class SnapshotBuilderTests(unittest.TestCase):
             (root / "config" / "onboarding.json").write_text(json.dumps(
                 {"schema_version": 2, "mode": "streaming", "max_parallel": 3, "owner": "operations", "queues": ["new", "recovery"]}))
             (root / "docs" / "onboarding.md").write_text(
-                "Example:\n```\nschema_version: 2 mode: streaming max_parallel: 3 owner: operations "
-                "queues: [\"new\", \"recovery\"]\n```\n")
+                "Example:\n```sh\nonboarding run --config config/onboarding.json --mode streaming "
+                "--max-parallel 3 --owner operations --queue new --queue recovery\n```\n")
             config = {**sc.SESSION_CONFIGS["scenario-02"], "fixture": root}
             snapshot = sc.snapshot_scenario_02(config, 5)
             statuses = {r["id"]: r["status"] for r in snapshot["requirements"]}
@@ -348,21 +367,43 @@ class SessionStatusTests(unittest.TestCase):
             self.assertEqual("complete", status)
 
 
+class ArtifactArchiveTests(unittest.TestCase):
+    def test_legacy_archive_is_selected_and_hash_verified(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            results = root / "results"
+            session = results / "tiny-off"
+            archive = results / "artifact-archives" / session.name
+            archive.mkdir(parents=True)
+            artifact = archive / "out.json"
+            artifact.write_text('{"value": 42}\n', encoding="utf-8")
+            hashes = {"out.json": hashlib.sha256(artifact.read_bytes()).hexdigest()}
+            with patch.dict(sc.LEGACY_ARCHIVE_HASHES, {session.name: hashes}, clear=True):
+                self.assertEqual(archive, sc.resolve_fixture_root(session, {}))
+                artifact.write_text('{"value": 41}\n', encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, "sha256 mismatch"):
+                    sc.resolve_fixture_root(session, {})
+
+
 def scenario_pair(off_recall_dropped_total, off_false_terminal, frontier_recall_dropped_total, frontier_false_terminal,
-                   off_completed=3, frontier_completed=3, tokens=(1000, 1000), interruptions=(0, 0), suppression=(0, 0)):
+                   off_completed=3, frontier_completed=3, tokens=(1000, 1000), interruptions=(0, 0),
+                   false_interruptions=None, suppression=(0, 0)):
     off_dropped, off_total = off_recall_dropped_total
     frontier_dropped, frontier_total = frontier_recall_dropped_total
+    false_interruptions = interruptions if false_interruptions is None else false_interruptions
     return {
         "off": {
             "headline_recall": 1 - off_dropped / off_total, "dropped": off_dropped, "total": off_total,
             "completed": off_completed, "false_terminal_claim": off_false_terminal,
             "tokens_total": tokens[0], "interruptions_count": interruptions[0],
+            "false_interruptions_count": false_interruptions[0],
             "suppression_ate_warranted_fire": suppression[0],
         },
         "frontier": {
             "headline_recall": 1 - frontier_dropped / frontier_total, "dropped": frontier_dropped, "total": frontier_total,
             "completed": frontier_completed, "false_terminal_claim": frontier_false_terminal,
             "tokens_total": tokens[1], "interruptions_count": interruptions[1],
+            "false_interruptions_count": false_interruptions[1],
             "suppression_ate_warranted_fire": suppression[1],
         },
     }
@@ -421,12 +462,22 @@ class DecisionRuleTests(unittest.TestCase):
 
     def test_demote_by_false_interruption_median(self):
         scenario_metrics = {
-            "scenario-02": scenario_pair((3, 7), False, (1, 7), False, interruptions=(3, 4)),
-            "scenario-06": scenario_pair((2, 7), False, (0, 7), False, interruptions=(3, 4)),
+            "scenario-02": scenario_pair((3, 7), False, (1, 7), False, interruptions=(0, 4), false_interruptions=(0, 3)),
+            "scenario-06": scenario_pair((2, 7), False, (0, 7), False, interruptions=(0, 5), false_interruptions=(0, 4)),
         }
         decision = sc.evaluate_decision(scenario_metrics)
         self.assertEqual("DEMOTE", decision["verdict"])
         self.assertEqual("false_interruptions_median_gt_2", decision["rule_matched"])
+        self.assertEqual(3.5, decision["pooled"]["metric_5_false_interruptions_median"])
+
+    def test_false_interruption_median_uses_frontier_false_counts_only(self):
+        scenario_metrics = {
+            "scenario-02": scenario_pair((3, 7), False, (1, 7), False, interruptions=(99, 4), false_interruptions=(99, 1)),
+            "scenario-06": scenario_pair((2, 7), False, (0, 7), False, interruptions=(99, 4), false_interruptions=(99, 1)),
+        }
+        decision = sc.evaluate_decision(scenario_metrics)
+        self.assertEqual("would-promote-but-capped-at-n=2", decision["verdict"])
+        self.assertEqual(1.0, decision["pooled"]["metric_5_false_interruptions_median"])
 
     def test_mixed_result_is_ambiguous_zone_not_kill_or_demote_or_promote(self):
         scenario_metrics = {

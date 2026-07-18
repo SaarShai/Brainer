@@ -27,7 +27,7 @@ Everything below the update block describes the earlier state at commit 448f2cc.
 | grader_kappa | **PASS (kappa=1.0)** at commit b6fa8ae (4th fix: RemoteDisconnected raised unwrapped by urllib — catch `ConnectionError` + backoff) |
 | Binding freeze | **DONE** — commit f1479f4 (bundle at b6fa8ae) |
 | Counted run | Owner-condensed to a 4-session probe (scenario-02/06 × off/frontier); **all 4 complete** (44/44 turns, exit 0) under `eval/results/skills-effectiveness/longhorizon-main/` |
-| Scoring/verdict | **PAUSED by owner** — deferred to a future session; no verdict computed |
+| Scoring/verdict | **SCORED (later 2026-07-18, codex handoff): verdict DEMOTE to shadow** — rule `no_improvement_n2_zero_better`; both arms 14/14, recall 1.0, 0 false terminal claims; FRONTIER false interruptions median 3.5; tokens −11.7% (cannot override). See `eval/results/skills-effectiveness/longhorizon-main/verdict-report.json` |
 | Freeze-lock deviation | Eval-only commit 54f20b2 landed mid-run; guard content proven byte-identical to freeze; owner accepted as documented deviation |
 | OFF-arm artifacts | Destroyed by driver fixture reset; **recovered with exact sha256 verification** — see `longhorizon-main/artifact-archives/PROVENANCE.md` |
 | Fable-5 / Kimi-K3 harnesses | **BUILT** (claude driver + transcript converter + claude gate runner, tests green); no paid runs |

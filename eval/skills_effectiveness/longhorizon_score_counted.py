@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 import sys
 from pathlib import Path
 
@@ -54,10 +55,17 @@ from longhorizon_gate import (
     normalize_usage,
     parse_scenario_md,
     scrub_secret,
+    sha256,
     type_name,
     validate_grading,
 )
-from longhorizon_extract_blinded import canonical_json, extract as extract_blinded, render_tsv
+from longhorizon_extract_blinded import (
+    ExtractionError as BlindedExtractionError,
+    _reminders,
+    canonical_json,
+    extract as extract_blinded,
+    render_tsv,
+)
 from longhorizon_extract_mechanism import extract as extract_mechanism
 
 
@@ -133,6 +141,25 @@ BLIND_ID_BY_KEY = {
     ("scenario-06", "frontier"): "M-4",
 }
 
+LEGACY_ARCHIVE_HASHES = {
+    "scenario-02-off": {
+        "config/onboarding.json": "e6e07cdc6ca6e4e5f5593d27f10ac65b22a7393048e14da562bcabb7bf8ad642",
+        "docs/onboarding.md": "500fbc83ba1d83e54be4db08233cb3897121ee799d319acacae577c905dac8af",
+    },
+    "scenario-02-frontier": {
+        "config/onboarding.json": "54e216cc5c912823ceccbb7804a756bdb290c9db7baea7977d7525789a8ff2ea",
+        "docs/onboarding.md": "3ee3f0b2ecaba044494678adce34605641d732e99038d9d6450abd24ba0b0e8d",
+    },
+    "scenario-06-off": {
+        "docs/migration.md": "814c929b9adb99cc1ec6d41f801a995a8a3f1f3beb7a3058c858cb5b2ba3905b",
+        "migration/plan.json": "8bf594bcf0ae2c8da5ad52d242d6be9c09e8362c8aa195632f5abc0445b09b14",
+    },
+    "scenario-06-frontier": {
+        "docs/migration.md": "c8afe255a37a17eccf14d13c25172ee0956a993fcbbe799929a6c2a0b5137846",
+        "migration/plan.json": "8bf594bcf0ae2c8da5ad52d242d6be9c09e8362c8aa195632f5abc0445b09b14",
+    },
+}
+
 
 def compile_contract(scenario_id: str, config: dict) -> tuple[dict, dict[int, str]]:
     """Counted analogue of longhorizon_gate.compile_contract: same shape,
@@ -187,6 +214,60 @@ def _extract_example_block(doc_text: str) -> str:
     return doc_text
 
 
+def _option_values(tokens: list[str], option: str) -> list[str]:
+    values = []
+    for index, token in enumerate(tokens):
+        if token == option and index + 1 < len(tokens):
+            values.append(tokens[index + 1])
+        elif token.startswith(option + "="):
+            values.append(token[len(option) + 1:])
+    return values
+
+
+def _example_matches_onboarding(example_block: str, onboarding: dict) -> tuple[bool, dict]:
+    try:
+        tokens = shlex.split(example_block)
+    except ValueError as exc:
+        return False, {"parse_error": str(exc), "example_block_excerpt": example_block[:400]}
+    observed = {
+        "config": _option_values(tokens, "--config"),
+        "mode": _option_values(tokens, "--mode"),
+        "max_parallel": _option_values(tokens, "--max-parallel"),
+        "owner": _option_values(tokens, "--owner"),
+        "queues": _option_values(tokens, "--queue"),
+    }
+    expected = {
+        "config": ["config/onboarding.json"],
+        "mode": [str(onboarding.get("mode"))],
+        "max_parallel": [str(onboarding.get("max_parallel"))],
+        "owner": [str(onboarding.get("owner"))],
+        "queues": [str(value) for value in onboarding.get("queues", [])]
+        if isinstance(onboarding.get("queues"), list) else [],
+    }
+    return observed == expected, {
+        "observed_options": observed,
+        "expected_options": expected,
+        "schema_version_via_config": onboarding.get("schema_version"),
+    }
+
+
+def _neutralize_malformed_reminder_literals(value):
+    if isinstance(value, str):
+        try:
+            _reminders(value)
+        except BlindedExtractionError as exc:
+            if exc.code != "BLINDING_MALFORMED_SYSTEM_REMINDER":
+                raise
+            return value.replace("<system-reminder", "<literal-system-reminder").replace(
+                "</system-reminder>", "</literal-system-reminder>")
+        return value
+    if isinstance(value, list):
+        return [_neutralize_malformed_reminder_literals(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _neutralize_malformed_reminder_literals(item) for key, item in value.items()}
+    return value
+
+
 def snapshot_scenario_02(config: dict, captured_after: int) -> dict:
     root = config["fixture"]
     config_path = root / config["paths"]["config"]
@@ -199,12 +280,7 @@ def snapshot_scenario_02(config: dict, captured_after: int) -> dict:
     forbidden = forbidden_matches(texts, ["generated_at", "timestamp"])
     queues = onboarding.get("queues")
     example_block = _extract_example_block(doc_text)
-    example_values = [
-        str(onboarding.get("schema_version")), str(onboarding.get("mode")),
-        str(onboarding.get("max_parallel")), str(onboarding.get("owner")),
-        json.dumps(queues) if isinstance(queues, list) else str(queues),
-    ]
-    example_consistent = all(value in example_block for value in example_values)
+    example_consistent, example_observed = _example_matches_onboarding(example_block, onboarding)
     checks = [
         ("S02-R01", isinstance(onboarding.get("schema_version"), int) and not isinstance(onboarding.get("schema_version"), bool) and onboarding.get("schema_version") == 2,
          {"type": type_name(onboarding.get("schema_version")), "value": onboarding.get("schema_version")}),
@@ -217,7 +293,7 @@ def snapshot_scenario_02(config: dict, captured_after: int) -> dict:
         ("S02-R05b", queues == ["new", "recovery"],
          {"type": type_name(queues), "value": queues}),
         ("S02-R06", example_consistent,
-         {"example_block_excerpt": example_block[:400], "expected_literals": example_values}),
+         example_observed),
         ("S02-R07", not forbidden,
          {"matches": forbidden}),
     ]
@@ -287,7 +363,7 @@ def build_raw_transcript(config: dict, turns: dict[int, str], snapshot_builder, 
         turn_file = config["source_dir"] / f"turn-{turn_number:02d}.jsonl"
         last_assistant = None
         for line_number, line in enumerate(turn_file.read_text(encoding="utf-8").splitlines(), 1):
-            source = json.loads(line)
+            source = _neutralize_malformed_reminder_literals(json.loads(line))
             if not isinstance(source, dict):
                 raise ValueError(f"non-object source event: {turn_file}:{line_number}")
             events.append(source)
@@ -326,6 +402,40 @@ def session_status(session_dir: Path) -> tuple[str, dict | None]:
     return "complete", manifest
 
 
+def _verify_archive(root: Path, expected_files: dict[str, str]) -> None:
+    if not root.is_dir():
+        raise ValueError(f"final artifact archive is missing: {root}")
+    actual_paths = sorted(path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file())
+    if actual_paths != sorted(expected_files):
+        raise ValueError(f"final artifact archive inventory mismatch: {root}")
+    mismatches = [path for path, expected in expected_files.items() if sha256(root / path) != expected]
+    if mismatches:
+        raise ValueError(f"final artifact archive sha256 mismatch: {root}: {mismatches}")
+
+
+def resolve_fixture_root(session_dir: Path, manifest: dict) -> Path:
+    final_artifacts = manifest.get("final_artifacts")
+    if final_artifacts is not None:
+        if not isinstance(final_artifacts, dict) or final_artifacts.get("fixture_present") is not True:
+            raise ValueError(f"{session_dir.name}: final artifacts were not preserved")
+        archive_rel = Path(final_artifacts.get("archive_dir", ""))
+        if archive_rel.is_absolute() or ".." in archive_rel.parts:
+            raise ValueError(f"{session_dir.name}: invalid final artifact archive path")
+        expected_files = final_artifacts.get("files")
+        if not isinstance(expected_files, dict) or not all(isinstance(path, str) and isinstance(digest, str) for path, digest in expected_files.items()):
+            raise ValueError(f"{session_dir.name}: invalid final artifact hash manifest")
+        root = session_dir / archive_rel
+        _verify_archive(root, expected_files)
+        return root
+
+    root = session_dir.parent / "artifact-archives" / session_dir.name
+    expected_files = LEGACY_ARCHIVE_HASHES.get(session_dir.name)
+    if expected_files is None:
+        raise ValueError(f"{session_dir.name}: legacy final artifact hashes are not registered")
+    _verify_archive(root, expected_files)
+    return root
+
+
 def score_session(scenario_id: str, arm: str, session_dir: Path, manifest: dict,
                    grader_fn, api_key: str, results_dir: Path) -> tuple[dict, str]:
     """Compile the contract, assemble the raw transcript, run blinded +
@@ -334,7 +444,7 @@ def score_session(scenario_id: str, arm: str, session_dir: Path, manifest: dict,
     static_config = SESSION_CONFIGS[scenario_id]
     blind_id = BLIND_ID_BY_KEY[(scenario_id, arm)]
     arm_upper = "FRONTIER" if arm == "frontier" else "OFF"
-    fixture_root = Path(manifest["venue"]) / manifest["fixture_root"]
+    fixture_root = resolve_fixture_root(session_dir, manifest)
     config = {**static_config, "source_dir": session_dir, "blind_id": blind_id, "arm": arm_upper, "fixture": fixture_root}
 
     contract, turns = compile_contract(scenario_id, config)
@@ -390,6 +500,7 @@ def session_metrics(record: dict) -> dict:
         "false_terminal_claim": record["false_terminal_claim"],
         "tokens_total": record["metric_5"]["tokens"]["total"],
         "interruptions_count": record["metric_5"]["interruptions"]["count"],
+        "false_interruptions_count": record["metric_5"]["interruptions"]["false_interruption_count"],
         "suppression_ate_warranted_fire": record["metric_6"]["metric_6"],
     }
 
@@ -420,7 +531,7 @@ def evaluate_decision(scenario_metrics: dict) -> dict:
     pooled_total = {"off": 0, "frontier": 0}
     pooled_false_terminal = {"off": 0, "frontier": 0}
     token_totals = {"off": 0, "frontier": 0}
-    interruption_counts: list[int] = []
+    frontier_false_interruption_counts: list[int] = []
     suppression_hit_sessions = 0
 
     for scenario_id in scenario_ids:
@@ -431,7 +542,8 @@ def evaluate_decision(scenario_metrics: dict) -> dict:
             pooled_total[arm] += metrics["total"]
             pooled_false_terminal[arm] += int(metrics["false_terminal_claim"])
             token_totals[arm] += metrics["tokens_total"]
-            interruption_counts.append(metrics["interruptions_count"])
+            if arm == "frontier":
+                frontier_false_interruption_counts.append(metrics["false_interruptions_count"])
             if metrics.get("suppression_ate_warranted_fire", 0) > 0:
                 suppression_hit_sessions += 1
         recall_delta = frontier["headline_recall"] - off["headline_recall"]
@@ -458,9 +570,9 @@ def evaluate_decision(scenario_metrics: dict) -> dict:
     better_count = sum(1 for row in per_scenario.values() if row["better"])
     zero_better = better_count == 0          # n=2 collapse of "<=1/3 better"
     all_better = n > 0 and better_count == n  # n=2 collapse of ">=2/3 better"
-    median_interruptions = _median(interruption_counts)
+    median_false_interruptions = _median(frontier_false_interruption_counts)
     demote_no_improvement = zero_better
-    demote_interruptions = median_interruptions > 2
+    demote_interruptions = median_false_interruptions > 2
     demoted = (not killed) and (demote_no_improvement or demote_interruptions)
 
     token_overhead_pct = ((token_totals["frontier"] / token_totals["off"]) - 1) * 100 if token_totals["off"] else None
@@ -468,7 +580,7 @@ def evaluate_decision(scenario_metrics: dict) -> dict:
     completed_not_lower_all = all(row["completed_not_lower"] for row in per_scenario.values())
     would_promote_conditions = (
         not killed and not demoted and all_better and no_materially_worse and
-        completed_not_lower_all and median_interruptions <= 1 and
+        completed_not_lower_all and median_false_interruptions <= 1 and
         (token_overhead_pct is not None and token_overhead_pct <= 3)
     )
 
@@ -494,7 +606,7 @@ def evaluate_decision(scenario_metrics: dict) -> dict:
             "metric_2_false_terminal_completion": {"off_count": pooled_false_terminal["off"], "frontier_count": pooled_false_terminal["frontier"], "frontier_worse": kill_metric2},
             "metric_5_tokens_total": token_totals,
             "metric_5_token_overhead_pct": token_overhead_pct,
-            "metric_5_false_interruptions_median": median_interruptions,
+            "metric_5_false_interruptions_median": median_false_interruptions,
             "metric_6_suppression_ate_warranted_fire_sessions": suppression_hit_sessions,
         },
         "better_scenario_count": better_count,

@@ -2,7 +2,28 @@
 
 Aggregating per-skill A/B + session-level replay. Updated as new measurements land.
 
-## 2026-07-18 long-horizon counted probe: data complete, scoring paused
+## 2026-07-18 long-horizon counted probe: SCORED — verdict DEMOTE to shadow
+
+Scoring resumed same day via a codex/gpt-5.6-sol xhigh handoff
+(`eval/skills_effectiveness/CODEX_HANDOFF_PACKET.md`; codex session
+019f7612-2dbc-7413-b0ca-d6504a07f460). Binding verdict: **DEMOTE**
+(`rule_matched: no_improvement_n2_zero_better` in
+`longhorizon-main/verdict-report.json`). Both arms, both scenarios: 14/14
+requirements completed, grader recall 1.0, zero false terminal claims —
+FRONTIER improved neither primary metric. FRONTIER additionally produced 3
+and 4 false interruptions (median 3.5, FRONTIER-only per prereg). FRONTIER
+used 11.7% fewer tokens (25.7M vs 29.1M) but cost cannot override the
+preregistered no-improvement DEMOTE. PROMOTE was unreachable at n=2 by
+design. Grader: 4× glm-5.2 (raw envelopes archived, model verified, no key
+leak). Pre-spend scorer fixes (eval-only, this commit): scenario-02 R06
+literal-JSON-in-CLI-example predicate; mandatory sha256-verified
+artifact-archive routing (no silent venue fallback); malformed literal
+`<system-reminder>` normalization (frozen extractor untouched);
+false-interruption median corrected to FRONTIER-only. 18/18 scorer tests
+pass. Step B (8 remaining paid sessions) NOT run — DEMOTE is binding, not
+ambiguous; extension requires fresh owner authorization.
+
+## 2026-07-18 long-horizon counted probe: data complete, scoring paused (superseded by entry above)
 
 Gate passed (kappa=1.0 after the RemoteDisconnected fix, commit b6fa8ae);
 binding freeze recorded at f1479f4 (bundle hashes at commit b6fa8ae). Owner
