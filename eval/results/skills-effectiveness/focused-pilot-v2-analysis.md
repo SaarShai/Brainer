@@ -25,8 +25,15 @@ must not be generalized beyond this ceilinged sample.
 ## Integrity checks
 
 - 76/76 v2 outcomes completed: 19 cases × 2 arms × 2 hosts.
-- The four earlier transport probes were invalidated before outcome analysis;
-  together with v2, they exhaust the approved 80-call cap.
+- The four earlier v1 transport probes were **completed** outcomes, not
+  invalidated runs: all four passed the deterministic task check, but each
+  recorded a harness-induced material-scope violation (unrequested
+  `__pycache__/` writes from the pre-fix harness; see
+  `focused-pilot-2026-07-16/campaign-summary.json` and outcome records). They
+  are excluded from outcome analysis for those scope violations. They are
+  balanced one per lane×arm cell (Codex/Claude × OFF/FRONTIER), so the
+  exclusion is symmetric and unlikely to bias the paired conclusion. Together
+  with v2, they exhaust the approved 80-call cap.
 - Every pair used the same user-task hash and a fresh, single-use git fixture.
 - Native arm-body delivery was observed in 76/76 outcomes. The marker proves
   delivery, not compliance with every rule in the body.

@@ -30,6 +30,16 @@ code points; exact UTF-8 size is 178,092 bytes. Across all six available
 not establish causal outcome lift; the five-sample immediate-action labels in
 the original sibling report remain observational.
 
+> **Source drift note (2026-07-18):** `sibling-selected.json` and `sibling-all.json`
+> (under `eval/results/skills-effectiveness/`) were generated from append-only raw
+> transcripts that have since grown, so their stored totals are **snapshots as-of
+> their generation time**. A 2026-07-18 recompute on the current sources gives, for
+> the selected session, **149 reminder blocks / 395,049 UTF-8 bytes** (source sha256
+> `b695352f75ab6be4d7ad84c77c29afb4a7d1aa3eee8490a3c1a3f016ee88a498`, 18,151,390
+> bytes) and, for the all-file aggregate, **509 blocks / 1,251,441 UTF-8 bytes /
+> ~313,048 est. tokens**. The stored artifacts are labelled snapshots and were not
+> regenerated.
+
 **Outcome status: full matrix frozen; focused experiment completed with a
 ceilinged null.** The preregistered campaign contains
 8,300 runs, 50 distinct task families per candidate, paired statistics,
@@ -80,8 +90,9 @@ default prompt stack or deterministic scoring path.
 > the *deltas and mechanisms* (canary +0.44 ×2 families, prompt-triage −20.9%, memory>cold)
 > still hold. The **current catalog is 30 skills**; `skill-pulse` was absorbed into
 > `compliance-canary` at v1.10, and `learn-skill` (v1.13) + `brainer-audit` ship `auto-install: false`.
-> Re-measuring the static cost for the 30-skill catalog is tracked in GOAL.md; until then read
-> the absolute token counts as that era's, not today's.
+> The resident-tax figure was re-measured for the 30-skill catalog on 2026-07-18
+> (see the stacking-table row below); other absolute token counts below remain
+> that era's, not today's.
 > The historical install/load recommendations below are not current defaults;
 > use the 2026-07-16 quarantine classification as a set of manual/unproven
 > candidate dispositions, not retirement verdicts.
@@ -127,7 +138,7 @@ files, not to describe or recommend the current installer.
 
 | Metric | Value | Source |
 |---|---|---|
-| Always-on context tax (16 skill descriptions) | **~1080 tokens** (~0.54% of 200K) — the 998 15-skill figure plus `think` (+94, added v1.6.2) and net description edits (canary trigger-first rewrite). Down from 1642 (−34%) via trigger-verified trims + six catalog cuts (see *Catalog cuts*). Reduction path: SkillReducer-style audit (GOAL.md backlog) | `eval/results/static_cost.json` · `eval/exp8_trigger/` |
+| Always-on context tax (30 skill descriptions + resident catalog block) | **Re-measured 2026-07-18** for the 30-skill catalog (chars/3.5 heuristic; tiktoken absent): per-skill `description` frontmatter across all 30 `skills/*/SKILL.md` = **8,399 chars ≈ ~2,400 tokens** (the layer hosts inject for symlinked skills), and the auto-generated catalog block between the `install.sh` sentinels in `CLAUDE.md` — byte-identical in `AGENTS.md`/`GEMINI.md` (sha256-verified) — = **6,709 UTF-8 bytes ≈ ~1,889 tokens** (full `CLAUDE.md` boot file: 6,930 bytes ≈ ~1,952 tokens). Combined resident boot surface ≈ **15.1 KB ≈ ~4,290 tokens (~2.1% of 200K)**. `skills/SKILLS_INDEX.md` loads on demand and is not resident. Historical: **~1080 tokens** (~0.54% of 200K) for 16 descriptions (v1.6–v1.7 era: the 998 15-skill figure plus `think` +94, down from 1642 via trigger-verified trims + six catalog cuts — see *Catalog cuts*). Reduction path: SkillReducer-style audit (GOAL.md backlog) | live measurement (method of `eval/static_cost.py`), 2026-07-18 · `eval/results/static_cost.json` · `eval/exp8_trigger/` |
 | Best per-call output reduction (caveman-ultra) | **−86.4%** output (N=50), **+0.13 judge** (prior N=15) | `eval/results/caveman-ultra.json` + `.judged.json` |
 | Best discipline combo (caveman + lean) | **−87.7%** output | `eval/results/caveman+lean.json` |
 | End-to-end routing savings (prompt-triage, N=13 mixed prompts) | **−20.9%** total tokens, 100% classification accuracy | `eval/results/prompt-triage.json` |

@@ -238,7 +238,7 @@ This used to be framed as a framework with a `te` CLI, layered docs (`start.md`,
 - `te` CLI → deleted. Each skill owns its scripts in `skills/<name>/tools/`.
 - `start.md`, `L0_rules.md`, `L1_index.md`, `brainer.yaml`, `models.yaml` → deleted. Replaced by `skills/SKILLS_INDEX.md`.
 - `adapters/`, `prompts/`, `hooks/` → deleted. Folded into per-skill `tools/`.
-- 11 old skills → audited, expanded, trimmed after measurement, and then rebuilt into the current **19-skill** catalog.
+- 11 old skills → audited, expanded, trimmed after measurement, and then rebuilt into the current **30-skill** catalog.
 - Working Python projects (ComCom, semdiff, context-keeper, agents-triage, output-filter) → bundled into their matching skills' `tools/` folders.
 - Wiki content (`raw/`, `concepts/`, `patterns/`, `projects/`, `people/`, `queries/`, `L2_facts/`, `L3_sops/`, `L4_archive/`, `index.md`, `log.md`, `schema.md`, `templates/`) → moved under `wiki/`. The `wiki-memory` skill reads it.
 - `bench/` → kept at root for eval datasets.
