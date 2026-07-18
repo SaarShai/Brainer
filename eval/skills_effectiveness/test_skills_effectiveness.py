@@ -25,11 +25,11 @@ import statistics as skill_stats
 class FrozenCorpusTests(unittest.TestCase):
     def test_trigger_shape_and_digest(self):
         rows = cases.trigger_cases()
-        self.assertEqual(852, len(rows))
-        self.assertEqual(476, sum(r["expect"] == "silent" for r in rows))
-        self.assertEqual(376, sum(r["expect"] == "fire" for r in rows))
-        self.assertEqual(326, sum(r["profile_expect"]["frontier"] == "fire" for r in rows))
-        self.assertEqual(452, sum(r["profile_expect"]["legacy"] == "fire" for r in rows))
+        self.assertEqual(862, len(rows))
+        self.assertEqual(483, sum(r["expect"] == "silent" for r in rows))
+        self.assertEqual(379, sum(r["expect"] == "fire" for r in rows))
+        self.assertEqual(329, sum(r["profile_expect"]["frontier"] == "fire" for r in rows))
+        self.assertEqual(455, sum(r["profile_expect"]["legacy"] == "fire" for r in rows))
         # Earlier corpus generations stay frozen byte-identically as baselines:
         # first 500 = old-rule, first 600 = notification morphologies, 675 adds
         # the deferred-fire / provenance / timer-with-result hardening cases,
@@ -38,6 +38,10 @@ class FrozenCorpusTests(unittest.TestCase):
         # reconcile, quoted-notification verbatim, ledger-empty-pending,
         # world-state rephrase) x25 each. The 852 generation appends F9's
         # early-read-beyond-tail silent case and never-read must-fire control.
+        # The 862 generation appends the post-DEMOTE lane-1 canary-fix
+        # regression cases (compound-supersession closures + custom_tool_call
+        # evidence, deb2db8); its full digest is the corpus_sha256 in
+        # eval/results/skills-effectiveness/frontier-trigger-post-demote-lane1.metrics.json.
         self.assertEqual(
             "a6ad89582077faf83722be5ec2e9c9e1323ae058bb9db5116c57e89ee860c276",
             cases.case_digest(rows[:500]),
@@ -56,6 +60,10 @@ class FrozenCorpusTests(unittest.TestCase):
         )
         self.assertEqual(
             "81c4a9c145e6a5da11c12d7143f79f10490f7250c82bd3b75bc633ff669ac1de",
+            cases.case_digest(rows[:852]),
+        )
+        self.assertEqual(
+            "812e2857c09a863406bbfd40842a0c59380231b4e59abccd91a6beb71f588a7f",
             cases.case_digest(rows),
         )
 
