@@ -2,6 +2,31 @@
 
 Aggregating per-skill A/B + session-level replay. Updated as new measurements land.
 
+## 2026-07-18 long-horizon counted probe: data complete, scoring paused
+
+Gate passed (kappa=1.0 after the RemoteDisconnected fix, commit b6fa8ae);
+binding freeze recorded at f1479f4 (bundle hashes at commit b6fa8ae). Owner
+condensed the counted run to a 4-session probe (scenario-02 supersession +
+scenario-06 post-compaction contradiction, arms off/frontier); all 4 sessions
+completed on the GPT/codex stratum (44/44 turns each, exit 0) under
+`eval/results/skills-effectiveness/longhorizon-main/`. Owner then PAUSED the
+experiment before scoring — verdict deferred to a future, properly resourced
+session. Accepted freeze-lock deviation: eval-only commit 54f20b2 landed
+mid-run (guard-relevant content proven byte-identical to the freeze commit).
+Data-integrity incident: the driver rm-trees the shared fixture dir at session
+start, destroying each scenario's OFF-arm final artifacts when the FRONTIER
+arm started; all four artifact sets were recovered with exact sha256
+verification against hashes recorded mechanically inside the transcripts —
+see `longhorizon-main/artifact-archives/PROVENANCE.md`. A claude-host
+transcript converter + gate runner
+(`longhorizon_convert_claude_transcript.py`, `longhorizon_gate_claude.py`,
+tests green) is in place for the future Fable-5/Kimi-K3 strata. Remaining when
+resumed: hand-validate the scenario-02/06 snapshot predicates in
+`longhorizon_score_counted.py` against the archived artifacts, run the scorer
+pointing each session at its artifact-archive (not the shared venue dir),
+record the verdict with the deviation note, then per-stratum Fable-5/Kimi-K3
+rehearsal gates before any further counted sessions.
+
 ## 2026-07-18 long-horizon rehearsal gate (FRONTIER-vs-OFF prereg)
 
 Both authorized paid rehearsal sessions ran to completion on the GPT/codex

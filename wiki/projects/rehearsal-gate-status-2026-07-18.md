@@ -18,6 +18,27 @@ superseded-by:
 
 # Rehearsal gate status as of 2026-07-18 (commit 448f2cc)
 
+## UPDATE (later on 2026-07-18): gate PASSED, probe data complete, experiment PAUSED
+
+Everything below the update block describes the earlier state at commit 448f2cc. Current state:
+
+| Component | Status |
+|-----------|--------|
+| grader_kappa | **PASS (kappa=1.0)** at commit b6fa8ae (4th fix: RemoteDisconnected raised unwrapped by urllib — catch `ConnectionError` + backoff) |
+| Binding freeze | **DONE** — commit f1479f4 (bundle at b6fa8ae) |
+| Counted run | Owner-condensed to a 4-session probe (scenario-02/06 × off/frontier); **all 4 complete** (44/44 turns, exit 0) under `eval/results/skills-effectiveness/longhorizon-main/` |
+| Scoring/verdict | **PAUSED by owner** — deferred to a future session; no verdict computed |
+| Freeze-lock deviation | Eval-only commit 54f20b2 landed mid-run; guard content proven byte-identical to freeze; owner accepted as documented deviation |
+| OFF-arm artifacts | Destroyed by driver fixture reset; **recovered with exact sha256 verification** — see `longhorizon-main/artifact-archives/PROVENANCE.md` |
+| Fable-5 / Kimi-K3 harnesses | **BUILT** (claude driver + transcript converter + claude gate runner, tests green); no paid runs |
+
+Resume checklist:
+1. Hand-validate `snapshot_scenario_02/06` predicates in `longhorizon_score_counted.py` against the archived artifacts.
+2. Run the scorer pointing each session at its `artifact-archives/` snapshot (NOT the shared venue fixture dir — it holds only frontier-final state).
+3. Record verdict + deviation note; one post-run commit.
+4. Fix the driver to archive final artifacts per session (chip task_d7cd4863) and regenerate freeze-bundle hashes before any resumed counted runs.
+5. Per-stratum rehearsal gates (Fable-5, Kimi-K3) before their counted sessions.
+
 ## Executive summary
 
 As of commit 448f2cc, the 2026-07-18 long-horizon rehearsal session has completed with the following status:

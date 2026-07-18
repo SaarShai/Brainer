@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "strategy": "canary",
+  "batch_size": 25,
+  "rollback_error_rate": 0.02,
+  "dry_run_first": true,
+  "owner": "platform-migrations",
+  "safety_conditions": [
+    "legacy_id is preserved through phase 3"
+  ]
+}

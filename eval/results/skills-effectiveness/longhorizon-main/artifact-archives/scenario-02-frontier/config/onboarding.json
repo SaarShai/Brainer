@@ -1,0 +1,10 @@
+{
+  "schema_version": 2,
+  "mode": "streaming",
+  "max_parallel": 3,
+  "owner": "operations",
+  "queues": [
+    "new",
+    "recovery"
+  ]
+}
