@@ -15,6 +15,7 @@ Compact pointers. Fetch details on demand.
 - projects/context-refresh (project tags=context-refresh,checkpoint,compaction) -> `projects/context-refresh.md`
 - projects/delegate-router (project tags=delegation,routing,subagents,models,glm,zai) -> `projects/delegate-router.md`
 - projects/okf-adoption (project tags=okf,interop,wiki,decision,sibling-sync) -> `projects/okf-adoption.md`
+- projects/rehearsal-gate-status-2026-07-18 (project tags=rehearsal,gate-status,evaluation,grader,model-strata,binding-freeze) -> `projects/rehearsal-gate-status-2026-07-18.md`
 - projects/semdiff (project tags=semantic-diff,ast,context-compression) -> `projects/semdiff.md`
 - projects/wiki-search (project tags=retrieval,progressive-disclosure,mcp,wiki) -> `projects/wiki-search.md`
 - queries/covered-verdicts (query tags=covered-verdicts,adoption,index,decision,external-review) -> `queries/covered-verdicts.md`
@@ -36,6 +37,7 @@ Compact pointers. Fetch details on demand.
 - concepts/caveman-compress-session-files (concept tags=caveman,startup,compression) -> `concepts/caveman-compress-session-files.md`
 - concepts/caveman-output-compression (concept tags=caveman,output-compression,style) -> `concepts/caveman-output-compression.md`
 - concepts/claude-skills-ecosystem-scan-2026-07 (concept tags=skills,ecosystem,adoption,security,supply-chain,review,negative-result) -> `concepts/claude-skills-ecosystem-scan-2026-07.md`
+- concepts/codex-sandbox-dns-api-access-pitfall (lesson tags=codex,sandbox,dns,network,api-access,infrastructure,paid-api,pitfall) -> `concepts/codex-sandbox-dns-api-access-pitfall.md`
 - concepts/cross-model-ollama-eval-gotchas (concept tags=eval-methodology,ollama,local-models,cross-model) -> `concepts/cross-model-ollama-eval-gotchas.md`
 - concepts/demote-vs-description-tax (concept tags=eval-methodology,skills,description-tax,cost) -> `concepts/demote-vs-description-tax.md`
 - concepts/devices-inventory (concept tags=infra,devices,inventory,compute) -> `concepts/devices-inventory.md`
@@ -44,6 +46,7 @@ Compact pointers. Fetch details on demand.
 - concepts/fable-mode-probe-message-overclaim-lesson (lesson tags=fable-mode,drift-probe,failure-diagnosis,message-calibration,overclaim,failure-lesson,compliance-canary) -> `concepts/fable-mode-probe-message-overclaim-lesson.md`
 - concepts/framework-hardening-adoption (concept tags=framework,adoption,retrieval,memory,routing,skills) -> `concepts/framework-hardening-adoption.md`
 - concepts/frontier-routing-topology-2026-07 (decision tags=orchestration,routing,topology,decision,measured,cost,frontier-model) -> `concepts/frontier-routing-topology-2026-07.md`
+- concepts/glm-grader-reasoning-token-allocation (lesson tags=grader,glm-5.2,token-allocation,reasoning-content,json-verdict,truncation,infra) -> `concepts/glm-grader-reasoning-token-allocation.md`
 - concepts/harness-article-adoption-2026-07 (concept tags=skills,harness,article-adoption,tool-scoping,error-taxonomy,negative-result) -> `concepts/harness-article-adoption-2026-07.md`
 - concepts/honest-rebaseline-byte-budget-procedure (procedure tags=byte-budget,gate-first,re-baseline,measurement,process-integrity,framework-hardening) -> `concepts/honest-rebaseline-byte-budget-procedure.md`
 - concepts/hook-path-fragility (concept tags=hooks,install,cwd-drift,lockout,pretooluse,claude-project-dir,fail-open,hard-rule) -> `concepts/hook-path-fragility.md`
@@ -62,6 +65,7 @@ Compact pointers. Fetch details on demand.
 - concepts/premortem-and-think-edits-measured (concept tags=skills,premortem,think,eval,ab-test,over-warning,sycophancy,negative-result,calibration) -> `concepts/premortem-and-think-edits-measured.md`
 - concepts/progressive-retrieval (concept tags=retrieval,progressive-disclosure,wiki,memory,synthesis) -> `concepts/progressive-retrieval.md`
 - concepts/recurring-defect-classes (concept tags=bugs,regex,frontmatter,installer,tests,perf,hardening) -> `concepts/recurring-defect-classes.md`
+- concepts/secrets-env-shell-substitution-pitfall (lesson tags=secrets,api-key,auth,pitfall,configuration,environment-variables,parser-mismatch) -> `concepts/secrets-env-shell-substitution-pitfall.md`
 - concepts/semantic-diff-edits (concept tags=semantic-diff,ast,context-compression,code-editing) -> `concepts/semantic-diff-edits.md`
 - concepts/speculative-decoding (concept tags=decoding,throughput) -> `concepts/speculative-decoding.md`
 - concepts/structured-outputs (concept tags=structured-outputs,tokens) -> `concepts/structured-outputs.md`
