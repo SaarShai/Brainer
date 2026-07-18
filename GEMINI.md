@@ -87,6 +87,17 @@ a skill happens to trigger:
   deep version (multi-source comparison, trade-off writeup) use `/think`;
   this is the always-on one-line gate that makes sure the check happens at
   all.
+- **Task routing (SPEC'D × GATED).** Before executing or dispatching, classify:
+  SPEC'D (a written spec gives root cause / exact construction — "figure out
+  why X" is not a spec) and GATED (mechanically verifiable). Spec'd+gated →
+  delegate to the cheapest capable tier; a frontier model must not type it
+  beyond ~30 lines of diff. Not spec'd → frontier-tier diagnoses and writes
+  the spec FIRST; never brief a weaker model to "investigate why" (the
+  `delegated_diagnosis` canary probe flags it), and weaker lanes escalate
+  with evidence instead of guessing semantics. Exception: a small
+  judgment-dense fix (<~30 lines) where the diagnosis IS the fix — frontier
+  does it directly, verifying in the same turn. Full routing table + W/S
+  directives: `skills/_shared/ORCHESTRATION.md` §6.
 
 ### Host capability matrix (honest degradation)
 

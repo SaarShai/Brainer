@@ -90,6 +90,10 @@ FRONTIER_VERIFY_PROBE_IDS = {
     # narrow path-name trigger + explicit checkpoint-line suppression keeps the
     # false-fire surface small enough for the frontier emit set.
     "compliance-canary:new-machinery-no-borrow-checkpoint",
+    # Task-routing enforcement (screenery 2026-07-18 handoff, probe 1 of 4):
+    # fires only on a dispatch to a KNOWN sub-frontier agent type whose brief
+    # contains diagnosis phrasing — narrow enough for the frontier emit set.
+    "compliance-canary:delegated-diagnosis",
 }
 
 # Hard wall-clock budget for the probe phase. drift_probes.json regexes are
@@ -2640,6 +2644,45 @@ def detect_new_machinery_no_borrow_checkpoint(probe: dict, messages: list[dict],
 
 
 DETECTORS["new_machinery_no_borrow_checkpoint"] = detect_new_machinery_no_borrow_checkpoint
+
+
+# Detector for the SPEC'D×GATED routing rule (task-routing directives,
+# screenery 2026-07-18 handoff): diagnosis is frontier-tier work, so a brief
+# dispatching a KNOWN sub-frontier agent type to "investigate why / figure out
+# the cause" is malformed. Precision-first: fires only when the dispatched
+# subagent_type is in the known cheap-tier set — a missing or unknown type
+# (general-purpose inherits the session model, which may be frontier) stays
+# silent. Probes 2-4 of the handoff (frontier_mechanical_diff, guessed_
+# semantics, symptom_forwarding) need semantic spec-coverage judgment a regex
+# can't give; deliberately not implemented.
+_DELEGATED_DIAGNOSIS_RE = re.compile(
+    r"\b(?:investigate|figure out|find out|determine|diagnose|work out)\b"
+    r"[^.\n?]{0,80}?\b(?:why|cause|root[- ]cause|reason)\b",
+    re.IGNORECASE,
+)
+_SUB_FRONTIER_AGENT_TYPES = {
+    "builder", "quick-fix", "glm-executor", "local-ollama", "verifier",
+    "research-lite", "wiki-note", "kaggle-feeder", "explore",
+}
+
+
+def detect_delegated_diagnosis(probe: dict, messages: list[dict], tool_uses: list[dict],
+                               _tool_errors=None, user_prompt: str = "",
+                               traj_stats: dict | None = None) -> dict | None:
+    for tu in (tool_uses or []):
+        if tu.get("name", "") not in ("Task", "Agent"):
+            continue
+        inp = tu.get("input") or {}
+        atype = str(inp.get("subagent_type", "")).strip().lower()
+        if atype not in _SUB_FRONTIER_AGENT_TYPES:
+            continue
+        m = _DELEGATED_DIAGNOSIS_RE.search(str(inp.get("prompt", "")))
+        if m:
+            return {"agent": atype, "phrase": m.group(0)[:80]}
+    return None
+
+
+DETECTORS["delegated_diagnosis"] = detect_delegated_diagnosis
 
 
 class _ProbeBudgetExceeded(BaseException):

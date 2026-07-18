@@ -17,5 +17,10 @@
     "id": "new-machinery-no-borrow-checkpoint",
     "kind": "new_machinery_no_borrow_checkpoint",
     "message": "new build machinery (solver/cache/gate/orchestrator/pipeline) was written without a borrow-checkpoint line — state in one line which existing framework/library/tool was checked and why it doesn't fit before commissioning bespoke infrastructure. Building bespoke after a real check is a legitimate pass; skipping the check is the Reinvented Wheel failure mode."
+  },
+  {
+    "id": "delegated-diagnosis",
+    "kind": "delegated_diagnosis",
+    "message": "a sub-frontier lane was briefed to diagnose ('investigate why / figure out the cause') — diagnosis is frontier-tier work. Reproduce the defect at the artifact layer yourself, name the root cause, prescribe the fix, then delegate the spec'd execution (ORCHESTRATION.md §6 SPEC'D×GATED routing). Mechanical evidence-gathering sweeps remain delegable."
   }
 ]

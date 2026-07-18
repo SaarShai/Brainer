@@ -2011,6 +2011,29 @@ write_transcript "$TX" \
 out=$(call cc110 sk108 "$TX" s110)
 if [ -z "$out" ]; then ok "non-machinery filename → silent"; else no "non-machinery filename → silent" "got: $(echo "$out"|head -c200)"; fi
 
+echo "[111] delegated_diagnosis: builder briefed to 'investigate why' fires"
+PROBES='[{"id":"deldiag","kind":"delegated_diagnosis","message":"diagnosis is frontier-tier work; spec it first"}]'
+make_skill_with_probes sk111 le "$PROBES"
+TX="$TRANSCRIPT_DIR/t111.jsonl"
+write_transcript "$TX" \
+  "$(assistant_tool_use Agent '{"subagent_type":"builder","prompt":"Investigate why the export step fails on large files and fix it."}')"
+out=$(call cc111 sk111 "$TX" s111)
+if emitted "$out" && echo "$out" | grep -q 'delegated_diagnosis'; then ok "builder diagnosis brief → fires"; else no "builder diagnosis brief → fires" "got: $(echo "$out"|head -c200)"; fi
+
+echo "[112] delegated_diagnosis: same brief to a frontier-tier agent stays silent"
+TX="$TRANSCRIPT_DIR/t112.jsonl"
+write_transcript "$TX" \
+  "$(assistant_tool_use Agent '{"subagent_type":"frontier-advisor","prompt":"Investigate why the export step fails on large files."}')"
+out=$(call cc112 sk111 "$TX" s112)
+if [ -z "$out" ]; then ok "frontier-tier diagnosis brief → silent"; else no "frontier-tier diagnosis brief → silent" "got: $(echo "$out"|head -c200)"; fi
+
+echo "[113] delegated_diagnosis: spec-shaped builder brief stays silent"
+TX="$TRANSCRIPT_DIR/t113.jsonl"
+write_transcript "$TX" \
+  "$(assistant_tool_use Agent '{"subagent_type":"builder","prompt":"Root cause: exporter buffers whole file. Replace read() with 64KB chunked reads in export.py lines 40-55; gate: pytest tests/test_export.py."}')"
+out=$(call cc113 sk111 "$TX" s113)
+if [ -z "$out" ]; then ok "spec'd builder brief → silent"; else no "spec'd builder brief → silent" "got: $(echo "$out"|head -c200)"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then

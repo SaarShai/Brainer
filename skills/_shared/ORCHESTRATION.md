@@ -103,9 +103,32 @@ structural savings on a 17-lane run (team-lead/EVAL.md), which lands inside the
 
 Rules:
 
-- **A code block longer than an interface signature is a spec that hasn't been
-  delegated yet** — stop and delegate it. Fixing a cheap lane's bug by hand is
-  the same failure in disguise: send back a corrected spec instead.
+- **Route by SPEC'D × GATED, not size.** SPEC'D = a written spec states the
+  root cause (for fixes) or exact construction (for features) such that
+  execution needs no semantic invention — "figure out why X" is NOT a spec.
+  GATED = success is mechanically checkable (tests, geometry gates, sha256,
+  residuals). Routing: SPEC'D+GATED → delegate to the cheapest capable tier;
+  the frontier orchestrator MUST NOT execute it beyond ~30 lines of diff.
+  SPEC'D-not-GATED → delegate execution, but a different agent verifies at
+  the artifact layer before any "done" claim. Not SPEC'D (diagnosis, product
+  semantics, new-machinery design) → frontier-tier work: never forward a
+  symptom — reproduce it at the artifact layer yourself, name the root cause,
+  prescribe the fix with a borrow-checkpoint line, THEN delegate execution.
+  A sub-frontier brief containing "investigate why / figure out / determine
+  the cause" is malformed (the `delegated_diagnosis` canary probe flags it);
+  mechanical evidence-gathering sweeps remain delegable. Exception: a small
+  (~<30-line) judgment-dense fix where the diagnosis IS the fix — the
+  frontier model does it directly, with a verification call in the same
+  turn; writing the brief would cost more than the diff. Sub-frontier lanes
+  mirror this: when a task needs semantic invention, STOP and escalate with
+  gathered evidence (file:line, failing output) instead of guessing — a
+  guessed implementation passing its own invented gate is verification
+  theater; a frontier-written spec is always executable, and deviations go
+  through a BLOCKED report, never silent "improvement". (Evidence:
+  template-v29 delegation-economics review, screenery 2026-07-18 — every
+  delegation failure was implicitly delegated diagnosis; every first-try
+  success was frontier-spec'd + mechanically gated; size/simplicity
+  adjectives were the wrong discriminator.)
 - **The orchestrator's context is re-read at frontier prices every turn** —
   keep conclusions, not dumps; route broad exploration to read-only cheap
   agents; a path reference or excerpt beats a pasted file.
