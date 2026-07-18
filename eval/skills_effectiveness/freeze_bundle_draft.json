@@ -1,0 +1,20 @@
+{
+  "status": "DRAFT-NOT-FROZEN",
+  "note": "Binding freeze happens only AFTER the 2 paid rehearsal sessions pass their gate (amended prereg). This draft records candidate hashes; grader model id, grader prompt, and rehearsal-validated versions are added at binding freeze.",
+  "suite_commit": "bfe8f54cc1f91525d6361acfd31831bd4688ed73",
+  "artifacts": {
+    "prereg": "86f23a8a80a8589cbe02cc727accf5a9a886daadb625ff8f39ac468b58461d22",
+    "extractor_blinded": "bf5da24d5ce977986bd19615696f65d78e966b02ed466664c24301216338d45f",
+    "extractor_mechanism": "846a22003a871732fa62ee08df0624aafeb8b43771c68c443782ad36c8efbb18",
+    "extractor_spec": "1d7c9975ae53bf2b2427eaf56ef88fd51aeaa37eba46658cde4c6871172acb6b",
+    "scenarios_readme": "34fc5411e0aa635b811487e906029ff0f3d080ac56e3f5bcfa6e17689032f556"
+  },
+  "scenarios": {
+    "scenario-01": "9ab15d059649932acc2b8e90bcbe33b94afbb3a184d79d10e49f145bf1e14da5",
+    "scenario-02": "b288f44ac6b89d3b8817c29dfe064e1379a24ca70325436a9eddc447ee0101cc",
+    "scenario-03": "3d7bc457ddae77c4dd5cddd7baef4dc549e16fefc54305907ddc5c4d47438d0d",
+    "scenario-04": "68594709f52e6204ff6b89dbd7b4707eac9fdb833dfb85c9f08fdf1df18277dc",
+    "scenario-05": "3e6fe6e5833e45b8720c9ed028fcce309ea7fed1d4d11bd47399b57cf7aac54c",
+    "scenario-06": "c1a587ca9a7ba299cf725677174c30bd8e0a792491f16b825e0e8b27c080ce61"
+  }
+}
