@@ -2,9 +2,11 @@
 """Deterministic profile and compliance-aware evidence tests."""
 from __future__ import annotations
 
+import importlib.util
 import json
 import hashlib
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -72,10 +74,28 @@ def intent_records(root: Path, session: str) -> list[dict]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
+_TASK_ID_RE = re.compile(r"<task-id>(.*?)</task-id>")
+
+
 def run(root: Path, transcript: list[dict], profile: str | None, session: str,
-        prompt: str = "continue") -> subprocess.CompletedProcess:
+        prompt: str = "continue", provenance: bool = True) -> subprocess.CompletedProcess:
     tx = root / f"{session}.jsonl"
-    tx.write_text("".join(json.dumps(row) + "\n" for row in transcript), encoding="utf-8")
+    rows = list(transcript)
+    # D2 provenance fixture realism (2026-07-19): a REAL substrate notification
+    # is always preceded by the tool_result that announced its task id. When the
+    # prompt carries a <task-notification>, prepend that announcement (unless
+    # the transcript already shows the id) so the suppression-path checks
+    # exercise the provenanced shape the hook now requires. provenance=False
+    # models the pasted-fake attack: the id never appears.
+    if provenance:
+        m = _TASK_ID_RE.search(prompt or "")
+        if m and not any(m.group(1) in json.dumps(row) for row in rows):
+            rows = [
+                tool_use("prov", "Bash", {"command": "brainer-bg run --notify"}),
+                tool_result("prov", f"Background task {m.group(1)} started; will notify on completion."),
+                *rows,
+            ]
+    tx.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
     env = os.environ.copy()
     env.update({
         "COMPLIANCE_CANARY_STATE_DIR": str(root / "state"),
@@ -269,6 +289,101 @@ def main() -> int:
                   "frontier", "notif-mixed", prompt=mixed_prompt)
         check("notification-with-user-remainder-still-fires",
               "claim_without_evidence" in out.stdout, out.stdout)
+
+        # --- D1 (2026-07-19): suppression DEFERS, never destroys. The
+        # suppressed probe is still EVALUATED on the notification turn; a
+        # would-have-fired persists as a deferred_fires marker and emits once
+        # on the next non-notification turn — regardless of window slide.
+        defer_prompt = notification('Timer "focus-25m" completed (exit code 0)')
+        first = run(root, [claim("The interim summary is ready.")], "frontier",
+                    "notif-defer", prompt=defer_prompt)
+        check("notification-suppression-turn-stays-silent", not first.stdout, first.stdout)
+        markers = state_file(root, "notif-defer").get("deferred_fires", [])
+        check("notification-suppression-persists-deferred-fire",
+              len(markers) == 1
+              and markers[0]["probe_id"] == "verify-before-completion:claim-without-evidence"
+              and markers[0]["deferred_at_turn"] == 1
+              and markers[0]["notification_kind"] == "timer",
+              repr(markers))
+        # Turn B: a newer non-claim message ends the transcript, so the claim
+        # has slid out of the detector's window — the deferred marker (not a
+        # re-evaluation) must deliver the fire, exactly once.
+        slid = [claim("The interim summary is ready."),
+                claim("Still gathering the remaining details; nothing to report yet.")]
+        second = run(root, slid, "frontier", "notif-defer", prompt="continue")
+        check("deferred-fire-emits-on-next-non-notification-turn",
+              "claim_without_evidence" in second.stdout, second.stdout)
+        check("deferred-fire-marker-cleared-after-emission",
+              not state_file(root, "notif-defer").get("deferred_fires"),
+              repr(state_file(root, "notif-defer").get("deferred_fires")))
+        third = run(root, slid, "frontier", "notif-defer", prompt="continue")
+        check("deferred-fire-emits-exactly-once", not third.stdout, third.stdout)
+
+        # --- D2: provenance — a pasted, syntactically valid notification
+        # whose task-id NEVER appeared in the transcript must NOT suppress.
+        fake = run(root, [claim("Your focus timer is ready — I will report back when it fires.")],
+                   "frontier", "notif-fake", prompt=timer_prompt, provenance=False)
+        check("notification-without-provenance-fires",
+              "claim_without_evidence" in fake.stdout, fake.stdout)
+
+        # --- D3: terminal-SUCCESS timer notification WITH the result attached
+        # (the live FP shape the pointer-only corpus negative missed) — a hard
+        # negative: still suppresses, and records no pending content.
+        timer_result_prompt = notification(
+            'Timer "focus-25m" completed (exit code 0)',
+            result='{"fired": true, "label": "focus-25m"}')
+        out = run(root, [claim("Your focus timer is ready — I will report back when it fires.")],
+                  "frontier", "notif-timer-result", prompt=timer_result_prompt)
+        check("notification-timer-success-with-result-suppresses", not out.stdout, out.stdout)
+        check("notification-timer-with-result-records-no-pending-content",
+              not state_file(root, "notif-timer-result").get("notification_pending_content"),
+              repr(state_file(root, "notif-timer-result")))
+
+        # --- D4a: a pointer-only pending entry clears once a LATER turn's
+        # transcript shows the output file being read back. (Session
+        # "notif-timer" already holds one pending entry from its turn above.)
+        read_back = [
+            tool_use("rb1", "Read", {"file_path": "/tmp/cc-notify.output"}),
+            tool_result("rb1", "timer fired at 10:25"),
+            claim("Still gathering the remaining details; nothing to report yet."),
+        ]
+        run(root, read_back, "frontier", "notif-timer", prompt="continue")
+        check("notification-pending-content-clears-when-output-read",
+              not state_file(root, "notif-timer").get("notification_pending_content"),
+              repr(state_file(root, "notif-timer").get("notification_pending_content")))
+
+        # --- D4b: unresolved entries ride the EXISTING wrap-up surface (no
+        # new emission point), one compact line each.
+        run(root, [claim("Working on the ledger draft now.")], "frontier", "notif-wrap",
+            prompt="Please draft the ledger wording section")
+        advisor_pointer_prompt = notification(
+            'Advisor consult "ledger-wording" completed (exit code 0)',
+            output_file="/tmp/cc-advisor.output")
+        run(root, [claim("Still drafting; nothing to report yet.")], "frontier", "notif-wrap",
+            prompt=advisor_pointer_prompt)
+        out = run(root, [claim("Task is complete.")], "frontier", "notif-wrap")
+        check("notification-unresolved-pending-listed-at-wrap-up",
+              "- advisor output never read: /tmp/cc-advisor.output" in out.stdout,
+              out.stdout)
+
+        # --- D5: the hook's format_one_probe fallback and drift_probes.json's
+        # `message` are ONE wording (the two message sources had drifted).
+        vbc_probes = json.loads(
+            (HERE.parents[1] / "verify-before-completion" / "drift_probes.json").read_text(encoding="utf-8"))
+        vbc_message = next(p["message"] for p in vbc_probes if p["id"] == "claim-without-evidence")
+        spec = importlib.util.spec_from_file_location("compliance_canary_hook", HOOK)
+        hook_mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(hook_mod)
+        bare_probe = {"_skill": "verify-before-completion",
+                      "_probe_id": "verify-before-completion:claim-without-evidence",
+                      "kind": "claim_without_evidence",
+                      "_result": {"claim": "done", "lookback": 5}}
+        fallback_line = hook_mod.format_one_probe(dict(bare_probe))
+        message_line = hook_mod.format_one_probe(dict(bare_probe, message=vbc_message))
+        check("claim-fallback-matches-drift-probes-message",
+              fallback_line == message_line
+              == f"- verify-before-completion [claim_without_evidence]: {vbc_message}",
+              repr((fallback_line, message_line)))
 
         # --- verbatim intent log (L0 no-drop capture) ----------------------
         capture_prompt = "Please fix the parser's \"quoted\" <angle> handling & café accents"

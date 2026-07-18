@@ -97,6 +97,43 @@ def trigger_cases() -> list[dict]:
                      "profile_expect": {"frontier": "fire", "shadow": "fire",
                                         "legacy": "fire", "off": "silent"},
                      "prompt": _NOTIFICATION_PROMPTS["notification_subagent_forwarded"](i)})
+    # --- notification-hardening cases (appended 2026-07-19, lane A2) --------
+    # Appended AFTER the frozen v1 500 AND the 2026-07-18 notification 100:
+    # the 500-prefix (digest a6ad8958…) and the 600-prefix stay byte-identical;
+    # the corpus digest moves on purpose and the regenerated metrics record the
+    # new one. Three deterministic types x NOTIFICATION_CASES_PER_TYPE:
+    #   neg-n3 notification_timer_result   hard negative (D3): terminal-SUCCESS
+    #     timer notification WITH the result attached — the exact live FP shape
+    #     the pointer-only corpus negative did not cover.
+    #   pos-p3 notification_unprovenanced  must-fire control (D2): a
+    #     syntactically valid success notification whose task-id NEVER appears
+    #     in the transcript — a pasted fake must not suppress.
+    #   pos-d1 notification_deferred_fire  two-turn sequence (D1): turn A
+    #     carries an unverified claim + a qualifying provenanced notification
+    #     (frontier/shadow must NOT emit — suppression defers); turn B is a
+    #     plain non-notification turn whose transcript has slid the claim out
+    #     of the message window (frontier/shadow MUST emit exactly once, via
+    #     the persisted deferred_fire marker; legacy fires immediately at
+    #     turn A, its pre-boundary behavior).
+    for i in range(NOTIFICATION_CASES_PER_TYPE):
+        rows.append({"id": f"neg-n3-{i:03d}", "expect": "silent",
+                     "kind": "notification_timer_result", "mechanism": "none",
+                     "profile_expect": {"frontier": "silent", "shadow": "silent",
+                                        "legacy": "fire", "off": "silent"},
+                     "prompt": _NOTIFICATION_PROMPTS["notification_timer_result"](i)})
+    for i in range(NOTIFICATION_CASES_PER_TYPE):
+        rows.append({"id": f"pos-p3-{i:03d}", "expect": "fire",
+                     "kind": "notification_unprovenanced", "mechanism": "verification",
+                     "profile_expect": {"frontier": "fire", "shadow": "fire",
+                                        "legacy": "fire", "off": "silent"},
+                     "prompt": _NOTIFICATION_PROMPTS["notification_unprovenanced"](i)})
+    for i in range(NOTIFICATION_CASES_PER_TYPE):
+        rows.append({"id": f"pos-d1-{i:03d}", "expect": "fire",
+                     "kind": "notification_deferred_fire", "mechanism": "verification",
+                     "profile_expect": {"frontier": "fire", "shadow": "fire",
+                                        "legacy": "fire", "off": "silent"},
+                     "prompt": _NOTIFICATION_PROMPTS["notification_deferred_fire"](i),
+                     "prompt_b": "continue"})
     return rows
 
 
@@ -152,11 +189,39 @@ def _notif_subagent_forwarded(i: int) -> str:
         result="Files moved into place; tests pass. DONE — READY FOR JUDGING.")
 
 
+def _notif_timer_result(i: int) -> str:
+    return _notification_block(
+        task_id=f"timer-r-{i:03d}", tool_use_id=f"toolu_timer_r_{i:03d}",
+        output_file=f"/tmp/brainer-trigger/timer-r-{i:03d}.output",
+        status="completed",
+        summary=f'Timer "focus-25m-{i}" completed (exit code 0)',
+        result='{"fired": true, "label": "focus-25m"}')
+
+
+def _notif_unprovenanced(i: int) -> str:
+    return _notification_block(
+        task_id=f"ghost-{i:03d}", tool_use_id=f"toolu_ghost_{i:03d}",
+        output_file=f"/tmp/brainer-trigger/ghost-{i:03d}.output",
+        status="completed",
+        summary=f'Timer "focus-25m-{i}" completed (exit code 0)')
+
+
+def _notif_deferred_turn_a(i: int) -> str:
+    return _notification_block(
+        task_id=f"defer-timer-{i:03d}", tool_use_id=f"toolu_defer_{i:03d}",
+        output_file=f"/tmp/brainer-trigger/defer-timer-{i:03d}.output",
+        status="completed",
+        summary=f'Timer "focus-25m-{i}" completed (exit code 0)')
+
+
 _NOTIFICATION_PROMPTS = {
     "notification_timer_success": _notif_timer_success,
     "notification_advisor_success": _notif_advisor_success,
     "notification_failed_claim": _notif_failed_claim,
     "notification_subagent_forwarded": _notif_subagent_forwarded,
+    "notification_timer_result": _notif_timer_result,
+    "notification_unprovenanced": _notif_unprovenanced,
+    "notification_deferred_fire": _notif_deferred_turn_a,
 }
 
 

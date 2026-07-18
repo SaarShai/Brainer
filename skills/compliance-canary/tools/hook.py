@@ -1329,6 +1329,15 @@ def strip_harness_injected(text: str) -> str:
 #   <output-file>…</output-file><status>completed</status>
 #   <summary>Background command "…" completed (exit code 0)</summary>
 #   [<result>…</result>]</task-notification>
+# Hardened 2026-07-19 (two adversarial sense-checks):
+#   D1 — suppression DEFERS, never destroys: the suppressed probe is still
+#        EVALUATED; a would-have-fired is persisted as a `deferred_fires`
+#        state marker and emitted once on the next non-notification turn,
+#        regardless of message-window slide (see main()).
+#   D2 — provenance: suppression additionally requires the notification's
+#        task-id string to appear EARLIER in the transcript
+#        (notification_task_id_seen); a pasted, syntactically valid fake has
+#        no such anchor and fails open (the turn fires as before).
 _TASK_NOTIFICATION_BLOCK_RE = re.compile(r"<task-notification>(.*?)</task-notification>", re.S)
 _TASK_NOTIFICATION_TAG_RES = {
     tag: re.compile(rf"<{tag}>(.*?)</{tag}>", re.S)
@@ -1374,10 +1383,15 @@ def notification_suppression_decision(prompt_text: str, prompt_text_user: str) -
     evidence boundary. FAIL-OPEN by construction: every condition must
     POSITIVELY match, else ``active`` stays False and the turn is scored
     exactly as before. Suppression requires ALL of:
-      (a) substrate-authored — no user-authored remainder after harness
+      (a) substrate-SHAPED — no user-authored remainder after harness
           stripping, exactly one CLOSED <task-notification> block, with a
-          task-id (delegate prose quoting a notification, a pasted fake, or a
-          real ask riding along → out);
+          task-id (delegate prose quoting a notification, or a real ask
+          riding along → out). Syntax alone CANNOT distinguish a substrate
+          event from a pasted, syntactically valid fake — this function does
+          NOT establish provenance. The caller MUST also require
+          ``notification_task_id_seen`` (the task-id string appears EARLIER
+          in the transcript) before acting on ``active``; id absent there →
+          no suppression, the turn fires exactly as before;
       (b) terminal SUCCESS — completed-class status / exit code 0, with no
           failure signal anywhere;
       (c) allowlisted self-contained job kind — timer wakeup, background
@@ -1389,7 +1403,7 @@ def notification_suppression_decision(prompt_text: str, prompt_text_user: str) -
           pointer (pointer-only → the caller records a pending_content entry).
     """
     decision = {"active": False, "kind": "", "pointer_only": False,
-                "output_file": "", "recorded_iso": ""}
+                "output_file": "", "recorded_iso": "", "task_id": ""}
     try:
         if prompt_text_user:
             return decision
@@ -1397,7 +1411,8 @@ def notification_suppression_decision(prompt_text: str, prompt_text_user: str) -
         if len(blocks) != 1:
             return decision
         body = blocks[0]
-        if not _notification_tag(body, "task-id"):
+        task_id = _notification_tag(body, "task-id")
+        if not task_id:
             return decision
         status = _notification_tag(body, "status").lower()
         summary = _notification_tag(body, "summary")
@@ -1423,10 +1438,59 @@ def notification_suppression_decision(prompt_text: str, prompt_text_user: str) -
             "pointer_only": not result and bool(output_file),
             "output_file": output_file,
             "recorded_iso": time.strftime("%FT%TZ", time.gmtime()),
+            "task_id": task_id,
         })
     except Exception as e:  # fail-open on any classification error
         log_err(f"notification-classify-fail err={e!r}")
     return decision
+
+
+def notification_task_id_seen(events: list[dict], task_id: str) -> bool:
+    """D2 mechanical provenance: True iff `task_id` appears anywhere in the
+    EARLIER transcript events (e.g. inside the tool_result that announced the
+    background task). The notification under classification is the current
+    PROMPT — never a transcript event — so any sighting here is strictly
+    earlier. A pasted, syntactically valid <task-notification> has no such
+    anchor and fails open (no suppression). Serialized-event substring match:
+    the substrate announces task ids as plain text inside tool payloads, so a
+    substring scan over each event's JSON serialization is the whole check —
+    no assumption about which block shape carries the id."""
+    if not task_id:
+        return False
+    for e in events or []:
+        try:
+            if task_id in json.dumps(e, ensure_ascii=False):
+                return True
+        except (TypeError, ValueError):
+            continue
+    return False
+
+
+def _path_seen_in_events(events: list[dict], needle: str) -> bool:
+    """True iff `needle` (an output-file path) appears inside any tool_use
+    input or tool_result content in the transcript tail — the mechanical
+    \"the pointer was read back\" signal reconciling
+    notification_pending_content (D4a). Substring match across both halves of
+    a tool pair: a Read/Edit carrying the path in its input, or a result
+    whose content quotes it."""
+    for e in events or []:
+        msg = e.get("message") or {}
+        content = msg.get("content")
+        if not isinstance(content, list):
+            continue
+        for b in content:
+            if not isinstance(b, dict):
+                continue
+            if b.get("type") == "tool_use":
+                try:
+                    if needle in json.dumps(b.get("input") or {}, ensure_ascii=False):
+                        return True
+                except (TypeError, ValueError):
+                    continue
+            elif b.get("type") == "tool_result":
+                if needle in _tool_result_text(b.get("content")):
+                    return True
+    return False
 
 
 # Pure acknowledgements / answers — not new trackable requests. Skipped.
@@ -2237,10 +2301,16 @@ def format_one_probe(probe: dict) -> str:
             f"over last {r.get('window')} > threshold {r.get('threshold')}"
         )
     if kind == "claim_without_evidence":
+        # D5 (2026-07-19): this fallback is BYTE-IDENTICAL to the `message`
+        # field of verify-before-completion's claim-without-evidence probe in
+        # drift_probes.json — one wording for the two message sources (they
+        # had drifted apart). test_profiles.py pins the equality; keep in sync.
         return (
-            f"- {skill} [claim_without_evidence]: claim {r.get('claim')!r} has no "
-            f"matching verification evidence in last {r.get('lookback')} tool_uses "
-            f"(no fresh, successful, right-class result)"
+            f"- {skill} [claim_without_evidence]: recent reply claims work is "
+            f"done/fixed/passing, but no verification evidence matching the claim "
+            f"appears in the last 5 tool uses (no fresh, successful, post-edit "
+            f"check of the right class) — run a fresh check (test, build, lint, "
+            f"curl, etc.) and quote its output"
         )
     return f"- {skill} [{kind}]: triggered"
 
@@ -2371,6 +2441,19 @@ def main() -> int:
     # surface below; legacy keeps pre-fix behavior for rollback). Pure fail-open
     # classification here — no state or telemetry mutation at this point.
     notification = notification_suppression_decision(prompt_text, prompt_text_user)
+    # One transcript tail-read feeds the D2 provenance check here AND the
+    # probe/ledger gate below (reused via `events` — no double read).
+    events: list[dict] = []
+    if notification["active"]:
+        # D2 — mechanical provenance (fail-open): syntax alone cannot
+        # distinguish a pasted, syntactically valid <task-notification> from a
+        # substrate event. Suppress only when the notification's task-id string
+        # also appears EARLIER in the transcript (e.g. in the tool_result that
+        # announced the background task); id absent → NO suppression, the turn
+        # fires exactly as before.
+        events = read_transcript_tail(transcript_path)
+        if not notification_task_id_seen(events, notification["task_id"]):
+            notification = dict(notification, active=False)
 
     with state_lock(path):
         state = load_state(path)
@@ -2429,6 +2512,12 @@ def main() -> int:
     all_probes = discover_probes(skills_root())
     probes = all_probes
     frontier_ids = selected_probe_ids(FRONTIER_VERIFY_PROBE_IDS)
+    # D1 — claim_without_evidence probe ids suppressed by THIS turn's
+    # qualifying notification. They are NOT dropped from `probes`: they still
+    # EVALUATE below, and a would-have-fired is persisted as a deferred_fires
+    # marker (suppression defers the fire past the notification turn, it never
+    # destroys it).
+    notification_suppressed_ids: set[str] = set()
     # C4 — scope probes to a deployment's ACTIVE skills. Default (unset) = every
     # discovered skill's probes run, exactly as before (no regression). Set
     # COMPLIANCE_CANARY_PROBE_SKILLS=a,b,c to fire ONLY those skills' probes — so a
@@ -2462,28 +2551,30 @@ def main() -> int:
         if notification["active"]:
             # The current turn is a substrate-authored terminal-SUCCESS
             # task-notification for an allowlisted self-contained job kind —
-            # suppress claim_without_evidence for THIS turn (the notification
+            # claim_without_evidence does not EMIT this turn (the notification
             # is the evidence boundary; the agent made no claim). Logged as a
             # suppressed_notification telemetry event so the counterfactual
             # stays measurable; confined to the frontier/shadow surface so
             # shadow output stays byte-identical to frontier and legacy keeps
             # its frozen rollback behavior. Fail-open already happened in the
-            # classifier — reaching this point means every condition matched.
-            kept: list[dict] = []
+            # classifier AND the provenance check above — reaching this point
+            # means every condition matched. The probe stays in `probes` and
+            # is still EVALUATED (D1 deferral — see below).
             for p in probes:
                 if p.get("kind") != "claim_without_evidence":
-                    kept.append(p)
                     continue
+                notification_suppressed_ids.add(p["_probe_id"])
                 append_telemetry(
                     session_id, turn, "suppressed_notification",
                     p.get("_probe_id", "unknown"), False,
                     f"task-notification kind={notification['kind']} "
                     f"pointer_only={notification['pointer_only']}")
-            probes = kept
             if notification["pointer_only"]:
                 # Pointer-only success: the result content has not been seen —
                 # record the output-file pointer as pending_content so the gap
-                # is visible in state instead of silently dropped.
+                # is visible in state instead of silently dropped. Reconciled
+                # on later turns (D4): cleared once the transcript shows the
+                # file being read back; surfaced at wrap-up while unresolved.
                 with state_lock(path):
                     state = load_state(path)
                     pending = state.get("notification_pending_content", [])
@@ -2493,6 +2584,7 @@ def main() -> int:
                         "output_file": notification["output_file"],
                         "turn": turn,
                         "recorded_iso": notification["recorded_iso"],
+                        "kind": notification["kind"],
                     })
                     state["notification_pending_content"] = pending[-NOTIFICATION_PENDING_CAP:]
                     save_state(path, state)
@@ -2500,14 +2592,14 @@ def main() -> int:
     # correction ledger's bank-resolution check (needs recent Bash tool_uses
     # PAIRED with their tool_results — execution evidence, not just command
     # text — even on a turn where no NEW correction fires).
-    events: list[dict] = []
     tool_uses: list[dict] = []
     bash_results: list[dict] = []
     messages: list[dict] = []
     tool_errors: list[str] = []
     traj: dict = {}
     if probes or ledger_probes or ledger or correction_ledger:
-        events = read_transcript_tail(transcript_path)
+        if not events:  # may already hold the D2 provenance pre-fetch
+            events = read_transcript_tail(transcript_path)
         if events:
             bash_results = recent_bash_tool_results(events, n=10)
             if not probes:
@@ -2588,6 +2680,38 @@ def main() -> int:
                 # still runs (it uses only fixed regexes).
                 log_err(f"probe-budget-exceeded: skipped probes (>{PROBE_TIMEOUT_SECONDS}s)")
                 fired = []
+            if notification_suppressed_ids:
+                # D1 — a notification-suppressed probe that WOULD have fired
+                # (on prior-turn content: the agent authored no new claim on a
+                # notification turn) does not emit now. Persist a deferred_fire
+                # marker instead — the fire is deferred past the notification
+                # turn, never destroyed; it emits once on the next turn that is
+                # not itself a qualifying notification (below), regardless of
+                # message-window slide. No probe_history entry yet: cooldown
+                # tracks EMISSIONS, and this probe has not emitted.
+                deferred = [p for p in fired if p["_probe_id"] in notification_suppressed_ids]
+                fired = [p for p in fired if p["_probe_id"] not in notification_suppressed_ids]
+                if deferred:
+                    with state_lock(path):
+                        state = load_state(path)
+                        markers = state.get("deferred_fires", [])
+                        if not isinstance(markers, list):
+                            markers = []
+                        have = {m.get("probe_id") for m in markers if isinstance(m, dict)}
+                        for p in deferred:
+                            if p["_probe_id"] in have:
+                                continue
+                            markers.append({
+                                "probe_id": p["_probe_id"],
+                                "skill": p.get("_skill", ""),
+                                "kind": p.get("kind", ""),
+                                "result": p.get("_result") or {},
+                                "deferred_at_turn": turn,
+                                "notification_kind": notification["kind"],
+                            })
+                            have.add(p["_probe_id"])
+                        state["deferred_fires"] = markers[-NOTIFICATION_PENDING_CAP:]
+                        save_state(path, state)
             if fired:
                 with state_lock(path):
                     state = load_state(path)
@@ -2601,6 +2725,82 @@ def main() -> int:
                 # state_lock on purpose: it's an independent append-only sink,
                 # not part of this session's locked state.
                 _record_trigger_matched_activations(fired)
+
+    # --- D1 deferred-fire emission (frontier/shadow) ----------------------
+    # On the first turn that is NOT itself a qualifying notification, emit
+    # each persisted deferred_fire marker once and clear it — regardless of
+    # message-window slide (the marker carries the result captured at the
+    # suppressing turn, so the fire survives the claim scrolling out of the
+    # recent-message window). A probe that re-fired on its own this turn is
+    # already delivered; its marker is cleared without a second emission.
+    if profile in {"frontier", "shadow"} and not notification["active"]:
+        deferred_markers: list[dict] = []
+        with state_lock(path):
+            state = load_state(path)
+            raw_markers = state.get("deferred_fires", [])
+            if isinstance(raw_markers, list) and raw_markers:
+                deferred_markers = [m for m in raw_markers if isinstance(m, dict)]
+                state["deferred_fires"] = []
+                save_state(path, state)
+        if deferred_markers:
+            by_id = {p.get("_probe_id"): p for p in all_probes}
+            delivered = {p.get("_probe_id") for p in fired}
+            emitted_deferred: list[dict] = []
+            for marker in deferred_markers:
+                pid = str(marker.get("probe_id") or "")
+                if not pid or pid in delivered:
+                    continue
+                delivered.add(pid)
+                base = by_id.get(pid)
+                probe = dict(base) if isinstance(base, dict) else {
+                    "_skill": marker.get("skill") or pid.split(":")[0],
+                    "_probe_id": pid,
+                    "kind": marker.get("kind") or "claim_without_evidence",
+                }
+                probe["_probe_id"] = pid
+                probe["_result"] = marker.get("result") or {}
+                fired.append(probe)
+                emitted_deferred.append(probe)
+            if emitted_deferred:
+                with state_lock(path):
+                    state = load_state(path)
+                    history = state.get("probe_history", [])
+                    if not isinstance(history, list):
+                        history = []
+                    for probe in emitted_deferred:
+                        history.append({"probe_id": probe["_probe_id"], "fired_at_turn": turn})
+                    state["probe_history"] = history[-50:]
+                    save_state(path, state)
+                _record_trigger_matched_activations(emitted_deferred)
+
+    # --- D4a notification pending-content reconciliation (frontier/shadow) --
+    # notification_pending_content gets a consumer: an entry recorded at an
+    # EARLIER turn leaves the pending set once the transcript shows its
+    # output-file being read back (path substring in a tool_use input or
+    # tool_result content). Entries still unresolved are listed at the
+    # existing wrap-up surface below (D4b — no new emission point).
+    pending_content: list[dict] = []
+    if profile in {"frontier", "shadow"}:
+        with state_lock(path):
+            state = load_state(path)
+            raw_pending = state.get("notification_pending_content", [])
+            if isinstance(raw_pending, list):
+                entries = [e for e in raw_pending if isinstance(e, dict)]
+                if entries and events:
+                    kept: list[dict] = []
+                    cleared_any = False
+                    for entry in entries:
+                        out_path = str(entry.get("output_file") or "")
+                        if (out_path and _as_int(entry.get("turn"), turn) < turn
+                                and _path_seen_in_events(events, out_path)):
+                            cleared_any = True
+                            continue
+                        kept.append(entry)
+                    if cleared_any:
+                        state["notification_pending_content"] = kept
+                        save_state(path, state)
+                        entries = kept
+                pending_content = entries
 
     suppressed_fired: list[dict] = []
     if profile == "shadow" and events:
@@ -2646,6 +2846,16 @@ def main() -> int:
             # ledger text when the log is missing/unreadable.
             intent_texts = read_intent_turn_texts(session_id) if completion_claim else None
             ledger_lines = build_ledger_lines(ledger, closed_now, completion_claim, turn, intent_texts)
+            if completion_claim and pending_content:
+                # D4b — unresolved pointer-only notification outputs ride the
+                # EXISTING wrap-up surface (no new emission point), one
+                # compact line each.
+                for entry in pending_content[:LEDGER_SHOW_MAX]:
+                    out_path = str(entry.get("output_file") or "")
+                    if not out_path:
+                        continue
+                    kind = str(entry.get("kind") or "task")
+                    ledger_lines.append(f"- {kind} output never read: {out_path}")
 
     # --- Mechanism 4: correction ledger (LEARNING_CONTRACT §2) ------------
     # UNCONDITIONAL, same as Mechanism 3: opens on every fired `user_correction`

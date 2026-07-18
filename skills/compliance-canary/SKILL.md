@@ -39,23 +39,43 @@ mutation, and its class matches the claim (`test/build`, `filesystem/diff`,
 pre-edit checks, incidental output keywords, and wrong evidence classes do not
 suppress it.
 
-Notification evidence boundary (frontier/shadow only, 2026-07-18): when the
-current `UserPromptSubmit` payload is a substrate-authored `<task-notification>`
-reporting terminal SUCCESS (completed status / exit code 0) for a
-self-contained job kind — timer wakeup, background command, or advisor consult
-— and the notification carries its own result content or an output-file
-pointer, the `claim_without_evidence` probe is suppressed for that turn: the
-notification IS the evidence boundary and the agent authored no claim on it.
-The predicate is fail-open — any classification uncertainty (a user ask riding
-along, a failed/killed job, an unrecognized job kind, or world-state assertion
-prose such as "files moved" / "tests pass" / "DONE" / "READY FOR JUDGING" —
-the implementation-subagent shape whose forwarded claim is the guard's one
-proven live catch) leaves the probe armed exactly as before. Every suppression
-is logged to telemetry as a `suppressed_notification` event (emitted=false) so
-the counterfactual stays measurable; a pointer-only success additionally
-records a `notification_pending_content` entry (output-file path + timestamp)
-in the session state file. `legacy` deliberately keeps the pre-fix behavior for
-rollback.
+Notification evidence boundary (frontier/shadow only, 2026-07-18; hardened
+2026-07-19): when the current `UserPromptSubmit` payload is a
+substrate-authored `<task-notification>` reporting terminal SUCCESS
+(completed status / exit code 0) for a self-contained job kind — timer
+wakeup, background command, or advisor consult — and the notification
+carries its own result content or an output-file pointer, the
+`claim_without_evidence` probe does not emit for that turn: the notification
+IS the evidence boundary and the agent authored no claim on it. The
+predicate is fail-open — any classification uncertainty (a user ask riding
+along, a failed/killed job, an unrecognized job kind, or world-state
+assertion prose such as "files moved" / "tests pass" / "DONE" / "READY FOR
+JUDGING" — the implementation-subagent shape whose forwarded claim is the
+guard's one proven live catch) leaves the probe armed exactly as before.
+Hardening (two adversarial sense-checks):
+
+- **Provenance.** Suppression additionally requires the notification's
+  task-id string to appear EARLIER in the session transcript (e.g. in the
+  tool_result that announced the background task). A pasted, syntactically
+  valid `<task-notification>` has no such anchor and fails open — the turn
+  fires exactly as before.
+- **Deferred fire.** Suppression never destroys a fire, only defers it: the
+  suppressed probe is still EVALUATED on the notification turn, and a
+  would-have-fired is persisted as a `deferred_fires` marker in session
+  state. On the next `UserPromptSubmit` that is NOT a qualifying
+  notification, the probe emits once (marker cleared), regardless of
+  message-window slide.
+- **Pending content.** A pointer-only success records a
+  `notification_pending_content` entry (output-file path + kind + turn +
+  timestamp) in the session state file. On later turns an entry clears once
+  the transcript shows the output file being read back (path substring in a
+  tool_use input or tool_result content); entries still unresolved are
+  listed, one compact line each (`<kind> output never read: <path>`), at the
+  existing wrap-up surface — no new emission point.
+
+Every suppression is logged to telemetry as a `suppressed_notification`
+event (emitted=false) so the counterfactual stays measurable. `legacy`
+deliberately keeps the pre-fix behavior for rollback.
 
 The remainder of this document describes `legacy` rollback behavior.
 
