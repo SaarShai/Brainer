@@ -1,0 +1,20 @@
+{
+  "extractor_blinded": "bf5da24d5ce977986bd19615696f65d78e966b02ed466664c24301216338d45f",
+  "extractor_mechanism": "846a22003a871732fa62ee08df0624aafeb8b43771c68c443782ad36c8efbb18",
+  "frozen_at_commit": "b6fa8ae695ee0b9ec0bdba7410b30209602e23fd",
+  "gate_report": "1d7ec5a236a5de3c1526abdffae775e00b7a1ecd8b0a2e15ebdc579ad1d4600b",
+  "gate_script": "c7347a88cf5da4db662cb20f1580fb7aef5b3dcafdb5d8a0f3d56623f55658f4",
+  "grader_model_id": "glm-5.2",
+  "grader_prompt": "66e16f4d5e363cad572584c21482086b0eb928fc26ca74ec50cdbd96b0ded3d1",
+  "kappa_threshold": 0.7,
+  "run_driver": "e98d0a248619ddd5c3d2d6d2919f5354470f59911a81d5dbe3fdf96d3b2175f3",
+  "scenarios": {
+    "scenario-01.md": "9ab15d059649932acc2b8e90bcbe33b94afbb3a184d79d10e49f145bf1e14da5",
+    "scenario-02.md": "b288f44ac6b89d3b8817c29dfe064e1379a24ca70325436a9eddc447ee0101cc",
+    "scenario-03.md": "3d7bc457ddae77c4dd5cddd7baef4dc549e16fefc54305907ddc5c4d47438d0d",
+    "scenario-04.md": "68594709f52e6204ff6b89dbd7b4707eac9fdb833dfb85c9f08fdf1df18277dc",
+    "scenario-05.md": "3e6fe6e5833e45b8720c9ed028fcce309ea7fed1d4d11bd47399b57cf7aac54c",
+    "scenario-06.md": "c1a587ca9a7ba299cf725677174c30bd8e0a792491f16b825e0e8b27c080ce61"
+  },
+  "scenarios_readme": "34fc5411e0aa635b811487e906029ff0f3d080ac56e3f5bcfa6e17689032f556"
+}
