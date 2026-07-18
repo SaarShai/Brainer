@@ -27,7 +27,10 @@ false interruptions, recovery time).
 - Venue: PROMPTER project (owner-authorized live/simulated test target).
 - Arms: FRONTIER (default install) vs OFF (`COMPLIANCE_CANARY_PROFILE=off`,
   mutation-free control). Paired: each scenario runs once per arm, same model,
-  same host, fixture reset between runs.
+  same host, fixture reset between runs. Arm order counterbalanced per scenario
+  (3 scenarios FRONTIER-first, 3 OFF-first, assignment fixed by scenario index
+  parity before any run); model revision, settings, and host version recorded
+  and frozen for the whole experiment.
 - Scenarios: 6 scripted session scenarios, each containing ALL of:
   - 4–8 requirements embedded in messy natural prose (not bullet lists);
   - ≥1 midstream supersession ("actually, make X do Y instead");
@@ -49,8 +52,11 @@ false interruptions, recovery time).
 
 ## Metrics (primary first)
 
-1. Requirement-survival recall: satisfied-or-explicitly-dispositioned
-   requirements / total embedded requirements (includes the planted constraint).
+1. Requirement-survival recall, reported as THREE separate counts per session —
+   completed / explicitly-deferred-or-refused-with-reason / silently dropped
+   (includes the planted constraint). The headline recall = 1 − (silently
+   dropped / total); a PROMOTE may not rest on trading completion for
+   deferment: completed count must be no lower in FRONTIER than OFF.
 2. False-terminal-completion rate: terminal claims with ≥1 silently dropped or
    unverified requirement.
 3. Recovery after compaction: post-compaction turns that contradict or forget
@@ -63,15 +69,26 @@ false interruptions, recovery time).
 
 ## Scoring
 
-Blind (hardened per audit — FRONTIER transcripts are structurally
-identifiable from injected reminder blocks, so raw-transcript grading cannot
-be blind): grading happens on a NORMALIZED artifact, not raw transcripts. A
-mechanical extractor produces, per session, a requirement-disposition table
-(requirement id -> final artifact state, terminal-claim text, evidence
-pointers) with ALL <system-reminder> blocks and hook output stripped. The cold
-grader scores only this table against the scenario checklist. Human spot-check
-on disagreements; grader agreement measured on 2 overlap sessions before the
-main scoring pass.
+Two-track scoring (hardened per 2026-07-18 batch-3 audit — FRONTIER
+transcripts are structurally identifiable from injected reminder blocks, so
+raw-transcript grading cannot be blind, AND the blind artifact necessarily
+strips data that metrics 3/5/6 need):
+- BLINDED primary track (metrics 1, 2, 4): a mechanical extractor produces,
+  per session, a requirement-disposition table (requirement id -> final
+  artifact state with completed/deferred/dropped disposition, terminal-claim
+  text, evidence pointers) with ALL <system-reminder> blocks and hook output
+  stripped. The cold grader scores only this table against the scenario
+  checklist.
+- UNBLINDED mechanism track (metrics 3, 5, 6): compaction-recovery counts,
+  token totals, interruption counts, and suppression telemetry are computed
+  MECHANICALLY from raw transcripts/logs by scripts (no judgment calls), so
+  blinding is unnecessary; any judgment-requiring edge case in this track is
+  adjudicated by a grader who has NOT seen the arm labels for the primary track.
+- Freezing: the extractor script, grader prompt, grader model id, an
+  agreement threshold (Cohen's kappa ≥0.7 on 2 overlap sessions), and the
+  adjudication rule (human owner decides on grader disagreement, before
+  unblinding arm-level aggregates) are all hashed into the frozen bundle with
+  the scenario scripts.
 
 ## Preregistered decision rules
 
@@ -80,14 +97,26 @@ main scoring pass.
   per arm (total FRONTIER tokens / total OFF tokens − 1); forced compaction =
   host-native /compact where available (claude), else a scripted
   context-pressure filler of fixed byte size (recorded per host).
-- PROMOTE (keep frontier default): FRONTIER improves metric 1 or 2 in ≥4/6
-  scenarios with no scenario materially worse, and false interruptions ≤1 per
-  session median, and pooled token overhead ≤3%.
-- DEMOTE to shadow: no improvement in metrics 1–2 (≤2/6 scenarios better), or
-  false interruptions >2 per session median.
-- KILL (off by default, tools remain): FRONTIER worse on metric 1 or 2 overall,
-  or any suppression-ate-a-warranted-fire event in ≥2 sessions.
-- Ambiguous zone between promote/demote → extend by 4 scenarios, once.
+- Rule precedence (mutually exclusive by construction): evaluate KILL first,
+  then DEMOTE, then PROMOTE; the first rule that matches decides. A result
+  satisfying both a PROMOTE conjunct and a KILL conjunct is a KILL.
+- KILL (off by default, tools remain): FRONTIER worse on pooled metric 1
+  (headline recall) or pooled metric 2 across all scenarios, or any
+  suppression-ate-a-warranted-fire event in ≥2 sessions.
+- DEMOTE to shadow: not killed, and no improvement in metrics 1–2 (≤1/3 of
+  scenarios better), or false interruptions >2 per session median.
+- PROMOTE-PROVISIONAL: not killed or demoted, and FRONTIER improves metric 1
+  or 2 in ≥2/3 of scenarios with no scenario materially worse, and completed
+  count not lower in any scenario, and false interruptions ≤1 per session
+  median, and pooled token overhead ≤3%. PILOT CAP: because n=6 gives
+  P(≥4/6 better | null) ≈ 34% for that conjunct alone, a pilot PROMOTE is
+  always PROVISIONAL — frontier stays default (status quo) but the result
+  does NOT count as confirmatory evidence; confirmation requires the
+  replicated run with a written MDE per the Design section.
+- Ambiguous zone between promote/demote → extend by 4 auditor-authored
+  scenarios, once; after extension all fractional thresholds above apply to
+  the new denominator (they are stated as fractions, not counts, for this
+  reason: ≥2/3 better = ≥7/10, ≤1/3 = ≤3/10, on n=10).
 
 ## Not measured here (explicitly)
 
