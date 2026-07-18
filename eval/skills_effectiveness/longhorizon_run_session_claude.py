@@ -136,6 +136,22 @@ def _write_manifest(path: Path, manifest: dict) -> None:
     temporary.replace(path)
 
 
+def _archive_final_artifacts(fixture: Path, out_dir: Path) -> dict:
+    """Preserve the session's final fixture state before another arm resets it."""
+    archive = out_dir / "final-artifacts"
+    if archive.exists():
+        shutil.rmtree(archive)
+    record = {"archive_dir": "final-artifacts/", "fixture_present": fixture.is_dir(), "files": {}}
+    if not record["fixture_present"]:
+        return record
+    shutil.copytree(fixture, archive)
+    for path in sorted(archive.rglob("*")):
+        if path.is_file():
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            record["files"][path.relative_to(archive).as_posix()] = digest
+    return record
+
+
 def _command(text: str, session_id: str | None) -> list[str]:
     # --verbose is mandatory alongside --output-format=stream-json under
     # --print (confirmed via `claude -p --output-format stream-json --help`
@@ -253,6 +269,8 @@ def run_session(
             raise RuntimeError(f"Claude turn {turn_index:02d} failed with exit code {result.exit_code}")
         if session_id is None:
             raise RuntimeError("Claude turn 01 did not emit a session id")
+    manifest["final_artifacts"] = _archive_final_artifacts(fixture, out_dir)
+    _write_manifest(manifest_path, manifest)
     return manifest
 
 
