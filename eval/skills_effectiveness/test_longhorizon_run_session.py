@@ -1,3 +1,4 @@
+import hashlib
 import json
 import tempfile
 import unittest
@@ -110,6 +111,51 @@ class LongHorizonRunSessionTests(unittest.TestCase):
             self.assertTrue(marker.exists())
             self.assertEqual([1, 2, 3], [record["turn_index"] for record in resumed["turns"]])
             self.assertEqual("resume", second.calls[0][0][5])
+
+    def test_final_artifacts_archived_with_sha256s(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            venue = root / "venue"
+            fixture = venue / "longhorizon-work" / "sample"
+            source = root / "sample.md"
+            scenario(source, count=1)
+            base = FakeRunner()
+
+            def runner(command, env, output_path):
+                (fixture / "docs").mkdir(parents=True, exist_ok=True)
+                (fixture / "docs" / "final.md").write_text("deliverable", encoding="utf-8")
+                return base(command, env, output_path)
+
+            manifest = run_session(
+                source, "off", venue, root / "out", runner=runner,
+                version_getter=lambda: "codex-cli test",
+                git_state_getter=lambda unused: "clean\n",
+            )
+            archived = root / "out" / "final-artifacts" / "docs" / "final.md"
+            self.assertEqual("deliverable", archived.read_text(encoding="utf-8"))
+            expected = hashlib.sha256(b"deliverable").hexdigest()
+            record = manifest["final_artifacts"]
+            self.assertTrue(record["fixture_present"])
+            self.assertEqual({"docs/final.md": expected}, record["files"])
+            written = json.loads((root / "out" / "manifest.json").read_text())
+            self.assertEqual(record, written["final_artifacts"])
+
+    def test_final_artifacts_missing_fixture_recorded(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            venue = root / "venue"
+            venue.mkdir()
+            source = root / "sample.md"
+            scenario(source, count=1)
+            manifest = run_session(
+                source, "off", venue, root / "out", runner=FakeRunner(),
+                version_getter=lambda: "codex-cli test",
+                git_state_getter=lambda unused: "clean\n",
+            )
+            record = manifest["final_artifacts"]
+            self.assertFalse(record["fixture_present"])
+            self.assertEqual({}, record["files"])
+            self.assertFalse((root / "out" / "final-artifacts").exists())
 
     def test_arm_environment_mapping(self):
         self.assertEqual("frontier", arm_profile("frontier"))
