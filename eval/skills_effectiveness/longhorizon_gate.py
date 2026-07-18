@@ -15,6 +15,7 @@ import re
 import shlex
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -522,7 +523,10 @@ def call_grader(api_key: str, prompt: str, user_payload: str) -> tuple[str, dict
             try:
                 with urllib.request.urlopen(request, timeout=240) as response:
                     body = response.read().decode("utf-8")
-            except urllib.error.URLError:
+            # ConnectionError covers http.client.RemoteDisconnected, which
+            # urllib raises UNWRAPPED (not as URLError) — without it the curl
+            # fallback never engaged and all 3 retries died the same way.
+            except (urllib.error.URLError, ConnectionError):
                 completed = subprocess.run(
                     [
                         "curl", "--silent", "--show-error", "--fail-with-body",
@@ -557,6 +561,7 @@ def call_grader(api_key: str, prompt: str, user_payload: str) -> tuple[str, dict
                 raise ValueError(f"{exc}; finish_reason={finish}; content_tail={content[-300:]!r}") from exc
         except Exception as exc:
             last_exc = exc
+            time.sleep(5 * (attempt + 1))
     raise last_exc
 
 

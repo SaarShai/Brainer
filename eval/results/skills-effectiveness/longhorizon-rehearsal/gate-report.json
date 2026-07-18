@@ -82,11 +82,10 @@
       "status": "PASS"
     },
     "grader_kappa": {
-      "error": "RuntimeError: R-2 pass 1: ValueError: grader response contains no JSON object; R-1 pass 2: RemoteDisconnected: Remote end closed connection without response; R-2 pass 2: ValueError: grader response contains no JSON object",
-      "kappa": null,
-      "pooled_requirement_labels": 0,
+      "kappa": 1.0,
+      "pooled_requirement_labels": 12,
       "raw_response_file": "/Users/za/Documents/Brainer/eval/results/skills-effectiveness/longhorizon-rehearsal/grader-raw-responses.json",
-      "status": "FAIL",
+      "status": "PASS",
       "threshold": 0.7
     },
     "mechanism_extraction": {
@@ -112,6 +111,6 @@
   "fixture_read_only_guard": {
     "status": "PASS"
   },
-  "overall": "FAIL",
+  "overall": "PASS",
   "schema_version": 1
 }

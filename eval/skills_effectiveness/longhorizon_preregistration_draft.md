@@ -194,6 +194,20 @@ for the randomized paired comparison.
 
 ## Budget & authorization
 
+Owner-directed condensation (2026-07-18, GPT stratum only): to bound wall
+time to ~1h, the first counted run is reduced from 6 scenarios to the 2
+highest-value NEGATIVE-SPACE scenarios — scenario-02 (semantic supersession /
+predecessor resurrection) and scenario-06 (post-compaction decision
+contradiction), each in both arms = 4 counted sessions. This is a SIGNAL
+PROBE, not the n=6 pilot: with n=2 the fraction thresholds collapse (≥2/3
+better = both scenarios; ≤1/3 = zero), so it can surface a strong directional
+signal or a clean null but cannot deliver even a PROMOTE-PROVISIONAL — that
+still requires the fuller scenario set under new authorization. KILL/DEMOTE
+conjuncts that trigger on n=2 remain binding (a guard that is worse on both
+negative-space scenarios is genuinely convicted). The remaining 4 scenarios and
+the other two strata stay within the cap below and may run later without
+re-authorization up to that cap.
+
 Hard cap PER SUBJECT-MODEL STRATUM: 2 paid rehearsal sessions + 12 main
 sessions (6 scenarios × 2 arms) + up to 8 extension sessions (4 scenarios ×
 2 arms), for 22 paid sessions maximum per stratum (66 across the three

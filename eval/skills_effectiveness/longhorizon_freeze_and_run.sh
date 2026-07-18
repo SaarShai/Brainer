@@ -62,7 +62,10 @@ preregistration.
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 mkdir -p "$RESULTS"
-for i in 1 2 3 4 5 6; do
+# Owner-directed condensation (2026-07-18): counted run reduced to the 2
+# highest-value negative-space scenarios (02 supersession, 06 post-compaction
+# contradiction) x 2 arms = 4 sessions, per the preregistration amendment.
+for i in 2 6; do
   id=$(printf "scenario-%02d" "$i")
   if [ $((i % 2)) -eq 1 ]; then arms="frontier off"; else arms="off frontier"; fi
   for arm in $arms; do
