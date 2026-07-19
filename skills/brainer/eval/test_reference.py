@@ -59,12 +59,14 @@ def reference_errors(text: str) -> list[str]:
 
 
 def source_order_errors(events: list[tuple[str, str]]) -> list[str]:
-    """Require every selected skill's source read before final selection."""
+    """Require source-grounded final selection before task-specific work."""
     sources_read: set[str] = set()
     for kind, value in events:
         if kind == "source_read":
             sources_read.add(value)
             continue
+        if kind == "task_work":
+            return ["task work preceded final selection"]
         if kind != "selection":
             continue
         identifiers = [item.strip() for item in value.split(",")]
@@ -120,6 +122,7 @@ class BrainerReferenceTests(unittest.TestCase):
         events = [
             ("source_read", "think"),
             ("selection", "think:borrow-before-building, think:falsify"),
+            ("task_work", "inspect routing machinery"),
         ]
         self.assertEqual([], source_order_errors(events))
 
@@ -133,6 +136,16 @@ class BrainerReferenceTests(unittest.TestCase):
 
     def test_no_skill_selection_needs_no_source_read(self) -> None:
         self.assertEqual([], source_order_errors([("selection", "none")]))
+
+    def test_task_work_before_selection_is_rejected(self) -> None:
+        events = [
+            ("source_read", "think"),
+            ("task_work", "inspect routing machinery"),
+            ("selection", "think:borrow-before-building"),
+        ]
+        self.assertEqual(
+            ["task work preceded final selection"], source_order_errors(events)
+        )
 
     def test_consumer_verification_marks_missing_checks_unavailable(self) -> None:
         text = SKILL.read_text(encoding="utf-8")

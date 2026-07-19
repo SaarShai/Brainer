@@ -55,10 +55,13 @@ to list skills. Do not keep it armed for later unrelated tasks.
 5. A selected skill's own mandatory routes, prerequisites, and conflict rules
    remain authoritative. User instructions and project rules outrank this
    selector.
-6. In the first useful progress update, state the final selection compactly:
-   skill or exact exported method, the task signal it addresses, and whether an
-   authority gate was satisfied or deferred.
-   Then perform the behavior; do not recite the index.
+6. Before any task-specific investigation or task tool call, state the final
+   selection compactly in the first useful progress update: skill or exact
+   exported method, the task signal it addresses, and whether an authority gate
+   was satisfied or deferred. Reads needed to obey higher-priority instructions
+   or to complete steps 1–5 are selection bootstrap, not task investigation.
+   Then perform the behavior; do not recite the index. A selection reported only
+   after the work is explanatory bookkeeping, not valid `/brainer` routing.
 7. At a real phase transition—such as diagnosis to implementation or
    implementation to closeout—reassess once. Drop methods whose trigger no
    longer applies; do not accumulate a permanent stack.
@@ -89,6 +92,8 @@ complete contract.
   useful. Keep the one that addresses the actual constraint.
 - **Name matching:** routing from words such as "plan" or "learn" without the
   skill's observable condition. Judge the task, not its vocabulary.
+- **Late selection:** investigating the task first and naming methods afterward.
+  The selection must shape the work, not rationalize it after the fact.
 - **Unsafe excerpts:** borrowing one convenient step from a `whole` skill while
   omitting its verifier, rollback, or authority boundary.
 - **Hidden scope expansion:** treating umbrella skill permission as permission

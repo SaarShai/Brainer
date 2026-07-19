@@ -24,15 +24,16 @@ queue, persistent recipe state, or default activation of experimental skills.
 | Canonical change mentioned without a rollout request | Defer authority-gated `propagate` | Infer cross-repo write scope from `/brainer` alone |
 | Subjective output with a written rubric | Select `eval-gate:whole` | Substitute self-critique for the gate |
 | Any non-empty shortlist | Read every shortlisted source before final selection | Announce exact methods, then load their source afterward |
+| Any task-specific investigation | Finalize and report the grounded selection first | Investigate first and name methods only in the final answer |
 
 ## Static verification
 
 `eval/test_reference.py` checks that every indexed source and heading exists,
 selection modes are valid, the natural-language and slash triggers remain
 present, default/evaluation-only exclusions remain explicit, and a planted
-broken anchor is rejected. It also includes a trace-order negative case that
-rejects selecting a skill before its source was read. These are the PASS/FAIL
-invariants for index liveness and selection ordering.
+broken anchor is rejected. It also includes trace-order negative cases that
+reject selection before its source read and task work before final selection.
+These are the PASS/FAIL invariants for index liveness and selection ordering.
 
 There is no deterministic invariant for whether a model chose the *best*
 methods from an ambiguous task; that requires behavioral evaluation. The skill
