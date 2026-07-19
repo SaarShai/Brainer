@@ -1,6 +1,6 @@
 ---
 name: brainer
-description: "Use when the user explicitly says `/brainer` or asks to use any relevant Brainer skill: inspect the optional-method reference, select the smallest task-relevant set, and apply only exported methods or complete skill contracts as declared. Never auto-fires."
+description: "Use when the user explicitly says `/brainer` or asks to use any relevant Brainer skill: inspect the optional-method reference, declare the exact smallest selection before task work, then apply only exported methods or complete skill contracts as declared. Never auto-fires."
 status: proposed
 disable-model-invocation: true
 auto-install: false
@@ -53,10 +53,19 @@ to list skills. Do not keep it armed for later unrelated tasks.
 5. A selected skill's own mandatory routes, prerequisites, and conflict rules
    remain authoritative. User instructions and project rules outrank this
    selector.
-6. In the first useful progress update, state the final selection compactly:
-   skill or exact exported method, the task signal it addresses, and whether an
-   authority gate was satisfied or deferred.
-   Then perform the behavior; do not recite the index.
+6. **Declaration gate — before task work.** After the routing reads in steps
+   1–4, but before any task-directed repository read, search, shell command,
+   mutation, or dispatch, emit exactly these two lines:
+
+   ```text
+   Brainer selection: <comma-separated exact identifiers, or none>
+   Why: <one observable task signal per selection; include satisfied/deferred authority>
+   ```
+
+   Reading `REFERENCE.md` and shortlisted source skills is allowed before this
+   declaration; investigating the task is not. A generic plan such as “I’ll
+   audit the routing machinery” does not pass the gate. Then perform the
+   behavior; do not recite the index.
 7. At a real phase transition—such as diagnosis to implementation or
    implementation to closeout—reassess once. Drop methods whose trigger no
    longer applies; do not accumulate a permanent stack.
@@ -112,7 +121,8 @@ judgment.
 
 - **Silent failure:** the agent acknowledges `/brainer` but never reads the
   reference or reports a grounded selection; the user receives ordinary agent
-  behavior disguised as routing.
+  behavior disguised as routing. The trace-order regression requires the exact
+  declaration before the first task-directed tool event.
 - **Rot when unwatched:** skill headings or activation contracts change while
   the reference still points at the old surface. The registered reference test
   checks every source and heading and includes a broken-anchor negative case.
