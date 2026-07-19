@@ -66,6 +66,13 @@ from pathlib import Path
 
 BRAINER = Path(__file__).resolve().parent.parent
 DOCS = BRAINER.parent
+APPROVED_SIBLINGS = frozenset({
+    "PROMPTER",
+    "farey-hecke",
+    "product images repo",
+    "screenery-design-master",
+    "screenery-lean",
+})
 SKIP = {".venv", "venv", "__pycache__", ".git", ".pytest_cache", "node_modules",
         ".mypy_cache", ".ruff_cache", "dist", "build"}
 # Agent-defs are tracked SOURCE (see .gitignore carve-out `.claude/*` +
@@ -256,13 +263,19 @@ def new_skills_for(sib: Path) -> list[str]:
     return sorted(canon - have - declined)
 
 
-def audit(repo: str | None = None) -> dict:
+def audit(repo: str | None = None, *, allow_unapproved: bool = False) -> dict:
     canon_files = skill_files(BRAINER)
     canon_skills = skill_names(BRAINER)
     canon_agents = agent_files(BRAINER)
-    sibs = sorted((d for d in DOCS.iterdir() if is_sibling(d)), key=lambda p: p.name)
+    sibs = sorted(
+        (d for d in DOCS.iterdir()
+         if is_sibling(d) and d.name in APPROVED_SIBLINGS),
+        key=lambda p: p.name,
+    )
     if repo is not None:
-        sibs = [d for d in sibs if d.name == repo]
+        target = DOCS / repo
+        sibs = [target] if (is_sibling(target)
+                            and (repo in APPROVED_SIBLINGS or allow_unapproved)) else []
     report = {"canonical_files": len(canon_files), "canonical_skills": len(canon_skills),
               "canonical_agents": len(canon_agents), "siblings": []}
     for sib in sibs:
@@ -314,6 +327,10 @@ def main() -> int:
     ap.add_argument("--files", action="store_true", help="list every DIFFERS file")
     ap.add_argument("--repo", help="audit only this sibling (exact dir name) — "
                     "post-propagation single-sibling verify")
+    ap.add_argument("--allow-unapproved", action="store_true",
+                    help="permit an explicit --repo outside Brainer's approved "
+                         "sibling allowlist; use only when the user names that "
+                         "additional target")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--classify", action="store_true",
                     help="split DIFFERS into STALE (byte-matches a historical "
@@ -348,6 +365,13 @@ def main() -> int:
                          "byte-compile every .py under the sibling's skills/ "
                          "(exit 1 on any failure). Requires --repo.")
     args = ap.parse_args()
+    if (args.repo and args.repo not in APPROVED_SIBLINGS
+            and not args.allow_unapproved):
+        approved = ", ".join(sorted(APPROVED_SIBLINGS))
+        print(f"repo {args.repo!r} is outside the approved Brainer sibling "
+              f"allowlist ({approved}); explicit user authorization plus "
+              "--allow-unapproved is required", file=sys.stderr)
+        return 2
     if args.post_check and not args.repo:
         print("--post-check requires --repo <sibling>", file=sys.stderr)
         return 2
@@ -381,7 +405,7 @@ def main() -> int:
               "require --repo <sibling> (one deliberate sibling at a time — "
               "installs write user-global settings)", file=sys.stderr)
         return 2
-    rep = audit(args.repo)
+    rep = audit(args.repo, allow_unapproved=args.allow_unapproved)
     if args.repo and not rep["siblings"]:
         print(f"no sibling repo named {args.repo!r} found alongside Brainer "
               f"(must have skills/ + install.sh)", file=sys.stderr)

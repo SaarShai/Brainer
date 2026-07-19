@@ -111,7 +111,7 @@ def main() -> int:
         # Throwaway sibling: has adopted the `demo` skill dir (so absent files
         # inside it are eligible for --apply-absent) but lacks BOTH the
         # gitignored state file and the tracked helper.py.
-        sib = docs / "sib"
+        sib = docs / "PROMPTER"
         write(sib / "skills" / "demo" / "SKILL.md", "---\nname: demo\n---\nbody\n")
         write(sib / "install.sh", "#!/usr/bin/env bash\n")
 
@@ -125,8 +125,10 @@ def main() -> int:
 
         # --- enumeration-level check: classify/audit must never even LIST
         # these as absent/differs rows (not just skip copying them). ---
-        audit_json = json.loads(run("--repo", "sib", "--json").stdout)
-        sib_report = next(s for s in audit_json["siblings"] if s["repo"] == "sib")
+        audit_json = json.loads(run("--repo", "PROMPTER", "--json").stdout)
+        sib_report = next(
+            s for s in audit_json["siblings"] if s["repo"] == "PROMPTER"
+        )
         absent = sib_report["absent"]
         check("gitignored runtime-state file absent from classify/audit report",
               not any("cafef00dcafef00d.json" in a for a in absent))
@@ -137,13 +139,13 @@ def main() -> int:
         check("tracked absent file (helper.py) still surfaces in the report",
               any("helper.py" in a for a in absent))
 
-        classify_out = run("--repo", "sib", "--classify").stdout
+        classify_out = run("--repo", "PROMPTER", "--classify").stdout
         check("gitignored files do not surface anywhere in --classify output",
               "cafef00dcafef00d.json" not in classify_out
               and "é.json" not in classify_out
               and "weird" not in classify_out)
 
-        out = run("--repo", "sib", "--apply-absent").stdout
+        out = run("--repo", "PROMPTER", "--apply-absent").stdout
 
         # (a) NEGATIVE: the gitignored runtime file must NOT be copied.
         copied_state = sib / "skills" / "demo" / "tools" / ".brainer" / "demo" \

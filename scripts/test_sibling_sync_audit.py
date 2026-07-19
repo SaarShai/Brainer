@@ -131,7 +131,7 @@ def main() -> int:
         check("canonical git-tracks .claude/agents/*.md", len(tracked) == 3)
 
         # --- sib: the drift case (stale + customized + missing + sibling-only) ---
-        sib = docs / "sib"
+        sib = docs / "PROMPTER"
         write(sib / "skills" / "dummy" / "SKILL.md", "---\nname: dummy\n---\nbody\n")
         write(sib / "skills" / "indent-demo" / "SKILL.md", INDENT_LOCAL)
         write(sib / "install.sh", "#!/usr/bin/env bash\n")
@@ -141,7 +141,7 @@ def main() -> int:
         # (reviewer.md deliberately absent -> new_agents)
 
         # --- sib2: opt-out case (declines an agent AND a skill via one file) ---
-        sib2 = docs / "sib2"
+        sib2 = docs / "screenery-lean"
         write(sib2 / "skills" / "dummy" / "SKILL.md", "---\nname: dummy\n---\nbody\n")
         write(sib2 / "skills" / "indent-demo" / "SKILL.md", INDENT_CANON)
         write(sib2 / "install.sh", "#!/usr/bin/env bash\n")
@@ -158,8 +158,8 @@ def main() -> int:
             return r
 
         # 1. JSON structure: agent track is populated and independent of skills.
-        data = json.loads(run("--repo", "sib", "--json").stdout)
-        s = next(x for x in data["siblings"] if x["repo"] == "sib")
+        data = json.loads(run("--repo", "PROMPTER", "--json").stdout)
+        s = next(x for x in data["siblings"] if x["repo"] == "PROMPTER")
         check("canonical_agents == 3", data["canonical_agents"] == 3)
         check("builder+verifier in agent_differs",
               f"{AGENTS}/builder.md" in s["agent_differs"]
@@ -172,7 +172,7 @@ def main() -> int:
               and s["absent_count"] == 0)
 
         # 2. classify: builder STALE, verifier CUSTOMIZED with its local line shown.
-        c = run("--repo", "sib", "--classify").stdout
+        c = run("--repo", "PROMPTER", "--classify").stdout
         check("classify marks builder AGENT-STALE",
               "AGENT-STALE" in c and "builder.md" in c)
         check("classify marks verifier AGENT-CUSTOMIZED",
@@ -184,7 +184,7 @@ def main() -> int:
 
         # 3. apply: STALE fast-forwards, absent adopts, CUSTOMIZED + sibling-only
         #    are left exactly as-is.
-        run("--repo", "sib", "--apply-stale", "--adopt-agents")
+        run("--repo", "PROMPTER", "--apply-stale", "--adopt-agents")
         check("STALE builder fast-forwarded to v2",
               (sib / AGENTS / "builder.md").read_text() == BUILDER_V2)
         check("absent reviewer adopted verbatim",
@@ -199,8 +199,8 @@ def main() -> int:
 
         # 4. opt-out: `agent:reviewer` declines the roster def; `dummy` still
         #    parses as a skill opt-out (shared file, both prefixes coexist).
-        d2 = json.loads(run("--repo", "sib2", "--json").stdout)
-        s2 = next(x for x in d2["siblings"] if x["repo"] == "sib2")
+        d2 = json.loads(run("--repo", "screenery-lean", "--json").stdout)
+        s2 = next(x for x in d2["siblings"] if x["repo"] == "screenery-lean")
         check("declined agent excluded from new_agents", "reviewer" not in s2["new_agents"])
         check("declined agent listed in declined_agents", s2["declined_agents"] == ["reviewer"])
         check("skill opt-out still parsed from shared file",
@@ -208,6 +208,24 @@ def main() -> int:
 
         # 5. write-guard: an apply flag without --repo refuses (exit 2).
         run("--adopt-agents", expect=2)
+
+        # 6. Scope guard: discovery omits adjacent lookalikes, and an explicit
+        #    non-approved target needs the deliberate override flag.
+        stray = docs / "accidental-sibling"
+        write(stray / "skills" / "dummy" / "SKILL.md", "---\nname: dummy\n---\nbody\n")
+        write(stray / "install.sh", "#!/usr/bin/env bash\n")
+        default_repos = {
+            item["repo"] for item in json.loads(run("--json").stdout)["siblings"]
+        }
+        check("default discovery excludes unapproved adjacent repos",
+              "accidental-sibling" not in default_repos)
+        run("--repo", "accidental-sibling", "--json", expect=2)
+        override = json.loads(run(
+            "--repo", "accidental-sibling", "--allow-unapproved", "--json"
+        ).stdout)
+        check("explicit override admits one user-authorized extra repo",
+              [item["repo"] for item in override["siblings"]]
+              == ["accidental-sibling"])
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

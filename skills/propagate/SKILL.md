@@ -15,6 +15,19 @@ copy-everything. Full topology + landmines:
 `wiki/concepts/brainer-multi-repo-topology.md` (in the canonical Brainer
 checkout — deliberately not a link: consumer repos don't vendor `wiki/`).
 
+## Approved repository boundary (hard)
+
+The standing propagation set is exactly:
+
+- canonical: `Brainer`
+- consumers: `PROMPTER`, `screenery-design-master`, `screenery-lean`,
+  `product images repo`, `farey-hecke`
+
+Do not discover or propagate to other adjacent repositories merely because they
+contain `skills/` and `install.sh`. An additional target requires the user to
+name it for the current task; then pass `--allow-unapproved` together with its
+explicit `--repo`. The no-argument audit lists only the approved consumers.
+
 ## Preconditions (hard)
 
 1. **Canonical is committed.** `--apply-stale` copies the canonical *working
