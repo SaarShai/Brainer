@@ -7,8 +7,8 @@ domain: "framework"
 tier: episodic
 confidence: 0.8
 created: "2026-07-06"
-updated: "2026-07-06"
-verified: "2026-07-06"
+updated: "2026-07-18"
+verified: "2026-07-18"
 sources: ["wiki/concepts/*-adoption-*.md", "wiki/concepts/*-measured*.md", "wiki/queries/*-adoption*.md", "wiki/queries/external-validation.md"]
 supersedes: []
 superseded-by:
@@ -68,6 +68,7 @@ it rather than paraphrasing into a false-precision label.
 | DeusData/codebase-memory-mcp (pure-C code-graph MCP, "covered by graphify" catalog-line claim) | ADOPTED (narrow), patterns only | verdict was "adopt", not "already covered" — Brainer ported **patterns, not the engine**: grep-augment PreToolUse hook, degraded-write + loud unsupported-query + ADR, hook-safety validator+CI-gate, artifact merge=ours+integrity, new impact-of-change skill, eval ground-truth gate; row 10 of the adoption matrix | [[concepts/framework-hardening-adoption]] |
 | topoteretes/cognee (heavyweight AI-memory platform; re-audit of the codebase-memory-mcp "covered by graphify" call) | ADOPTED (narrow, 1 real gap found on re-audit) | mostly already covered, but the re-audit is the **exact 1-in-5-flip precedent this index exists to prevent**: graphify emitted `inherits` edges but `impact.py:37` only consumed `calls` — a "covered" verdict from a catalog-line name-match had silently dropped a real, cheap capability; found only when re-audited head-to-head per [[concepts/adoption-covered-needs-merits-citation]]; bi-temporal intervals + hybrid-LSP resolution rejected as categorical infra-axiom rejects | [[concepts/framework-hardening-adoption]] |
 | "You're competing against people who treat Claude like an operating system" article (32 skills across 9 hubs: Anthropic/Rezvani/Composio/BehiSecc/Jezweb) | ADOPTED 1/32 | net one capability adopted — pre-install `skill_audit.py` folded into security-oversight (prompt-injection detection in SKILL.md prose + exfil-combo/symlink-escape/typosquat checks); rest already-covered (skill-authoring→learn-skill, self-improving-agent bundle→existing skills, research/rag→wiki-memory) or out-of-scope-by-design (domain verticals); a 34-agent review workflow initially mis-reported the whole Rezvani cluster as "vaporware/404" from bare-URL WebFetch false-negatives — a single gh-api spot-check overturned that and surfaced the one real candidate | [[concepts/claude-skills-ecosystem-scan-2026-07]] |
+| snarktank/ralph fresh-pass story queue + Brainer recipe-pilot harness | MEASURED-NULL, reverted | a three-arm PROMPTER pilot produced correct results in every arm, so no reliability gain was demonstrated; the 77.6% input-token reduction for queue-fresh came under synthetic 200 KB context pressure and does not establish billing savings or a real dropped-request fix. Harness/results/fixtures removed; reopen only after an observed natural multi-session failure. Recipe-index idea remains deferred, not implemented | [[queries/external-validation]] |
 
 ## Related
 

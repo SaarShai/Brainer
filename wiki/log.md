@@ -421,3 +421,5 @@ Created `concepts/when-to-extract-a-skill-md-section-into-tools.md` from `page` 
   images repo, farey-hecke, PROMPTER) propagated twice + vendored suites green in-sibling
   (canary 90/90, panel 4/4, brief_header 4/4, roster 46/46 in each). Canonical commits
   651e850..a7a1854; run_all_tests 88->89/89 green throughout.
+
+- 2026-07-18: recorded and closed the snarktank/ralph fresh-pass queue experiment. A controlled three-arm PROMPTER pilot was correct in every arm, so it showed no reliability lift; the queue-fresh arm's 77.6% lower input-token traffic occurred under synthetic 200 KB pressure and was not treated as a billing or real-problem claim. Removed the untracked harness, raw results, and disposable PROMPTER fixtures because unsupported orchestration machinery would add maintenance cost. The recipe-index direction remains deferred with no implementation retained. See [[queries/external-validation]] and [[queries/covered-verdicts]].
