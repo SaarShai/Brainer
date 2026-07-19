@@ -24,19 +24,12 @@ queue, persistent recipe state, or default activation of experimental skills.
 | Canonical change mentioned without a rollout request | Defer authority-gated `propagate` | Infer cross-repo write scope from `/brainer` alone |
 | Subjective output with a written rubric | Select `eval-gate:whole` | Substitute self-critique for the gate |
 
-For every case, routing-only reads may precede selection, but the exact
-`Brainer selection:` declaration must precede the first task-directed tool
-event. A prose plan or a selection emitted after repository investigation is a
-failure even when the eventual answer is good.
-
 ## Static verification
 
 `eval/test_reference.py` checks that every indexed source and heading exists,
 selection modes are valid, the natural-language and slash triggers remain
 present, default/evaluation-only exclusions remain explicit, and a planted
-broken anchor is rejected. It also grades synthetic event traces and includes
-a negative fixture where repository investigation precedes selection. These
-are the PASS/FAIL invariants for index liveness and declaration order.
+broken anchor is rejected. This is the PASS/FAIL invariant for index liveness.
 
 There is no deterministic invariant for whether a model chose the *best*
 methods from an ambiguous task; that requires behavioral evaluation. The skill

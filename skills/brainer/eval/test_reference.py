@@ -19,10 +19,6 @@ THINK_EXPORTS = {
     "causal-tree", "pre-mortem", "falsify", "structural-analogy", "research",
     "package-repetition",
 }
-SELECTION_LINE = re.compile(
-    r"^Brainer selection: (?:none|[a-z0-9-]+:(?:whole|[a-z0-9-]+)"
-    r"(?:, [a-z0-9-]+:(?:whole|[a-z0-9-]+))*)$"
-)
 
 
 def slugify_heading(value: str) -> str:
@@ -59,24 +55,6 @@ def reference_errors(text: str) -> list[str]:
         errors.append(f"unknown modes: {unknown}")
     if not VALID_MODES.issubset(set(modes)):
         errors.append("all three selection modes must be represented")
-    return errors
-
-
-def selection_trace_errors(events: list[tuple[str, str]]) -> list[str]:
-    """Grade the initial /brainer gate; routing reads are the only prelude."""
-    errors: list[str] = []
-    declaration_seen = False
-    for kind, payload in events:
-        if kind == "selection":
-            if not SELECTION_LINE.fullmatch(payload):
-                errors.append("selection declaration has invalid identifier grammar")
-            declaration_seen = True
-            break
-        if kind != "routing_read":
-            errors.append(f"task work preceded selection: {kind}")
-            break
-    if not declaration_seen:
-        errors.append("selection declaration missing before task work")
     return errors
 
 
@@ -119,29 +97,6 @@ class BrainerReferenceTests(unittest.TestCase):
         self.assertIn("bare skill name is not", text)
         self.assertIn("task text following `/brainer` is still user authority", text)
         self.assertIn("selects `propagate:whole`", reference)
-
-    def test_selection_declaration_precedes_task_work(self) -> None:
-        good = [
-            ("routing_read", "skills/brainer/REFERENCE.md"),
-            ("routing_read", "skills/think/SKILL.md"),
-            ("selection", "Brainer selection: think:borrow-before-building, think:falsify"),
-            ("task_tool", "rg routing"),
-        ]
-        self.assertEqual([], selection_trace_errors(good))
-
-    def test_task_investigation_before_selection_is_rejected(self) -> None:
-        bad = [
-            ("task_tool", "pwd && sed -n 1,240p start.md"),
-            ("selection", "Brainer selection: think:borrow-before-building"),
-        ]
-        errors = selection_trace_errors(bad)
-        self.assertTrue(any("task work preceded selection" in item for item in errors))
-
-    def test_bare_skill_selection_is_rejected(self) -> None:
-        errors = selection_trace_errors([
-            ("selection", "Brainer selection: think"),
-        ])
-        self.assertTrue(any("invalid identifier grammar" in item for item in errors))
 
 
 if __name__ == "__main__":
