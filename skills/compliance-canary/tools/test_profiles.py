@@ -80,6 +80,11 @@ def intent_records(root: Path, session: str) -> list[dict]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
+def visible_ledger_path(root: Path, session: str) -> Path:
+    sid = hashlib.sha256(session.encode()).hexdigest()[:16]
+    return root / "ledger" / f"{sid}.md"
+
+
 _TASK_ID_RE = re.compile(r"<task-id>(.*?)</task-id>")
 
 
@@ -155,11 +160,23 @@ def main() -> int:
         check("off-no-state-mutation", not (root / "state").exists())
         check("off-no-telemetry-mutation", not (root / "telemetry.jsonl").exists())
         check("off-no-intent-capture", not intent_path(root, "off").exists())
+        check("off-no-visible-ledger", not visible_ledger_path(root, "off").exists())
 
         no_evidence = run(root, [claim()], None, "default-frontier")
         check("default-is-frontier-and-fires",
               no_evidence.stdout.count("[claim_without_evidence]:") == 1,
               no_evidence.stdout)
+        visible = visible_ledger_path(root, "default-frontier")
+        check("default-materializes-visible-ledger", visible.is_file(), str(visible))
+        check("visible-ledger-captures-prompt",
+              "(r1-" in visible.read_text(encoding="utf-8")
+              and "continue" in visible.read_text(encoding="utf-8"),
+              visible.read_text(encoding="utf-8"))
+        run(root, [claim()], None, "default-frontier", prompt="record the second request")
+        visible_text = visible.read_text(encoding="utf-8")
+        check("visible-ledger-appends-across-turns",
+              visible_text.count("source=compliance-canary") == 2
+              and "record the second request" in visible_text, visible_text)
 
         fresh_success = [
             tool_use("m1", "Edit", {"file_path": "x.py", "old_string": "a", "new_string": "b"}),
@@ -684,6 +701,11 @@ def main() -> int:
               and recs[0]["text"].endswith("out of the logs")
               and recs[0]["sha256"] == hashlib.sha256(recs[0]["text"].encode()).hexdigest(),
               repr(recs))
+        visible_secret = visible_ledger_path(root, "intent-redact").read_text(encoding="utf-8")
+        check("visible-ledger-redacts-key-like-strings",
+              "sk-1234567890abcdef1234" not in visible_secret
+              and "ghp_abcdefghij1234567890abcd" not in visible_secret
+              and "[REDACTED]" in visible_secret, visible_secret)
 
         # R2-3: verbatim means verbatim — the persisted record keeps the
         # prompt's exact whitespace (capture_intent's own .strip() is gone).
@@ -764,6 +786,9 @@ def main() -> int:
         check("request-ledger-still-records-when-disabled",
               len(state_file(root, "intent-disabled").get("request_ledger", [])) == 1,
               repr(state_file(root, "intent-disabled")))
+        check("visible-ledger-still-records-when-disabled",
+              disabled_prompt in visible_ledger_path(root, "intent-disabled").read_text(encoding="utf-8"),
+              str(visible_ledger_path(root, "intent-disabled")))
         out = run(root, [claim("Working on it now.")], "frontier", "intent-disabled-resume",
                   prompt="Please draft the resumed plan")
         check("intent-capture-resumes-after-disabled",

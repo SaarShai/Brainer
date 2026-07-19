@@ -135,3 +135,7 @@ echo "  COMPLIANCE_CANARY_COOLDOWN=3       # suppress same probe within N turns"
 echo
 echo "Offline analyzer (no install required):"
 echo "  python3 skills/compliance-canary/tools/measure.py PATH/TO/transcript.jsonl"
+echo
+echo "Activation: start a NEW host session after installation. UserPromptSubmit hooks"
+echo "are not retroactive, so an already-running Codex/Claude session cannot create"
+echo "its visible ledger until the host has loaded this configuration."

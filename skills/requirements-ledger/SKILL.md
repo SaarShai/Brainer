@@ -33,6 +33,14 @@ shared repo file — concurrent sessions would clobber each other, which is the
 exact silent-drop failure. Override the dir with `REQUIREMENTS_LEDGER_DIR`.
 `.brainer/` is gitignored — the ledger is transient session state.
 
+When `compliance-canary` is wired, it creates this file on the first substantive
+prompt and appends a coarse row under `## Captured requests (mechanical,
+append-only)`. That bootstrap means an installed project always has a visible
+record, even when this optional workflow was not selected. You still own the
+agent-maintained atomic rows in `## Open`/`## Deferred`/`## Done`: split compound
+requests, add statuses and evidence, and reconcile them. Never rewrite or delete
+the hook-owned capture section.
+
 Print the file's absolute path in your first reply of the session and at every
 reconcile, so the user always knows where to look.
 

@@ -232,6 +232,12 @@ is the whole-hook `COMPLIANCE_CANARY_DISABLED=1`. Stored items are
 capped at `LEDGER_STORE_CAP=50`, surfaced at `LEDGER_SHOW_MAX=8` (with "+N more
 open").
 
+**Visible bootstrap.** On every substantive prompt, the hook also creates or
+appends `.brainer/ledger/<sha256(session_id)[:16]>.md`. Its append-only
+`Captured requests` section is a visible, scrubbed mirror of the coarse capture;
+it exists even when no agent selected the optional `requirements-ledger` skill.
+That skill remains responsible for the richer atomic rows and their statuses.
+
 ## Verbatim intent log
 
 The capture side of the no-drop guarantee (target architecture L0 "Intent

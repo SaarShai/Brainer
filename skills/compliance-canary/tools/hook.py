@@ -1311,6 +1311,70 @@ def intent_log_path(session_id: str) -> Path:
     return intent_dir() / f"{safe}.jsonl"
 
 
+def visible_ledger_dir() -> Path:
+    """Directory for the user-visible, per-session request capture."""
+    override = os.environ.get("REQUIREMENTS_LEDGER_DIR")
+    if override:
+        return Path(override)
+    return state_dir().parent / "ledger"
+
+
+def visible_ledger_path(session_id: str) -> Path:
+    return visible_ledger_dir() / f"{_session_hash(session_id or 'unknown')}.md"
+
+
+def _visible_ledger_text(text: str) -> str:
+    """Render one safe, bounded Markdown line from a user-authored prompt."""
+    scrubbed = _scrub_intent_text(text)
+    if scrubbed is None:
+        return "[REDACTION-FAILED]"
+    return (" ".join(scrubbed.split())[:2000]
+            .replace("<!--", "&lt;!--").replace("-->", "--&gt;"))
+
+
+def materialize_visible_ledger(session_id: str, turn: int, user_text: str) -> bool:
+    """Append a coarse visible capture row without touching agent-owned rows.
+
+    The requirements-ledger skill still splits compound requests and reconciles
+    statuses. This hook-owned section prevents an installed project from having
+    only an invisible JSON backstop when that optional workflow was not chosen.
+    """
+    if not user_text.strip():
+        return False
+    sid = _session_hash(session_id or "unknown")
+    text = _visible_ledger_text(user_text)
+    if not text:
+        return False
+    item_id = _ledger_make_id(turn, user_text)
+    line = (f"- [ ] ({item_id}) {text} "
+            f"<!-- id={item_id} turn={turn} type=capture status=open source=compliance-canary -->\n")
+    path = visible_ledger_path(session_id)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "a+", encoding="utf-8") as handle:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            handle.seek(0, os.SEEK_END)
+            if handle.tell() == 0:
+                handle.write(
+                    f"# Requirements ledger — session {sid}\n\n"
+                    "Authoritative visible record of captured user intent. "
+                    "The `requirements-ledger` workflow may add and reconcile "
+                    "atomic rows above the mechanical capture section.\n\n"
+                    "## Open\n\n"
+                    "<!-- Agent-maintained atomic rows belong here. -->\n\n"
+                    "## Deferred\n\n"
+                    "## Done (this session)\n\n"
+                    "## Captured requests (mechanical, append-only)\n"
+                )
+            handle.write(line)
+            handle.flush()
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        return True
+    except Exception as e:
+        log_err(f"visible-ledger-materialize-fail err={e!r}")
+        return False
+
+
 def _scrub_intent_text(text: str) -> str | None:
     """F5b (2026-07-18 audit): run the shared secret scrubber
     (skills/_shared/audit_redact.py, key-like strings ONLY —
@@ -3022,6 +3086,15 @@ def main() -> int:
         capture_text = intent_capture_text(prompt_text, prompt_text_user)
         if capture_text:
             capture_intent(intent_session_id, turn, capture_text)
+
+    # The hidden request ledger above is mechanically complete, but previously
+    # left users without a visible record unless an agent separately selected
+    # the optional requirements-ledger skill. Keep the mirror ahead of the
+    # disabled return: the request ledger itself intentionally survives that
+    # operator valve, and visibility must not reintroduce a blind spot.
+    visible_capture = intent_capture_text(prompt_text, prompt_text_user)
+    if visible_capture:
+        materialize_visible_ledger(session_id, turn, visible_capture)
 
     # Whole-hook break-glass valve. Checked HERE (not at entry) so the ledger
     # capture above has already run — the kill silences drift detection + all
