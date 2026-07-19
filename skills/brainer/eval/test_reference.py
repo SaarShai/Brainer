@@ -58,6 +58,24 @@ def reference_errors(text: str) -> list[str]:
     return errors
 
 
+def source_order_errors(events: list[tuple[str, str]]) -> list[str]:
+    """Require every selected skill's source read before final selection."""
+    sources_read: set[str] = set()
+    for kind, value in events:
+        if kind == "source_read":
+            sources_read.add(value)
+            continue
+        if kind != "selection":
+            continue
+        identifiers = [item.strip() for item in value.split(",")]
+        selected_skills = {
+            item.split(":", 1)[0] for item in identifiers if item != "none"
+        }
+        missing = sorted(selected_skills - sources_read)
+        return [f"selection preceded source read: {name}" for name in missing]
+    return ["final selection missing"]
+
+
 class BrainerReferenceTests(unittest.TestCase):
     def test_all_sources_and_headings_are_live(self) -> None:
         self.assertEqual(reference_errors(REFERENCE.read_text(encoding="utf-8")), [])
@@ -97,6 +115,29 @@ class BrainerReferenceTests(unittest.TestCase):
         self.assertIn("bare skill name is not", text)
         self.assertIn("task text following `/brainer` is still user authority", text)
         self.assertIn("selects `propagate:whole`", reference)
+
+    def test_selection_follows_every_shortlisted_source_read(self) -> None:
+        events = [
+            ("source_read", "think"),
+            ("selection", "think:borrow-before-building, think:falsify"),
+        ]
+        self.assertEqual([], source_order_errors(events))
+
+    def test_selection_before_source_read_is_rejected(self) -> None:
+        events = [
+            ("selection", "think:borrow-before-building, think:falsify"),
+            ("source_read", "think"),
+        ]
+        errors = source_order_errors(events)
+        self.assertEqual(["selection preceded source read: think"], errors)
+
+    def test_no_skill_selection_needs_no_source_read(self) -> None:
+        self.assertEqual([], source_order_errors([("selection", "none")]))
+
+    def test_consumer_verification_marks_missing_checks_unavailable(self) -> None:
+        text = SKILL.read_text(encoding="utf-8")
+        self.assertIn('echo "NOT AVAILABLE: $check"', text)
+        self.assertIn("`NOT AVAILABLE` is not a pass", text)
 
 
 if __name__ == "__main__":

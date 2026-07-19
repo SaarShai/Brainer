@@ -41,7 +41,9 @@ to list skills. Do not keep it armed for later unrelated tasks.
    distinct need or failure mode. An empty shortlist is valid and preferred
    over ceremony.
 4. Read every shortlisted source skill completely before final selection, then
-   respect the reference's mode:
+   respect the reference's mode. **Do not announce or finalize a selection
+   before these source reads finish**; a shortlist is provisional, not a
+   selection:
    - **method** — use only the named exported method. Read its source skill
      completely, report the exact stable method name, and do not treat unrelated
      sections as activated.
@@ -99,9 +101,19 @@ complete contract.
 
 ```bash
 python3 skills/brainer/eval/test_reference.py
-python3 scripts/check_skill_contracts.py
-python3 scripts/check_carrier_sync.py
 ```
+
+That vendored test is the portable check in every consumer. In the canonical
+Brainer checkout, run the additional repository checks only when present:
+
+```bash
+for check in scripts/check_skill_contracts.py scripts/check_carrier_sync.py; do
+  if test -f "$check"; then python3 "$check"; else echo "NOT AVAILABLE: $check"; fi
+done
+```
+
+`NOT AVAILABLE` is not a pass. Report it as unavailable; never claim a missing
+check succeeded.
 
 A selection is behaviorally sound only when it names a real task signal, uses
 an exported `method` or complete `whole` contract, respects authority, and
