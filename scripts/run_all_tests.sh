@@ -75,6 +75,7 @@ S|core|python3|skills/brainer-audit/tools/test_hooks.py|-|-
 S|core|python3|skills/brainer-audit/tools/test_path_confinement.py|-|-
 S|core|python3|skills/brainer-audit/tools/test_redaction.py|-|-
 S|core|python3|skills/brainer-audit/tools/test_detector_precision.py|-|-
+S|core|python3|skills/brainer/eval/test_reference.py|-|-
 S|core|python3|skills/loop-engineering/tools/test_loop_lint.py|-|-
 S|core|python3|skills/loop-engineering/tools/test_loop_run_monitor.py|-|-
 S|core|python3|skills/self-improvement-loops/eval/test_weakest_executor.py|-|-

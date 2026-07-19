@@ -93,9 +93,9 @@ graphify extract .
 
 `./install.sh` installs `graphify` from our maintained fork ([SaarShai/graphify@token-economy-patches](https://github.com/SaarShai/graphify/tree/token-economy-patches)) — published `graphifyy` 0.8.17 ships four bugs that affect our skill flow (see [skills/index-first/EVAL.md](skills/index-first/EVAL.md) for the bug list and impact). The installer prefers `pipx` and falls back to `python3 -m pip install --user`. Opt out with `./install.sh --no-graphify` (the wiki-memory and index-first skills degrade gracefully when the graph isn't present). After bootstrap only default-on hooks fire automatically; experimental process skills require explicit invocation during the effectiveness evaluation.
 
-## The catalog (30 skills)
+## The catalog (31 skills)
 
-**All 30 are symlinked and listed by `./install.sh`.** `compliance-canary` retains the default frontier service. Every suspect body is experimental/manual while paired evaluations run; bodies and tools remain installed for explicit FULL arms and rollback. Reinstall removes old managed hooks—including caveman's user-global SessionStart injection—for skills marked `auto-install: false`.
+**All 31 are symlinked and listed by `./install.sh`.** `compliance-canary` retains the default frontier service. Every suspect body is experimental/manual while paired evaluations run; bodies and tools remain installed for explicit FULL arms and rollback. Reinstall removes old managed hooks—including caveman's user-global SessionStart injection—for skills marked `auto-install: false`.
 
 | Skill | Trigger | Desc tokens | Notes |
 |---|---|---:|---|
@@ -116,12 +116,13 @@ graphify extract .
 | [wiki-refresh](skills/wiki-refresh/SKILL.md) | "refresh wiki / audit vs code" | 76 | Code-grounded reconcile of wiki pages (Keep/Update/Consolidate/Replace/Delete) via `audit-refs`; emits typed `contradicts:` edges. Ground-truth reconcile. |
 | [cache-lint](skills/cache-lint/SKILL.md) | before merging hooks/skills, CI | 71 | Static audit against Anthropic's 6 prompt-cache rules (ussumant lineage). FAIL on dynamic content above breakpoint, prefix mutation by Stop-hooks, etc. |
 | [task-retrospective](skills/task-retrospective/SKILL.md) | explicit `/retro` evaluation arm | 105 | Experimental/manual workflow retained for paired testing. |
+| [brainer](skills/brainer/SKILL.md) | `/brainer` or explicit umbrella request | 74 | Proposed/manual selector for the smallest relevant set of optional Brainer skills or exported methods; reads its reference only on explicit invocation. |
 | [brainer-audit](skills/brainer-audit/SKILL.md) | explicit Brainer/session audit | 67 | Report-only Brainer skill-use audit mode over normalized events. Detects missed skill triggers, unverified completion claims, output-filter opportunities, dropped requirements, write-gate bypasses, and task-retrospective boundary violations. Claude/Codex hooks are opt-in and marker-gated; Antigravity uses lower-fidelity sidecar snapshots. |
 | [loop-engineering](skills/loop-engineering/SKILL.md) | explicit `/loop-engineering` arm | 96 | Experimental/manual prose; deterministic loop tools remain independently callable. |
 | [self-improvement-loops](skills/self-improvement-loops/SKILL.md) | `/self-improvement-loops` (manual; slash-only) | 9 | Proposed policy for loops that may modify their own prompt, context, workflow, harness, or optimizer; adds locked surfaces, hidden held-out gates, artifact binding, and human approval boundaries over `loop-engineering`. |
 | [eval-gate](skills/eval-gate/SKILL.md) | "is this good enough / score this" | 117 | Score AI output against a written rubric before it ships — an LLM-as-judge quality gate for content output (drafts, posts, answers) and product output (an agent's reply, an extraction, a generated payload). Use when asked "is this good enough", "score/grade this", "would this pass", to gate output on quality, to regression-check a prompt/model/pipeline change, or to turn a flagged bad output into a permanent test case. Returns 0-5 + reason; exit code gates. **Default-installed** (v1.11; N≥50 validation pending). |
 
-**Always-resident context tax (resident sentinel block, all skill descriptions): ~7,990 bytes.** Roughly 0.9% of a 200K context window (byte-for-byte proxy; the `marketplace.json` `context_cost_estimate_tokens` figure predates the current catalog and needs remeasuring). Every skill's description is resident; hook scripts and `tools/` load only when fired, adding no resident tax.
+**Always-resident context tax (resident sentinel block, all skill descriptions): 8,407 bytes.** Roughly 1.2% of a 200K context window using the repo's chars/3.5 estimate (the `marketplace.json` `context_cost_estimate_tokens` figure predates the current catalog and needs remeasuring). Every skill's description is resident; hook scripts and `tools/` load only when fired, adding no resident tax.
 
 Full body cost (worst case, all loaded at once): ~36,200 tokens. In practice, only the triggered skill's body loads.
 
@@ -166,7 +167,7 @@ file is the authoritative, copy-pasteable clone/update/install/verify procedure.
 | Copilot / VS Code | per-project | use the root `AGENTS.md` shim from the Brainer checkout; there is no `install.sh --host copilot` flag |
 | any supported host (inside the brainer clone itself, e.g. contributing) | for that clone only | `./install.sh` (all supported hosts) or `./install.sh --host <claude-code|codex|gemini>` |
 
-The plugin (`brainer` v1.13.0) bundles all 30 skills. Its manifest declares the default-on `compliance-canary` hook plus optional `prompt-triage` and `context-keeper` hooks; `index-first` remains opt-in.
+The plugin (`brainer` v1.13.0) bundles all 31 skills. Its manifest declares the default-on `compliance-canary` hook plus optional `prompt-triage` and `context-keeper` hooks; `index-first` remains opt-in.
 
 ### Host install matrix
 
@@ -274,7 +275,7 @@ Built on prior work:
 
 ## Status
 
-- 30 skills written and lint-clean.
+- 31 skills written and lint-clean.
 - 3 hosts wired and verified (Claude Code, Codex, Gemini CLI).
 - Static-cost measurements published.
 - Live A/B harness ready; needs a healthy Ollama / explicit `ANTHROPIC_API_KEY` / `HF_TOKEN` to run.

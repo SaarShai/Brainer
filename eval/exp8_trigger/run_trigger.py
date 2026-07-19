@@ -32,6 +32,7 @@ RESULTS_DIR = HERE / "results"
 
 # Target prompts are exact-match cases: a companion cannot pass for the target.
 TARGET_CASES = [
+    ("/brainer use whichever optional Brainer skills or individual methods are relevant to this task", "brainer"),
     ("make your answers really terse and compact, drop the fluff", "caveman-ultra"),
     ("this plan has way too many steps — simplify it, cut the process", "lean-execution"),
     ("before we start this 6-file refactor, draft a phased plan first", "plan-first-execute"),

@@ -15,9 +15,27 @@ How to think and approach problems. **Manual-only** — invoke with `/think` (a 
 
 ## How to apply this
 
-- **Always** directives apply on every invocation.
-- **When-relevant** methods apply only when their trigger matches the task.
+- A direct `/think` invocation applies every **Always** directive plus only the
+  **When-relevant** methods whose trigger matches the task.
+- `/brainer` may select individual instructions named below as exported methods.
+  In that mode, apply only the named exports; do not treat `/think` as fully
+  invoked. Read this file completely first, and still follow every matched
+  **Mandatory route**.
 - Perform the behaviour; do not recite method names or narrate unnecessary procedure.
+
+## Exported methods for brainer
+
+Each bullet under **Always** and **When-relevant** is independently selectable
+by `/brainer`. Use these stable export IDs in the selection report:
+
+`truth-before-fluency`, `truth-before-agreement`, `goal-before-solution`,
+`smallest-safe-intervention`, `first-principles`, `borrow-before-building`,
+`actual-constraint`, `ranges-and-thresholds`, `diverge-before-converging`,
+`causal-tree`, `pre-mortem`, `falsify`, `structural-analogy`, `research`, and
+`package-repetition`.
+
+The IDs map in order to the four **Always** bullets and eleven
+**When-relevant** bullets below. No other section is independently exportable.
 
 ## Mandatory routes
 

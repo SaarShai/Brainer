@@ -18,7 +18,7 @@ class TriggerCasesTest(unittest.TestCase):
         self.assertEqual(len(targets), len(set(targets)))
         self.assertEqual(set(targets), trigger.live_skill_names())
         self.assertEqual(trigger.live_skill_names(), {name for name, _ in trigger.load_catalog()})
-        self.assertEqual(30, len(targets))
+        self.assertEqual(31, len(targets))
 
     def test_old_14_case_fixture_fails_current_coverage_assertion(self) -> None:
         errors = trigger.validate_cases(target_cases=trigger.TARGET_CASES[:14])
@@ -33,7 +33,7 @@ class TriggerCasesTest(unittest.TestCase):
 
     def test_manual_only_targets_retain_literal_slash_boundary(self) -> None:
         prompts = {target: prompt for prompt, target in trigger.TARGET_CASES}
-        for target in ("think", "baton", "self-improvement-loops"):
+        for target in ("brainer", "think", "baton", "self-improvement-loops"):
             with self.subTest(target=target):
                 self.assertRegex(prompts[target], rf"^/{target}(?:\s|$)")
 
@@ -93,7 +93,7 @@ class TriggerCasesTest(unittest.TestCase):
             cwd=HERE, capture_output=True, text=True, timeout=10,
         )
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertIn("PASS targets=30 compositions=3 live=30", result.stdout)
+        self.assertIn("PASS targets=31 compositions=3 live=31", result.stdout)
 
 
 if __name__ == "__main__":

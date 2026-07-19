@@ -218,7 +218,7 @@ default prompt stack or deterministic scoring path.
 > (16-skill default path, ~1080-token tax, the `skill-pulse` hook) were measured for
 > the **v1.6–v1.7-era catalog** and are kept as the **historical measurement record** —
 > the *deltas and mechanisms* (canary +0.44 ×2 families, prompt-triage −20.9%, memory>cold)
-> still hold. The **current catalog is 30 skills**; `skill-pulse` was absorbed into
+> still hold. The **current catalog is 31 skills**; `skill-pulse` was absorbed into
 > `compliance-canary` at v1.10, and `learn-skill` (v1.13) + `brainer-audit` ship `auto-install: false`.
 > The resident-tax figure was re-measured for the 30-skill catalog on 2026-07-18
 > (see the stacking-table row below); other absolute token counts below remain
