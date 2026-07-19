@@ -11,9 +11,11 @@ as the repo improves (see BASELINE.md for the day-one honest report).
 """
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -21,6 +23,26 @@ import run  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 RUN_PY = Path(__file__).resolve().parent / "run.py"
+
+
+def _write(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def test_marketplace_count_discovers_package_root_skills():
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        marketplace = root / ".claude-plugin" / "marketplace.json"
+        _write(marketplace, json.dumps({"plugins": [{"source": "./plugin"}]}))
+        plugin = root / "plugin"
+        _write(plugin / ".claude-plugin" / "plugin.json", json.dumps({"name": "demo"}))
+        _write(plugin / "skills" / "alpha" / "SKILL.md", "alpha\n")
+        _write(plugin / "skills" / "beta" / "SKILL.md", "beta\n")
+        _write(plugin / "skills" / "not-a-skill" / "README.md", "no\n")
+        _write(plugin / "skills" / "_shared" / "SKILL.md", "internal\n")
+
+        assert run._marketplace_skill_count(marketplace) == 2
 
 
 def test_raising_check_is_reported_as_fail_not_crash():

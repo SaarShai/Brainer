@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assert .claude-plugin/marketplace.json stays in sync with skills/.
+"""Assert the native Claude plugin package stays in sync with skills/.
 
 WHY: marketplace.json's skills[] array drifted from the real skill set at least
 TWICE (wiki/log.md: v1.4.0 "20 skills", then the v1.7 "15->16" change), because
@@ -8,8 +8,10 @@ nothing reconciled it — carrier-sync only covers CLAUDE/AGENTS/GEMINI.md. The
 "16 skills". This converts that recurring manifest-drift class into a CI failure.
 
 Fails if:
-  - plugins[0].skills[] != the set of real skill dirs (dirs not starting with
-    '_' that contain a SKILL.md — the SAME predicate as check_carrier_sync.py);
+  - the marketplace does not source the bounded plugin/ package;
+  - the package contains anything beyond its manifest, skills, and hooks;
+  - a hook command references a missing/non-executable script or the package
+    differs from the three default-on handlers;
   - any "<N> skills" / "All <N> skills" integer in the top-level description or
     the plugin description disagrees with the real skill count.
 
@@ -23,9 +25,27 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-SKILLS = REPO / "skills"
 MANIFEST = REPO / ".claude-plugin" / "marketplace.json"
-HOOK_EVENT_RE = re.compile(r'hooks\.setdefault\("([^"]+)"')
+PLUGIN_ROOT = REPO / "plugin"
+SKILLS = PLUGIN_ROOT / "skills"
+PLUGIN_MANIFEST = PLUGIN_ROOT / ".claude-plugin" / "plugin.json"
+HOOKS_MANIFEST = PLUGIN_ROOT / "hooks" / "hooks.json"
+HOOK_ROUTER = PLUGIN_ROOT / "hooks" / "project_hook_precedence.py"
+
+EXPECTED_PLUGIN_ROUTES = {
+    "UserPromptSubmit": (
+        ".claude/skills/compliance-canary/tools/hook.sh",
+        "skills/compliance-canary/tools/hook.sh",
+    ),
+    "PreCompact": (
+        ".claude/skills/context-keeper/tools/hook.sh",
+        "skills/context-keeper/tools/hook.sh",
+    ),
+    "SessionEnd": (
+        ".claude/skills/context-keeper/tools/archive.sh",
+        "skills/context-keeper/tools/archive.sh",
+    ),
+}
 
 
 def discover_skill_dirs() -> set[str]:
@@ -34,51 +54,6 @@ def discover_skill_dirs() -> set[str]:
     # would wrongly include stray files and miss the SKILL.md requirement.
     return {d.name for d in SKILLS.iterdir()
             if d.is_dir() and not d.name.startswith("_") and (d / "SKILL.md").is_file()}
-
-
-def _unquote(value: str) -> str:
-    """Strip surrounding YAML double/single quotes and unescape `\\"`/`\\\\`.
-
-    Descriptions (and any value containing `: `) ship as quoted YAML scalars so
-    `yaml.safe_load` accepts them; a naive `split(":", 1)[1].strip()` would
-    otherwise capture the surrounding quotes. Normalize back to the logical
-    value here.
-    """
-    v = value.strip()
-    if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
-        inner = v[1:-1]
-        if v[0] == '"':
-            inner = inner.replace('\\"', '"').replace("\\\\", "\\")
-        return inner
-    return v
-
-
-def frontmatter_value(path: Path, key: str) -> str:
-    text = path.read_text(encoding="utf-8", errors="replace")
-    if not text.startswith("---\n"):
-        return ""
-    end = text.find("\n---\n", 4)
-    if end == -1:
-        return ""
-    for line in text[4:end].splitlines():
-        if line.strip().startswith(f"{key}:"):
-            return _unquote(line.split(":", 1)[1])
-    return ""
-
-
-def auto_install_hook_skills() -> set[tuple[str, str]]:
-    expected: set[tuple[str, str]] = set()
-    for skill_dir in SKILLS.iterdir():
-        skill_md = skill_dir / "SKILL.md"
-        installer = skill_dir / "tools" / "install.sh"
-        if not skill_md.is_file() or not installer.is_file():
-            continue
-        if frontmatter_value(skill_md, "auto-install").lower() != "true":
-            continue
-        events = HOOK_EVENT_RE.findall(installer.read_text(encoding="utf-8", errors="replace"))
-        for event in events:
-            expected.add((skill_dir.name, event))
-    return expected
 
 
 def main() -> int:
@@ -91,13 +66,21 @@ def main() -> int:
     n = len(dirs)
 
     plugin = (data.get("plugins") or [{}])[0]
-    listed = set(plugin.get("skills", []))
-    missing = dirs - listed
-    extra = listed - dirs
-    if missing:
-        errors.append(f"skills[] is MISSING real skills: {sorted(missing)}")
-    if extra:
-        errors.append(f"skills[] lists NON-EXISTENT skills: {sorted(extra)}")
+    if plugin.get("source") != "./plugin":
+        errors.append('plugins[0].source must be "./plugin" (the bounded package root)')
+    allowed_package_entries = {".claude-plugin", "skills", "hooks"}
+    if PLUGIN_ROOT.is_dir():
+        extras = {path.name for path in PLUGIN_ROOT.iterdir()} - allowed_package_entries
+        if extras:
+            errors.append(f"plugin package has unexpected root entries: {sorted(extras)}")
+    if not PLUGIN_MANIFEST.is_file():
+        errors.append(".claude-plugin/plugin.json is missing")
+    else:
+        package = json.loads(PLUGIN_MANIFEST.read_text(encoding="utf-8"))
+        if package.get("name") != "brainer":
+            errors.append('.claude-plugin/plugin.json name must be "brainer"')
+        if "skills" in package or "hooks" in package:
+            errors.append("plugin.json must use default root skills/ and hooks/ locations")
 
     # "N skills" / "All N skills" prose must equal the real count.
     for label, text in (("top-level description", data.get("description", "")),
@@ -106,25 +89,64 @@ def main() -> int:
             if int(m.group(1)) != n:
                 errors.append(f'{label} says "{m.group(0)}" but there are {n} skills')
 
-    hooks = plugin.get("hooks", [])
-    declared_hooks = set()
-    for hook in hooks:
-        command = hook.get("command", "")
-        event = hook.get("event", "")
-        m = re.search(r"/skills/([\w-]+)/tools/", command)
-        if m and event:
-            declared_hooks.add((m.group(1), event))
-    for skill, event in sorted(auto_install_hook_skills() - declared_hooks):
-        errors.append(f"auto-install hook missing from plugin hooks: {skill} {event}")
+    declared_hooks: set[tuple[str, str, str]] = set()
+    if not HOOKS_MANIFEST.is_file():
+        errors.append("hooks/hooks.json is missing")
+    else:
+        if not HOOK_ROUTER.is_file():
+            errors.append("hooks/project_hook_precedence.py is missing")
+        hooks_data = json.loads(HOOKS_MANIFEST.read_text(encoding="utf-8"))
+        for event, groups in hooks_data.get("hooks", {}).items():
+            for group in groups:
+                for handler in group.get("hooks", []):
+                    args = handler.get("args", [])
+                    expected_route = EXPECTED_PLUGIN_ROUTES.get(event)
+                    if expected_route is None:
+                        errors.append(f"unexpected default plugin hook event: {event}")
+                        continue
+                    expected_args = [
+                        "${CLAUDE_PLUGIN_ROOT}/hooks/project_hook_precedence.py",
+                        event,
+                        *expected_route,
+                    ]
+                    if handler.get("type") != "command" or handler.get("command") != "python3":
+                        errors.append(
+                            f"{event} plugin hook must invoke project_hook_precedence.py with python3"
+                        )
+                        continue
+                    if args != expected_args:
+                        errors.append(
+                            f"{event} plugin route differs from expected structural precedence: "
+                            f"expected={expected_args!r}, got={args!r}"
+                        )
+                        continue
+                    plugin_relative = expected_route[1]
+                    parts = Path(plugin_relative).parts
+                    skill = parts[1]
+                    script_name = parts[-1]
+                    declared_hooks.add((skill, event, script_name))
+                    script = PLUGIN_ROOT / plugin_relative
+                    if not script.is_file() or not script.stat().st_mode & 0o111:
+                        errors.append(f"hook script missing or not executable: {plugin_relative}")
 
+    intended_hooks = {
+        ("compliance-canary", "UserPromptSubmit", "hook.sh"),
+        ("context-keeper", "PreCompact", "hook.sh"),
+        ("context-keeper", "SessionEnd", "archive.sh"),
+    }
+    if declared_hooks != intended_hooks:
+        errors.append(
+            f"plugin hooks differ from intended defaults: missing={sorted(intended_hooks - declared_hooks)}, "
+            f"extra={sorted(declared_hooks - intended_hooks)}"
+        )
     if errors:
         print("marketplace-sync FAILED:")
         for e in errors:
             print(f"  - {e}")
-        print("\nFix: add/remove the skill in .claude-plugin/marketplace.json "
-              "skills[] and update the 'N skills' prose to match skills/.")
+        print("\nFix: keep plugin/ limited to its manifest, skills, and hooks, "
+              "and update the 'N skills' prose to match plugin/skills/.")
         return 1
-    print(f"marketplace-sync OK: {n} skills, array + prose in sync.")
+    print(f"marketplace-sync OK: bounded plugin packages {n} skills and 3 default hooks; prose in sync.")
     return 0
 
 

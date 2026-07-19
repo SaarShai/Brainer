@@ -172,6 +172,10 @@ def main() -> int:
               "(r1-" in visible.read_text(encoding="utf-8")
               and "continue" in visible.read_text(encoding="utf-8"),
               visible.read_text(encoding="utf-8"))
+        check("visible-ledger-does-not-claim-task-status",
+              "Captured does not mean unfinished" in visible.read_text(encoding="utf-8")
+              and "not a task-status claim" in visible.read_text(encoding="utf-8"),
+              visible.read_text(encoding="utf-8"))
         run(root, [claim()], None, "default-frontier", prompt="record the second request")
         visible_text = visible.read_text(encoding="utf-8")
         check("visible-ledger-appends-across-turns",

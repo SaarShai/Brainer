@@ -1,16 +1,5 @@
 {
   "hooks": {
-    "PreCompact": [
-      {
-        "hooks": [
-          {
-            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.codex/skills/context-keeper/tools/hook.sh\"",
-            "type": "command"
-          }
-        ],
-        "matcher": "*"
-      }
-    ],
     "Stop": [
       {
         "hooks": [

@@ -1,77 +1,17 @@
 {
   "$schema": "https://claude.com/schemas/plugin-marketplace.json",
   "name": "brainer",
-  "version": "1.13.0",
+  "version": "1.14.1",
   "description": "Token/context-efficient skills for AI coding agents. 31 skills span verification, continuity, wiki trust, retrieval, output filtering, loop gates, evaluation, and explicit/manual process workflows. The default frontier prompt surface is intentionally small; historical per-skill savings and current limitations are documented in eval/FINDINGS.md.",
-  "homepage": "https://github.com/SaarShai/Brainer",
-  "license": "MIT",
-  "author": "Saar Shai",
+  "owner": {
+    "name": "Saar Shai"
+  },
   "plugins": [
     {
       "name": "brainer",
-      "version": "1.14.0",
+      "version": "1.14.1",
       "description": "All 31 skills bundled. compliance-canary auto-wires its quiet frontier profile: silent pending-intent state plus compact compliance-aware verification. Legacy broad probes and periodic re-anchor are disabled by default. Experimental process bodies and Brainer-audit hooks remain opt-in; deterministic tools stay callable.",
-      "source": {
-        "type": "git-subdirectory",
-        "directory": "skills/"
-      },
-      "context_cost_estimate_tokens": 1750,
-      "skills": [
-        "baton",
-        "brainer",
-        "brainer-audit",
-        "cache-lint",
-        "caveman-ultra",
-        "compliance-canary",
-        "context-keeper",
-        "eval-gate",
-        "fable-mode",
-        "impact-of-change",
-        "index-first",
-        "lean-execution",
-        "learn-skill",
-        "loop-engineering",
-        "output-filter",
-        "plan-first-execute",
-        "prompt-triage",
-        "propagate",
-        "requirements-ledger",
-        "security-oversight",
-        "self-improvement-loops",
-        "semantic-diff",
-        "standing-orders",
-        "task-retrospective",
-        "team-lead",
-        "think",
-        "verify-before-completion",
-        "wayfinder",
-        "wiki-memory",
-        "wiki-refresh",
-        "write-gate"
-      ],
-      "hooks": [
-        {
-          "event": "UserPromptSubmit",
-          "command": "bash ${PLUGIN_DIR}/skills/compliance-canary/tools/hook.sh",
-          "matcher": "*",
-          "optional": false,
-          "description": "compliance-canary default-on drift watcher and requirements-ledger guard."
-        },
-        {
-          "event": "UserPromptSubmit",
-          "command": "bash ${PLUGIN_DIR}/skills/prompt-triage/tools/hook.sh",
-          "matcher": "*",
-          "optional": true,
-          "description": "prompt-triage classifier; opt-in via plugin config."
-        },
-        {
-          "event": "PreCompact",
-          "command": "bash ${PLUGIN_DIR}/skills/context-keeper/tools/hook.sh",
-          "matcher": "*",
-          "optional": true,
-          "description": "context-keeper structured-state extraction before compaction."
-        }
-      ]
+      "source": "./plugin"
     }
   ]
 }

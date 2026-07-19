@@ -35,9 +35,10 @@ exact silent-drop failure. Override the dir with `REQUIREMENTS_LEDGER_DIR`.
 
 When `compliance-canary` is wired, it creates this file on the first substantive
 prompt and appends a coarse row under `## Captured requests (mechanical,
-append-only)`. That bootstrap means an installed project always has a visible
-record, even when this optional workflow was not selected. You still own the
-agent-maintained atomic rows in `## Open`/`## Deferred`/`## Done`: split compound
+append-only; not a task-status claim)`. That bootstrap means an installed
+project always has a visible record, even when this optional workflow was not
+selected. The agent still owns the atomic rows in
+`## Open`/`## Deferred`/`## Done`: split compound
 requests, add statuses and evidence, and reconcile them. Never rewrite or delete
 the hook-owned capture section.
 

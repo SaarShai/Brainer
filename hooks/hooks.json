@@ -1,0 +1,52 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/project_hook_precedence.py",
+              "UserPromptSubmit",
+              ".claude/skills/compliance-canary/tools/hook.sh",
+              "skills/compliance-canary/tools/hook.sh"
+            ]
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/project_hook_precedence.py",
+              "PreCompact",
+              ".claude/skills/context-keeper/tools/hook.sh",
+              "skills/context-keeper/tools/hook.sh"
+            ]
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/project_hook_precedence.py",
+              "SessionEnd",
+              ".claude/skills/context-keeper/tools/archive.sh",
+              "skills/context-keeper/tools/archive.sh"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

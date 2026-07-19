@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -146,6 +147,45 @@ def test_hook_workers_normalize_typed_fields_without_traceback():
         assert "structured memory saved" in valid_hook.stdout, valid_hook.stdout
         run(archive, {"transcript_path": str(transcript), "cwd": str(tmp)})
         assert copied.read_bytes() == transcript.read_bytes()
+
+
+def test_installed_hook_writes_checkpoint_to_active_project_not_plugin_cache():
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td)
+        project = tmp / "project"
+        cache_tools = tmp / "plugin-cache" / "brainer" / "skills" / "context-keeper" / "tools"
+        project.mkdir()
+        cache_tools.mkdir(parents=True)
+        for name in ("hook.py", "extract.py"):
+            shutil.copy2(Path(__file__).parent.parent / name, cache_tools / name)
+
+        transcript = tmp / "session.jsonl"
+        transcript.write_text(json.dumps(_user("preserve this context")) + "\n", encoding="utf-8")
+        env = {key: value for key, value in os.environ.items()
+               if key not in {"CLAUDE_PROJECT_DIR", "TOKEN_ECONOMY_ROOT"}}
+        env["PYTHONDONTWRITEBYTECODE"] = "1"
+        proc = subprocess.run(
+            [sys.executable, str(cache_tools / "hook.py")],
+            input=json.dumps({
+                "transcript_path": str(transcript),
+                "session_id": "cache-path-test",
+                "trigger": "manual",
+                "cwd": str(project),
+            }),
+            text=True,
+            capture_output=True,
+            cwd=project,
+            env=env,
+        )
+
+        assert proc.returncode == 0, proc.stderr
+        assert "structured memory saved" in proc.stdout, proc.stdout
+        checkpoints = list((project / ".brainer" / "sessions").glob("*.md"))
+        assert len(checkpoints) == 1, checkpoints
+        cache_checkpoints = list(
+            (tmp / "plugin-cache" / "brainer" / ".brainer" / "sessions").glob("*.md")
+        )
+        assert not cache_checkpoints, cache_checkpoints
 
 
 def test_malformed_lines_do_not_crash_or_block_extraction():

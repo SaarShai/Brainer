@@ -154,6 +154,35 @@ def check_h1b() -> tuple[str, str, bool, str]:
     return ("H1b", "token", ok, reason)
 
 
+def _marketplace_skill_count(marketplace_path: Path) -> int | None:
+    """Count skills in the first marketplace plugin's package root."""
+    try:
+        marketplace = json.loads(marketplace_path.read_text(encoding="utf-8"))
+        plugins = marketplace.get("plugins", [])
+        if not isinstance(plugins, list) or not plugins or not isinstance(plugins[0], dict):
+            return None
+        plugin = plugins[0]
+
+        source = plugin.get("source")
+        if not isinstance(source, str) or not source.startswith("./"):
+            return None
+        plugin_root = marketplace_path.parent.parent / source[2:]
+        plugin_manifest = plugin_root / ".claude-plugin" / "plugin.json"
+        package = json.loads(plugin_manifest.read_text(encoding="utf-8"))
+        if not isinstance(package, dict) or "skills" in package:
+            return None
+
+        skills_root = plugin_root / "skills"
+        return sum(
+            1 for skill_dir in skills_root.iterdir()
+            if skill_dir.is_dir()
+            and not skill_dir.name.startswith("_")
+            and (skill_dir / "SKILL.md").is_file()
+        )
+    except (OSError, ValueError, TypeError):
+        return None
+
+
 def check_h1c() -> tuple[str, str, bool, str]:
     """Skill-count consistency: skills/ dirs vs README vs marketplace vs SKILLS_INDEX."""
     skills_dirs = sorted(p.parent.name for p in (REPO / "skills").glob("*/SKILL.md"))
@@ -164,14 +193,7 @@ def check_h1c() -> tuple[str, str, bool, str]:
     n_readme = int(m.group(1)) if m else None
 
     marketplace_path = REPO / ".claude-plugin" / "marketplace.json"
-    n_marketplace = None
-    try:
-        mp = json.loads(marketplace_path.read_text(encoding="utf-8"))
-        plugins = mp.get("plugins", [])
-        if plugins and isinstance(plugins, list):
-            n_marketplace = len(plugins[0].get("skills", []))
-    except Exception:
-        n_marketplace = None
+    n_marketplace = _marketplace_skill_count(marketplace_path)
 
     index_path = REPO / "skills" / "SKILLS_INDEX.md"
     n_index = None

@@ -24,6 +24,8 @@ KNOWN_KINDS = {
     "workflow_nomination",
     "tool_path_touch",
     "whitespace_only_edit",
+    "new_machinery_no_borrow_checkpoint",
+    "delegated_diagnosis",
 }
 
 REQUIRED_BY_KIND = {
@@ -40,6 +42,8 @@ REQUIRED_BY_KIND = {
     "workflow_nomination": ["min_tool_calls"],
     "tool_path_touch": ["path_pattern"],
     "whitespace_only_edit": ["min_chars"],
+    "new_machinery_no_borrow_checkpoint": [],
+    "delegated_diagnosis": [],
 }
 
 REGEX_FIELDS = [

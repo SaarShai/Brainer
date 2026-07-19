@@ -119,6 +119,7 @@ S|core|python3|skills/learn-skill/tools/test_hooks.py|-|-
 S|core|python3|skills/learn-skill/tools/test_install_merge.py|-|-
 S|core|python3|skills/_shared/test_transcript_norm.py|-|-
 S|core|python3|scripts/test_gen_hooks_map.py|-|-
+S|core|python3|scripts/test_plugin_hook_precedence.py|-|-
 S|core|python3|scripts/test_test_roster.py|-|-
 S|core|python3|scripts/test_mine_transcripts.py|-|-
 S|core|python3|scripts/test_sibling_sync_audit.py|-|-

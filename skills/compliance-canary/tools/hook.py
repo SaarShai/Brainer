@@ -1356,15 +1356,16 @@ def materialize_visible_ledger(session_id: str, turn: int, user_text: str) -> bo
             handle.seek(0, os.SEEK_END)
             if handle.tell() == 0:
                 handle.write(
-                    f"# Requirements ledger — session {sid}\n\n"
-                    "Authoritative visible record of captured user intent. "
-                    "The `requirements-ledger` workflow may add and reconcile "
-                    "atomic rows above the mechanical capture section.\n\n"
+                    f"# Session capture — {sid}\n\n"
+                    "Mechanical record of user requests captured in this session. "
+                    "Captured does not mean unfinished. The optional "
+                    "`requirements-ledger` workflow may add and reconcile "
+                    "status-bearing atomic rows above the capture section.\n\n"
                     "## Open\n\n"
                     "<!-- Agent-maintained atomic rows belong here. -->\n\n"
                     "## Deferred\n\n"
                     "## Done (this session)\n\n"
-                    "## Captured requests (mechanical, append-only)\n"
+                    "## Captured requests (mechanical, append-only; not a task-status claim)\n"
                 )
             handle.write(line)
             handle.flush()

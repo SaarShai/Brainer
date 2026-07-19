@@ -657,6 +657,10 @@ for tool_installer in "$SRC"/*/tools/install.sh; do
     echo "  → $skill_name [skip] opt-in (auto-install: false) — enable with: bash $tool_installer"
     continue
   fi
+  if [ -n "$PROJECT_DIR" ] && { [ "$skill_name" = "compliance-canary" ] || [ "$skill_name" = "context-keeper" ]; }; then
+    echo "  → $skill_name [skip] consumer hooks are wired below without mutating Brainer host config"
+    continue
+  fi
   echo "  → $skill_name"
   if [ "$DRY_RUN" = "1" ]; then
     echo "    DRY: bash $tool_installer"
@@ -687,25 +691,20 @@ done
 # non-Brainer hook; never overwrite a corrupt settings.json). The marker-gated
 # brainer-audit skill and any future hook skill this table doesn't yet name are
 # reported via a loud [warn], never silently skipped.
-# claude-code only (--host constrains): the .codex/hooks.json / .gemini
-# equivalents follow the same script-location limitation and are named in the
-# loud warn below rather than silently skipped.
+# Host-specific command variables and JSON shapes are declared below for the
+# supported claude-code and codex consumer hook surfaces.
 project_wire_skill_hooks() {
   if [ "$DRY_RUN" = "1" ]; then
-    echo "    DRY: wire per-skill hooks into $DEST_ROOT/.claude/settings.json (claude-code)"
+    echo "    DRY: wire per-skill hooks into consumer config for $HOSTS_REQUESTED"
     return 0
   fi
-  case ",$HOSTS_REQUESTED," in *",claude-code,"*) ;; *)
-    echo "    [warn] --project + --host without claude-code: skipping consumer hook-wiring (only claude-code is supported by this generic pass)"
-    return 0 ;;
-  esac
-  SRC="$SRC" DEST_ROOT="$DEST_ROOT" python3 - <<'PY'
+  SRC="$SRC" DEST_ROOT="$DEST_ROOT" HOSTS_REQUESTED="$HOSTS_REQUESTED" python3 - <<'PY'
 import json, os, re, sys
 from pathlib import Path
 
 src = Path(os.environ["SRC"])
 dest_root = Path(os.environ["DEST_ROOT"])
-settings_path = dest_root / ".claude" / "settings.json"
+hosts_requested = os.environ["HOSTS_REQUESTED"].split(",")
 
 def skill_is_optin(skill_md_text):
     return bool(re.search(r'^auto-install:\s*false', skill_md_text, re.M))
@@ -720,100 +719,68 @@ def skill_is_optin(skill_md_text):
 # single-command claude-code hook this generic pass can safely reconstruct
 # (brainer-audit) is excluded here and named in the loud warn the caller prints
 # either way because it does not have a single hook shape.
-KNOWN_HOOK_INSTALLERS = {
-    # skill_name: [(event, shell_var_name_in_that_installer), ...]
-    "compliance-canary": [("UserPromptSubmit", "HOOK_CMD")],
-    "context-keeper":    [("PreCompact", "HOOK_CMD"), ("SessionEnd", "ARCHIVE_CMD")],
-    "index-first":       [("PreToolUse", "HOOK_CMD")],
-    "learn-skill":       [("SessionEnd", "END_CMD"), ("SessionStart", "START_CMD")],
+HOST_SPECS = {
+    "claude-code": (dest_root / ".claude" / "settings.json", {
+        "compliance-canary": [("UserPromptSubmit", "HOOK_CMD", True)],
+        "context-keeper":    [("PreCompact", "HOOK_CMD", True), ("SessionEnd", "ARCHIVE_CMD", True)],
+    }),
+    "codex": (dest_root / ".codex" / "hooks.json", {
+        "compliance-canary": [("UserPromptSubmit", "CODEX_HOOK_CMD", True)],
+        "context-keeper":    [("Stop", "CODEX_ARCHIVE_CMD", False)],
+    }),
 }
 
 def extract_cmd(installer_text, var_name):
     m = re.search(r"^%s='([^']*)'" % re.escape(var_name), installer_text, re.M)
     return m.group(1) if m else None
 
-wired = []
-skipped_optin = []
-skipped_unknown = []
-for skill_dir in sorted(src.iterdir()):
-    tools = skill_dir / "tools"
-    if not skill_dir.is_dir() or not tools.is_dir():
+for host in hosts_requested:
+    if host not in HOST_SPECS:
+        print("    [warn] %s has no declared consumer hook surface; no hooks wired" % host)
         continue
-    hook_files = [f for f in tools.iterdir() if f.name in ("hook.sh", "hook.py")]
-    # Some default-on hook skills expose a purpose-named executable rather
-    # than hook.sh/hook.py (index-first/augment.py, learn-skill/hooks.py).
-    # Their command shape is still declared below, so include those known
-    # installers in the consumer-project pass.
-    if not hook_files and skill_dir.name not in KNOWN_HOOK_INSTALLERS:
-        continue
-    skill_md = skill_dir / "SKILL.md"
-    md_text = skill_md.read_text(encoding="utf-8", errors="replace") if skill_md.exists() else ""
-    if skill_is_optin(md_text):
-        skipped_optin.append(skill_dir.name)
-        continue
-    spec = KNOWN_HOOK_INSTALLERS.get(skill_dir.name)
-    if not spec:
-        skipped_unknown.append(skill_dir.name)
-        continue
-    installer = tools / "install.sh"
-    installer_text = installer.read_text(encoding="utf-8", errors="replace") if installer.exists() else ""
-    for event, var_name in spec:
-        cmd = extract_cmd(installer_text, var_name)
-        if cmd is None:
-            skipped_unknown.append("%s (%s not found — installer changed shape)" % (skill_dir.name, var_name))
+    settings_path, known = HOST_SPECS[host]
+    wired = []
+    skipped_optin = []
+    for name, spec in known.items():
+        skill_dir = src / name
+        md_text = (skill_dir / "SKILL.md").read_text(encoding="utf-8", errors="replace")
+        if skill_is_optin(md_text):
+            skipped_optin.append(name)
             continue
-        wired.append((skill_dir.name, event, cmd))
-
-if not wired:
-    print("    [warn] no known hook-shipping skills discovered under %s — nothing to wire" % src)
-    if skipped_unknown:
-        print("    [warn] unrecognized hook installer shape, not wired: %s" % ", ".join(skipped_unknown))
-    sys.exit(0)
-
-if settings_path.exists():
+        installer_text = (skill_dir / "tools" / "install.sh").read_text(encoding="utf-8", errors="replace")
+        for event, var_name, matcher in spec:
+            cmd = extract_cmd(installer_text, var_name)
+            if cmd is None:
+                print("    [warn] %s: %s not found in %s installer" % (host, var_name, name))
+                continue
+            wired.append((name, event, cmd, matcher))
     try:
-        data = json.loads(settings_path.read_text(encoding="utf-8"))
+        data = json.loads(settings_path.read_text(encoding="utf-8")) if settings_path.exists() else {}
     except json.JSONDecodeError as e:
         print("    [warn] %s exists but is not valid JSON (%s) — leaving consumer hooks untouched" % (settings_path, e))
-        sys.exit(0)
-else:
-    data = {}
-
-hooks = data.setdefault("hooks", {})
-for name, event, cmd in wired:
-    rules = hooks.setdefault(event, [])
-    for rule in rules:
-        if rule.get("matcher") != "*":
-            continue
-        existing = rule.get("hooks", [])
-        if any(h.get("type") == "command" and h.get("command") == cmd for h in existing):
-            break
-    else:
-        rules.append({"matcher": "*", "hooks": [{"type": "command", "command": cmd}]})
-
-settings_path.parent.mkdir(parents=True, exist_ok=True)
-settings_path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-for name, event, cmd in wired:
-    print("    [hook] %s: %s -> %s" % (name, event, cmd))
-if skipped_optin:
-    print("    [skip] opt-in (auto-install: false), not wired: %s" % ", ".join(skipped_optin))
-if skipped_unknown:
-    print("    [warn] unrecognized hook installer shape, not wired: %s" % ", ".join(skipped_unknown))
+        continue
+    hooks = data.setdefault("hooks", {})
+    for name, event, cmd, matcher in wired:
+        rules = hooks.setdefault(event, [])
+        if not any(any(h.get("type") == "command" and h.get("command") == cmd for h in r.get("hooks", [])) for r in rules):
+            rule = {"hooks": [{"type": "command", "command": cmd}]}
+            if matcher:
+                rule["matcher"] = "*"
+            rules.append(rule)
+    settings_path.parent.mkdir(parents=True, exist_ok=True)
+    settings_path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    for name, event, cmd, _matcher in wired:
+        print("    [hook] %s/%s: %s -> %s" % (host, name, event, cmd))
+    if skipped_optin:
+        print("    [skip] %s opt-in hooks not wired: %s" % (host, ", ".join(skipped_optin)))
 PY
 }
 
 if [ -n "$PROJECT_DIR" ]; then
   echo
-  echo "[project-hooks] wiring per-skill hooks into consumer project ($DEST_ROOT/.claude/settings.json)"
+  echo "[project-hooks] wiring per-skill hooks into consumer project for $HOSTS_REQUESTED"
   project_wire_skill_hooks
-  echo "    NOTE: only the claude-code UserPromptSubmit/SessionStart/PreCompact/... hooks this"
-  echo "    generic pass can discover are wired. Every per-skill tools/install.sh derives its target"
-  echo "    root from ITS OWN script path (\$TOOLS_DIR/../../..), not an argument or env var — so it"
-  echo "    ALWAYS targets the Brainer checkout, even if you cd into $DEST_ROOT first or symlink the"
-  echo "    script there. Anything beyond a single command/event (e.g. .codex/hooks.json merges, MCP"
-  echo "    server registration, prompt-triage's agents/*.md copy) is NOT retargeted by this pass and"
-  echo "    has no safe manual workaround short of editing that skill's install.sh to accept a target"
-  echo "    root — do that only for the specific skill you need in the consumer project."
+  echo "    NOTE: only declared single-command default-on hooks are retargeted; opt-in hooks remain absent."
 fi
 
 install_graphify() {

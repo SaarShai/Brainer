@@ -33,7 +33,7 @@ What it does:
            parses as JSON.
        (e) hook-wiring          — every non-opt-in hook-shipping skill
            install.sh knows how to wire generically for --project
-           (compliance-canary, context-keeper, prompt-triage) has its
+           (currently compliance-canary and context-keeper) has its
            command actually present in the consumer's own
            <project>/.claude/settings.json — not just symlinked. Added after
            a real gap: install.sh --project used to symlink skills + write
@@ -61,7 +61,9 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import io
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -118,12 +120,12 @@ def make_fresh_project(scratch_root: Path, keep: bool) -> Path:
     return project
 
 
-def run_install(project: Path) -> tuple[int, str]:
+def run_install(project: Path, host: str = "claude-code") -> tuple[int, str]:
     """Run install.sh --project <project> against THIS Brainer checkout.
-    Single host (claude-code), no graphify (no network dependency)."""
+    Single selected host, no graphify (no network dependency)."""
     result = subprocess.run(
         ["bash", str(INSTALL_SH), "--project", str(project),
-         "--host", "claude-code", "--no-graphify"],
+         "--host", host, "--no-graphify"],
         cwd=REPO, capture_output=True, text=True, timeout=300,
     )
     return result.returncode, (result.stdout + result.stderr)
@@ -272,8 +274,160 @@ def check_d_drift_probes_parse(project: Path) -> SubCheck:
 KNOWN_HOOK_SKILLS = {
     "compliance-canary": ["UserPromptSubmit"],
     "context-keeper": ["PreCompact", "SessionEnd"],
-    "prompt-triage": ["UserPromptSubmit"],
 }
+
+CODEX_HOOK_COMMANDS = {
+    "UserPromptSubmit": 'bash "${CLAUDE_PROJECT_DIR:-$PWD}/.codex/skills/compliance-canary/tools/hook.sh"',
+    "Stop": 'bash "${CLAUDE_PROJECT_DIR:-$PWD}/.codex/skills/context-keeper/tools/codex_archive.sh"',
+}
+
+
+def _codex_hook_argv(command: str, env: dict[str, str]) -> list[str]:
+    prefix = 'bash "${CLAUDE_PROJECT_DIR:-$PWD}/'
+    if not command.startswith(prefix) or not command.endswith('"'):
+        raise ValueError(f"unsupported Codex hook command shape: {command!r}")
+    root = env.get("CLAUDE_PROJECT_DIR") or env.get("PWD")
+    if not root:
+        raise ValueError("Codex hook command has no project root")
+    return ["bash", str(Path(root) / command[len(prefix):-1])]
+
+
+def snapshot_host_configs() -> dict[Path, bytes | None]:
+    paths = (REPO / ".codex" / "hooks.json", REPO / ".claude" / "settings.json")
+    return {path: path.read_bytes() if path.exists() else None for path in paths}
+
+
+def check_codex_links(project: Path) -> SubCheck:
+    c = SubCheck("(codex-a) resolving installed skill links")
+    link_dir = project / ".codex" / "skills"
+    missing = [name for name in claimed_skills() if not (link_dir / name).resolve().is_dir()]
+    if missing:
+        c.fail(f"missing or broken: {missing}")
+    else:
+        c.ok(f"{len(claimed_skills())} skill links resolve under .codex/skills")
+    return c
+
+
+def check_codex_hook_json(project: Path) -> SubCheck:
+    c = SubCheck("(codex-b) exact default-on hook JSON")
+    path = project / ".codex" / "hooks.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        c.fail(f"cannot read valid {path.relative_to(project)}: {exc}")
+        return c
+    expected = {"hooks": {
+        "Stop": [{"hooks": [{"type": "command", "command": CODEX_HOOK_COMMANDS["Stop"]}]}],
+        "UserPromptSubmit": [{"matcher": "*", "hooks": [
+            {"type": "command", "command": CODEX_HOOK_COMMANDS["UserPromptSubmit"]}
+        ]}],
+    }}
+    if data != expected:
+        c.fail(f"expected {expected}, got {data}")
+    else:
+        c.ok("UserPromptSubmit + Stop commands exactly match declared .codex/skills commands; no opt-in hooks")
+    return c
+
+
+def check_codex_hook_execution(project: Path) -> SubCheck:
+    c = SubCheck("(codex-c) synthetic hooks produce ledger/archive evidence")
+    failures = []
+    shutil.rmtree(project / ".brainer", ignore_errors=True)
+    base_env = {**os.environ, "COMPLIANCE_CANARY_PROFILE": "frontier",
+                "COMPLIANCE_CANARY_DISABLED": "1"}
+
+    for label, cwd, env, marker in (
+        ("PWD fallback", project,
+         {k: v for k, v in base_env.items() if k != "CLAUDE_PROJECT_DIR"},
+         "E3_CODEX_LEDGER_PWD_MARKER"),
+        ("CLAUDE_PROJECT_DIR", REPO,
+         {**base_env, "CLAUDE_PROJECT_DIR": str(project)},
+         "E3_CODEX_LEDGER_ENV_MARKER"),
+    ):
+        env["PWD"] = str(cwd)
+        payload = json.dumps({"hook_event_name": "UserPromptSubmit",
+                              "session_id": f"e3-codex-{label}", "prompt": marker})
+        result = subprocess.run(
+            _codex_hook_argv(CODEX_HOOK_COMMANDS["UserPromptSubmit"], env), cwd=cwd,
+            input=payload, text=True, capture_output=True, env=env, timeout=30,
+        )
+        ledgers = list((project / ".brainer" / "ledger").glob("*.md"))
+        if result.returncode != 0 or not any(marker in p.read_text(encoding="utf-8") for p in ledgers):
+            failures.append(f"UserPromptSubmit/{label}: rc={result.returncode}, marker not materialized")
+
+    sessions_root = project / ".e3-codex-sessions"
+    rollout = sessions_root / "2026" / "07" / "19" / "rollout-e3.jsonl"
+    rollout.parent.mkdir(parents=True, exist_ok=True)
+    rollout_marker = "E3_CODEX_ARCHIVE_MARKER"
+    rollout.write_text(json.dumps({"payload": {"cwd": str(project)}}) + "\n" + rollout_marker + "\n",
+                       encoding="utf-8")
+
+    archive_worker = project / ".codex" / "skills" / "context-keeper" / "tools" / "codex_archive.py"
+    try:
+        worker = _load_module(archive_worker, "e3_gauntlet_codex_archive")
+        worker.SESSIONS_ROOT = sessions_root
+        old_pwd, old_stdin = os.environ.get("PWD"), sys.stdin
+        try:
+            os.environ["PWD"] = str(project)
+            sys.stdin = io.StringIO('{"hook_event_name":"Stop"}')
+            worker_rc = worker.main()
+        finally:
+            sys.stdin = old_stdin
+            if old_pwd is None:
+                os.environ.pop("PWD", None)
+            else:
+                os.environ["PWD"] = old_pwd
+    except Exception as exc:
+        worker_rc = -1
+        failures.append(f"Stop/injected sessions root: worker raised {type(exc).__name__}: {exc}")
+    archived = project / ".brainer" / "sessions" / "raw" / rollout.name
+    if worker_rc != 0 or not archived.is_file() or rollout_marker not in archived.read_text(encoding="utf-8"):
+        failures.append(f"Stop/injected sessions root: rc={worker_rc}, matching rollout not archived")
+
+    pwd_env = {k: v for k, v in base_env.items() if k != "CLAUDE_PROJECT_DIR"}
+    pwd_env["PWD"] = str(project)
+    result = subprocess.run(
+        _codex_hook_argv(CODEX_HOOK_COMMANDS["Stop"], pwd_env), cwd=project, input='{"hook_event_name":"Stop"}',
+        text=True, capture_output=True, env=pwd_env, timeout=30,
+    )
+    if result.returncode != 0 or "context-keeper/codex_archive: no-matching-rollout" not in result.stderr:
+        failures.append("Stop/PWD fallback: command lookup did not reach codex_archive worker")
+
+    command_cwd = project / ".e3-command-cwd"
+    command_cwd.mkdir(exist_ok=True)
+    env_root = {**base_env, "CLAUDE_PROJECT_DIR": str(project), "PWD": str(command_cwd)}
+    result = subprocess.run(
+        _codex_hook_argv(CODEX_HOOK_COMMANDS["Stop"], env_root), cwd=command_cwd, input='{"hook_event_name":"Stop"}',
+        text=True, capture_output=True, env=env_root, timeout=30,
+    )
+    if result.returncode != 0 or "context-keeper/codex_archive: no-matching-rollout" not in result.stderr:
+        failures.append("Stop/CLAUDE_PROJECT_DIR: command lookup did not reach codex_archive worker")
+    if failures:
+        c.fail("; ".join(failures))
+    else:
+        c.ok("ledger markers via PWD+env; Stop lookups reached worker; injected-root worker archived fake rollout")
+    return c
+
+
+def check_host_config_isolation(before: dict[Path, bytes | None]) -> SubCheck:
+    c = SubCheck("(codex-d) canonical Brainer host configs unchanged")
+    changed = [str(path.relative_to(REPO)) for path, content in before.items()
+               if (path.read_bytes() if path.exists() else None) != content]
+    if changed:
+        c.fail(f"consumer install mutated canonical config: {changed}")
+    else:
+        c.ok(".codex/hooks.json and .claude/settings.json byte-identical")
+    return c
+
+
+def run_codex_gauntlet(scratch_root: Path, keep: bool) -> tuple[int, list[SubCheck], Path, str]:
+    project = make_fresh_project(scratch_root, keep)
+    before = snapshot_host_configs()
+    install_rc, install_out = run_install(project, "codex")
+    checks = [check_codex_links(project), check_codex_hook_json(project),
+              check_codex_hook_execution(project), check_host_config_isolation(before)]
+    exit_code = 2 if install_rc != 0 or any(c.passed is False for c in checks) else 0
+    return exit_code, checks, project, install_out
 
 
 def check_e_hook_wiring(project: Path) -> SubCheck:
@@ -390,13 +544,15 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--keep", action="store_true",
                      help="do not delete the temp project on exit (for inspection)")
     ap.add_argument("--quiet", action="store_true", help="suppress install.sh's own output")
+    ap.add_argument("--host", choices=("claude-code", "codex"), default="claude-code",
+                    help="fresh consumer lifecycle to exercise (default: claude-code)")
     args = ap.parse_args(argv)
 
-    import os
     scratch_root = Path(args.scratch or os.environ.get("E3_GAUNTLET_SCRATCH")
                          or tempfile.gettempdir())
 
-    exit_code, checks, project, install_out = run_gauntlet(scratch_root, args.keep)
+    runner = run_codex_gauntlet if args.host == "codex" else run_gauntlet
+    exit_code, checks, project, install_out = runner(scratch_root, args.keep)
 
     print(f"e3_gauntlet: fresh consumer project: {project}")
     if not args.quiet:

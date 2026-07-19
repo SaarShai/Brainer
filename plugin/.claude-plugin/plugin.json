@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "brainer",
+  "version": "1.14.1",
+  "displayName": "Brainer",
+  "description": "Token/context-efficient skills for AI coding agents.",
+  "author": {
+    "name": "Saar Shai"
+  },
+  "homepage": "https://github.com/SaarShai/Brainer",
+  "repository": "https://github.com/SaarShai/Brainer",
+  "license": "MIT",
+  "keywords": [
+    "agent-skills",
+    "verification",
+    "continuity"
+  ]
+}

@@ -28,7 +28,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import e3_gauntlet as gauntlet  # noqa: E402
 
-SCRATCH = Path(tempfile.gettempdir()) / "e3-gauntlet-selftest"
+SCRATCH = Path(tempfile.mkdtemp(prefix="e3-gauntlet-selftest-"))
 
 
 def _fresh_installed_project() -> Path:
@@ -206,6 +206,83 @@ def test_run_gauntlet_exit_code_reflects_any_failure() -> None:
         _cleanup(project)
 
 
+def test_codex_fresh_lifecycle_and_hook_gate() -> None:
+    """Real Codex consumer install passes all lifecycle checks, then the exact
+    hook check trips when an opt-in command is injected."""
+    SCRATCH.mkdir(parents=True, exist_ok=True)
+    project = gauntlet.make_fresh_project(SCRATCH, keep=True)
+    before = gauntlet.snapshot_host_configs()
+    try:
+        rc, out = gauntlet.run_install(project, "codex")
+        assert rc == 0, f"Codex install failed: {out}"
+        checks = [gauntlet.check_codex_links(project), gauntlet.check_codex_hook_json(project),
+                  gauntlet.check_codex_hook_execution(project), gauntlet.check_host_config_isolation(before)]
+        for check in checks:
+            assert check.passed is True, check.line()
+
+        path = project / ".codex" / "hooks.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["hooks"]["UserPromptSubmit"].append({
+            "matcher": "*", "hooks": [{"type": "command", "command": "prompt-triage opt-in"}],
+        })
+        path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        tripped = gauntlet.check_codex_hook_json(project)
+        assert tripped.passed is False, "Codex exact-hook gate accepted an injected opt-in hook"
+        assert "prompt-triage" in tripped.detail, tripped.line()
+
+        link = project / ".codex" / "skills" / "compliance-canary"
+        real_skill = link.resolve()
+        link.unlink()
+        shutil.copytree(real_skill, link, symlinks=False)
+        (link / "tools" / "hook.py").unlink()
+        missing_worker = gauntlet.check_codex_hook_execution(project)
+        assert missing_worker.passed is False, "material hook gate passed with hook.py missing"
+        assert "marker not materialized" in missing_worker.detail, missing_worker.line()
+    finally:
+        _cleanup(project)
+
+
+def test_codex_install_edges_preserve_state() -> None:
+    """Reinstall is idempotent, custom hooks survive, corrupt JSON is not
+    overwritten, host gating holds, and canonical config stays isolated."""
+    SCRATCH.mkdir(parents=True, exist_ok=True)
+    before = gauntlet.snapshot_host_configs()
+    custom_project = gauntlet.make_fresh_project(SCRATCH, keep=True)
+    corrupt_project = gauntlet.make_fresh_project(SCRATCH, keep=True)
+    claude_project = gauntlet.make_fresh_project(SCRATCH, keep=True)
+    try:
+        custom_path = custom_project / ".codex" / "hooks.json"
+        custom_path.parent.mkdir(parents=True)
+        custom = {"hooks": {"PreToolUse": [{"hooks": [
+            {"type": "command", "command": "user-owned-hook"}
+        ]}]}}
+        custom_path.write_text(json.dumps(custom, indent=2) + "\n", encoding="utf-8")
+        rc, out = gauntlet.run_install(custom_project, "codex")
+        assert rc == 0, out
+        installed = json.loads(custom_path.read_text(encoding="utf-8"))
+        assert installed["hooks"]["PreToolUse"] == custom["hooks"]["PreToolUse"]
+        first = custom_path.read_bytes()
+        rc, out = gauntlet.run_install(custom_project, "codex")
+        assert rc == 0, out
+        assert custom_path.read_bytes() == first, "Codex reinstall changed hooks.json"
+
+        corrupt_path = corrupt_project / ".codex" / "hooks.json"
+        corrupt_path.parent.mkdir(parents=True)
+        corrupt_path.write_text("{invalid consumer json", encoding="utf-8")
+        rc, _out = gauntlet.run_install(corrupt_project, "codex")
+        assert rc == 0, "root installer should warn without clobbering corrupt consumer JSON"
+        assert corrupt_path.read_text(encoding="utf-8") == "{invalid consumer json"
+
+        rc, out = gauntlet.run_install(claude_project, "claude-code")
+        assert rc == 0, out
+        assert not (claude_project / ".codex").exists(), "claude-code-only install created Codex config"
+        isolation = gauntlet.check_host_config_isolation(before)
+        assert isolation.passed is True, isolation.line()
+    finally:
+        for project in (custom_project, corrupt_project, claude_project):
+            _cleanup(project)
+
+
 def main() -> int:
     tests = [
         test_a_trips_on_deleted_skill_symlink,
@@ -214,6 +291,8 @@ def main() -> int:
         test_d_trips_on_deleted_drift_probes_entirely,
         test_e_trips_on_stripped_hook,
         test_run_gauntlet_exit_code_reflects_any_failure,
+        test_codex_fresh_lifecycle_and_hook_gate,
+        test_codex_install_edges_preserve_state,
     ]
     failed = 0
     for t in tests:
