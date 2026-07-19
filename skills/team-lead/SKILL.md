@@ -91,12 +91,13 @@ identical.
 Hooks, canaries, and skills do NOT fire inside subagents — the brief must carry
 everything. Render it with
 [`skills/_shared/brief_header.py`](../_shared/brief_header.py)
-(`--task … --scope … --skills …`), which emits the GOAL / IN-SCOPE /
-OUT-OF-SCOPE / GATE block; then add per-lane:
+(`--task … --scope … --out-of-scope … --skills …`), which emits the GOAL /
+IN-SCOPE / OUT-OF-SCOPE / GATE block; then add per-lane:
 
 ```
 CONSTRAINTS: <inlined skill directives the lane needs — save rules, naming, style>
 DONE MEANS: <≤5 verifiable criteria>
+VERIFY: <exact command or source-grounded check that proves DONE MEANS>
 MAX ITERATIONS: 2, then stop and report blockers.
 ```
 
@@ -107,8 +108,10 @@ file evidence before editing — silent compliance is a lane defect.
 **User-supplied literals go in VERBATIM** (ORCHESTRATION §6): every concrete
 value the user gave — path, filename, ID, threshold — is pasted
 character-for-character; never elide ("…"), abbreviate, or paraphrase it. Gate
-the composed brief with `python3 skills/_shared/brief_header.py --lint-brief -`
-(exit 1 = elided literal found; fix before dispatch).
+the composed brief with
+`python3 skills/_shared/brief_header.py --lint-brief - --strict-contract`
+(exit 1 = a missing/placeholder contract field or elided literal; fix before
+dispatch).
 
 Brief altitude follows ORCHESTRATION §6: spec-shaped for cheap lanes,
 goal-shaped for frontier lanes. The template above is altitude-neutral — GOAL,

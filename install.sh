@@ -259,26 +259,20 @@ a skill happens to trigger:
   happy-path-only (error path ignored), a fix cascading across files (Runaway
   Refactor), or building what an existing tool already provides (Reinvented
   Wheel — STOP, run a borrow check) — STOP, restate the goal, narrow scope.
-- **Borrow-checkpoint.** Before commissioning new machinery (a solver, cache,
-  gate, orchestration primitive, or pipeline), state in one line which
-  existing framework/library/tool was checked and why it doesn't fit. A lane
-  brief commissioning new machinery without that line is malformed. The
-  checkpoint's job is to force the check, not to forbid building — "checked
-  X/Y/Z, none fit because …, building bespoke" is a legitimate pass. For the
-  deep version (multi-source comparison, trade-off writeup) use `/think`;
-  this is the always-on one-line gate that makes sure the check happens at
-  all.
-- **Task routing (SPEC'D × GATED).** Before executing or dispatching, classify:
-  SPEC'D (a written spec gives root cause / exact construction — "figure out
-  why X" is not a spec) and GATED (mechanically verifiable). Spec'd+gated →
-  delegate to the cheapest capable tier; a frontier model must not type it
-  beyond ~30 lines of diff. Not spec'd → frontier-tier diagnoses and writes
-  the spec FIRST; never brief a weaker model to "investigate why" (the
-  `delegated_diagnosis` canary probe flags it), and weaker lanes escalate
-  with evidence instead of guessing semantics. Exception: a small
-  judgment-dense fix (<~30 lines) where the diagnosis IS the fix — frontier
-  does it directly, verifying in the same turn. Full routing table + W/S
-  directives: `skills/_shared/ORCHESTRATION.md` §6.
+- **Borrow first.** Before building machinery, name the existing tool checked
+  and why it fails; otherwise the brief is malformed. Deep: `/think`.
+- **Frontier ownership.** Top-tier agents own the end-to-end goal and hard
+  judgment. Run independent, gated work concurrently on the cheapest reliable
+  lanes; keep work when delegation's total cost or reliability is worse.
+  Continue, correct, synthesize, and verify until done; stop only for missing
+  authority or a real blocker. Full contract: `skills/_shared/ORCHESTRATION.md`
+  §6.
+- **Task routing.** Classify SPEC'D (root cause or construction is written) ×
+  GATED (mechanically checkable). Delegate SPEC'D work to the cheapest capable
+  tier; frontier diagnoses and specifies unclear work, while weaker lanes
+  escalate with evidence rather than guess. Direct exception: a judgment-dense
+  fix under ~30 lines when briefing costs more. Never give a weaker lane
+  unresolved diagnosis. Details: `skills/_shared/ORCHESTRATION.md` §6.
 CRAFT
   cat <<'MATRIX'
 

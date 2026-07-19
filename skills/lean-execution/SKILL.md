@@ -24,6 +24,9 @@ Maximize work not done. Keep only steps that reduce risk, gather needed facts, i
 8. Stop and simplify when a workflow starts creating more artifacts than outcome.
 9. Verify with the cheapest sufficient check.
 
+Frontier-tier routing is governed by the hard economy invariant in
+[`ORCHESTRATION.md §6`](../_shared/ORCHESTRATION.md#6-architect-cost-discipline-frontier-tier-orchestrator); this skill's proportionality rule is its anti-ceremony exception, not a routine-work escape hatch.
+
 ## Keep
 
 - safety checks, tests, direct verification

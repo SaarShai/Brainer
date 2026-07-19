@@ -52,6 +52,11 @@ prose-only gotcha recurred). Two subrules:
   design-independent invariant?* A fix tuned to one instance misfires on
   the next (failure #7). If no invariant exists, say so explicitly and
   bank the heuristic WITH its known scope of validity.
+- **Contract-promotion gate.** Add mechanical enforcement only when an
+  instruction is cross-task, its failure is material, and its PASS/FAIL signal
+  is objective and low-false-positive. The check is cheap on the decision's read path,
+  and a known-bad fixture proves it trips. Otherwise keep the instruction
+  trigger-local; do not create a generic detector or another source of truth.
 
 ## §4 Gates must be alive
 

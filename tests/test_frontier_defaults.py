@@ -34,6 +34,16 @@ ROLE_FILES = (
     ROOT / ".claude/agents/verifier.md",
     ROOT / ".claude/agents/research-lite.md",
 )
+FRONTIER_ECONOMY_SKILLS = (
+    "lean-execution",
+    "loop-engineering",
+    "plan-first-execute",
+    "prompt-triage",
+    "team-lead",
+    "think",
+    "verify-before-completion",
+)
+CARRIERS = ("AGENTS.md", "CLAUDE.md", "GEMINI.md")
 
 
 def frontmatter(path: Path) -> str:
@@ -48,6 +58,10 @@ def body(path: Path) -> str:
 
 def token_estimate(text: str) -> int:
     return ceil(len(text) / 4) + text.count("\n")
+
+
+def missing_phrases(text: str, required: tuple[str, ...]) -> list[str]:
+    return [phrase for phrase in required if phrase not in text]
 
 
 def test_generic_skills_are_manual_experiments() -> None:
@@ -125,6 +139,101 @@ def test_research_role_mirrors_match() -> None:
     codex_body = codex.split('developer_instructions = """', 1)[1].split('"""', 1)[0].strip()
     assert claude_body == bundled_body
     assert claude_body == codex_body
+
+
+def test_frontier_economy_policy_is_canonical_and_future_proof() -> None:
+    doctrine = (ROOT / "skills/_shared/ORCHESTRATION.md").read_text(
+        encoding="utf-8")
+    required = (
+        "Frontier economy invariant (hard)",
+        "Fable 5",
+        "GPT-5.6 Sol xhigh",
+        "any equal-or-better future model",
+        "cheapest reachable capable tier",
+        "inseparable from live context",
+        "brief/review overhead",
+        "likely rework",
+        "lower without reducing\nreliability; otherwise do it directly",
+        "Never delegate unresolved diagnosis",
+    )
+    assert not missing_phrases(doctrine, required)
+
+
+def test_frontier_economy_policy_gate_rejects_drift() -> None:
+    required = ("cheapest reachable capable tier",)
+    doctrine = (ROOT / "skills/_shared/ORCHESTRATION.md").read_text(
+        encoding="utf-8")
+    drifted = doctrine.replace(required[0], "a capable tier", 1)
+    assert missing_phrases(drifted, required) == list(required)
+
+
+def test_contract_promotion_policy_is_canonical_and_bounded() -> None:
+    doctrine = (ROOT / "skills/_shared/LEARNING_CONTRACT.md").read_text(
+        encoding="utf-8")
+    required = (
+        "Contract-promotion gate",
+        "cross-task",
+        "material",
+        "low-false-positive",
+        "cheap on the decision's read path",
+        "known-bad fixture",
+        "trigger-local",
+    )
+    assert not missing_phrases(doctrine, required)
+
+
+def test_end_to_end_ownership_policy_is_canonical_and_portable() -> None:
+    doctrine = (ROOT / "skills/_shared/ORCHESTRATION.md").read_text(
+        encoding="utf-8")
+    required = (
+        "End-to-end ownership invariant (hard)",
+        "architecture, implementation, tests",
+        "independent, non-colliding lanes",
+        "goal, expected deliverable, verification gate, and done",
+        "continuing\nunblocked lead work",
+        "intervene when a lane drifts\nor lacks context",
+        "a literal `/goal` command is not portable",
+        "Commit only when authorized and ready",
+        "Partial progress is not a stopping\ncondition",
+    )
+    assert not missing_phrases(doctrine, required)
+
+
+def test_frontier_ownership_policy_is_resident_in_every_carrier() -> None:
+    required = (
+        "**Frontier ownership.**",
+        "end-to-end goal and hard\n  judgment",
+        "independent, gated work concurrently",
+        "cheapest reliable",
+        "delegation's total cost or reliability is worse",
+        "verify until done",
+        "stop only for missing\n  authority or a real blocker",
+        "`skills/_shared/ORCHESTRATION.md`\n  §6",
+    )
+    sources = [ROOT / "install.sh", *(ROOT / name for name in CARRIERS)]
+    for path in sources:
+        text = path.read_text(encoding="utf-8")
+        assert not missing_phrases(text, required), path.name
+
+
+def test_end_to_end_ownership_policy_gate_rejects_partial_progress_drift() -> None:
+    required = ("Partial progress is not a stopping\ncondition",)
+    doctrine = (ROOT / "skills/_shared/ORCHESTRATION.md").read_text(
+        encoding="utf-8")
+    drifted = doctrine.replace(required[0], "Partial progress may stop work", 1)
+    assert missing_phrases(drifted, required) == list(required)
+
+
+def test_orchestration_skills_reference_canonical_economy_policy() -> None:
+    for name in FRONTIER_ECONOMY_SKILLS:
+        text = (ROOT / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+        assert "ORCHESTRATION.md" in text, name
+        assert "§6" in text, name
+
+
+def test_fable_mode_does_not_duplicate_orchestration_policy() -> None:
+    text = (ROOT / "skills/fable-mode/SKILL.md").read_text(encoding="utf-8")
+    assert "ORCHESTRATION.md §6" not in text
 
 
 TESTS = [value for name, value in sorted(globals().items()) if name.startswith("test_")]

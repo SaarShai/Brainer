@@ -31,8 +31,27 @@ def _run(args: list[str]) -> tuple[int, str, str]:
     out = io.StringIO()
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err):
-        rc = bh.main(args)
+        try:
+            rc = bh.main(args)
+        except SystemExit as exc:
+            rc = int(exc.code)
     return rc, out.getvalue(), err.getvalue()
+
+
+def _valid_brief(*, scope: str = "src/widget.py", verify: str = "python3 -m unittest") -> str:
+    return "\n".join((
+        "GOAL: implement the bounded change",
+        f"IN-SCOPE: {scope}",
+        "OUT-OF-SCOPE: unrelated modules",
+        "DONE MEANS:",
+        "- requested behavior is present",
+        "- focused regression test passes",
+        f"VERIFY: {verify}",
+        "",
+        bh.GATE_BLOCK,
+        "",
+        bh.LANE_REPORT_BLOCK,
+    ))
 
 
 def test_header_contains_gate_block_verbatim():
@@ -40,6 +59,15 @@ def test_header_contains_gate_block_verbatim():
         _write_skill(root, "alpha", "keep alpha active")
         rc, out, _err = _run(["--skills-root", root, "--task", "check header", "--skills", "alpha"])
     return rc == 0 and bh.GATE_BLOCK in out
+
+
+def test_rendered_blocks_share_required_marker_constants():
+    return (bh.GATE_MARKER in bh.GATE_BLOCK
+            and bh.LANE_REPORT_MARKER in bh.LANE_REPORT_BLOCK
+            and bh.READY_MARKER in bh.GATE_BLOCK
+            and bh.READY_MARKER in bh.LANE_REPORT_BLOCK
+            and bh._REQUIRED_MARKERS == (  # noqa: SLF001
+                bh.GATE_MARKER, bh.LANE_REPORT_MARKER, bh.READY_MARKER))
 
 
 def test_skills_subset_includes_only_named_skills():
@@ -121,6 +149,147 @@ def test_no_report_flag_removes_only_lane_report_block():
             and bh.LANE_REPORT_BLOCK not in out
             and bh.PHASE0_BLOCK in out
             and bh.GATE_BLOCK in out)
+
+
+def test_plain_lint_remains_backward_compatible():
+    old_stdin = sys.stdin
+    try:
+        sys.stdin = io.StringIO("")
+        with tempfile.TemporaryDirectory() as root:
+            rc, out, _err = _run([
+                "--skills-root", root, "--lint-brief", "-",
+            ])
+    finally:
+        sys.stdin = old_stdin
+    return rc == 0 and "brief lint: clean" in out
+
+
+def test_strict_contract_accepts_coding_and_research_briefs():
+    briefs = (
+        _valid_brief(),
+        _valid_brief(
+            scope="the supplied interview transcripts",
+            verify="compare every extracted claim with its source transcript",
+        ).replace("VERIFY:", "VERIFICATION:", 1),
+    )
+    for brief in briefs:
+        old_stdin = sys.stdin
+        try:
+            sys.stdin = io.StringIO(brief)
+            with tempfile.TemporaryDirectory() as root:
+                rc, out, _err = _run([
+                    "--skills-root", root, "--lint-brief", "-", "--strict-contract",
+                ])
+        finally:
+            sys.stdin = old_stdin
+        if rc != 0 or "brief lint: clean" not in out:
+            return False
+    return True
+
+
+def test_strict_contract_rejects_each_missing_required_field():
+    for field in ("GOAL", "IN-SCOPE", "OUT-OF-SCOPE", "DONE MEANS", "VERIFY"):
+        brief = "\n".join(
+            line for line in _valid_brief().splitlines()
+            if not line.startswith(f"{field}:")
+        )
+        findings = bh.lint_brief(brief, strict_contract=True)
+        if not any(f"missing required field: {field}" in finding for finding in findings):
+            return False
+    return True
+
+
+def test_strict_contract_rejects_duplicate_required_fields():
+    for field in ("GOAL", "IN-SCOPE", "OUT-OF-SCOPE", "DONE MEANS", "VERIFY"):
+        duplicate = next(
+            line for line in _valid_brief().splitlines()
+            if line.startswith(f"{field}:")
+        )
+        findings = bh.lint_brief(
+            _valid_brief() + f"\n{duplicate}", strict_contract=True)
+        if not any(f"duplicate required field: {field}" in finding for finding in findings):
+            return False
+    return True
+
+
+def test_strict_contract_rejects_empty_and_placeholder_values():
+    empty_replacements = (
+        ("GOAL: implement the bounded change", "GOAL:"),
+        ("IN-SCOPE: src/widget.py", "IN-SCOPE:"),
+        ("OUT-OF-SCOPE: unrelated modules", "OUT-OF-SCOPE:"),
+        ("DONE MEANS:\n- requested behavior is present\n- focused regression test passes",
+         "DONE MEANS:"),
+        ("VERIFY: python3 -m unittest", "VERIFY:"),
+    )
+    for original, replacement in empty_replacements:
+        findings = bh.lint_brief(
+            _valid_brief().replace(original, replacement), strict_contract=True)
+        if not any("empty required field" in f for f in findings):
+            return False
+
+    placeholder_replacements = (
+        ("GOAL: implement the bounded change", "GOAL: <goal>"),
+        ("GOAL: implement the bounded change", "GOAL: TODO later"),
+        ("IN-SCOPE: src/widget.py", "IN-SCOPE: [TBD]"),
+        ("OUT-OF-SCOPE: unrelated modules", "OUT-OF-SCOPE: TODO"),
+        ("- requested behavior is present", "- <criterion>"),
+        ("VERIFY: python3 -m unittest", "VERIFY: <command>"),
+    )
+    for original, replacement in placeholder_replacements:
+        findings = bh.lint_brief(
+            _valid_brief().replace(original, replacement), strict_contract=True)
+        if not any("placeholder in required field" in f for f in findings):
+            return False
+    return True
+
+
+def test_strict_contract_accepts_inline_done_means():
+    brief = _valid_brief().replace(
+        "DONE MEANS:\n- requested behavior is present\n- focused regression test passes",
+        "DONE MEANS: requested behavior and its focused regression test pass",
+    )
+    return bh.lint_brief(brief, strict_contract=True) == []
+
+
+def test_strict_contract_accepts_shell_redirection_in_verify():
+    brief = _valid_brief(verify="command <in >out")
+    return bh.lint_brief(brief, strict_contract=True) == []
+
+
+def test_strict_contract_rejects_more_than_five_done_criteria():
+    criteria = "\n".join(f"- criterion {n}" for n in range(1, 7))
+    brief = _valid_brief().replace(
+        "- requested behavior is present\n- focused regression test passes", criteria)
+    findings = bh.lint_brief(brief, strict_contract=True)
+    return any("DONE MEANS has 6 criteria; maximum is 5" in f for f in findings)
+
+
+def test_strict_contract_requires_gate_report_and_ready_markers():
+    markers = (
+        "GATE (re-run, do not self-certify):",
+        "LANE REPORT (hard shape",
+        "READY FOR JUDGING",
+    )
+    for marker in markers:
+        findings = bh.lint_brief(
+            _valid_brief().replace(marker, "REMOVED"), strict_contract=True)
+        if not any(f"missing required marker: {marker}" in f for f in findings):
+            return False
+    return True
+
+
+def test_strict_contract_keeps_elided_literal_check():
+    findings = bh.lint_brief(
+        _valid_brief(scope="…/FINAL production/widget.py"), strict_contract=True)
+    return any("elided literal" in finding for finding in findings)
+
+
+def test_strict_contract_without_lint_is_cli_misuse():
+    with tempfile.TemporaryDirectory() as root:
+        rc, _out, err = _run([
+            "--skills-root", root, "--task", "misuse", "--strict-contract",
+        ])
+    return rc == 2 and "--strict-contract requires --lint-brief" in err
 
 
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]

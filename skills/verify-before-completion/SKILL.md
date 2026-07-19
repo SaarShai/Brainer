@@ -44,6 +44,9 @@ When fixing a bug, investigate before editing: reproduce it, read the whole erro
 
 When dispatching verification to a subagent: a mid-tier model with read-only tools is the default — verifying is cheaper than making; escalate only when the artifact demands frontier reasoning. Resolve the tier per [`skills/_shared/ORCHESTRATION.md`](../_shared/ORCHESTRATION.md) (newest in-host model of that tier, or a clearly-better reachable cross-API lane).
 
+This is the verification form of the hard frontier-economy invariant in
+[`ORCHESTRATION.md §6`](../_shared/ORCHESTRATION.md#6-architect-cost-discipline-frontier-tier-orchestrator): premium reasoning sets the gate; the cheapest capable independent lane runs bounded checks.
+
 If verification is impossible, say what was not verified and why.
 
 ### Make the verdict mechanical: `tools/verify_artifact.py`

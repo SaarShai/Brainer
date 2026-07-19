@@ -55,6 +55,9 @@ Model fields (`haiku|sonnet|opus`) are Claude Code **tier aliases** — the host
 
 Main model reads `⚡ [prompt-triage] ...` block → emits `Task(subagent_type, model, prompt)` immediately. Minimal thinking because the directive already specifies what to do.
 
+When that main model is frontier tier, the hard economy invariant in
+[`ORCHESTRATION.md §6`](../_shared/ORCHESTRATION.md#6-architect-cost-discipline-frontier-tier-orchestrator) makes an accepted cheap-route directive mandatory; overrides require observed gate failure, the user's `NO TRIAGE`, or a documented proportionality/context exception.
+
 Full opus bypass isn't possible (the host always routes through main), but the directive keeps thinking budget near zero on simple tasks.
 
 ### Layer 3: specialized subagents

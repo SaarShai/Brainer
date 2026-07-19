@@ -27,18 +27,23 @@ planning. Silent compliance is a lane defect; silent scope additions are a lane
 defect."""
 
 
-GATE_BLOCK = """GATE (re-run, do not self-certify): your final output is judged by a SEPARATE
+GATE_MARKER = "GATE (re-run, do not self-certify):"
+LANE_REPORT_MARKER = "LANE REPORT (hard shape"
+READY_MARKER = "READY FOR JUDGING"
+
+
+GATE_BLOCK = f"""{GATE_MARKER} your final output is judged by a SEPARATE
 verifier on a machine check — not your done-claim. Return raw findings/data, not
 "done". State attempts tried + abandoned and every assumption. If you produce a
 file/artifact, say exactly what you changed; do NOT touch anything outside the
-named scope. END with "READY FOR JUDGING", never "complete"."""
+named scope. END with "{READY_MARKER}", never "complete"."""
 
 
-LANE_REPORT_BLOCK = """LANE REPORT (hard shape — the orchestrator reads only this): summary <=200 words;
+LANE_REPORT_BLOCK = f"""{LANE_REPORT_MARKER} — the orchestrator reads only this): summary <=200 words;
 changed_paths (every file, exhaustive); evidence (exact commands + output lines
 for each done-means criterion); attempts; assumptions; leftovers/concerns. End
 with exactly one status line: STATUS: COMPLETE | COMPLETE_WITH_CONCERNS (list) |
-BLOCKED (exact blocker + what you tried) — then the line READY FOR JUDGING. Raw
+BLOCKED (exact blocker + what you tried) — then the line {READY_MARKER}. Raw
 results only — no verdicts about your own work, no 'done'."""
 
 
@@ -153,14 +158,79 @@ _ELISION_RE = re.compile(
     r"|(?:<|\[)(?:path|dir|folder|file)(?:>|\])",  # '<path>' / '[folder]' stubs
     re.IGNORECASE)
 
+_REQUIRED_FIELDS = {
+    "GOAL": ("GOAL",),
+    "IN-SCOPE": ("IN-SCOPE",),
+    "OUT-OF-SCOPE": ("OUT-OF-SCOPE",),
+    "DONE MEANS": ("DONE MEANS",),
+    "VERIFY": ("VERIFY", "VERIFICATION"),
+}
+_PLACEHOLDER_RE = re.compile(
+    r"(?:<[^>\n]+>|\[(?:TBD|TODO)\]|(?:TBD|TODO)(?:\s+.*)?)",
+    re.IGNORECASE)
+_CRITERION_RE = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+(\S.*)$")
+_SECTION_RE = re.compile(r"^[A-Z][A-Z0-9 -]+:\s*", re.MULTILINE)
+_REQUIRED_MARKERS = (GATE_MARKER, LANE_REPORT_MARKER, READY_MARKER)
 
-def lint_brief(text: str) -> list[str]:
+
+def _field_matches(text: str, aliases: tuple[str, ...]) -> list[re.Match[str]]:
+    names = "|".join(re.escape(alias) for alias in aliases)
+    return list(re.finditer(rf"^(?:{names}):[ \t]*(.*)$", text, re.MULTILINE))
+
+
+def _done_criteria(text: str, match: re.Match[str]) -> list[str]:
+    criteria = []
+    inline = match.group(1).strip()
+    if inline:
+        criteria.append(inline)
+
+    section_start = match.end()
+    next_section = _SECTION_RE.search(text, section_start)
+    section_end = next_section.start() if next_section else len(text)
+    for line in text[section_start:section_end].splitlines():
+        criterion = _CRITERION_RE.match(line)
+        if criterion:
+            criteria.append(criterion.group(1).strip())
+    return criteria
+
+
+def _strict_contract_findings(text: str) -> list[str]:
+    findings = []
+    for canonical, aliases in _REQUIRED_FIELDS.items():
+        matches = _field_matches(text, aliases)
+        if not matches:
+            findings.append(f"missing required field: {canonical}")
+            continue
+        if len(matches) > 1:
+            findings.append(f"duplicate required field: {canonical}")
+
+        match = matches[0]
+        values = (_done_criteria(text, match) if canonical == "DONE MEANS"
+                  else [match.group(1).strip()])
+        if not any(values):
+            findings.append(f"empty required field: {canonical}")
+            continue
+        if any(_PLACEHOLDER_RE.fullmatch(value) for value in values):
+            findings.append(f"placeholder in required field: {canonical}")
+        if canonical == "DONE MEANS" and len(values) > 5:
+            findings.append(
+                f"DONE MEANS has {len(values)} criteria; maximum is 5")
+
+    for marker in _REQUIRED_MARKERS:
+        if marker not in text:
+            findings.append(f"missing required marker: {marker}")
+    return findings
+
+
+def lint_brief(text: str, *, strict_contract: bool = False) -> list[str]:
     findings = []
     for m in _ELISION_RE.finditer(text):
         start = max(0, m.start() - 40)
         findings.append(
             f"elided literal at char {m.start()}: ...{text[start:m.end()+20]!r}... "
             f"— paste the user-supplied value VERBATIM (ORCHESTRATION §6)")
+    if strict_contract:
+        findings.extend(_strict_contract_findings(text))
     return findings
 
 
@@ -177,12 +247,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--lint-brief", metavar="FILE", nargs="?", const="-",
                    help="lint a composed brief (file or '-' for stdin) for elided "
                         "user literals; exit 1 on findings")
+    p.add_argument("--strict-contract", action="store_true",
+                   help="with --lint-brief, also require the execution-lane "
+                        "goal/scope/done/verification contract")
     return p
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if args.strict_contract and args.lint_brief is None:
+        parser.error("--strict-contract requires --lint-brief")
 
     try:
         root = resolve_skills_root(args.skills_root)
@@ -195,10 +271,10 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{r.name}: {r.reminder}")
         return 0
 
-    if args.lint_brief:
+    if args.lint_brief is not None:
         text = (sys.stdin.read() if args.lint_brief == "-"
                 else open(args.lint_brief, encoding="utf-8").read())
-        findings = lint_brief(text)
+        findings = lint_brief(text, strict_contract=args.strict_contract)
         for f in findings:
             print(f"LINT: {f}")
         print("brief lint: " + ("FAIL" if findings else "clean"))

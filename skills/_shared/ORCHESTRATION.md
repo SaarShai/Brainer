@@ -58,7 +58,8 @@ Exactly three places, all machine-resolvable and refreshable:
 
 A versioned model name in skill *prose* is a defect unless it is a measured-
 evidence citation (e.g. "judge X false-passed on model Y" — evidence keeps its
-exact name). Dispatch instructions always speak in tiers.
+exact name) or a clearly labelled, non-exhaustive scope example in a durable
+user policy. Dispatch instructions always speak in tiers.
 
 ## 5. The dispatch contract (any host, any vendor)
 
@@ -70,6 +71,34 @@ loop. Cross-vendor egress goes through redaction + consent
 (`model_roster.render_prompt`; loop_lint R12).
 
 ## 6. Architect cost discipline (frontier-tier orchestrator)
+
+**Frontier economy invariant (hard).** This applies whenever the driving model
+is top/frontier tier — including the current Fable 5 and GPT-5.6 Sol xhigh
+class, and any equal-or-better future model. Spend its context on deep
+reasoning, diagnosis, architecture, decomposition, planning, synthesis, and
+final judgment. Route bounded research, summarization, extraction,
+classification, bulk reads, mechanical edits, boilerplate, and spec'd
+execution to the cheapest reachable capable tier. Do not delegate when the
+task is inseparable from live context, no suitable lane is reachable, or the
+brief/review overhead would cost at least as much as direct execution; the
+small judgment-dense-fix exception below also remains. These exceptions are
+anti-ceremony safeguards, not permission for a frontier agent to retain routine
+work. Delegate only when the expected end-to-end cost — including briefing,
+supervision, verification, and likely rework — is lower without reducing
+reliability; otherwise do it directly. Never delegate unresolved diagnosis or
+semantic invention to a weaker lane merely to save tokens.
+
+**End-to-end ownership invariant (hard).** For non-trivial decomposable work,
+create one measurable goal covering architecture, implementation, tests,
+review, and final verification. Split it into independent, non-colliding lanes;
+each lane gets a goal, expected deliverable, verification gate, and done
+criteria. Run the cheapest capable lanes concurrently while continuing
+unblocked lead work. Track results as they return, intervene when a lane drifts
+or lacks context, synthesize the outputs, resolve conflicts, and verify material
+boundaries live. Use the host's goal mechanism when available; otherwise put
+the goal in the plan or lane brief — a literal `/goal` command is not portable.
+Commit only when authorized and ready. Partial progress is not a stopping
+condition; stop only for missing authority or a genuine blocker.
 
 When the orchestrating session itself runs a frontier-tier model, **invert the
 token volume**: the expensive model emits judgment — decomposition, specs,

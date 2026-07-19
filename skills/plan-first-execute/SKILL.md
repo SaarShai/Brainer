@@ -48,6 +48,11 @@ Steps:
 7. Verify.
 8. Document durable facts.
 
+For a frontier-tier driver, all surveys and execution tasks follow the hard
+economy invariant in [`ORCHESTRATION.md §6`](../_shared/ORCHESTRATION.md#6-architect-cost-discipline-frontier-tier-orchestrator): retain planning and hard
+judgment; route bounded volume to the cheapest reachable capable tier when the
+saved work exceeds delegation and review overhead.
+
 Do not assume APIs exist. Retrieve docs or code first.
 
 Bypass for tasks that are clear, low-risk, and describable as a one-sentence diff: inspect reality, execute, verify.

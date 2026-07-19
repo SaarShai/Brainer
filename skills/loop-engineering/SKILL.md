@@ -17,6 +17,9 @@ A loop is a **generator wired to a verifier**. The generator was never the bottl
 
 Deep-dive reference: [REFERENCE.md](REFERENCE.md) — runtime-loop stack, memory contract, multi-model advisor/verifier panels, fleet orchestration, Mixture-of-Agents synthesis, instrumentation, failure-mode catalog, and lineage.
 
+Any frontier-tier loop lead follows the hard economy invariant in
+[`ORCHESTRATION.md §6`](../_shared/ORCHESTRATION.md#6-architect-cost-discipline-frontier-tier-orchestrator): the lead owns hard reasoning and verdicts while the cheapest reachable capable lanes carry bounded volume.
+
 ## Do you even need a loop?
 
 **The 4-condition test — miss one and a one-shot prompt beats a loop** (the loop's setup never amortizes):
