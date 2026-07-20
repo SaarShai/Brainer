@@ -157,6 +157,11 @@ def _codex_result_status(value, depth: int = 0) -> bool | None:
 
 _CUSTOM_EXEC_CALL_RE = re.compile(r"\btools\.exec_command\s*\(")
 _CUSTOM_EXEC_CMD_RE = re.compile(r"\bcmd\s*:\s*")
+_CUSTOM_APPLY_PATCH_CALL_RE = re.compile(r"\btools\.apply_patch\s*\(")
+_JS_IDENTIFIER_RE = re.compile(r"[A-Za-z_$][A-Za-z0-9_$]*")
+_APPLY_PATCH_FILE_RE = re.compile(
+    r"^\*\*\* (?:Add|Update|Delete) File:([^\r\n]*)\r?$", re.MULTILINE
+)
 
 
 def _read_js_string(source: str, start: int) -> tuple[str, int] | None:
@@ -201,6 +206,31 @@ def _custom_exec_commands(source: str) -> list[str]:
         if parsed is not None:
             commands.append(parsed[0])
     return commands
+
+
+def _custom_apply_patch_paths(source: str) -> list[str]:
+    """Extract explicit mutation headers from statically visible apply_patch text."""
+    paths: list[str] = []
+    for call in _CUSTOM_APPLY_PATCH_CALL_RE.finditer(source or ""):
+        start = call.end()
+        while start < len(source) and source[start].isspace():
+            start += 1
+        parsed = _read_js_string(source, start)
+        if parsed is None:
+            identifier = _JS_IDENTIFIER_RE.match(source, start)
+            if not identifier:
+                continue
+            assignment_re = re.compile(
+                rf"\b(?:const|let|var)\s+{re.escape(identifier.group(0))}\s*=\s*"
+            )
+            assignments = list(assignment_re.finditer(source, 0, call.start()))
+            if not assignments:
+                continue
+            parsed = _read_js_string(source, assignments[-1].end())
+        if parsed is not None:
+            paths.extend(path for match in _APPLY_PATCH_FILE_RE.finditer(parsed[0])
+                         if (path := match.group(1).strip()))
+    return paths
 
 
 def _norm_codex(events: list[dict]) -> list[dict]:
@@ -266,11 +296,13 @@ def _norm_codex(events: list[dict]) -> list[dict]:
                 # functions.exec is the current host's shell-orchestration
                 # boundary. Keep the raw source for audit, but expose only
                 # directly awaited literal exec_command `cmd` values to the
-                # command-aware detectors. If the custom call used apply_patch
-                # or another nested tool, the raw source remains visible so the
-                # mutation detector can conservatively classify it.
-                args = {"command": "\n;\n".join(commands) if commands else raw_input,
+                # command-aware detectors. Statically visible apply_patch
+                # targets are carried separately for path-touch detection.
+                args = {"command": "\n;\n".join(commands),
                         "_raw": raw_input}
+                patch_paths = _custom_apply_patch_paths(raw_input)
+                if patch_paths:
+                    args["_apply_patch_paths"] = patch_paths
                 name = "Bash"
             elif isinstance(raw_input, dict):
                 args = raw_input

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Tests for the cross-host transcript normalizer."""
+import json
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -144,6 +146,35 @@ def test_codex_custom_exec_maps_executed_commands_and_result():
     print("ok test_codex_custom_exec_maps_executed_commands_and_result")
 
 
+def test_codex_custom_exec_extracts_only_apply_patch_headers():
+    source = r'''const patch = "*** Begin Patch\n*** Add File: src/new.py\nmentioned/not-touched.py\n*** Update File: src/app.py\n*** Delete File: src/old.py\n*** End Patch";
+const decoy = "*** Update File: src/not-applied.py";
+const result = await tools.apply_patch(patch); text(result);'''
+    codex = [{"type": "response_item", "payload": {
+        "type": "custom_tool_call", "name": "exec", "call_id": "cx-patch",
+        "input": source}}]
+    tool_use = tn.normalize(codex)[0]["message"]["content"][0]
+    assert tool_use["name"] == "Bash", tool_use
+    assert tool_use["input"]["_raw"] == source, tool_use
+    assert tool_use["input"]["_apply_patch_paths"] == [
+        "src/new.py", "src/app.py", "src/old.py"
+    ], tool_use
+    print("ok test_codex_custom_exec_extracts_only_apply_patch_headers")
+
+
+def test_codex_apply_patch_header_whitespace_is_bounded_and_stripped():
+    padding = " " * (320 * 1024)
+    patch = f"*** Begin Patch\n*** Update File: src/app.py{padding}\n*** End Patch"
+    source = f"await tools.apply_patch({json.dumps(patch)});"
+    started = time.perf_counter()
+    paths = tn._custom_apply_patch_paths(source)
+    elapsed = time.perf_counter() - started
+    assert paths == ["src/app.py"], paths
+    assert elapsed < 0.5, f"whitespace-heavy header took {elapsed:.3f}s"
+    print(f"ok test_codex_apply_patch_header_whitespace_is_bounded_and_stripped "
+          f"({elapsed:.3f}s)")
+
+
 def test_codex_custom_exec_failure_status():
     codex = [{"type": "response_item", "payload": {
         "type": "custom_tool_call_output", "call_id": "cx-bad",
@@ -237,10 +268,12 @@ if __name__ == "__main__":
     test_codex_function_results_pair_when_interleaved_and_reversed()
     test_codex_shell_tool_maps_to_bash_with_command_key()
     test_codex_custom_exec_maps_executed_commands_and_result()
+    test_codex_custom_exec_extracts_only_apply_patch_headers()
+    test_codex_apply_patch_header_whitespace_is_bounded_and_stripped()
     test_codex_custom_exec_failure_status()
     test_codex_bad_arguments_dont_crash()
     test_codex_user_and_assistant_messages()
     test_codex_slash_skill_synthesizes_skill_tool_use()
     test_codex_skill_block_is_canonical_invocation()
     test_codex_non_slash_user_no_synthesis()
-    print("ALL 14 TESTS PASSED")
+    print("ALL 16 TESTS PASSED")

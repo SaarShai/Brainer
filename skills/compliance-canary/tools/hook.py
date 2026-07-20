@@ -2622,6 +2622,10 @@ def detect_tool_path_touch(probe: dict, _messages, tool_uses: list[dict], _tool_
                         if rx.search(target))
             hits.extend(target for target in _bash_manifest_mutation_targets(command)
                         if rx.search(target))
+            patch_paths = inp.get("_apply_patch_paths")
+            if isinstance(patch_paths, list):
+                hits.extend(target for target in patch_paths
+                            if isinstance(target, str) and rx.search(target))
         else:
             fp = str(inp.get("file_path", ""))
             if fp and rx.search(fp):

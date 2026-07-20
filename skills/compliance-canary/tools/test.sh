@@ -1597,6 +1597,77 @@ print('ok' if r2 is None and r3 is not None and r3.get('min_count') == 3 else f'
 " 2>&1)
 if [ "$p5b" = ok ]; then ok "valid min_count:3 unaffected (2 hits quiet, 3 hits fires)"; else no "valid min_count:3 regressed" "got: $p5b"; fi
 
+echo "[93l] leader-bulk-edit: native Codex nested apply_patch with 3 source targets FIRES"
+TX="$TRANSCRIPT_DIR/t93l.jsonl"
+python3 - "$TX" <<'PY'
+import json, sys
+patch = "*** Begin Patch\n*** Add File: /proj/src/new.py\n*** Update File: /proj/src/app.py\n*** Delete File: /proj/src/old.py\n*** End Patch"
+source = f"const patch = {json.dumps(patch)}; const result = await tools.apply_patch(patch); text(result);"
+event = {"type":"response_item","payload":{"type":"custom_tool_call","name":"exec","call_id":"cx-93l","input":source}}
+with open(sys.argv[1], "w") as f:
+    f.write(json.dumps(event) + "\n")
+PY
+out=$(call cc93l tl "$TX" s93l)
+if emitted "$out" && echo "$out" | grep -q 'tool_path_touch'; then ok "native Codex 3-path apply_patch fires"; else no "native Codex 3-path apply_patch should fire" "got: $(echo "$out"|head -c160)"; fi
+
+echo "[93m] leader-bulk-edit: native Codex 1/2-path patches and read-only commands stay QUIET"
+for count in 1 2; do
+  TX="$TRANSCRIPT_DIR/t93m-$count.jsonl"
+  python3 - "$TX" "$count" <<'PY'
+import json, sys
+headers = "\n".join(f"*** Update File: /proj/src/file{i}.py" for i in range(int(sys.argv[2])))
+patch = f"*** Begin Patch\n{headers}\n*** End Patch"
+source = f"await tools.apply_patch({json.dumps(patch)});"
+event = {"type":"response_item","payload":{"type":"custom_tool_call","name":"exec","input":source}}
+with open(sys.argv[1], "w") as f:
+    f.write(json.dumps(event) + "\n")
+PY
+  out=$(call "cc93m$count" tl "$TX" "s93m$count")
+  if [ -z "$out" ]; then ok "native Codex $count-path patch stays quiet"; else no "native Codex $count-path patch should stay quiet" "got: $(echo "$out"|head -c160)"; fi
+done
+TX="$TRANSCRIPT_DIR/t93m-read.jsonl"
+python3 - "$TX" <<'PY'
+import json, sys
+source = 'const r = await tools.exec_command({cmd:"rg -n /proj/src/a.py /proj/src/b.py /proj/src/c.py"}); text(r.output);'
+event = {"type":"response_item","payload":{"type":"custom_tool_call","name":"exec","input":source}}
+with open(sys.argv[1], "w") as f:
+    f.write(json.dumps(event) + "\n")
+PY
+out=$(call cc93mr tl "$TX" s93mr)
+if [ -z "$out" ]; then ok "native Codex read-only path mentions stay quiet"; else no "native Codex read-only command should stay quiet" "got: $(echo "$out"|head -c160)"; fi
+
+echo "[93n] leader-bulk-edit: native Codex patch with 3 exempt doc targets stays QUIET"
+TX="$TRANSCRIPT_DIR/t93n.jsonl"
+python3 - "$TX" <<'PY'
+import json, sys
+paths = ["/proj/PLAN.md", "/proj/.brainer/baton/worker-brief.md", "/proj/wiki/notes.md"]
+headers = "\n".join(f"*** Update File: {path}" for path in paths)
+patch = f"*** Begin Patch\n{headers}\n*** End Patch"
+source = f"const patch = {json.dumps(patch)}; await tools.apply_patch(patch);"
+event = {"type":"response_item","payload":{"type":"custom_tool_call","name":"exec","input":source}}
+with open(sys.argv[1], "w") as f:
+    f.write(json.dumps(event) + "\n")
+PY
+out=$(call cc93n tl "$TX" s93n)
+if [ -z "$out" ]; then ok "native Codex 3 exempt patch targets stay quiet"; else no "native Codex exempt patch targets should stay quiet" "got: $(echo "$out"|head -c160)"; fi
+
+echo "[93o] leader-bulk-edit: apply_patch-only JavaScript arrows do not become Bash redirections"
+TX="$TRANSCRIPT_DIR/t93o.jsonl"
+python3 - "$TX" <<'PY'
+import json, sys
+paths = ["/proj/PLAN.md", "/proj/docs/api-spec.md", "/proj/.brainer/baton/worker-brief.md"]
+calls = []
+for i, path in enumerate(paths):
+    patch = f"*** Begin Patch\n*** Update File: {path}\n*** End Patch"
+    calls.append(f"const kept{i} = items.filter(x => x.ok); await tools.apply_patch({json.dumps(patch)});")
+source = " ".join(calls)
+event = {"type":"response_item","payload":{"type":"custom_tool_call","name":"exec","input":source}}
+with open(sys.argv[1], "w") as f:
+    f.write(json.dumps(event) + "\n")
+PY
+out=$(call cc93o tl "$TX" s93o)
+if [ -z "$out" ]; then ok "3 exempt apply_patch calls amid JavaScript arrows stay quiet"; else no "JavaScript arrows should not become Bash redirections" "got: $(echo "$out"|head -c160)"; fi
+
 # ======================================================================
 # Mechanism 5: probe escalation (advisory→blocking after 3 uncorrected fires)
 # Stateless from probe_history; clears after 3 silent turns. Direct-asserts.
