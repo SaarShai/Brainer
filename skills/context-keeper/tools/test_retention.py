@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
 """Regression tests for context-keeper retention.py. No pytest, no network.
 
-Covers: aging/expiry math with synthetic mtimes, dry-run vs delete behavior
-(dry-run never removes a file; delete requires the explicit flag), scrub on a
-synthetic transcript with planted secrets (every planted class caught,
-non-secret content byte-identical, original untouched without --replace,
-original replaced only with --replace), and a real-file smoke test against
-the smallest file in .brainer/sessions/raw/ (existence-only — real content
-varies, so this asserts the tool runs clean and writes the sibling, not
-specific counts).
+Covers: retention-window parsing (default/valid/invalid override, and that
+`expire` refuses instead of silently falling back while `status` reports the
+default with an explicit "ignored" note), aging/expiry math with synthetic
+mtimes, dry-run vs delete behavior (dry-run never removes a file; delete
+requires the explicit flag), per-file delete-failure reporting (nonzero
+exit, failed file survives, other expired files still removed), and symlink
+safety (a symlinked archive directory is refused outright; a symlink sitting
+where an archive file would be is skipped, reported, and never unlinked).
+
+There is no `scrub` subcommand and no test for one — see `../POLICY.md` for
+why it was removed rather than patched.
 """
 from __future__ import annotations
 
+import argparse
 import os
 import shutil
 import subprocess
@@ -19,6 +23,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).parent))
 import retention  # noqa: E402
@@ -42,24 +47,62 @@ def _touch_with_age(path: Path, days_old: float, content: str = "{}\n") -> None:
     os.utime(path, (ts, ts))
 
 
-# --- retention window math -------------------------------------------------
+# --- retention window parsing -----------------------------------------------
 
-def test_get_retention_days_default_and_override():
-    saved = os.environ.pop("BRAINER_RAW_RETENTION_DAYS", None)
+def test_parse_retention_days_unset_and_empty():
+    assert retention.parse_retention_days(None) == (60, False)
+    assert retention.parse_retention_days("") == (60, False)
+
+
+def test_parse_retention_days_valid_override():
+    assert retention.parse_retention_days("10") == (10, False)
+
+
+def test_parse_retention_days_invalid_shapes():
+    assert retention.parse_retention_days("not-a-number") == (None, True)
+    assert retention.parse_retention_days("0") == (None, True)
+    assert retention.parse_retention_days("-5") == (None, True)
+
+
+def test_expire_rejects_invalid_override_nonzero_exit():
+    d = Path(tempfile.mkdtemp())
     try:
-        assert retention.get_retention_days() == 60
-        os.environ["BRAINER_RAW_RETENTION_DAYS"] = "10"
-        assert retention.get_retention_days() == 10
-        os.environ["BRAINER_RAW_RETENTION_DAYS"] = "not-a-number"
-        assert retention.get_retention_days() == 60
-        os.environ["BRAINER_RAW_RETENTION_DAYS"] = "-5"
-        assert retention.get_retention_days() == 60
+        _touch_with_age(d / "old.jsonl", 100)
+        for bad in ("not-a-number", "0", "-5"):
+            r = _run(["expire", "--dir", str(d), "--dry-run"], env={"BRAINER_RAW_RETENTION_DAYS": bad})
+            assert r.returncode != 0, f"expire must refuse override={bad!r}"
+            assert bad in r.stderr, r.stderr
+            assert (d / "old.jsonl").exists(), "refusal must not touch files"
     finally:
-        if saved is None:
-            os.environ.pop("BRAINER_RAW_RETENTION_DAYS", None)
-        else:
-            os.environ["BRAINER_RAW_RETENTION_DAYS"] = saved
+        shutil.rmtree(d, ignore_errors=True)
 
+
+def test_status_reports_default_and_notes_invalid_override_ignored():
+    d = Path(tempfile.mkdtemp())
+    try:
+        _touch_with_age(d / "old.jsonl", 1)
+        for bad in ("not-a-number", "0", "-5"):
+            r = _run(["status", "--dir", str(d)], env={"BRAINER_RAW_RETENTION_DAYS": bad})
+            assert r.returncode == 0, r.stderr
+            assert "retention window: 60 days (default)" in r.stdout, r.stdout
+            assert f"invalid override ignored: {bad}" in r.stdout, r.stdout
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_status_valid_override_no_ignored_note():
+    d = Path(tempfile.mkdtemp())
+    try:
+        _touch_with_age(d / "old.jsonl", 1)
+        r = _run(["status", "--dir", str(d)], env={"BRAINER_RAW_RETENTION_DAYS": "10"})
+        assert r.returncode == 0, r.stderr
+        assert "retention window: 10 days (from BRAINER_RAW_RETENTION_DAYS)" in r.stdout, r.stdout
+        assert "ignored" not in r.stdout, r.stdout
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+# --- aging / expiry math ------------------------------------------------
 
 def test_expired_files_ages_boundary():
     d = Path(tempfile.mkdtemp())
@@ -67,9 +110,10 @@ def test_expired_files_ages_boundary():
         _touch_with_age(d / "old.jsonl", 90)
         _touch_with_age(d / "fresh.jsonl", 5)
         _touch_with_age(d / "boundary.jsonl", 60.5)
-        expired = retention._expired_files(d, 60)
+        expired, skipped = retention._expired_files(d, 60)
         names = {f.name for f, _, _ in expired}
         assert names == {"old.jsonl", "boundary.jsonl"}, names
+        assert skipped == []
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
@@ -127,141 +171,82 @@ def test_expire_delete_requires_flag_and_removes_only_expired():
         shutil.rmtree(d, ignore_errors=True)
 
 
-# --- scrub: synthetic planted secrets ---------------------------------------
+# --- delete-failure handling --------------------------------------------
 
-_PLANTED = {
-    "openai_key": "sk-proj-ABCDEFGH1234567890abcdEFGHijkl",
-    "github_pat": "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
-    "aws_akid": "AKIAABCDEFGHIJKLMNOP",
-    "bearer": "Authorization: Bearer abcdefghijklmnopqrstuvwxyz012345",
-    "password_assign": 'password = "hunter2superlongsecretvalue123"',
-    "high_entropy_hex": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
-    "non_owner_email": "someone.else@example.com",
-}
-
-_NON_SECRET_LINE = 'the quick brown fox jumps over the lazy dog, count=42, path=/tmp/ok'
-
-
-def _make_synthetic_transcript(d: Path) -> Path:
-    lines = [
-        '{"type":"user","message":{"role":"user","content":"my key is %s"}}' % _PLANTED["openai_key"],
-        '{"type":"user","message":{"role":"user","content":"token %s"}}' % _PLANTED["github_pat"],
-        '{"type":"user","message":{"role":"user","content":"aws id %s"}}' % _PLANTED["aws_akid"],
-        '{"type":"user","message":{"role":"user","content":"%s"}}' % _PLANTED["bearer"],
-        '{"type":"user","message":{"role":"user","content":"%s"}}' % _PLANTED["password_assign"],
-        # Unescaped top-level key:value pair — the realistic shape (a real
-        # JSON field on the line), not a string-within-a-string.
-        '{"type":"user","session_id":"%s","message":{"role":"user","content":"ok"}}' % _PLANTED["high_entropy_hex"],
-        '{"type":"user","message":{"role":"user","content":"reach me at %s"}}' % _PLANTED["non_owner_email"],
-        '{"type":"user","message":{"role":"user","content":"%s"}}' % _NON_SECRET_LINE,
-    ]
-    p = d / "synthetic.jsonl"
-    p.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return p
-
-
-def test_scrub_catches_all_planted_classes_and_preserves_non_secret_content():
+def test_expire_delete_reports_failure_and_exits_nonzero():
     d = Path(tempfile.mkdtemp())
     try:
-        src = _make_synthetic_transcript(d)
-        original_bytes = src.read_bytes()
-        r = _run(["scrub", str(src)], env={"BRAINER_OWNER_EMAIL": "owner@example.com"})
-        assert r.returncode == 0, r.stderr
+        _touch_with_age(d / "locked.jsonl", 100)
+        _touch_with_age(d / "removable.jsonl", 100)
+        orig_unlink = Path.unlink
 
-        sibling = d / "synthetic.redacted.jsonl"
-        assert sibling.exists(), "scrub must write a .redacted.jsonl sibling"
-        scrubbed = sibling.read_text(encoding="utf-8")
+        def flaky_unlink(self, *a, **kw):
+            if self.name == "locked.jsonl":
+                raise PermissionError(f"simulated permission denied: {self}")
+            return orig_unlink(self, *a, **kw)
 
-        for label, secret in _PLANTED.items():
-            assert secret not in scrubbed, f"{label} leaked: {secret!r} still present"
+        args = argparse.Namespace(dir=str(d), dry_run=False)
+        with mock.patch.object(Path, "unlink", flaky_unlink):
+            rc = retention.cmd_expire(args)
 
-        # Non-secret content survives byte-identical.
-        assert _NON_SECRET_LINE in scrubbed
-        assert "the quick brown fox" in scrubbed
-
-        # Original untouched without --replace.
-        assert src.read_bytes() == original_bytes, "original must be untouched without --replace"
+        assert rc != 0, "any unlink failure must yield a nonzero exit"
+        assert (d / "locked.jsonl").exists(), "failed unlink must leave the file in place"
+        assert not (d / "removable.jsonl").exists(), "other expired files must still be removed"
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
 
-def test_scrub_keeps_owner_email_redacts_others():
-    d = Path(tempfile.mkdtemp())
+# --- symlink safety -------------------------------------------------------
+
+def test_status_refuses_symlinked_archive_dir():
+    parent = Path(tempfile.mkdtemp())
     try:
-        src = d / "emails.jsonl"
-        src.write_text(
-            '{"content":"cc owner@example.com and someone.else@example.com"}\n',
-            encoding="utf-8",
-        )
-        r = _run(["scrub", str(src)], env={"BRAINER_OWNER_EMAIL": "owner@example.com"})
+        real = parent / "real"
+        real.mkdir()
+        link = parent / "link"
+        link.symlink_to(real, target_is_directory=True)
+        r = _run(["status", "--dir", str(link)])
+        assert r.returncode != 0
+        assert "symlink" in r.stderr, r.stderr
+    finally:
+        shutil.rmtree(parent, ignore_errors=True)
+
+
+def test_expire_refuses_symlinked_archive_dir():
+    parent = Path(tempfile.mkdtemp())
+    try:
+        real = parent / "real"
+        real.mkdir()
+        _touch_with_age(real / "old.jsonl", 100)
+        link = parent / "link"
+        link.symlink_to(real, target_is_directory=True)
+        r = _run(["expire", "--dir", str(link), "--delete"], env={"BRAINER_RAW_RETENTION_DAYS": "60"})
+        assert r.returncode != 0
+        assert "symlink" in r.stderr, r.stderr
+        assert (real / "old.jsonl").exists(), "refusal must not touch files behind the symlinked dir"
+    finally:
+        shutil.rmtree(parent, ignore_errors=True)
+
+
+def test_expire_skips_symlink_files_and_reports_them():
+    d = Path(tempfile.mkdtemp())
+    other = Path(tempfile.mkdtemp())
+    try:
+        target = other / "target.jsonl"
+        _touch_with_age(target, 100)
+        link = d / "linked.jsonl"
+        link.symlink_to(target)
+        _touch_with_age(d / "real_old.jsonl", 100)
+
+        r = _run(["expire", "--dir", str(d), "--delete"], env={"BRAINER_RAW_RETENTION_DAYS": "60"})
         assert r.returncode == 0, r.stderr
-        scrubbed = (d / "emails.redacted.jsonl").read_text(encoding="utf-8")
-        assert "owner@example.com" in scrubbed, "owner's own email must survive"
-        assert "someone.else@example.com" not in scrubbed
+        assert "skipped symlink" in r.stdout, r.stdout
+        assert link.exists() and link.is_symlink(), "symlink must never be unlinked by expire"
+        assert target.exists(), "symlink target must survive — only the link entry was ever a candidate"
+        assert not (d / "real_old.jsonl").exists(), "real expired file must still be removed"
     finally:
         shutil.rmtree(d, ignore_errors=True)
-
-
-def test_scrub_replace_flag_overwrites_original():
-    d = Path(tempfile.mkdtemp())
-    try:
-        src = d / "replace_me.jsonl"
-        src.write_text('{"content":"key sk-proj-ABCDEFGH1234567890abcdEFGHijkl"}\n', encoding="utf-8")
-        r = _run(["scrub", str(src), "--replace"])
-        assert r.returncode == 0, r.stderr
-        assert "sk-proj-ABCDEFGH1234567890abcdEFGHijkl" not in src.read_text(encoding="utf-8")
-        assert not (d / "replace_me.redacted.jsonl").exists(), "--replace merges sibling into original"
-    finally:
-        shutil.rmtree(d, ignore_errors=True)
-
-
-def test_scrub_without_replace_never_touches_original_even_when_secrets_found():
-    d = Path(tempfile.mkdtemp())
-    try:
-        src = d / "no_replace.jsonl"
-        content = '{"content":"key sk-proj-ABCDEFGH1234567890abcdEFGHijkl"}\n'
-        src.write_text(content, encoding="utf-8")
-        before_mtime = src.stat().st_mtime
-        r = _run(["scrub", str(src)])
-        assert r.returncode == 0, r.stderr
-        assert src.read_text(encoding="utf-8") == content
-        assert src.stat().st_mtime == before_mtime
-    finally:
-        shutil.rmtree(d, ignore_errors=True)
-
-
-# --- real-archive smoke test -------------------------------------------------
-
-def test_scrub_real_archive_smoke():
-    real_dir = Path(__file__).resolve().parents[3] / ".brainer" / "sessions" / "raw"
-    if not real_dir.is_dir():
-        print("skip: no real archive dir present")
-        return
-    candidates = [p for p in real_dir.glob("*.jsonl") if p.is_file()]
-    if not candidates:
-        print("skip: no real archive files present")
-        return
-    smallest = min(candidates, key=lambda p: p.stat().st_size)
-
-    tmp_copy_dir = Path(tempfile.mkdtemp())
-    try:
-        # Work on a copy so the real archive is never touched (no --replace
-        # anyway, but the sibling would otherwise land next to the original).
-        copy_path = tmp_copy_dir / smallest.name
-        shutil.copy2(smallest, copy_path)
-        original_bytes = smallest.read_bytes()
-
-        r = _run(["scrub", str(copy_path)])
-        assert r.returncode == 0, r.stderr
-        print(f"real-file smoke ({smallest.name}, {smallest.stat().st_size} bytes): {r.stdout.strip()}")
-
-        sibling = copy_path.with_name(copy_path.name[: -len(".jsonl")] + ".redacted.jsonl")
-        assert sibling.exists()
-
-        # Real archive itself must be provably untouched.
-        assert smallest.read_bytes() == original_bytes, "real archived file must never be modified"
-    finally:
-        shutil.rmtree(tmp_copy_dir, ignore_errors=True)
+        shutil.rmtree(other, ignore_errors=True)
 
 
 def main():

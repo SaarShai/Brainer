@@ -316,6 +316,79 @@ def classify_deleted(sib: Path, rels: list[str]) -> dict:
     return {"delete": delete, "conflict": conflict}
 
 
+def sibling_dirty_status(sib: Path) -> tuple[set[str], set[str]] | None:
+    """(dirty_files, dirty_dirs) from `git -C sib status --porcelain` — both
+    tracked modifications AND untracked paths (git collapses a wholly-untracked
+    directory into one `?? dir/` entry rather than listing every file inside
+    it, hence the separate dirty_dirs set for prefix matching). Returns None
+    if `sib` is not itself a git repo (git status fails): the dirty-worktree
+    gate then has nothing to check and is a no-op, never a false block."""
+    r = subprocess.run(["git", "-C", str(sib), "status", "--porcelain"],
+                        capture_output=True, text=True)
+    if r.returncode != 0:
+        return None
+    files, dirs = set(), set()
+    for line in r.stdout.splitlines():
+        if len(line) < 4:
+            continue
+        path = line[3:].strip('"')
+        if " -> " in path:  # rename/copy: "XY old -> new" — new is the live path
+            path = path.split(" -> ", 1)[1]
+        if path.endswith("/"):
+            dirs.add(path.rstrip("/"))
+        else:
+            files.add(path)
+    return files, dirs
+
+
+def dirty_overlap(targets: set[str], dirty_files: set[str], dirty_dirs: set[str]) -> list[str]:
+    """Which of `targets` (destination paths an apply run would write/delete)
+    sit inside the sibling's dirty worktree — as an exact dirty file, inside a
+    dirty (possibly untracked) directory, or itself a directory (e.g. a
+    newly-adopted skill dir) that CONTAINS a dirty file or dir."""
+    hits = []
+    for t in sorted(targets):
+        if (t in dirty_files
+                or any(t == d or t.startswith(d + "/") for d in dirty_dirs)
+                or any(f == t or f.startswith(t + "/") for f in dirty_files)
+                or any(d == t or d.startswith(t + "/") for d in dirty_dirs)):
+            hits.append(t)
+    return hits
+
+
+def plan_apply_targets(sib: Path, s: dict, args) -> set[str]:
+    """Every destination path (file, or skill-dir prefix for a wholesale new
+    skill) this apply run would write or delete in `sib` — computed dry (no
+    I/O) so the dirty-worktree gate can run BEFORE any mutation happens."""
+    targets: set[str] = set()
+    if args.apply_stale and s["differs"]:
+        cl = classify_differs(sib, s["differs"])
+        ignored = _canon_gitignored(cl["stale"])
+        targets.update(f for f in cl["stale"] if f not in ignored)
+    if args.apply_stale and s["agent_differs"]:
+        acl = classify_differs(sib, s["agent_differs"])
+        ignored = _canon_gitignored(acl["stale"])
+        targets.update(f for f in acl["stale"] if f not in ignored)
+    if args.apply_absent and s.get("absent"):
+        ignored = _canon_gitignored(s["absent"])
+        for f in s["absent"]:
+            if f in ignored:
+                continue
+            rel = Path(f)
+            skill_dir = sib / rel.parts[0] / rel.parts[1]
+            if len(rel.parts) > 2 and not skill_dir.is_dir():
+                continue
+            targets.add(f)
+    if args.adopt_new_skills and s["new_skills"]:
+        targets.update(f"skills/{name}" for name in s["new_skills"])
+    if args.adopt_agents and s["new_agents"]:
+        targets.update(f"{AGENTS_DIR}/{name}.md" for name in s["new_agents"])
+    if args.apply_deletions and s["canon_deleted"]:
+        dcl = classify_deleted(sib, s["canon_deleted"])
+        targets.update(dcl["delete"])
+    return targets
+
+
 def new_skills_for(sib: Path) -> list[str]:
     """Canonical skills wholly absent from the sibling and not opted out —
     the auto-adoption set."""
@@ -437,6 +510,12 @@ def main() -> int:
                     help="mechanical target-repo test after a propagation: "
                          "byte-compile every .py under the sibling's skills/ "
                          "(exit 1 on any failure). Requires --repo.")
+    ap.add_argument("--force-dirty", action="store_true",
+                    help="proceed with an apply run even though the sibling's "
+                         "worktree has uncommitted changes overlapping a "
+                         "destination path (prints a warning listing the "
+                         "overlaps). Without this flag, any such overlap "
+                         "refuses the entire apply run before touching anything.")
     args = ap.parse_args()
     if (args.repo and args.repo not in APPROVED_SIBLINGS
             and not args.allow_unapproved):
@@ -487,6 +566,40 @@ def main() -> int:
     if args.json:
         print(json.dumps(rep, indent=2))
         return 0
+    apply_mode = (args.apply_stale or args.apply_absent or args.adopt_new_skills
+                  or args.adopt_agents or args.apply_deletions)
+    if apply_mode:
+        # Dirty-worktree gate: --repo (validated above) means exactly one
+        # sibling here. Refuse the ENTIRE apply run if any destination path
+        # this run would write/delete overlaps the sibling's uncommitted
+        # work (tracked or untracked) — an in-flight sibling edit must never
+        # be silently clobbered. Unrelated dirt elsewhere in the sibling
+        # (e.g. screenery-lean's birds-nest files) never blocks.
+        sib_path = DOCS / args.repo
+        s0 = rep["siblings"][0]
+        targets = plan_apply_targets(sib_path, s0, args)
+        dirty = sibling_dirty_status(sib_path)
+        if dirty is not None and targets:
+            overlap = dirty_overlap(targets, *dirty)
+            if overlap:
+                if args.force_dirty:
+                    print(f"WARNING: --force-dirty overriding the dirty-worktree "
+                          f"gate for {args.repo} — {len(overlap)} path(s) with "
+                          "uncommitted sibling changes will be overwritten/deleted:",
+                          file=sys.stderr)
+                    for p in overlap:
+                        print(f"  {p}", file=sys.stderr)
+                else:
+                    print(f"REFUSED: {args.repo} has uncommitted changes "
+                          f"overlapping {len(overlap)} destination path(s) this "
+                          "apply run would write or delete — in-flight sibling "
+                          "work could be lost:", file=sys.stderr)
+                    for p in overlap:
+                        print(f"  {p}", file=sys.stderr)
+                    print("Resolve first: commit or stash these paths in the "
+                          f"sibling ({args.repo}), or pass --force-dirty to "
+                          "proceed anyway.", file=sys.stderr)
+                    return 1
     print(f"canonical: {rep['canonical_files']} skill files, "
           f"{rep['canonical_skills']} skills, {rep['canonical_agents']} agent-defs (Brainer)\n")
     print(f"{'sibling':<18}{'shared':>7}{'ident':>7}{'differ':>7}{'absent':>7}{'new-sk':>7}"

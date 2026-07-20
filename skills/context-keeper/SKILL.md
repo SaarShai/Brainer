@@ -25,7 +25,7 @@ Separate from the compaction checkpoint above. On `SessionEnd`, `archive.py` cop
 
 The copy dir gets a self-contained `.gitignore` (`*`) so the raw transcripts stay out of version control in any host repo — they're for local reference, not commits. cwd resolves from the hook payload, then `$CLAUDE_PROJECT_DIR`, then `os.getcwd()`. Overwrites by session-id, so re-fires don't duplicate.
 
-Retention, deletion, and on-demand redaction for this archive: see [`POLICY.md`](POLICY.md) (`tools/retention.py status|expire|scrub`).
+Retention and deletion for this archive: see [`POLICY.md`](POLICY.md) (`tools/retention.py status|expire`). Redaction is not provided yet — treat archived transcripts as containing secrets.
 
 Scope:
 

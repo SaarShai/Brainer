@@ -35,10 +35,10 @@ export BRAINER_RAW_RETENTION_DAYS=30
 The window is advisory data until you act on it — see "deletion is never
 automatic" below.
 
-## The three commands
+## The two commands
 
-All three live in `tools/retention.py` and are explicit-invocation only —
-none of them ever run from a hook.
+Both live in `tools/retention.py` and are explicit-invocation only — neither
+ever runs from a hook.
 
 ### `status` — see what's there
 
@@ -49,7 +49,10 @@ python3 skills/context-keeper/tools/retention.py status
 Prints the archive directory, the active retention window (and whether it
 came from `BRAINER_RAW_RETENTION_DAYS` or the 60-day default), file count,
 total bytes, oldest/newest file age, and how many files are already past the
-window.
+window. An invalid `BRAINER_RAW_RETENTION_DAYS` (not a positive integer)
+falls back to the 60-day default but says so explicitly — `retention window:
+60 days (default) — invalid override ignored: <value>` — so a broken
+override never silently looks like it took effect.
 
 ### `expire` — list or delete files past the window
 
@@ -63,32 +66,50 @@ python3 skills/context-keeper/tools/retention.py expire --delete
 
 `--dry-run` and `--delete` are mutually exclusive and one is required —
 there is no default action, so a bare `expire` with no flag does nothing but
-error, by design.
+error, by design. Unlike `status`, an invalid `BRAINER_RAW_RETENTION_DAYS`
+makes `expire` refuse outright (nonzero exit, no files touched) rather than
+guessing a window for a destructive command. If any file fails to delete
+(permission error, vanished mid-run, etc.), `expire --delete` reports the
+failure per file and exits nonzero even though it still removes whatever it
+could.
 
-### `scrub` — redact one archived transcript on demand
+### Symlink safety
 
-```bash
-# writes a sibling file, leaves the original byte-for-byte untouched
-python3 skills/context-keeper/tools/retention.py scrub .brainer/sessions/raw/<session-id>.jsonl
-# -> .brainer/sessions/raw/<session-id>.redacted.jsonl
+`status` and `expire` both refuse (nonzero exit, clear message) if the
+archive directory itself is a symlink, checked with an lstat-based test so a
+symlinked `.brainer/sessions/raw` can't be silently walked or deleted into.
+Within the archive, `expire` never unlinks a symlink standing in for an
+archive file — it skips it and reports it as skipped; only regular files are
+ever removed.
 
-# also overwrite the original with the scrubbed content
-python3 skills/context-keeper/tools/retention.py scrub .brainer/sessions/raw/<session-id>.jsonl --replace
-```
+## Redaction — not provided yet
 
-Redaction is never applied at archive time — the archive must stay a
-faithful, lossless copy. `scrub` is the only place secrets get removed, and
-only when you ask. It catches, per raw line (never parse-then-reserialize
-JSON, so structure/escaping can't drift): API keys, bearer/OAuth tokens,
-password-like assignments (delegated to the already-hardened
-`skills/_shared/audit_redact.py`), high-entropy hex/base64 runs sitting next
-to a key, and email addresses other than the repo owner's (`git config
-user.email`, or `BRAINER_OWNER_EMAIL` to override).
+There is **no scrub/redaction command**. An earlier version of this tool
+shipped a `scrub` subcommand that reported per-family redaction counts while
+regex-matching raw lines — but it missed secrets sitting inside
+JSON-escaped strings (e.g. `\"password\": \"...\"` inside a serialized
+payload) and URL-safe token alphabets, so it could report success (`secret-
+family=1`) on a line where the actual secret string was still present
+verbatim. A redactor that claims success while leaking is worse than no
+redactor, so it was removed rather than patched — per this repo's doctrine
+of removing broken safety machinery instead of leaving it in a state that
+looks trustworthy.
+
+**Until a scrub command ships again, treat every file under
+`.brainer/sessions/raw/` as containing secrets in the clear.** See "Trust
+boundary" above.
+
+Before any future `scrub` ships, it must pass adversarial tests covering (at
+minimum) JSON-escaped-quote secrets and URL-safe base64/base64url token
+alphabets, on top of the plain-line cases. `skills/_shared/audit_redact.py`
+is the shared regex module other consumers rely on and is a reasonable
+starting point for the secret-family patterns, but it has the same known
+gaps and must not be assumed adversarially safe as-is.
 
 ## Deletion is never automatic — the guarantee
 
 No hook, no background process, and no other Brainer skill ever deletes a
 file under `.brainer/sessions/raw/`. The only way a raw transcript is removed
-is a human typing `retention.py expire --delete`, after having seen (via
-`--dry-run` or `status`) exactly what's about to go. This is the no-drop
-doctrine applied to disk: nothing valuable disappears silently.
+is a human explicitly typing `retention.py expire --delete`. This is the
+no-drop doctrine applied to disk: nothing valuable disappears silently,
+and no other invocation of this tool ever deletes anything.

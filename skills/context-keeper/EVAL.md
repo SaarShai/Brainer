@@ -6,7 +6,7 @@
 |---|---|
 | description (always resident) | **55 tokens** (281 chars) |
 | body (loaded on trigger)      | **688 tokens** (2996 chars) |
-| tools/ payload                 | 83.5 KB |
+| tools/ payload                 | 79.0 KB |
 | model pin                      | `haiku` |
 | effort pin                     | `low` |
 

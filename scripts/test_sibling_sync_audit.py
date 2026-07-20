@@ -279,6 +279,59 @@ def main() -> int:
         check("explicit override admits one user-authorized extra repo",
               [item["repo"] for item in override["siblings"]]
               == ["accidental-sibling"])
+
+        # 7. Dirty-worktree gate: a REAL git sibling with an uncommitted change
+        #    sitting exactly on an apply-stale destination path must refuse the
+        #    entire run before touching anything; --force-dirty overrides with
+        #    a warning. (a) + (c) share one fixture since refusal is a no-op.
+        sib_a = docs / "farey-hecke"
+        write(sib_a / "skills" / "dummy" / "SKILL.md", "---\nname: dummy\n---\nbody\n")
+        write(sib_a / "install.sh", "#!/usr/bin/env bash\n")
+        write(sib_a / AGENTS / "builder.md", "placeholder committed content\n")
+        git(sib_a, "init", "-q")
+        git(sib_a, "config", "user.email", "t@t")
+        git(sib_a, "config", "user.name", "t")
+        git(sib_a, "add", "-A")
+        git(sib_a, "commit", "-qm", "baseline")
+        # Uncommitted (dirty) edit landing exactly on the STALE apply target:
+        # on-disk bytes match canonical v1 (STALE), but the sibling's own git
+        # history never committed this content — in-flight local work.
+        write(sib_a / AGENTS / "builder.md", BUILDER_V1)
+        builder_a = sib_a / AGENTS / "builder.md"
+
+        refused = run("--repo", "farey-hecke", "--apply-stale", expect=1)
+        check("dirty overlap: apply-stale refuses (exit 1)",
+              "REFUSED" in refused.stderr and f"{AGENTS}/builder.md" in refused.stderr)
+        check("dirty overlap: refused run left the overlapping file unchanged",
+              builder_a.read_text() == BUILDER_V1)
+
+        forced = run("--repo", "farey-hecke", "--apply-stale", "--force-dirty")
+        check("--force-dirty proceeds despite overlap",
+              builder_a.read_text() == BUILDER_V2)
+        check("--force-dirty prints a prominent overlap warning",
+              "WARNING" in forced.stderr and f"{AGENTS}/builder.md" in forced.stderr)
+
+        # 7b. Dirty non-overlapping file must NOT block: unrelated in-flight
+        #     work elsewhere in the sibling (e.g. screenery-lean's birds-nest
+        #     files) is legitimate and must never stop an unrelated apply.
+        sib_b = docs / "screenery-design-master"
+        write(sib_b / "skills" / "dummy" / "SKILL.md", "---\nname: dummy\n---\nbody\n")
+        write(sib_b / "install.sh", "#!/usr/bin/env bash\n")
+        write(sib_b / AGENTS / "builder.md", BUILDER_V1)
+        git(sib_b, "init", "-q")
+        git(sib_b, "config", "user.email", "t@t")
+        git(sib_b, "config", "user.name", "t")
+        git(sib_b, "add", "-A")
+        git(sib_b, "commit", "-qm", "baseline")
+        write(sib_b / "UNRELATED_NOTES.md", "in-flight unrelated work\n")  # untracked, no overlap
+
+        proceeded = run("--repo", "screenery-design-master", "--apply-stale")
+        check("dirty non-overlapping file: apply-stale proceeds",
+              (sib_b / AGENTS / "builder.md").read_text() == BUILDER_V2)
+        check("dirty non-overlapping file: unrelated dirt untouched",
+              (sib_b / "UNRELATED_NOTES.md").read_text() == "in-flight unrelated work\n")
+        check("dirty non-overlapping file: no refusal printed",
+              "REFUSED" not in proceeded.stderr)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
