@@ -35,6 +35,18 @@ Usage:
   python3 scripts/sibling_sync_audit.py --classify           # DIFFERS -> STALE vs CUSTOMIZED
   python3 scripts/sibling_sync_audit.py --repo X --apply-stale  # fast-forward STALE files only
   python3 scripts/sibling_sync_audit.py --repo X --adopt-agents # add missing .claude/agents/*.md
+  python3 scripts/sibling_sync_audit.py --repo X --apply-deletions # remove DELETE-class retired files
+
+Canonical DELETIONS also travel: a file present in a sibling's copy of a
+shared skill dir but absent from canonical HEAD (retired machinery the sibling
+never dropped) is reported under `canon_deleted`, and `--classify` splits it
+into DELETE (byte-matches a version this path once held canonically — safe to
+remove) vs CONFLICT (content that never matched canonical history — sibling-
+customized, never auto-deleted). `--apply-deletions` removes DELETE-class
+files only and requires --repo; omitting it (audit/--classify alone) is a dry
+run — nothing is ever deleted without that flag. A skill absent canonically in
+its entirety is NOT covered here — it already surfaces as sibling_only_skills,
+a deliberate local-fork signal left untouched.
 
 Agent-defs ride the SAME classify machinery as skills: a stale roster def (the
 sibling holds an older builder.md that byte-matches a historical canonical
@@ -254,6 +266,56 @@ def new_agents_for(sib: Path) -> list[str]:
     return sorted(agent_names(BRAINER) - agent_names(sib) - _optout_agents(sib))
 
 
+def canon_deleted_for(sib: Path, shared_skills: set[str]) -> list[str]:
+    """Sibling files that sit inside a shared skill dir (adopted both
+    canonically and by this sibling) but no longer exist ANYWHERE in canonical
+    HEAD — the missing half of the stale/absent picture. `skill_files`/`audit`
+    only ever enumerate CANONICAL paths and report what a sibling LACKS; a path
+    canonically DELETED (retired machinery) never appears there, so it
+    silently persists in every sibling forever. Restricted to shared skill
+    dirs: a skill absent canonically in its ENTIRETY already surfaces as
+    sibling_only_skills (a deliberate local-fork signal) and is never treated
+    as deletable here. Gitignored canonical paths (runtime state, e.g. a
+    canary's `.brainer/` state JSON) are excluded — never canonical source, so
+    never a deletion candidate either."""
+    if not shared_skills:
+        return []
+    canon_rel = {str(p) for p in skill_files(BRAINER)}
+    out = []
+    for p in (sib / "skills").rglob("*"):
+        if not p.is_file():
+            continue
+        rel = p.relative_to(sib)
+        if any(part in SKIP for part in rel.parts):
+            continue
+        if len(rel.parts) < 2 or rel.parts[1] not in shared_skills:
+            continue
+        if str(rel) in canon_rel:
+            continue
+        out.append(str(rel))
+    ignored = _canon_gitignored(out)
+    return sorted(r for r in out if r not in ignored)
+
+
+def classify_deleted(sib: Path, rels: list[str]) -> dict:
+    """Split canon_deleted_for's candidates into DELETE (the sibling's bytes
+    byte-match a version this exact path held at SOME point in canonical
+    history — retired machinery the sibling never dropped, safe to remove) vs
+    CONFLICT (content that never matched canonical history at that path —
+    sibling-local customization; never auto-deleted, requires an explicit
+    operator decision). Canonical repo history is all we have git access to —
+    siblings are separate repos with no shared history to archaeology against,
+    so a canonically-absent path is judged purely by whether ITS bytes ever
+    were canonical, not by anything in the sibling's own history."""
+    delete, conflict = [], []
+    for rel in rels:
+        if _blob_id(sib / rel) in _canon_blob_history(rel):
+            delete.append(rel)
+        else:
+            conflict.append(rel)
+    return {"delete": delete, "conflict": conflict}
+
+
 def new_skills_for(sib: Path) -> list[str]:
     """Canonical skills wholly absent from the sibling and not opted out —
     the auto-adoption set."""
@@ -290,6 +352,7 @@ def audit(repo: str | None = None, *, allow_unapproved: bool = False) -> dict:
             else:
                 differs.append(str(rel))
         sib_skills = skill_names(sib)
+        canon_deleted = canon_deleted_for(sib, canon_skills & sib_skills)
         # Agent-def roster: its own track (a missing roster def surfaces as
         # new_agents, adopt-by-default — never as a skills `absent` file).
         agent_differs = []
@@ -310,6 +373,7 @@ def audit(repo: str | None = None, *, allow_unapproved: bool = False) -> dict:
             "differs": sorted(differs),
             "absent_count": len(absent),
             "absent": sorted(absent),
+            "canon_deleted": canon_deleted,
             "sibling_only_skills": sorted(sib_skills - canon_skills),
             "new_skills": new_skills_for(sib),
             "declined_skills": sorted(_optout_skills(sib)),
@@ -360,6 +424,15 @@ def main() -> int:
                          "CUSTOMIZED ones are never overwritten. Agent defs live "
                          "in the loader path, so a copy is live with no install "
                          "step. Requires --repo.")
+    ap.add_argument("--apply-deletions", action="store_true",
+                     help="delete sibling files classified DELETE — present in "
+                          "a shared skill dir, absent from canonical HEAD, and "
+                          "byte-matching a version canonical once held (retired "
+                          "machinery the sibling never dropped). CONFLICT files "
+                          "(sibling-local content that never matched canonical "
+                          "history) are never touched. Requires --repo; omit "
+                          "this flag (audit/--classify alone) for a dry run — "
+                          "nothing is deleted unless this flag is passed.")
     ap.add_argument("--post-check", action="store_true",
                     help="mechanical target-repo test after a propagation: "
                          "byte-compile every .py under the sibling's skills/ "
@@ -400,10 +473,11 @@ def main() -> int:
         print(f"post-check OK: {n} .py files byte-compile clean in {args.repo}.")
         return 0
     if (args.apply_stale or args.apply_absent or args.adopt_new_skills
-            or args.adopt_agents) and not args.repo:
-        print("--apply-stale/--apply-absent/--adopt-new-skills/--adopt-agents "
-              "require --repo <sibling> (one deliberate sibling at a time — "
-              "installs write user-global settings)", file=sys.stderr)
+            or args.adopt_agents or args.apply_deletions) and not args.repo:
+        print("--apply-stale/--apply-absent/--adopt-new-skills/--adopt-agents/"
+              "--apply-deletions require --repo <sibling> (one deliberate "
+              "sibling at a time — installs write user-global settings)",
+              file=sys.stderr)
         return 2
     rep = audit(args.repo, allow_unapproved=args.allow_unapproved)
     if args.repo and not rep["siblings"]:
@@ -431,6 +505,11 @@ def main() -> int:
         if s["sibling_only_agents"]:
             print(f"      AGENT-ONLY  {','.join(s['sibling_only_agents'])}  "
                   f"(sibling-local roster — never touched)")
+        if s["canon_deleted"]:
+            print(f"      CANON-DEL   {len(s['canon_deleted'])} file(s) present "
+                  f"in a shared skill dir, absent from canonical HEAD — run "
+                  f"--classify for the DELETE/CONFLICT split, --apply-deletions "
+                  f"to remove DELETE-class files")
         if args.files and s["differs"]:
             for f in s["differs"]:
                 print(f"      DIFFERS  {f}")
@@ -473,6 +552,24 @@ def main() -> int:
                     print(f"\n  {len(acl['stale'])} stale agent-def(s) "
                           f"fast-forwarded in {s['repo']} (live immediately — "
                           f".claude/agents/ is the loader path, no install step).")
+        if (args.classify or args.apply_deletions) and s["canon_deleted"]:
+            dcl = classify_deleted(DOCS / s["repo"], s["canon_deleted"])
+            for f in dcl["delete"]:
+                print(f"      DELETE      {f}")
+            for f in dcl["conflict"]:
+                print(f"      CONFLICT    {f}  (sibling-customized — never "
+                      f"auto-deleted; requires an explicit operator decision)")
+            if args.apply_deletions:
+                for f in dcl["delete"]:
+                    (DOCS / s["repo"] / f).unlink()
+                    print(f"      deleted     {f}")
+                if dcl["conflict"]:
+                    print(f"\n  {len(dcl['conflict'])} CONFLICT file(s) in "
+                          f"{s['repo']} left untouched — sibling-customized "
+                          f"content, resolve manually.")
+                if dcl["delete"]:
+                    print(f"\n  {len(dcl['delete'])} canonically-deleted file(s) "
+                          f"removed from {s['repo']}.")
         if args.apply_absent and s.get("absent"):
             sib = DOCS / s["repo"]
             applied = 0
