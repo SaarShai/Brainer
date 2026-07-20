@@ -823,3 +823,16 @@ distinct counts, commit 0b73737).
 - Interim verdict: KEEP default-on pending lane-B causal test (design v2,
   .brainer/research/2026-07-skills-overhaul/ablation-design-*.md, advisor-
   reconciled Sol+Kimi 2026-07-20).
+
+## 2026-07-20 claim_without_evidence ablation — CLOSED at Phase 1
+
+Verdict: KEEP default-on, no cap; causal lanes (A/B/C) not run. Grounds:
+volume already ~60-70% lower under current hook (14/46 legacy contexts,
+verified against premise-rebaseline JSONL), ACTED 69/86 raw with 1 IGNORED,
+no ACTED-free cap policy exists, and remaining causal uncertainty no longer
+justifies the machinery (user scope-discipline directive + Phase 1 smoke
+NO-GO: isolated-HOME `claude -p` cannot authenticate — rejected pre-hook,
+reproduced 3 ways at $0; unblock paths recorded in
+.brainer/research/2026-07-skills-overhaul/phase1-feasibility-smoke-2026-07-20.md).
+Revival requires: auth path decision (setup-token vs relaxed isolation) +
+the advisor-reconciled v2 protocol as-is.
