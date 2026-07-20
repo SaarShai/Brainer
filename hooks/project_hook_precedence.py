@@ -144,6 +144,24 @@ def has_equivalent_host_hook(project: Path, event: str, project_handler: str,
     return False
 
 
+def _project_has_local_probes(project: Path) -> bool:
+    """Mirror the compliance-canary hook's own no-override skills_root()
+    resolution (project / ".claude" / "skills") to detect a probe-bearing
+    project-local skills root. A hybrid install (project checkout alongside
+    the plugin) must keep discovering ITS OWN drift_probes.json files; the
+    plugin-only fallback below must not mask them."""
+    root = project / ".claude" / "skills"
+    if not root.is_dir():
+        return False
+    try:
+        for entry in root.iterdir():
+            if entry.is_dir() and (entry / "drift_probes.json").is_file():
+                return True
+    except OSError:
+        return False
+    return False
+
+
 def route(raw: bytes, event: str, project_handler: str,
           plugin_handler: Path, env: dict[str, str] | None = None,
           process_cwd: Path | None = None,
@@ -166,7 +184,14 @@ def route(raw: bytes, event: str, project_handler: str,
         # the canary hook's default skills_root() finds nothing and silently
         # runs with probe_count=0. Point it at the plugin's own packaged
         # skills so drift probes are discovered even without a repo checkout.
-        child_env.setdefault("COMPLIANCE_CANARY_SKILLS_ROOT", str(PLUGIN_ROOT / "skills"))
+        # But a HYBRID install (project checkout with its own probe-bearing
+        # .claude/skills, alongside the plugin) must keep discovering its
+        # OWN probes — only fall back to the plugin root when the project
+        # has none of its own, so this fix for plugin-only installs doesn't
+        # mask project-local drift_probes.json files.
+        if not _project_has_local_probes(project):
+            child_env.setdefault(
+                "COMPLIANCE_CANARY_SKILLS_ROOT", str(PLUGIN_ROOT / "skills"))
         return subprocess.run(
             ["bash", str(plugin_handler)], input=raw, cwd=handler_cwd,
             env=child_env).returncode

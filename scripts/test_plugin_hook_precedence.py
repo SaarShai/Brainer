@@ -220,6 +220,81 @@ class PluginHookPrecedenceTests(unittest.TestCase):
         self.assertEqual(str(router.PLUGIN_ROOT / "skills"), canary_root_file.read_text())
         self.assertGreater(int(probe_count_file.read_text()), 0)
 
+    def _canary_probe_script(self, probe_count_file: Path, canary_root_file: Path,
+                             env_seen_file: Path) -> Path:
+        hook_path = REPO / "skills" / "compliance-canary" / "tools" / "hook.py"
+        probe_script = self.root / "count_probes.py"
+        probe_script.write_text(
+            "import importlib.util, os\n"
+            f"spec = importlib.util.spec_from_file_location('canary_hook', {str(hook_path)!r})\n"
+            "mod = importlib.util.module_from_spec(spec)\n"
+            "spec.loader.exec_module(mod)\n"
+            "probes = mod.discover_probes(mod.skills_root())\n"
+            f"open({str(probe_count_file)!r}, 'w').write(str(len(probes)))\n"
+            f"open({str(canary_root_file)!r}, 'w').write(str(mod.skills_root()))\n"
+            f"open({str(env_seen_file)!r}, 'w').write("
+            "os.environ.get('COMPLIANCE_CANARY_SKILLS_ROOT', ''))\n",
+            encoding="utf-8",
+        )
+        return probe_script
+
+    def test_hybrid_project_discovers_local_probes_not_plugin_root(self) -> None:
+        """A project with its OWN probe-bearing .claude/skills (hybrid: repo
+        checkout + plugin) must keep discovering its local probes. Exporting
+        the plugin's packaged skills root here (the plugin-only fix) would
+        silently mask the project-local drift_probes.json — the regression
+        this task exists to close."""
+        local_skill = self.project / ".claude" / "skills" / "my-project-skill"
+        local_skill.mkdir(parents=True)
+        (local_skill / "drift_probes.json").write_text(
+            json.dumps([{"kind": "forbidden_regex", "pattern": "xyz", "id": "p1"}]),
+            encoding="utf-8",
+        )
+        probe_count_file = self.root / "hybrid-probe-count"
+        canary_root_file = self.root / "hybrid-canary-root"
+        env_seen_file = self.root / "hybrid-env-seen"
+        probe_script = self._canary_probe_script(
+            probe_count_file, canary_root_file, env_seen_file)
+        write_executable(
+            self.plugin_handler,
+            f"{shlex.quote(sys.executable)} {shlex.quote(str(probe_script))}\n",
+        )
+        raw = self.payload(self.project)
+        self.assertEqual(
+            0, self.route(raw, "UserPromptSubmit", HANDLERS["UserPromptSubmit"]))
+        self.assertEqual("", env_seen_file.read_text())
+        self.assertEqual(str(local_skill.parent), canary_root_file.read_text())
+        self.assertGreater(int(probe_count_file.read_text()), 0)
+
+    def test_ambient_explicit_override_still_wins_over_hybrid_local_probes(self) -> None:
+        """An operator-set COMPLIANCE_CANARY_SKILLS_ROOT must still win
+        (setdefault semantics preserved) even when the project also has its
+        own local probe-bearing .claude/skills."""
+        local_skill = self.project / ".claude" / "skills" / "my-project-skill"
+        local_skill.mkdir(parents=True)
+        (local_skill / "drift_probes.json").write_text(
+            json.dumps([{"kind": "forbidden_regex", "pattern": "xyz", "id": "p1"}]),
+            encoding="utf-8",
+        )
+        override_root = self.root / "operator-override-root"
+        override_root.mkdir()
+        probe_count_file = self.root / "override-probe-count"
+        canary_root_file = self.root / "override-canary-root"
+        env_seen_file = self.root / "override-env-seen"
+        probe_script = self._canary_probe_script(
+            probe_count_file, canary_root_file, env_seen_file)
+        write_executable(
+            self.plugin_handler,
+            f"{shlex.quote(sys.executable)} {shlex.quote(str(probe_script))}\n",
+        )
+        raw = self.payload(self.project)
+        self.assertEqual(
+            0, self.route(raw, "UserPromptSubmit", HANDLERS["UserPromptSubmit"],
+                          env={"COMPLIANCE_CANARY_SKILLS_ROOT": str(override_root)}))
+        self.assertEqual(str(override_root), env_seen_file.read_text())
+        self.assertEqual(str(override_root), canary_root_file.read_text())
+        self.assertEqual(0, int(probe_count_file.read_text()))
+
     def test_active_project_fallback_order(self) -> None:
         raw = self.payload(self.project)
         self.assertEqual(
