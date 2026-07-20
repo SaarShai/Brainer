@@ -257,5 +257,30 @@ Rules:
   quarantines that lane's report until the tree is reconciled (never
   self-absorbed as "looks fine").
 
+## 7. Interrupt-immune (detached) lanes
+
+**RULE (hard).** Any lane that mutates external application state (open
+documents, GUI apps, live services) or runs >~2 min, on a host with the
+interrupt-cascade behavior recorded in `HOST_CAPABILITY_MATRIX.md`, MUST be
+dispatched via [`detached_lane.sh`](detached_lane.sh) launch/status, never as
+a killable harness Agent-tool/background subagent. Results come back only
+through the `.done`/`.exit`/log file contract — poll `status` from a
+heartbeat, never assume harness-native progress reporting is reliable for
+these lanes.
+
+**Why.** 2026-07-20 (session af48da1c): the Claude desktop harness cascaded a
+main-loop interrupt (a stray user "ping" mid-turn) to ALL running
+background subagents, killing an Illustrator-mutating lane mid-work with
+unsaved edits — then mislabeled it "stopped by the user" in the transcript.
+`detached_lane.sh` launches via `setsid(2)` (Python `start_new_session=True`),
+so the spawned process is its own session leader and survives a SIGINT/
+SIGTERM/SIGHUP blast to the launcher's group.
+
+**Respawn briefs for external-app lanes** (Illustrator, Figma, any GUI app
+with unsaved state) MUST lead with a revert/recover step before resuming
+work — STEP 0 = File > Revert (or the app's equivalent discard-unsaved-state
+action) — never assume the last-seen state is still on disk/in-app; a killed
+lane may have left partial, unsaved mutations.
+
 (Adapted from DannyMac180/fable-advisor, MIT — generalized from concrete
 models to tiers.)

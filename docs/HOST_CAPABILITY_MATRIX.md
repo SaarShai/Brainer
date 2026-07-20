@@ -63,6 +63,14 @@ occupy resident context on every boot.
   desktop host loaded the skill or delivered its hook. In Claude Desktop, a
   plugin may load a skill while a local CLI dependency used by that skill is
   still unavailable; classify those features separately.
+- **Claude desktop app cascades interrupts to background subagents.**
+  Live-observed 2026-07-20 (session af48da1c): a main-loop interrupt (even a
+  stray user message mid-turn) propagates to ALL running Agent-tool
+  background subagents, killing them — and the transcript mislabels the kill
+  "stopped by the user" even when no such stop was issued for that subagent.
+  Verify attribution against transcript timestamps before repeating that
+  label. See `skills/_shared/ORCHESTRATION.md` §7 for the mitigation
+  (`detached_lane.sh`).
 
 ## Skill disposition (all 31)
 
