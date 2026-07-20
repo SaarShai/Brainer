@@ -6,6 +6,7 @@ import importlib.util
 import json
 import shlex
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -186,6 +187,38 @@ class PluginHookPrecedenceTests(unittest.TestCase):
         raw = self.payload(self.project)
         self.assertEqual(0, self.route(raw, "UserPromptSubmit", relative))
         self.assertFalse(self.plugin_effect.exists())
+
+    def test_plugin_only_install_exports_canary_skills_root(self) -> None:
+        """Regression guard (2026-07-19 adversarial finding): a plugin-only
+        consumer install (no repo checkout, no .claude/skills anywhere under
+        the project) must still let the compliance-canary hook discover its
+        probes. The fallback dispatch set CLAUDE_PROJECT_DIR for the child
+        process but never COMPLIANCE_CANARY_SKILLS_ROOT, so the hook's
+        skills_root() defaulted to the (nonexistent) <project>/.claude/skills
+        and the always-on drift watcher silently ran with probe_count=0."""
+        hook_path = REPO / "skills" / "compliance-canary" / "tools" / "hook.py"
+        probe_count_file = self.root / "probe-count"
+        canary_root_file = self.root / "canary-root"
+        probe_script = self.root / "count_probes.py"
+        probe_script.write_text(
+            "import importlib.util\n"
+            f"spec = importlib.util.spec_from_file_location('canary_hook', {str(hook_path)!r})\n"
+            "mod = importlib.util.module_from_spec(spec)\n"
+            "spec.loader.exec_module(mod)\n"
+            "probes = mod.discover_probes(mod.skills_root())\n"
+            f"open({str(probe_count_file)!r}, 'w').write(str(len(probes)))\n"
+            f"open({str(canary_root_file)!r}, 'w').write(str(mod.skills_root()))\n",
+            encoding="utf-8",
+        )
+        write_executable(
+            self.plugin_handler,
+            f"{shlex.quote(sys.executable)} {shlex.quote(str(probe_script))}\n",
+        )
+        raw = self.payload(self.project)
+        self.assertEqual(
+            0, self.route(raw, "UserPromptSubmit", HANDLERS["UserPromptSubmit"]))
+        self.assertEqual(str(router.PLUGIN_ROOT / "skills"), canary_root_file.read_text())
+        self.assertGreater(int(probe_count_file.read_text()), 0)
 
     def test_active_project_fallback_order(self) -> None:
         raw = self.payload(self.project)

@@ -43,8 +43,8 @@ READ_THRESHOLD_DEFAULT = 0
 def _frontmatter(text: str) -> dict:
     """Minimal frontmatter reader — enough to pull created:/updated: dates.
     Deliberately not importing wiki-memory's parser: this tool stays a
-    self-contained wiki-refresh tool, same posture as staleness.py/
-    artifact_guard.py (no cross-skill coupling)."""
+    self-contained wiki-refresh tool, same posture as staleness.py
+    (no cross-skill coupling)."""
     m = re.match(r"^---\n(.*?)\n---\n", text, re.DOTALL)
     if not m:
         return {}

@@ -17,11 +17,10 @@ checkout — deliberately not a link: consumer repos don't vendor `wiki/`).
 
 ## Approved repository boundary (hard)
 
-The standing propagation set is exactly:
-
-- canonical: `Brainer`
-- consumers: `PROMPTER`, `screenery-design-master`, `screenery-lean`,
-  `product images repo`, `farey-hecke`
+The authoritative list lives in `scripts/sibling_sync_audit.py` (`APPROVED_SIBLINGS`) —
+canonical is `Brainer`, consumers currently include `PROMPTER`, `screenery-lean`, and
+similar forked checkouts; check that constant for the exact, current set rather than
+trusting this doc to stay in sync.
 
 Do not discover or propagate to other adjacent repositories merely because they
 contain `skills/` and `install.sh`. An additional target requires the user to

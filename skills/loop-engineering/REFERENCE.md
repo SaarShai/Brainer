@@ -86,11 +86,7 @@ A fleet converges two ways, and the doc above only named one. **SELECT** — a v
 
 ## Instrument before you scale
 
-**You cannot improve a loop you do not measure** — instrument the gate (iteration count, pass rate, failure reasons, per-step cost/success) BEFORE you scale, or you are just generating wrong answers faster. The metric that matters is **cost per accepted change**, not tokens spent — under ~50% accepted means the loop is making review work, not saving it. Add cheap deterministic **stuck detectors** distinct from the correctness gate, with concrete thresholds: **same command 3×, same error 2× (the `repeated_tool_error` probe), or 2 iterations with no metric movement = stuck.** Emit the iteration trace as JSON and run `loop_run_monitor.py` against it:
-
-```bash
-python3 skills/loop-engineering/tools/loop_run_monitor.py trace.json
-```
+**You cannot improve a loop you do not measure** — instrument the gate (iteration count, pass rate, failure reasons, per-step cost/success) BEFORE you scale, or you are just generating wrong answers faster. The metric that matters is **cost per accepted change**, not tokens spent — under ~50% accepted means the loop is making review work, not saving it. Add cheap deterministic **stuck detectors** distinct from the correctness gate, with concrete thresholds: **same command 3×, same error 2× (the `repeated_tool_error` probe), or 2 iterations with no metric movement = stuck.** Emit the iteration trace as JSON so a stuck detector can gate on it.
 
 **Liveness doctrine for monitors:** no per-command kill ceilings — long
 suites are legitimate work; liveness = output growth + process activity,

@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Installer for the index-first PreToolUse augment hook.
 #
-# The root ./install.sh runs this by default. Merges a single PreToolUse entry into
-# .claude/settings.json, then leaves everything else untouched.
+# index-first is opt-in (auto-install: false) — the root ./install.sh skips this
+# script by default; run it explicitly to wire the hook. Merges a single
+# PreToolUse entry into .claude/settings.json, then leaves everything else
+# untouched.
 #
 # The settings-merge guard (never overwrite a corrupt/truncated settings.json)
 # is copied verbatim-in-spirit from skills/context-keeper/tools/install.sh.

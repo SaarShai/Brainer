@@ -77,7 +77,6 @@ S|core|python3|skills/brainer-audit/tools/test_redaction.py|-|-
 S|core|python3|skills/brainer-audit/tools/test_detector_precision.py|-|-
 S|core|python3|skills/brainer/eval/test_reference.py|-|-
 S|core|python3|skills/loop-engineering/tools/test_loop_lint.py|-|-
-S|core|python3|skills/loop-engineering/tools/test_loop_run_monitor.py|-|-
 S|core|python3|skills/context-keeper/tools/tests/test_extract.py|-|-
 S|core|python3|skills/output-filter/tools/test_output_filter.py|-|-
 S|core|python3|skills/prompt-triage/tools/test_classify.py|-|-
@@ -98,7 +97,6 @@ S|core|python3|skills/wiki-memory/tools/test_claim_grade.py|-|-
 S|core|python3|skills/wiki-memory/tools/test_sim_eval.py|-|-
 S|core|python3|skills/wiki-memory/tools/test_config.py|-|-
 S|core|python3|skills/wiki-refresh/tools/test_staleness.py|-|-
-S|core|python3|skills/wiki-refresh/tools/test_artifact_guard.py|-|-
 S|core|python3|skills/wiki-refresh/tools/test_disuse.py|-|-
 S|core|python3|skills/wiki-memory/tools/test_wiki_adoption.py|-|-
 S|core|python3|skills/index-first/tools/test_augment.py|-|-

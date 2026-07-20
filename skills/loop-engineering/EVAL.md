@@ -7,7 +7,7 @@
 | description (frontmatter) | **288 tokens** (1,224 chars; budget ≤ 1,536) |
 | resident catalog line (first sentence only) | **~32 tokens** — what `install.sh` injects into CLAUDE.md/AGENTS.md/GEMINI.md (unchanged by the pipeline clause, which lands later in the description) |
 | body (loaded on trigger) | **3,162 tokens** (13,119 chars; re-measured 2026-07-06 after the core+deep-dive split — REFERENCE.md now carries the moved reference material, loaded only when consulted, not on every trigger) |
-| tools/ payload | **230.0 KB** (`loop_lint.py` · `loop_run_monitor.py` · tests · `schema.md`) |
+| tools/ payload | **167.5 KB** (`loop_lint.py` · tests · `schema.md`; `loop_run_monitor.py` removed 2026-07-19 as unwired — zero production callers) |
 | model pin | `any` (none) |
 | effort pin | `medium` |
 
@@ -43,21 +43,21 @@ trigger.
 
 **Not yet measured as a savings claim.** This skill optimizes *loop topology and
 gate discipline*, not token count, so its headline metric is not a token delta.
-It is default-installed because `loop_lint.py` and the prompt-intent probes are
-cheap load-bearing gates; N≥50 cross-family measurement is still required before
-claiming a quantified reduction. Candidate promotion-grade measurements:
+It is experimental/manual (`auto-install: false`) even though `loop_lint.py` and
+the prompt-intent probes are cheap load-bearing gates; N≥50 cross-family
+measurement is still required before claiming a quantified reduction or
+promoting to default. Candidate promotion-grade measurements:
 
 - wasted iterations on a generate→verify task with a gate vs. without one;
 - runaway-loop tokens spent before halt, budget-capped vs. unbounded;
 - self-grading loops (generator==verifier) caught pre-run by `loop_lint.py`;
-- benchmark-green-mistaken-for-correct flags raised before a "done" claim;
-- runtime traces where `loop_run_monitor.py` catches stuck / costly loops before
-  the remaining budget burns.
+- benchmark-green-mistaken-for-correct flags raised before a "done" claim.
 
 The falsifiable parts are the gates: a self-grading or gateless spec
-`loop_lint.py` passes, a clean spec it FAILs, a stuck trace
-`loop_run_monitor.py` passes, or a healthy trace it flags STUCK is a measurable
-bug.
+`loop_lint.py` passes, or a clean spec it FAILs, is a measurable bug.
+(A runtime trace monitor, `loop_run_monitor.py`, was removed 2026-07-19 —
+built and tested but never wired to any caller; recover from git history
+if a harness ever emits iteration traces that need a runtime gate.)
 
 ## Non-iterating pipelines (budget=1) — doc-only
 
@@ -84,9 +84,6 @@ the promotion bar above (ship a gate only for a failure that actually occurs).
   R3 self-grade cases (generic-actor false-negative + shared-infra-token false-
   positive + reorder false-positive), R13 verifier-blindness, and a model_roster
   lane-vocab drift guard — all added after an adversarial GLM-5.2 + white-box review.
-- `python3 skills/loop-engineering/tools/test_loop_run_monitor.py` → runtime trace
-  gate tests pass (same-command / repeated-error / flat-metric STUCK triggers,
-  cost-per-accepted-change WARNs, JSON output, bad-input exits).
 - `python3 skills/loop-engineering/tools/loop_lint.py <gateless-fixture>` exits **2**;
   a clean fixture exits **0**.
 - `drift_probes.json` is a top-level array using only shipped kinds
@@ -99,16 +96,17 @@ the promotion bar above (ship a gate only for a failure that actually occurs).
 
 ## Methodology
 
-N=3–10 local smoke (`test_loop_lint.py`, `test_loop_run_monitor.py`); N≥50
+N=3–10 local smoke (`test_loop_lint.py`); N≥50
 Kaggle T4 for any promotion-grade claim. Backends/judge per the repo standard
 (see `eval/FINDINGS.md`).
 
 ## Promotion path
 
-Already default-installed as of v1.11 because the static and prompt-intent gates
-are cheap and load-bearing. Do not publish a quantitative savings claim until an
-N≥50 cross-family measurement shows the topology/gate discipline reduces wasted
-iterations, runaway-loop tokens, or cost per accepted change.
+Still experimental/manual (`auto-install: false`) even though the static and
+prompt-intent gates are cheap and load-bearing. Do not publish a quantitative
+savings claim, and do not promote to default, until an N≥50 cross-family
+measurement shows the topology/gate discipline reduces wasted iterations,
+runaway-loop tokens, or cost per accepted change.
 
 ## Why a standalone skill (not folded into an existing one)
 
@@ -117,9 +115,8 @@ with the host's built-in loop-protection (see `skills/SKILLS_INDEX.md` removal l
 loop-engineering is **not** that skill and does not reopen the cut: the discriminator
 is **harness discipline vs. host loop protection**. `loop-breaker` tried to infer
 generic spinning from the live assistant session (the host already does this);
-loop-engineering validates a loop's spec before it runs via `loop_lint.py`, and
-when a harness emits an explicit iteration trace it can run `loop_run_monitor.py`
-as a domain-specific runtime health gate. Cron/interval execution remains host
+loop-engineering validates a loop's spec before it runs via `loop_lint.py`.
+Cron/interval execution remains host
 wiring (`/loop` + schedule). The net-new core is the **topology-choice +
 generator↔verifier-wiring** layer, which no existing skill provides:
 `prompt-triage` picks a worker not a topology, and `verify-before-completion`
@@ -143,7 +140,7 @@ Premortem ([`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §8):
   own. Separately, the R1 machine-token allowlist (regex-based) needs re-tuning against
   `test_loop_lint.py` fixtures as new legitimate gate phrasing appears, or it starts rejecting
   valid specs as prose-only.
-- **No-hooks host** — `loop_lint.py`/`loop_run_monitor.py` are CLIs, so the closed-loop
+- **No-hooks host** — `loop_lint.py` is a CLI, so the closed-loop
   gate-refuses-bad-specs mechanism runs identically on Codex/Gemini per
   `docs/HOST_CAPABILITY_MATRIX.md` ("tools are plain python3/bash"); what's host-shaped is the
   **subagent** case this file already documents — hooks/probes never fire inside a subagent on

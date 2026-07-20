@@ -121,7 +121,7 @@ python3 skills/wiki-memory/tools/wiki.py lint [--strict] [--stale-days N] [--hub
 
 Always-on findings: broken `[[wikilinks]]`, orphans (0 inbound), duplicate titles, stale `verified:` (>`--stale-days`, default 180, with `age_days`), gravity-well hubs (inbound > `--hub-threshold`, default 20). `--scope` adds extra roots so trees outside the wiki (concepts/, runbooks/, designs/foo/ledger.md) participate in the link graph and get hygiene-scanned. `--strict` adds v2-frontmatter enforcement, missing-provenance / missing-backlinks warnings, and supersession-reverse-link checks.
 
-Write-gate (two layers). Both are **procedure gates** — agent steps in the write protocol above, not code auto-invoked by `wiki.py`. `wiki.py` enforces only the structural guard (a duplicate filename raises `FileExistsError`); the rest is agent discipline plus `lint`/`lint --strict` flagging violations after the fact.
+Write-gate (two layers). The **execution gate** is agent discipline — a procedure step in the write protocol above, not code auto-invoked by `wiki.py`. The **content gate** IS code auto-invoked: `wiki.py`'s `new_page()` calls `gate_candidate()` (write-gate's signal scorer plus a near-dup check) before committing a page and raises `WikiWriteRejected` on a low-signal/reasonless or near-duplicate candidate (`--force`/`force=True` is the explicit bypass) — see [`write-gate`](../write-gate/SKILL.md) for the mechanism. `wiki.py` also enforces the structural guard (a duplicate filename raises `FileExistsError`). What remains agent discipline plus `lint`/`lint --strict` flagging after the fact is the execution gate below.
 
 **Execution gate** (agent discipline — see [`verify-before-completion`](../verify-before-completion/SKILL.md)):
 - No durable memory from unexecuted plans.
@@ -129,7 +129,7 @@ Write-gate (two layers). Both are **procedure gates** — agent steps in the wri
 - `wiki/raw/` is immutable after creation (convention; not enforced by the write path).
 - No duplicate page without supersession.
 
-**Content gate** — run [`write-gate`](../write-gate/SKILL.md) before the write (protocol step 3): the candidate must clear write-gate's signal threshold and, if it is a decision/convention, embed a why-clause. (Scoring table + accepted why-phrases live there.)
+**Content gate** — mechanically enforced by `wiki.py` (see above) and also runnable standalone via [`write-gate`](../write-gate/SKILL.md) before a hand-authored write (protocol step 3): the candidate must clear write-gate's signal threshold and, if it is a decision/convention, embed a why-clause. (Scoring table + accepted why-phrases live there.)
 
 ## Tier layout
 

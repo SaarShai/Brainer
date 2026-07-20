@@ -162,6 +162,11 @@ def route(raw: bytes, event: str, project_handler: str,
             child_env.update(env)
         if handler_cwd is not None:
             child_env["CLAUDE_PROJECT_DIR"] = str(project)
+        # Plugin-only installs have no project .claude/skills; without this,
+        # the canary hook's default skills_root() finds nothing and silently
+        # runs with probe_count=0. Point it at the plugin's own packaged
+        # skills so drift probes are discovered even without a repo checkout.
+        child_env.setdefault("COMPLIANCE_CANARY_SKILLS_ROOT", str(PLUGIN_ROOT / "skills"))
         return subprocess.run(
             ["bash", str(plugin_handler)], input=raw, cwd=handler_cwd,
             env=child_env).returncode
