@@ -15,7 +15,7 @@ Compact pointers. Fetch details on demand.
 - projects/context-refresh (project tags=context-refresh,checkpoint,compaction) -> `projects/context-refresh.md`
 - projects/delegate-router (project tags=delegation,routing,subagents,models,glm,zai) -> `projects/delegate-router.md`
 - projects/okf-adoption (project tags=okf,interop,wiki,decision,sibling-sync) -> `projects/okf-adoption.md`
-- projects/rehearsal-gate-status-2026-07-18 (project tags=rehearsal,gate-status,evaluation,grader,model-strata,binding-freeze) -> `projects/rehearsal-gate-status-2026-07-18.md`
+- projects/rehearsal-gate-status-2026-07-18 (project tags=rehearsal,gate-status,evaluation,grader,model-strata,binding-freeze,session-count) -> `projects/rehearsal-gate-status-2026-07-18.md`
 - projects/semdiff (project tags=semantic-diff,ast,context-compression) -> `projects/semdiff.md`
 - projects/wiki-search (project tags=retrieval,progressive-disclosure,mcp,wiki) -> `projects/wiki-search.md`
 - queries/covered-verdicts (query tags=covered-verdicts,adoption,index,decision,external-review) -> `queries/covered-verdicts.md`
@@ -31,9 +31,9 @@ Compact pointers. Fetch details on demand.
 - L4_archive/2026-04-24-summ-codex-manual (source-summary tags=archive,codex,summ,provenance) -> `L4_archive/2026-04-24-summ-codex-manual.md`
 - L4_archive/2026-05-22-skill-crystallizer/README (project tags=skill,L3-sop,automation) -> `L4_archive/2026-05-22-skill-crystallizer/README.md`
 - L4_archive/2026-05-31-auto-handoff-dropped (decision tags=auto-handoff,dropped,session-launch,context-refresh) -> `L4_archive/2026-05-31-auto-handoff-dropped.md`
-- concepts/brainer-goals (concept tags=goals,purpose,scope,hard-rule) -> `concepts/brainer-goals.md`
 - concepts/adoption-covered-needs-merits-citation (concept tags=adoption,review,method,verification,code-graph) -> `concepts/adoption-covered-needs-merits-citation.md`
 - concepts/architect-loop-adoption-2026-07 (concept tags=orchestration,loop-engineering,adoption,external-review,architect-pattern,team-lead) -> `concepts/architect-loop-adoption-2026-07.md`
+- concepts/brainer-goals (concept tags=goals,purpose,scope,hard-rule,simplification) -> `concepts/brainer-goals.md`
 - concepts/brainer-multi-repo-topology (concept tags=sibling-sync,propagation,multi-repo,topology,install,hard-rule) -> `concepts/brainer-multi-repo-topology.md`
 - concepts/caveman-compress-session-files (concept tags=caveman,startup,compression) -> `concepts/caveman-compress-session-files.md`
 - concepts/caveman-output-compression (concept tags=caveman,output-compression,style) -> `concepts/caveman-output-compression.md`
@@ -68,6 +68,7 @@ Compact pointers. Fetch details on demand.
 - concepts/recurring-defect-classes (concept tags=bugs,regex,frontmatter,installer,tests,perf,hardening) -> `concepts/recurring-defect-classes.md`
 - concepts/secrets-env-shell-substitution-pitfall (lesson tags=secrets,api-key,auth,pitfall,configuration,environment-variables,parser-mismatch) -> `concepts/secrets-env-shell-substitution-pitfall.md`
 - concepts/semantic-diff-edits (concept tags=semantic-diff,ast,context-compression,code-editing) -> `concepts/semantic-diff-edits.md`
+- concepts/skills-overhaul-2026-07-research-round (concept tags=research-round,skills-overhaul,ecosystem,memory,verification,recency,frontier-harm,sol-review,kimi-review,borrow-list) -> `concepts/skills-overhaul-2026-07-research-round.md`
 - concepts/speculative-decoding (concept tags=decoding,throughput) -> `concepts/speculative-decoding.md`
 - concepts/structured-outputs (concept tags=structured-outputs,tokens) -> `concepts/structured-outputs.md`
 - concepts/superpowers-skills (concept tags=skills,superpowers,agents,workflow) -> `concepts/superpowers-skills.md`
