@@ -30,6 +30,15 @@ Banking a cross-skill lesson into a single skill's notes is a **gate
 failure**, not a style choice — the next skill that needed it will not read
 it (failures #1, #3). Unclassified = unbanked.
 
+**Classify the MECHANISM, not the tool it bit through.** Before picking a
+scope, name the general failure class and ask whether the mechanism — not
+the surface tool — is what fails; a general mechanism banked at tool scope
+is a mis-scope. Proven cost 2026-07-20: "a backgrounded codex run dies with
+the subagent" was banked as a codex-dispatch tip; the mechanism (harness-
+managed background work dies with session-side events) was general, and its
+un-generalized scope let the desktop interrupt-cascade kill an
+Illustrator-mutating lane a month later (ORCHESTRATION §7 is the late fix).
+
 ## §2 A user correction is acted on now; durable banking is armed-gated
 
 A user correction (relabel, "no — do X", repeated re-teach) is **always**

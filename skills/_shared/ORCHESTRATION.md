@@ -70,6 +70,12 @@ final message** — fire-and-forget returns nothing a gate can read. Verifiers a
 loop. Cross-vendor egress goes through redaction + consent
 (`model_roster.render_prompt`; loop_lint R12).
 
+**Kill-safety line (external mutable state).** A brief for any lane that
+holds external mutable state (open documents, GUI apps, live services) must
+state what happens if the lane dies at any instant — what is stranded, and
+the recovery step. No kill-safety line → the lane doesn't dispatch. (§7 is
+the dispatch mechanism this pairs with; the line is the design-time check.)
+
 ## 6. Architect cost discipline (frontier-tier orchestrator)
 
 **Frontier economy invariant (hard).** This applies whenever the driving model

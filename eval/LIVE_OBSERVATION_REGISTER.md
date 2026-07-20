@@ -92,6 +92,15 @@ the agent notice, name the conflict, and pick by authority order — or silently
 obey whichever it read last? Signal: named-conflict events vs silent-pick
 events. Feed live conflicts into `eval/CONFLICT_AUDIT.md`.
 
+### OB-12 · Host signal/lifecycle topology (probe, don't wait)
+Per host+version, one cheap adversarial experiment instead of waiting for the
+incident: does an interrupt/stop cascade to background subagents? does a
+mid-turn message kill in-flight lanes? do "stopped by user" labels reflect
+actual user action? Signal: per-host probe results table; any behavior
+discovered by INCIDENT that a probe could have found is a FAIL on this item.
+Known prior (2026-07-20): desktop interrupt-cascade found by incident (killed
+an Illustrator lane, unsaved edits); a 5-minute probe would have found it.
+
 ### OB-11 · Lifecycle-hook coverage holes
 Behaviors guaranteed by hooks that never fire on a given host (desktop app:
 no SessionEnd; Codex/Gemini: see HOST_CAPABILITY_MATRIX). Signal: per-host,
