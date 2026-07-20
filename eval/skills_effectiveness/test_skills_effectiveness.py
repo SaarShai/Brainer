@@ -168,6 +168,21 @@ class FireValueTests(unittest.TestCase):
         self.assertEqual(7, report["available_usage_telemetry"]["input_tokens"])
         self.assertNotEqual(report["legacy_codepoint_count"], report["injected_utf8_bytes"])
 
+    def test_duplicate_reminder_blocks_counted_distinctly(self):
+        block_a = "<system-reminder>same block twice</system-reminder>"
+        block_b = "<system-reminder>a different block</system-reminder>"
+        rows = [
+            {"type": "attachment", "attachment": {"content": block_a}},
+            {"type": "attachment", "attachment": {"content": block_a}},
+            {"type": "attachment", "attachment": {"content": block_b}},
+        ]
+        source = self.tmp / "raw.jsonl"
+        source.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+        report = fire_value.analyze_source(source, {})
+        self.assertEqual(3, report["reminder_events"])
+        self.assertEqual(2, report["distinct_reminder_events"])
+        self.assertEqual(1, report["duplicate_occurrences"])
+
     def test_labels_forbid_transcript_content(self):
         labels = self.tmp / "labels.jsonl"
         labels.write_text(json.dumps({"event_id": "x", "label": "ACTED", "rationale": "tool followed",

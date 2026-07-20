@@ -23,6 +23,18 @@ preserves that as `legacy_codepoint_count` while separately reporting exact
 UTF-8 bytes. For the named transcript those are 176,507 code points and 178,092
 UTF-8 bytes across the same 80 genuine reminders.
 
+Compaction re-injects the prior transcript into the rebuilt context, so the
+same canary system-reminder block can recur byte-identically many times in one
+raw session log. Each per-source and totals block now reports
+`distinct_reminder_events` (unique normalized-block SHA-256 count) and
+`duplicate_occurrences` (`reminder_events` minus that count) alongside the raw
+`reminder_events` total, and both the JSON events (`block_sha`) and the
+markdown carry the same numbers. Use raw `reminder_events`/`injected_utf8_bytes`
+for injection-cost claims — that is what gets paid for and re-sent every time
+context is rebuilt — and use `distinct_reminder_events` when the claim is about
+independent behavioral samples (e.g. fire-rate or label counts), since repeated
+re-injections of one block are not independent observations.
+
 ## Frozen trigger gate
 
 `cases.py` deterministically defines 862 cases (483 hard negatives / 379

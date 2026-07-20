@@ -82,6 +82,7 @@ def analyze_source(path: Path, labels: dict[str, dict]) -> dict:
     events = []
     usage = Counter()
     decode_errors = 0
+    distinct_block_shas = set()
     with path.open("rb") as fh:
         for line_index, raw in enumerate(fh, 1):
             try:
@@ -97,10 +98,13 @@ def analyze_source(path: Path, labels: dict[str, dict]) -> dict:
                 event_id = f"{source_sha[:12]}:{line_index}:{block_index}"
                 probes = sorted({f"{a}:{b}" for a, b in PROBE_RE.findall(block)})
                 sections = [name for name, regex in SECTION_PATTERNS.items() if regex.search(block)]
+                block_sha_full = hashlib.sha256(block.strip().encode("utf-8")).hexdigest()
+                distinct_block_shas.add(block_sha_full)
                 event = {"event_id": event_id, "event_index": len(events),
                          "jsonl_line_index": line_index, "block_index": block_index,
                          "unicode_codepoints": len(block), "utf8_bytes": len(encoded),
                          "content_sha256": hashlib.sha256(encoded).hexdigest(),
+                         "block_sha": block_sha_full[:12],
                          "token_estimate": {"method": "utf8_bytes_div_4", "tokens": (len(encoded) + 3) // 4},
                          "probes": probes, "sections": sections}
                 if event_id in labels:
@@ -109,6 +113,8 @@ def analyze_source(path: Path, labels: dict[str, dict]) -> dict:
     return {"path": str(path.resolve()), "source_sha256": source_sha,
             "source_utf8_bytes": path.stat().st_size, "records_with_decode_errors": decode_errors,
             "available_usage_telemetry": dict(usage), "reminder_events": len(events),
+            "distinct_reminder_events": len(distinct_block_shas),
+            "duplicate_occurrences": len(events) - len(distinct_block_shas),
             "legacy_codepoint_count": sum(e["unicode_codepoints"] for e in events),
             "injected_utf8_bytes": sum(e["utf8_bytes"] for e in events),
             "token_estimate": {"method": "utf8_bytes_div_4",
@@ -132,6 +138,12 @@ def markdown(report: dict) -> str:
         lines += ["",
             f"Legacy reports may call `{totals['legacy_codepoint_count']}` bytes; that is the Unicode "
             "code-point count. Exact UTF-8 measurement is reported above."]
+    lines += ["", "## Duplicate re-injections", ""]
+    for source in report["sources"]:
+        lines.append(f"- `{source['path']}`: distinct {source['distinct_reminder_events']} of "
+                     f"{source['reminder_events']} ({source['duplicate_occurrences']} duplicate re-injections)")
+    lines.append(f"- Total: distinct {totals['distinct_reminder_events']} of {totals['reminder_events']} "
+                 f"({totals['duplicate_occurrences']} duplicate re-injections)")
     lines += ["", "## Labels", ""]
     counts = totals["label_counts"]
     lines.append(", ".join(f"{name}: {counts.get(name, 0)}" for name in sorted(LABELS)) or "No labels supplied.")
@@ -151,6 +163,8 @@ def main() -> int:
     label_counts = Counter(e["human_label"]["label"] for s in sources for e in s["events"] if "human_label" in e)
     report = {"schema_version": 1, "sources": sources,
               "totals": {"reminder_events": sum(s["reminder_events"] for s in sources),
+                         "distinct_reminder_events": sum(s["distinct_reminder_events"] for s in sources),
+                         "duplicate_occurrences": sum(s["duplicate_occurrences"] for s in sources),
                          "legacy_codepoint_count": sum(s["legacy_codepoint_count"] for s in sources),
                          "injected_utf8_bytes": sum(s["injected_utf8_bytes"] for s in sources),
                          "token_estimate": {"method": "utf8_bytes_div_4",
