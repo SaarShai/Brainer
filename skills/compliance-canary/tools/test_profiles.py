@@ -380,9 +380,6 @@ def main() -> int:
         # the hard negatives (must stay silent) and a set of genuine
         # correction-shaped prompts (must open the ledger).
         _cases_path = HERE.parent.parent.parent / "eval" / "skills_effectiveness" / "cases.py"
-        _cases_spec = importlib.util.spec_from_file_location("cc_test_cases", _cases_path)
-        _cases_mod = importlib.util.module_from_spec(_cases_spec)
-        _cases_spec.loader.exec_module(_cases_mod)
 
         for _skill_name in ("task-retrospective", "wiki-memory"):
             _src = HERE.parent.parent / _skill_name / "drift_probes.json"
@@ -392,21 +389,31 @@ def main() -> int:
                 _src.read_text(encoding="utf-8"), encoding="utf-8")
 
         armed_ctx_env = {"COMPLIANCE_CANARY_CORRECTION_LEDGER": "1"}
-        HARD_NEGATIVE_KINDS = ("bare_again", "quoted_article", "code_fence")
-        armed_fp = 0
-        armed_neg_total = 0
-        for kind in HARD_NEGATIVE_KINDS:
-            for i in range(5):
-                prompt = _cases_mod._NEG[kind].format(i=i)
-                armed_neg_total += 1
-                out = run(root, [claim("noted")], "frontier", f"ctxsafe-neg-{kind}-{i}",
-                          prompt=prompt, extra_env=armed_ctx_env)
-                fired_ledger = "correction(s) still OPEN" in out.stdout
-                if fired_ledger:
-                    armed_fp += 1
-                check(f"armed-hard-negative-{kind}-{i}-ledger-silent",
-                      not fired_ledger, out.stdout)
-        print(f"INFO armed-hard-negative-false-positive-count={armed_fp}/{armed_neg_total}")
+        # Sibling checkouts vendor skills/ but not eval/, so the frozen-corpus
+        # hard negatives are canonical-only; the inline genuine-correction and
+        # "run it again" checks below still run everywhere (found live via a
+        # PROMPTER traceback, 2026-07-20).
+        if _cases_path.exists():
+            _cases_spec = importlib.util.spec_from_file_location("cc_test_cases", _cases_path)
+            _cases_mod = importlib.util.module_from_spec(_cases_spec)
+            _cases_spec.loader.exec_module(_cases_mod)
+            HARD_NEGATIVE_KINDS = ("bare_again", "quoted_article", "code_fence")
+            armed_fp = 0
+            armed_neg_total = 0
+            for kind in HARD_NEGATIVE_KINDS:
+                for i in range(5):
+                    prompt = _cases_mod._NEG[kind].format(i=i)
+                    armed_neg_total += 1
+                    out = run(root, [claim("noted")], "frontier", f"ctxsafe-neg-{kind}-{i}",
+                              prompt=prompt, extra_env=armed_ctx_env)
+                    fired_ledger = "correction(s) still OPEN" in out.stdout
+                    if fired_ledger:
+                        armed_fp += 1
+                    check(f"armed-hard-negative-{kind}-{i}-ledger-silent",
+                          not fired_ledger, out.stdout)
+            print(f"INFO armed-hard-negative-false-positive-count={armed_fp}/{armed_neg_total}")
+        else:
+            print("INFO armed-hard-negative-corpus-skipped (eval corpus not vendored in this checkout)")
 
         genuine_corrections = [
             "No, use tabs instead of spaces.",
