@@ -15,7 +15,11 @@ skills remain authoritative.
   it. `/brainer` alone never satisfies the gate, but the task text following it
   can. For example, `/brainer Sync the committed Brainer change to all consumer
   repos` satisfies `propagate` and selects `propagate:whole`; `/brainer Review
-  this Brainer change` does not authorize propagation.
+  this Brainer change` does not authorize propagation. Applicable `AGENTS.md`
+  and project rules are also governing authority. A route they make mandatory
+  survives decline of an optional skill; when a referenced task-defining
+  artifact has not yet resolved the authority, treat the candidate as deferred
+  or provisional rather than declined.
 
 ## Reasoning and execution
 
@@ -84,14 +88,15 @@ does not suppress, duplicate, or report them as discretionary selections.
 
 ## Conflict order
 
-1. User instructions and project rules.
+1. User instructions, applicable `AGENTS.md` files, and project rules.
 2. Safety and authority boundaries.
 3. A selected source skill's mandatory routes and full-contract rules.
 4. `/brainer` method choices.
 
 When two optional choices address the same failure, keep the narrower one. When
 their instructions conflict, do not blend them: follow the higher item above or
-surface the unresolved choice.
+surface the unresolved choice. Declining an optional choice never suppresses a
+mandatory route required by governing authority.
 
 Final identifiers are `<skill>:<export-id>`, `<skill>:whole`, or `none`; bare
 skill names are invalid.

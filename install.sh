@@ -267,12 +267,11 @@ a skill happens to trigger:
   Continue, correct, synthesize, and verify until done; stop only for missing
   authority or a real blocker. Full contract: `skills/_shared/ORCHESTRATION.md`
   §6.
-- **Task routing.** Classify SPEC'D (root cause or construction is written) ×
-  GATED (mechanically checkable). Delegate SPEC'D work to the cheapest capable
-  tier; frontier diagnoses and specifies unclear work, while weaker lanes
-  escalate with evidence rather than guess. Direct exception: a judgment-dense
-  fix under ~30 lines when briefing costs more. Never give a weaker lane
-  unresolved diagnosis. Details: `skills/_shared/ORCHESTRATION.md` §6.
+- **Task routing.** Before root/child mutation, receipt: artifacts,
+  SPEC'D/GATED, size, authority, route, owner, exception. Project/AGENTS.md
+  authority beats generic default; speed never waives required routes.
+  Delegate SPEC'D+GATED >~30-line work; frontier owns unresolved diagnosis.
+  Late receipt: stop, re-route rest, cold-review early edits.
 CRAFT
   cat <<'MATRIX'
 

@@ -147,6 +147,13 @@ class BrainerReferenceTests(unittest.TestCase):
             ["task work preceded final selection"], source_order_errors(events)
         )
 
+    def test_governing_authority_precedence_is_explicit(self) -> None:
+        skill = SKILL.read_text(encoding="utf-8")
+        reference = REFERENCE.read_text(encoding="utf-8")
+        self.assertIn("applicable `AGENTS.md`", skill)
+        self.assertIn("applicable `AGENTS.md`", reference)
+        self.assertIn("mandatory route required by governing authority", reference)
+
     def test_consumer_verification_marks_missing_checks_unavailable(self) -> None:
         text = SKILL.read_text(encoding="utf-8")
         self.assertIn('echo "NOT AVAILABLE: $check"', text)

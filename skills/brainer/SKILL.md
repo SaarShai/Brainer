@@ -32,7 +32,11 @@ to list skills. Do not keep it armed for later unrelated tasks.
 
 1. Read [`REFERENCE.md`](REFERENCE.md) completely. It is the on-demand selection
    index; the short resident skill descriptions are not enough for
-   instruction-level selection.
+   instruction-level selection. Also classify explicitly referenced
+   task-defining artifacts—such as a baton, committed spec, or task packet—as
+   selection bootstrap and read them before any final authority-dependent
+   selection. If one is discovered later, selection that depends on its
+   authority remains provisional until it has been read.
 2. Identify observable task needs—not keywords—including uncertainty,
    unresolved decisions, scope risk, iterative verification, evaluation,
    handoff, learning, or cross-repo coordination. Reassess only when the task
@@ -53,8 +57,10 @@ to list skills. Do not keep it armed for later unrelated tasks.
      authority. If yes, load and follow the complete source skill. If not,
      recommend the route without executing it.
 5. A selected skill's own mandatory routes, prerequisites, and conflict rules
-   remain authoritative. User instructions and project rules outrank this
-   selector.
+   remain authoritative. User instructions, applicable `AGENTS.md` files, and
+   project rules outrank this selector. Declining an optional skill does not
+   cancel a mandatory route imposed by that governing authority; an unresolved
+   authority-dependent candidate is deferred or provisional, not declined.
 6. Before any task-specific investigation or task tool call, state the final
    selection compactly in the first useful progress update: skill or exact
    exported method, the task signal it addresses, and whether an authority gate

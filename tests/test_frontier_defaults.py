@@ -216,6 +216,21 @@ def test_frontier_ownership_policy_is_resident_in_every_carrier() -> None:
         assert not missing_phrases(text, required), path.name
 
 
+def test_routing_receipt_and_speed_semantics_are_resident_in_every_carrier() -> None:
+    required = (
+        "Before root/child mutation",
+        "Project/AGENTS.md\n  authority beats generic default",
+        "speed never waives required routes",
+        "Delegate SPEC'D+GATED >~30-line work",
+        "frontier owns unresolved diagnosis",
+        "Late receipt: stop, re-route rest, cold-review early edits",
+    )
+    sources = [ROOT / "install.sh", *(ROOT / name for name in CARRIERS)]
+    for path in sources:
+        text = path.read_text(encoding="utf-8")
+        assert not missing_phrases(text, required), path.name
+
+
 def test_end_to_end_ownership_policy_gate_rejects_partial_progress_drift() -> None:
     required = ("Partial progress is not a stopping\ncondition",)
     doctrine = (ROOT / "skills/_shared/ORCHESTRATION.md").read_text(

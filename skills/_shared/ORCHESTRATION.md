@@ -132,6 +132,16 @@ structural savings on a 17-lane run (team-lead/EVAL.md), which lands inside the
 
 Rules:
 
+- **Route before mutation (hard).** Before the first root or child mutation,
+  record one receipt: task-defining artifacts read, `SPEC'D`, `GATED`, expected
+  size, governing authority, route, execution owner, and claimed exception.
+  Applicable `AGENTS.md` and project rules override a generic
+  no-proactive-subagent default. Speed pressure may change lane count, brief
+  size, or concurrency, never a mandatory route; retain proportionality and
+  the ~<30-line judgment-dense exception. Refresh the receipt when later
+  artifacts change authority. If mutation or required delegation came first,
+  stop, record the breach, refresh, delegate remaining bounded work, and cold-
+  review premature edits; later delegation is not retroactive compliance.
 - **Route by SPEC'D × GATED, not size.** SPEC'D = a written spec states the
   root cause (for fixes) or exact construction (for features) such that
   execution needs no semantic invention — "figure out why X" is NOT a spec.
