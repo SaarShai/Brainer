@@ -95,6 +95,10 @@ five ephemeral report files.
 - **RecMem-style recurrence-triggered consolidation pipeline** — Kimi: duplicates `write-gate`'s existing selective-promotion under a new name.
 - **Default-on unconditional correction-ledger banking** — Sol and Kimi both side with the owner's armed-only decision over the earlier "fix the text, keep the machinery" reading; the frozen-corpus measurement (FP=175, precision 65.2%) is treated as the deciding evidence, not a text/code inconsistency to patch around.
 
+## Outcome (2026-07-20)
+
+The borrow list was executed same-day. Applied and committed: transcript retention/deletion policy + tool (context-keeper, commit edb3960; the scrub/redaction half was REMOVED same day after a Sol xhigh audit proved it reported redactions while leaking JSON-escaped secrets — redaction remains an honest TODO, see POLICY.md); measured-on stamps on all historical FINDINGS deltas (18aa339); propagation regression tests for the three 2026-07-20 bug classes (ae74b4f) plus a dirty-sibling-worktree gate on sibling_sync_audit apply modes (8978dd5); claim_without_evidence ablation closed at Phase 0/1 with a standing keep-default-on decision on correlational evidence — Sol's armed-only dissent and a revisit trigger are on record in eval/FINDINGS.md, and the clone-reproducible evidence manifest is eval/skills_effectiveness/DECISIONS-2026-07-20.md (2c60e6d). Parked deliberately (new machinery, wait for evidence): lifecycle ledger, actuation matrix, trigger-fixture rewrite, judge-calibration packet. The final Sol xhigh audit (13 findings, initially DO-NOT-PROPAGATE) was fully dispositioned across commits ae6e72c/8978dd5/d676136/2c60e6d; its two criticals (leaky scrub, ungated sibling applies) are fixed.
+
 ## Pointers
 
 - Raw reports: `.brainer/research/2026-07-skills-overhaul/research-{ecosystem-terra,memory-luna,verification-terra,recency-luna,skills-hurt-frontier}.md`
