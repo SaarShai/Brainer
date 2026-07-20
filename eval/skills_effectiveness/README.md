@@ -256,3 +256,10 @@ longitudinal hook behavior. See
 ```bash
 python3 -m unittest discover -s eval/skills_effectiveness -p 'test_*.py'
 ```
+
+## Model-upgrade re-test
+
+When a host adopts a new frontier model tier for main-loop work, re-run this
+harness against it rather than assuming prior verdicts still hold — see
+`docs/MODEL_UPGRADE_RETEST.md` for the standing ritual (which commands to
+re-run, in what order, against which preregistered thresholds).

@@ -739,3 +739,22 @@ bash eval/finalize.sh
 - **Judge model**: `mimo-v2-flash` (after we discovered `mimo-v2.5-pro` exhausts max_tokens on reasoning_content for long candidates — see commit `5b5ed16`).
 - **Temperature**: 0.0 throughout.
 - **Sample sizes**: N=3 trials × 3–5 prompts for in-context discipline skills. N=1 × 13 mixed prompts for routing. N=1 real transcript for memory fidelity. Direction-of-effect is clear at these sizes; tighten the CI with Kaggle T4 batches when ready.
+
+## 2026-07-20 model-upgrade re-test ritual documented
+
+Added `docs/MODEL_UPGRADE_RETEST.md`: the standing operational ritual for
+re-testing Brainer's measured claims whenever a host adopts a new frontier
+model tier for main-loop work. It is the operational answer to the shelf-life
+doctrine (Every.to "The Case Against Skills"; a scaffold compensating for a
+model's weaknesses is a capability-dated artifact) surfaced by the 2026-07-16
+harmful-skills campaign, grounded directly in this file's own
+FRONTIER-vs-OFF null (19-task-family focused pilot, "2026-07-16
+skill-effectiveness verification campaign" above) and the 2026-07-18
+`no_improvement_n2_zero_better` DEMOTE verdict ("2026-07-18 long-horizon
+counted probe: SCORED" above). No new tooling: the ritual re-runs
+`focused_pilot.py`, spot-checks `compliance-canary`'s live hook against the
+new model's actual session prompts, greps the current auto-on skill list, and
+routes any resulting retire/demote decision through the normal branch +
+adversarial-review flow — reusing the preregistered gates in
+`docs/SKILLS_EFFECTIVENESS_VERIFICATION.md` rather than inventing new
+thresholds.
