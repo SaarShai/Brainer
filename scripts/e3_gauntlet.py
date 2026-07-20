@@ -43,10 +43,10 @@ What it does:
            touched the Brainer checkout's own .claude/settings.json).
        (f) named-probe liveness  — beyond (d)'s "parses as JSON": imports the
            INSTALLED compliance-canary hook.py, runs its own discover_probes()
-           against the consumer's installed skills, asserts the fable-mode
-           fable-repeated-failure probe is discoverable by its qualified id,
-           and asserts DETECTORS['repeated_tool_error'] actually fires on 3
-           synthetic matching tool_errors and stays silent on 2. Added after
+           against the consumer's installed skills, asserts the compliance-canary
+           new-machinery-no-borrow-checkpoint probe is discoverable by its
+           qualified id, and asserts its detector fires on a synthetic write
+           without a borrow checkpoint and stays silent with one. Added after
            a real gap: (d) proved every drift_probes.json parses but never
            proved any SPECIFIC probe is discoverable or that its detector
            fires — a probe could parse clean and still be dead on arrival.
@@ -467,12 +467,12 @@ def check_f_named_probe_detector_live(project: Path) -> SubCheck:
     This imports the INSTALLED consumer copy of compliance-canary's hook.py
     (never Brainer's own copy — same cross-repo discipline as check (b)),
     runs its own discover_probes() against the fresh project's installed
-    .claude/skills, asserts the fable-mode fable-repeated-failure probe is
-    among them by its qualified id, and asserts DETECTORS['repeated_tool_error']
-    actually fires on 3 synthetic matching tool_errors and stays silent on 2
-    (min_count boundary) — proving the probe is live, not just well-formed
+    .claude/skills, asserts the compliance-canary new-machinery-no-borrow-checkpoint
+    probe is among them by its qualified id, and asserts its detector actually
+    fires on a synthetic write without a borrow checkpoint and stays silent
+    with one — proving the probe is live, not just well-formed
     JSON."""
-    c = SubCheck("(f) named probe fable-mode:fable-repeated-failure discoverable + detector fires")
+    c = SubCheck("(f) named probe compliance-canary:new-machinery-no-borrow-checkpoint discoverable + detector fires")
     hook_path = project / ".claude" / "skills" / "compliance-canary" / "tools" / "hook.py"
     if not hook_path.exists():
         c.fail(f"installed compliance-canary hook.py not found at {hook_path}")
@@ -484,29 +484,25 @@ def check_f_named_probe_detector_live(project: Path) -> SubCheck:
         return c
     link_dir = project / ".claude" / "skills"
     probes = canary_hook.discover_probes(link_dir)
-    named = [p for p in probes if p.get("_probe_id") == "fable-mode:fable-repeated-failure"]
+    named = [p for p in probes if p.get("_probe_id") == "compliance-canary:new-machinery-no-borrow-checkpoint"]
     if not named:
-        c.fail("fable-mode:fable-repeated-failure not discovered among installed probes")
+        c.fail("compliance-canary:new-machinery-no-borrow-checkpoint not discovered among installed probes")
         return c
     probe = named[0]
-    detector = canary_hook.DETECTORS.get("repeated_tool_error")
+    detector = canary_hook.DETECTORS.get("new_machinery_no_borrow_checkpoint")
     if detector is None:
-        c.fail("DETECTORS['repeated_tool_error'] not registered in installed hook.py")
+        c.fail("DETECTORS['new_machinery_no_borrow_checkpoint'] not registered in installed hook.py")
         return c
-    matching_errors = [
-        "Segmentation fault (core dumped)",
-        "Error: ENOENT no such file",
-        "Timed out after 30s",
-    ]
-    fires = detector(probe, [], [], matching_errors)
-    silent = detector(probe, [], [], matching_errors[:2])
+    machinery_write = [{"name": "Write", "input": {"file_path": "tools/new_pipeline.py"}}]
+    fires = detector(probe, [], machinery_write)
+    silent = detector(probe, [{"text": "Checked existing tool fit before building."}], machinery_write)
     if fires is None:
-        c.fail(f"detector did not fire on 3 synthetic matching tool_errors (got {fires!r})")
+        c.fail(f"detector did not fire on synthetic machinery write without borrow checkpoint (got {fires!r})")
         return c
     if silent is not None:
-        c.fail(f"detector fired on only 2 synthetic tool_errors, expected silent (got {silent!r})")
+        c.fail(f"detector fired with a synthetic borrow checkpoint, expected silent (got {silent!r})")
         return c
-    c.ok("probe discovered by qualified id; detector fires on 3 matching errors, silent on 2")
+    c.ok("probe discovered by qualified id; detector fires without a borrow checkpoint, silent with one")
     return c
 
 

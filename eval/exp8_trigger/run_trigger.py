@@ -34,9 +34,6 @@ RESULTS_DIR = HERE / "results"
 TARGET_CASES = [
     ("/brainer use whichever optional Brainer skills or individual methods are relevant to this task", "brainer"),
     ("make your answers really terse and compact, drop the fluff", "caveman-ultra"),
-    ("this plan has way too many steps — simplify it, cut the process", "lean-execution"),
-    ("before we start this 6-file refactor, draft a phased plan first", "plan-first-execute"),
-    ("/wayfinder map this multi-session effort whose destination is known but whose decision route is still foggy", "wayfinder"),
     ("I think the tests pass now — confirm the work is actually done", "verify-before-completion"),
     ("where is the function parse_config used across the whole codebase?", "index-first"),
     ("the wiki facts are stale after the big rename — reconcile them against the code", "wiki-refresh"),
@@ -52,17 +49,13 @@ TARGET_CASES = [
     ("audit this session for missed Brainer skill triggers and unverified completion claims", "brainer-audit"),
     ("watch this long session for filler creep, looping tool errors, and unverified done claims", "compliance-canary"),
     ("score this draft from zero to five against the written rubric and gate whether it ships", "eval-gate"),
-    ("use the Fable method on this layered task because the first debugging theory may be wrong", "fable-mode"),
     ("map this code change to its callers and blast radius before I decide whether it is safe to ship", "impact-of-change"),
     ("turn this repeated local workflow into a reusable Brainer skill", "learn-skill"),
     ("design this generator-verifier retry loop with a concrete gate, stop condition, and budget cap", "loop-engineering"),
-    ("/self-improvement-loops govern this loop that may rewrite its own prompt, evaluator harness, and optimizer", "self-improvement-loops"),
     ("sync these canonical Brainer skill changes to sibling repos without overwriting customizations", "propagate"),
-    ("track every ask and conjunct in a visible ledger until the user explicitly closes each one", "requirements-ledger"),
     ("scan this patch for introduced secrets, dangerous sinks, risky auth logic, and untrusted dependencies", "security-oversight"),
     ("this task will repeat; run an after-the-fact retrospective and capture reusable project lessons", "task-retrospective"),
     ("lead this challenging task by delegating bounded builder lanes and reviewing their work", "team-lead"),
-    ("break this migration into independent parallel lanes across every affected file and drive it end-to-end to done", "standing-orders"),
 ]
 
 # Composition prompts accept any listed companion as an honest top-1 answer.
@@ -70,9 +63,7 @@ COMPOSITION_CASES = [
     ("Record this durable architecture decision in project memory, but first decide whether it is high-signal enough to persist.",
      ("write-gate", "wiki-memory")),
     ("Keep every request open during this drifting long session and watch for unverified completion claims.",
-     ("requirements-ledger", "compliance-canary")),
-    ("Plan this layered multi-file task and apply the Fable evidence-and-verification discipline while executing it.",
-     ("plan-first-execute", "fable-mode")),
+     ("compliance-canary", "verify-before-completion")),
 ]
 
 # Backward-compatible import for existing ad-hoc consumers.

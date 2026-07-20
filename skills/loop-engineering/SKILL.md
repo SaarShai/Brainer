@@ -29,8 +29,8 @@ Any frontier-tier loop lead follows the hard economy invariant in
 4. **Senior-engineer tools** — logs, a repro env, the ability to run what it writes; without them it iterates blind.
 
 Then:
-- Clear, low-risk, one-sentence diff → **type `ONE SHOT`, skip this skill.** A loop you don't need is the over-orchestration [`lean-execution`](../lean-execution/SKILL.md) exists to prune.
-- "One closed loop, single worker" → the loop body **is** a [`plan-first-execute`](../plan-first-execute/SKILL.md) plan with a `done means:` block. Use that; don't re-plan here.
+- Clear, low-risk, one-sentence diff → **type `ONE SHOT`, skip this skill.**
+- "One closed loop, single worker" → write a plan with a `done means:` block. Use that; don't re-plan here.
 - loop-engineering earns its cost only when the topology is **non-trivial**: distinct generator/verifier roles, a fleet/fan-out, open-loop-by-design, or nested inner+outer.
 - **A fixed, non-iterating pipeline** (A→B→C, each stage runs exactly once, nothing retries-until-pass) is a workflow too — the **budget=1 case of a loop**, not a reason to skip the gate. Write it as a normal spec with `budget: max_iterations=1`: each stage still needs a machine `gate`, and that gate must be run by something other than the stage that produced the output (`generator ≠ verifier` holds *per stage*). It lints clean today — no new schema, no new tool. The instant any stage loops back to retry an earlier one it has become a real loop: raise the budget and re-spec. (A pipeline written without these correctly FAILs `loop_lint` R1/R2/R3 — the fix is the budget=1 spec, not a different tool.)
 

@@ -15,9 +15,8 @@ queue, persistent recipe state, or default activation of experimental skills.
 | Case | Required selection behavior | Forbidden behavior |
 |---|---|---|
 | Open-ended build-vs-borrow decision | Select only matching exports, such as `think:borrow-before-building` and `think:falsify` | Return bare `think`, load every method, or invent a full workflow |
-| Known destination, unresolved route | Select `wayfinder:whole` | Treat fog as a complete implementation plan |
-| Clear one-line typo | Select no optional skill | Add planning or verification ceremony |
-| Risky multi-file implementation | Select `plan-first-execute:whole`; reassess for whole verification/analyzers at closeout | Accumulate every process skill from the start |
+| Clear one-line typo | Select no optional skill | Add verification ceremony |
+| Risky multi-file implementation | Reassess for whole verification/analyzers at closeout | Accumulate every process skill from the start |
 | First occurrence of a one-off workflow | Do not execute `learn-skill` | Create a durable skill without explicit capture authority |
 | Parallelizable work without delegation authority | Defer authority-gated `team-lead` | Spawn subagents |
 | Committed canonical change with an explicit rollout request | Select and follow whole `propagate` | Claim the explicit sync request still lacks authority |

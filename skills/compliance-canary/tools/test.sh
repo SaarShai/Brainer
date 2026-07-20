@@ -1941,8 +1941,9 @@ out=$(call_p cc101h sk101 "$TX" s101h 'where did we put the minis?')
 if emitted "$out" && echo "$out" | grep -q 'baton \[prompt_intent\]'; then ok "'where did we put' recall shape fires"; else no "'where did we put' recall shape must fire" "got: $(echo "$out" | head -c200)"; fi
 
 # ======================================================================
-# fable-mode fable-repeated-failure: probe-specific regression against the
-# REAL shipped skills/fable-mode/drift_probes.json (not an inline copy, and
+# repeated-failure-stall: probe-specific regression against the REAL shipped
+# skills/compliance-canary/drift_probes.json entry (rehomed from retired
+# fable-mode, 2026-07-19; not an inline copy, and
 # not the generic repeated_tool_error smoke test at [24]-[26] — an
 # adversarial review found those only exercised the DETECTOR via a narrow
 # literal pattern ["File has not been read yet"], never THIS probe's actual
@@ -1954,11 +1955,17 @@ if emitted "$out" && echo "$out" | grep -q 'baton \[prompt_intent\]'; then ok "'
 # recurred — stop retrying variations", which is false on 3 distinct
 # errors).
 # ======================================================================
-REAL_FABLE_PROBES="$(cat "$TOOLS_DIR/../../fable-mode/drift_probes.json")"
-mkdir -p "$SKILLS_ROOT/fm/fable-mode"
-printf '%s\n' "$REAL_FABLE_PROBES" > "$SKILLS_ROOT/fm/fable-mode/drift_probes.json"
+REAL_STALL_PROBE="$(python3 -c "
+import json,sys
+probes=json.load(open('$TOOLS_DIR/../drift_probes.json'))
+sel=[p for p in probes if p.get('id')=='repeated-failure-stall']
+assert sel, 'repeated-failure-stall probe missing from shipped drift_probes.json'
+print(json.dumps(sel))
+")"
+mkdir -p "$SKILLS_ROOT/fm/compliance-canary"
+printf '%s\n' "$REAL_STALL_PROBE" > "$SKILLS_ROOT/fm/compliance-canary/drift_probes.json"
 
-echo "[103a] fable-repeated-failure: 3 DISTINCT failure classes (not same signature) → fires (count semantics)"
+echo "[103a] repeated-failure-stall: 3 DISTINCT failure classes (not same signature) → fires (count semantics)"
 TX="$TRANSCRIPT_DIR/t103a.jsonl"
 write_transcript "$TX" \
   "$(assistant_text 'running the build' u103a1)" \
@@ -1968,9 +1975,9 @@ write_transcript "$TX" \
   "$(assistant_text 'trying yet another approach' u103a3)" \
   "$(user_tool_error 'Timed out after 30s')"
 out=$(call cc103a fm "$TX" s103a)
-if emitted "$out" && echo "$out" | grep -q 'fable-mode \[repeated_tool_error\]'; then ok "3 distinct failure classes fire (count semantics, not same-signature)"; else no "3 distinct failure classes should fire" "got: $(echo "$out" | head -c200)"; fi
+if emitted "$out" && echo "$out" | grep -q 'compliance-canary \[repeated_tool_error\]'; then ok "3 distinct failure classes fire (count semantics, not same-signature)"; else no "3 distinct failure classes should fire" "got: $(echo "$out" | head -c200)"; fi
 
-echo "[103b] fable-repeated-failure: 2 matching errors → silent (min_count=3 boundary)"
+echo "[103b] repeated-failure-stall: 2 matching errors → silent (min_count=3 boundary)"
 TX="$TRANSCRIPT_DIR/t103b.jsonl"
 write_transcript "$TX" \
   "$(assistant_text 'running the build' u103b1)" \
@@ -1980,7 +1987,7 @@ write_transcript "$TX" \
 out=$(call cc103b fm "$TX" s103b)
 if [ -z "$out" ]; then ok "2 matching errors stay silent (below min_count=3)"; else no "2 matching errors should stay silent" "got: $(echo "$out" | head -c200)"; fi
 
-echo "[103c] fable-repeated-failure: 3 benign non-error tool_results mentioning 'errors' (plural) → silent (only is_error results are counted)"
+echo "[103c] repeated-failure-stall: 3 benign non-error tool_results mentioning 'errors' (plural) → silent (only is_error results are counted)"
 user_tool_result_ok() {
   python3 -c "
 import json,sys
@@ -1999,7 +2006,7 @@ write_transcript "$TX" \
 out=$(call cc103c fm "$TX" s103c)
 if [ -z "$out" ]; then ok "benign non-error tool_results with 'errors' stay silent (is_error=False excluded from the count)"; else no "benign non-error tool_results should stay silent" "got: $(echo "$out" | head -c200)"; fi
 
-echo "[103d] fable-repeated-failure: emitted message says 'stalling', and never asserts the retracted same-signature claim"
+echo "[103d] repeated-failure-stall: emitted message says 'stalling', and never asserts the retracted same-signature claim"
 TX="$TRANSCRIPT_DIR/t103d.jsonl"
 write_transcript "$TX" \
   "$(assistant_text 'running the build' u103d1)" \

@@ -1134,7 +1134,7 @@ _EARLY_STOP_DONE = (
 )
 # The agent is ASKING the user (a question / permission request), not promising-
 # then-yielding. That is a legitimate pause (over-pausing is an autonomy concern,
-# handled in lean-execution, not an early stop). Suppress.
+# handled by the code-craft directives, not an early stop). Suppress.
 _EARLY_STOP_QUESTION = (
     r"(?i)(?:\?|\blet me know\b|\bwant me to\b|\bshould i\b|\bshall i\b|"
     r"\bdo you (?:want|prefer)\b|\bwould you like\b|\bwhich (?:option|approach|one)\b)"
@@ -1335,9 +1335,10 @@ def _visible_ledger_text(text: str) -> str:
 def materialize_visible_ledger(session_id: str, turn: int, user_text: str) -> bool:
     """Append a coarse visible capture row without touching agent-owned rows.
 
-    The requirements-ledger skill still splits compound requests and reconciles
-    statuses. This hook-owned section prevents an installed project from having
-    only an invisible JSON backstop when that optional workflow was not chosen.
+    An agent workflow may still split compound requests and reconcile
+    statuses in the atomic rows above. This hook-owned section prevents an
+    installed project from having only an invisible JSON backstop when no
+    such workflow was chosen.
     """
     if not user_text.strip():
         return False
@@ -1359,7 +1360,7 @@ def materialize_visible_ledger(session_id: str, turn: int, user_text: str) -> bo
                     f"# Session capture — {sid}\n\n"
                     "Mechanical record of user requests captured in this session. "
                     "Captured does not mean unfinished. The optional "
-                    "`requirements-ledger` workflow may add and reconcile "
+                    "agent-maintained ledger workflow may add and reconcile "
                     "status-bearing atomic rows above the capture section.\n\n"
                     "## Open\n\n"
                     "<!-- Agent-maintained atomic rows belong here. -->\n\n"
@@ -2400,7 +2401,7 @@ def build_probe_escalation_lines(history: list, turn: int) -> list[str]:
     return lines
 
 
-# Detector for the requirements-ledger skill: fire when the user has raised
+# Ledger-materialization detector: fire when the user has raised
 # trackable requests but the agent shows no sign of MATERIALIZING the visible
 # ledger (no Edit/Write to a *ledger*.md and no TaskCreate/TaskUpdate). The
 # cross-check direction is deliberate: the hidden capture is COARSE (≤1 row /
@@ -2463,7 +2464,7 @@ def detect_ledger_not_materialized(probe: dict, _messages, tool_uses: list[dict]
 DETECTORS["ledger_not_materialized"] = detect_ledger_not_materialized
 
 
-# Detector for dependency discipline (lean-execution / code-craft directives).
+# Detector for dependency discipline (code-craft directives).
 # Fires when a tool call edits a path matching `path_pattern` — e.g. a dependency
 # manifest/lockfile, where the rule is "every dependency is permanent code you
 # don't control; justify it". A NUDGE (warn): the probe can't know whether a
@@ -2638,7 +2639,7 @@ def detect_tool_path_touch(probe: dict, _messages, tool_uses: list[dict], _tool_
 DETECTORS["tool_path_touch"] = detect_tool_path_touch
 
 
-# Detector for the no-reformat rule (lean-execution / surgical changes). Fires
+# Detector for the no-reformat rule (code-craft surgical-diff directive). Fires
 # when an Edit's old_string and new_string differ ONLY by whitespace — a pure
 # reformat that buries real changes in noise. Whitespace-stripped equality is
 # exact, so low false-positive; `min_chars` skips trivial edits.
@@ -3093,8 +3094,8 @@ def main() -> int:
             capture_intent(intent_session_id, turn, capture_text)
 
     # The hidden request ledger above is mechanically complete, but previously
-    # left users without a visible record unless an agent separately selected
-    # the optional requirements-ledger skill. Keep the mirror ahead of the
+    # left users without a visible record unless an agent separately chose a
+    # visible-ledger workflow. Keep the mirror ahead of the
     # disabled return: the request ledger itself intentionally survives that
     # operator valve, and visibility must not reintroduce a blind spot.
     visible_capture = intent_capture_text(prompt_text, prompt_text_user)
@@ -3269,7 +3270,7 @@ def main() -> int:
             traj["profile"] = profile
             traj["execution_timeline"] = execution_timeline(events)
             traj["final_assistant_has_tool_use"] = final_assistant_has_tool_use(events)
-            # Feed the requirements-ledger cross-check (ledger_not_materialized).
+            # Feed the ledger cross-check (ledger_not_materialized).
             # open_ledger_count counts only items from PRIOR turns (this turn's
             # fresh adds aren't a "drop" yet) and excludes parked/deferred items.
             traj["turn"] = turn

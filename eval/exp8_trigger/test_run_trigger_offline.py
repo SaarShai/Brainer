@@ -18,7 +18,7 @@ class TriggerCasesTest(unittest.TestCase):
         self.assertEqual(len(targets), len(set(targets)))
         self.assertEqual(set(targets), trigger.live_skill_names())
         self.assertEqual(trigger.live_skill_names(), {name for name, _ in trigger.load_catalog()})
-        self.assertEqual(31, len(targets))
+        self.assertEqual(24, len(targets))
 
     def test_old_14_case_fixture_fails_current_coverage_assertion(self) -> None:
         errors = trigger.validate_cases(target_cases=trigger.TARGET_CASES[:14])
@@ -33,20 +33,19 @@ class TriggerCasesTest(unittest.TestCase):
 
     def test_manual_only_targets_retain_literal_slash_boundary(self) -> None:
         prompts = {target: prompt for prompt, target in trigger.TARGET_CASES}
-        for target in ("brainer", "think", "baton", "self-improvement-loops"):
+        for target in ("brainer", "think", "baton"):
             with self.subTest(target=target):
                 self.assertRegex(prompts[target], rf"^/{target}(?:\s|$)")
 
-    def test_wayfinder_is_manual_experimental_and_historical_handoffs_remain(self) -> None:
-        wayfinder = (HERE.parents[1] / "skills" / "wayfinder" / "SKILL.md").read_text()
-        plan = (HERE.parents[1] / "skills" / "plan-first-execute" / "SKILL.md").read_text()
-        think = (HERE.parents[1] / "skills" / "think" / "SKILL.md").read_text()
-        self.assertIn("trigger_type: model", wayfinder)
-        self.assertIn("status: experimental", wayfinder)
-        self.assertIn("disable-model-invocation: true", wayfinder)
-        self.assertIn("auto-install: false", wayfinder)
-        self.assertIn("wayfinder", plan.lower())
-        self.assertIn("wayfinder", think.lower())
+    def test_retired_doctrine_skills_have_no_trigger_cases(self) -> None:
+        retired = {
+            "fable-mode", "lean-execution", "plan-first-execute",
+            "requirements-ledger", "standing-orders", "wayfinder",
+            "self-improvement-loops",
+        }
+        self.assertFalse(retired & {t for _, t in trigger.TARGET_CASES})
+        for _, accepted in trigger.COMPOSITION_CASES:
+            self.assertFalse(retired & set(accepted))
 
     def test_composition_schema_and_names(self) -> None:
         live = trigger.live_skill_names()
@@ -93,7 +92,7 @@ class TriggerCasesTest(unittest.TestCase):
             cwd=HERE, capture_output=True, text=True, timeout=10,
         )
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertIn("PASS targets=31 compositions=3 live=31", result.stdout)
+        self.assertIn("PASS targets=24 compositions=2 live=24", result.stdout)
 
 
 if __name__ == "__main__":

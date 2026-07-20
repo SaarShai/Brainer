@@ -236,8 +236,9 @@ open").
 appends `.brainer/ledger/<sha256(session_id)[:16]>.md`. Its append-only
 `Captured requests` section is a visible, scrubbed mirror of the coarse capture,
 not a claim that each request remains unfinished; it exists even when no agent
-selected the optional `requirements-ledger` skill. That skill remains
-responsible for the richer atomic rows and their statuses.
+maintains the richer atomic rows. An agent-maintained ledger workflow (guarded
+by the rehomed `ledger-not-materialized` probe) remains responsible for atomic
+rows and their statuses.
 
 ## Verbatim intent log
 

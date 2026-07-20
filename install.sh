@@ -254,9 +254,9 @@ a skill happens to trigger:
 
 - **Surgical diffs.** Smallest reversible change; touch only what the ask needs;
   match local style; never reformat code you didn't change. Justify every changed
-  line by the task — revert "while I was in there" edits. (`lean-execution` covers
-  this when invoked; this is the always-on copy. The `whitespace_only_edit` +
-  `dependency-manifest-changed` `compliance-canary` probes enforce it mechanically.)
+  line by the task — revert "while I was in there" edits. (The
+  `whitespace_only_edit` + `dependency-manifest-changed` `compliance-canary`
+  probes enforce it mechanically.)
 - **Failure-mode interrupt.** If mid-task you slide into scope-creep (Kitchen
   Sink), premature abstraction (abstract only on the 3rd repeat — rule of three),
   happy-path-only (error path ignored), a fix cascading across files (Runaway

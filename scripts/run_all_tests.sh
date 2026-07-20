@@ -78,12 +78,10 @@ S|core|python3|skills/brainer-audit/tools/test_detector_precision.py|-|-
 S|core|python3|skills/brainer/eval/test_reference.py|-|-
 S|core|python3|skills/loop-engineering/tools/test_loop_lint.py|-|-
 S|core|python3|skills/loop-engineering/tools/test_loop_run_monitor.py|-|-
-S|core|python3|skills/self-improvement-loops/eval/test_weakest_executor.py|-|-
 S|core|python3|skills/context-keeper/tools/tests/test_extract.py|-|-
 S|core|python3|skills/output-filter/tools/test_output_filter.py|-|-
 S|core|python3|skills/prompt-triage/tools/test_classify.py|-|-
 S|core|python3|skills/write-gate/tools/test_write_gate.py|-|-
-S|core|python3|skills/requirements-ledger/tools/test_dropmodes.py|-|-
 S|core|python3|skills/task-retrospective/tools/test_task_audit.py|-|-
 S|core|python3|skills/wiki-memory/tools/test_consolidate.py|-|-
 S|core|python3|skills/wiki-memory/tools/test_decay.py|-|-
@@ -135,7 +133,6 @@ S|core|python3|skills/semantic-diff/tools/tests/test_syntax_error.py|tree_sitter
 S|core|python3|skills/semantic-diff/tools/tests/test_whitespace.py|tree_sitter|-
 S|core|python3|skills/semantic-diff/tools/tests/test_realistic.py|tree_sitter|-
 S|core|python3|skills/semantic-diff/tools/tests/test_classlevel.py|tree_sitter|-
-S|core|python3|skills/standing-orders/tools/test_standing_orders.py|-|-
 S|tail|bash|skills/compliance-canary/tools/test.sh|-|hook:compliance-canary
 S|tail|bash|skills/eval-gate/tools/test.sh|-|tool:eval-gate
 S|tail|bash|skills/verify-before-completion/tools/test.sh|-|tool:verify-artifact

@@ -346,6 +346,28 @@ When populated: small N per dimension means no CIs, and cross-dimension
 differences reflect both skill design and question difficulty — not skill merit
 alone. Read as direction, not magnitude.
 
+## Catalog cuts (v1.12 — 31 → 24 skills, 2026-07-19 contraction)
+
+Executed the contraction the 2026-07 evidence had already converged on:
+FRONTIER-vs-OFF pilot showed **zero pass-rate lift** from compact static
+doctrine bodies (76 valid outcomes, both arms 19/19); the 2026-07-17
+adversarial-review taxonomy proposed retire/demote for every cut skill;
+`docs/TARGET_ARCHITECTURE.md`'s migration map (adopted 2026-07-18) assigned
+each to "role briefs or retirement". Inversion fixed: retention now requires
+**measured-positive or cheap + load-bearing**, not merely "not proven harmful".
+
+| Cut | Why | Covered now by |
+|---|---|---|
+| `standing-orders` | shadow-only; emitted nothing in frontier profiles; 2 doctrine-injecting prompt_intent probes were the exact resident-doctrine pattern the target architecture bans | nothing needed (telemetry said inert) |
+| `requirements-ledger` | prose workflow; capture was already canary-owned and unconditional | `compliance-canary` intent capture + rehomed `ledger-not-materialized` / `assumption-self-close` probes |
+| `wayfinder` | 259-line single file; no tools, no EVAL, no measured use | `/think` (weak-model tiers) + plan briefs |
+| `fable-mode` | doctrine body; no EVAL; five-gate advice duplicated | rehomed `repeated-failure-stall` probe carries the five-gate nudge mechanically |
+| `plan-first-execute` | its own catalog line admitted "compact planning rules live in the builder brief" | `_shared` role briefs (`brief_header.py` contract) |
+| `lean-execution` | always-on copy already resident in code-craft directives | resident directives + rehomed `dependency-manifest-changed` / `reformat-only-hunk` probes |
+| `self-improvement-loops` | policy prose that only re-pointed at `loop-engineering`/`learn-skill`/`eval-gate` | those three, directly |
+
+Bodies live in git history (`git show f9740a4^:skills/<name>/SKILL.md`).
+
 ## Catalog cuts (v1.6.0–1.6.1 — 19 → 15 skills)
 
 Trimmed the unproven-gain tail. Principle: a skill stays only if it's either **measured-positive** or **cheap + load-bearing-by-design** (operational utility, no gain claim). A skill that is *both* ❌/🟡 on measured benefit *and* redundant with a kept skill is dead weight — cut it.

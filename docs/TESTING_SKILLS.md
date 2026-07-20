@@ -27,8 +27,7 @@ mistake.
 | 7. external validation | works on someone else's project | agent dispatched to clone + run real repos |
 
 Not every skill needs every layer:
-- **Prose-only skills** (caveman-ultra, lean-execution, plan-first-execute,
-  verify-before-completion, index-first): layers 0 + the existing judge-scored
+- **Prose-only skills** (caveman-ultra, verify-before-completion, index-first): layers 0 + the existing judge-scored
   eval. Skip 2-5.
 - **Classifier skills** (write-gate, prompt-triage, compliance-canary): need
   layer 2 (calibration corpus) at minimum.
