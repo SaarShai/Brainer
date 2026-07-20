@@ -22,8 +22,8 @@
       "name": "fable-mode",
       "skill_sha256": "563b01993b028fdcf02116b5b9a99e6c70d0a9850e36d68289cf9920c31d1bd9",
       "class": "generic-work-discipline",
-      "disposition": "demote-role-brief",
-      "reason": "Its five gates largely restate frontier execution defaults; the useful scope, adversarial, and verification rules fit the builder and verifier briefs.",
+      "disposition": "retired-removed",
+      "reason": "Its five gates largely restate frontier execution defaults; the useful scope, adversarial, and verification rules fit the builder and verifier briefs. Skill directory fully removed 2026-07-19 (commit f9740a4, catalog contraction phase 1); the demote-role-brief proposal above was superseded by that removal.",
       "retain": ["non-duplicated scope and adversarial rules in builder/verifier briefs"],
       "proposed_remove_if_gate_passes": ["standalone SKILL.md body", "pulse reminder"]
     },
@@ -31,8 +31,8 @@
       "name": "lean-execution",
       "skill_sha256": "b862656dc4a5a01702794da09a67ccccfc94e3559c252b5c7050987f091112dc",
       "class": "generic-work-discipline",
-      "disposition": "demote-role-brief",
-      "reason": "The prose is generic frontier guidance; surgical-scope and stop rules belong in the builder brief while deterministic drift probes can be judged independently.",
+      "disposition": "retired-removed",
+      "reason": "The prose is generic frontier guidance; surgical-scope and stop rules belong in the builder brief while deterministic drift probes can be judged independently. Skill directory fully removed 2026-07-19 (commit f9740a4, catalog contraction phase 1); the demote-role-brief proposal above was superseded by that removal.",
       "retain": ["compact builder rules", "dependency-manifest and whitespace probes pending their own deterministic gates"],
       "proposed_remove_if_gate_passes": ["standalone SKILL.md body"]
     },
@@ -50,16 +50,16 @@
       "skill_sha256": "c305ccbfc1aa2d7ecd10c2298cc4081c74af3a702df3b9e5557f2234bc11cc09",
       "class": "custom-tool-workflow",
       "disposition": "retain-manual",
-      "reason": "The loop-spec schema, linter, resolved snapshot, diagram, and runtime monitor are executable domain tooling rather than a style prompt.",
-      "retain": ["explicit /loop-engineering workflow", "loop_lint.py", "loop_run_monitor.py", "schema"],
+      "reason": "The loop-spec schema, linter, resolved snapshot, and diagram are executable domain tooling rather than a style prompt (loop_run_monitor.py was removed 2026-07-19 as unwired, zero production callers).",
+      "retain": ["explicit /loop-engineering workflow", "loop_lint.py", "schema"],
       "proposed_remove_if_gate_passes": []
     },
     {
       "name": "plan-first-execute",
       "skill_sha256": "dcd98474300f73b024d11a0cf6c2362cc0602cb19d1581314469ecfd4369782a",
       "class": "generic-work-discipline",
-      "disposition": "demote-role-brief",
-      "reason": "Planning, scoping, and verification are generic frontier capabilities; only the compact spec and stop rules merit residence in the builder brief.",
+      "disposition": "retired-removed",
+      "reason": "Planning, scoping, and verification are generic frontier capabilities; only the compact spec and stop rules merit residence in the builder brief. Skill directory fully removed 2026-07-19 (commit f9740a4, catalog contraction phase 1); the demote-role-brief proposal above was superseded by that removal.",
       "retain": ["compact builder spec and acceptance rules"],
       "proposed_remove_if_gate_passes": ["standalone SKILL.md body"]
     },
@@ -76,8 +76,8 @@
       "name": "requirements-ledger",
       "skill_sha256": "3a428d0fbd69bd9c631dd799521f6d79e188766d1ae3d001ac6edc277cb8af4f",
       "class": "generic-compliance-wrapper",
-      "disposition": "retire",
-      "reason": "A visible per-turn file and task-list protocol duplicates the retained silent pending-intent state and imposes compulsory writes and closeout nags.",
+      "disposition": "retired-removed",
+      "reason": "A visible per-turn file and task-list protocol duplicates the retained silent pending-intent state and imposes compulsory writes and closeout nags. Skill directory fully removed 2026-07-19 (commit f9740a4, catalog contraction phase 1), executing the retire proposal above.",
       "retain": ["silent pending-intent state in compliance-canary"],
       "proposed_remove_if_gate_passes": ["visible ledger body", "materialization probe", "compulsory user-confirmed closure protocol"]
     },
@@ -85,8 +85,8 @@
       "name": "standing-orders",
       "skill_sha256": "bb8f08de1c7533a3f6eb42c323d495731c9a83a213b8e8200fbfb1b524f7464d",
       "class": "generic-compliance-wrapper",
-      "disposition": "retire",
-      "reason": "Broad regex-triggered orchestration and deep-thinking directives are the measured prompt-surface failure mode and duplicate compact role briefs and explicit user requests.",
+      "disposition": "retired-removed",
+      "reason": "Broad regex-triggered orchestration and deep-thinking directives are the measured prompt-surface failure mode and duplicate compact role briefs and explicit user requests. Skill directory fully removed 2026-07-19 (commit f9740a4, catalog contraction phase 1), executing the retire proposal above.",
       "retain": ["shadow-only trigger telemetry during expiry window"],
       "proposed_remove_if_gate_passes": ["SKILL.md body", "ORCH and DEEP prompt-intent probes", "pulse reminder"]
     },
@@ -130,8 +130,8 @@
       "name": "wayfinder",
       "skill_sha256": "fe9ab6cd3f1ff5f29b11f288dbd87177e2c5403adede9210ed95e4f8bfbca506",
       "class": "custom-artifact-workflow",
-      "disposition": "retain-manual",
-      "reason": "It defines a specific sourced decision-map and ticket artifact protocol for multi-session ambiguity, including concurrency and human-input gates.",
+      "disposition": "retired-removed",
+      "reason": "It defines a specific sourced decision-map and ticket artifact protocol for multi-session ambiguity, including concurrency and human-input gates. Skill directory fully removed 2026-07-19 (commit f9740a4, catalog contraction phase 1) despite the retain-manual proposal above; flagged here as a proposal-vs-outcome mismatch.",
       "retain": ["explicit /wayfinder workflow and artifact contract"],
       "proposed_remove_if_gate_passes": []
     }

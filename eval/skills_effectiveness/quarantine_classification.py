@@ -17,7 +17,7 @@ EXPECTED = {
     "requirements-ledger", "standing-orders", "task-retrospective",
     "team-lead", "think", "verify-before-completion", "wayfinder",
 }
-DISPOSITIONS = {"retire", "demote-role-brief", "retain-manual", "split"}
+DISPOSITIONS = {"retire", "demote-role-brief", "retain-manual", "split", "retired-removed"}
 
 
 def load_and_validate(path: Path = DEFAULT_SOURCE) -> dict:
@@ -44,8 +44,14 @@ def load_and_validate(path: Path = DEFAULT_SOURCE) -> dict:
             raise ValueError(f"incomplete rationale for {row['name']}")
         skill = REPO / "skills" / row["name"] / "SKILL.md"
         if not skill.is_file():
-            # Body removed since classification (retired in catalog contraction
-            # or sibling-only); nothing left to drift-check.
+            if row.get("disposition") != "retired-removed":
+                raise ValueError(
+                    f"missing SKILL.md for {row['name']} with no "
+                    "\"disposition\": \"retired-removed\" to explain it "
+                    "(silent gaps hide undocumented removals)"
+                )
+            # Body genuinely gone (row explicitly marks it retired-removed,
+            # e.g. catalog contraction); nothing left to drift-check.
             continue
         actual = hashlib.sha256(skill.read_bytes()).hexdigest()
         if actual != row.get("skill_sha256"):
@@ -70,6 +76,7 @@ def render(data: dict) -> str:
         f"- Proposed demotion into compact role briefs: {counts['demote-role-brief']}",
         f"- Retain as explicit tool/workflow skills: {counts['retain-manual']}",
         f"- Proposed split of prose from retained mechanisms: {counts['split']}",
+        f"- Already retired and removed from the catalog (body gone): {counts['retired-removed']}",
         "",
         "These are content-taxonomy hypotheses, not causal outcome verdicts.",
         "",

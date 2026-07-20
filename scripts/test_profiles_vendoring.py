@@ -12,6 +12,12 @@ Verifies BOTH directions so the guard can never silently regress into
 exit 0 and print the skip line; the real canonical tree (which DOES ship
 eval/) must run the armed-arm hard-negative checks (no skip line, and
 strictly more PASS lines than the eval-less vendored run).
+
+Lives in scripts/ (not skills/compliance-canary/tools/) because it is a
+canonical-only meta-test: it asserts on the DIFFERENCE between the canonical
+repo (which ships eval/) and a vendored sibling checkout (which never does).
+Siblings vendor skills/ wholesale but not scripts/ or eval/, so this test
+never ships to them and can't fail on their guaranteed-eval-less trees.
 """
 from __future__ import annotations
 
@@ -21,7 +27,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]  # tools -> compliance-canary -> skills -> Brainer
+REPO = Path(__file__).resolve().parents[1]  # scripts -> Brainer
 TEST_PROFILES = REPO / "skills" / "compliance-canary" / "tools" / "test_profiles.py"
 SKIP_LINE = "INFO armed-hard-negative-corpus-skipped (eval corpus not vendored in this checkout)"
 IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc", ".venv", "venv", ".pytest_cache")

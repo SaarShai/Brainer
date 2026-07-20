@@ -261,8 +261,9 @@ class HarnessTests(unittest.TestCase):
         data = quarantine_classification.load_and_validate()
         self.assertEqual(14, len(data["skills"]))
         counts = Counter(r["disposition"] for r in data["skills"])
-        self.assertEqual({"retire": 4, "demote-role-brief": 5,
-                          "retain-manual": 4, "split": 1}, dict(counts))
+        self.assertEqual({"retire": 2, "demote-role-brief": 2,
+                          "retain-manual": 3, "split": 1,
+                          "retired-removed": 6}, dict(counts))
         self.assertIn("`verify-before-completion`", quarantine_classification.render(data))
 
     def test_native_delivery_smoke_uses_fresh_carrier_free_fixtures(self):
