@@ -26,6 +26,7 @@ KNOWN_KINDS = {
     "whitespace_only_edit",
     "new_machinery_no_borrow_checkpoint",
     "delegated_diagnosis",
+    "unbanked_commitment",
 }
 
 REQUIRED_BY_KIND = {
@@ -44,6 +45,7 @@ REQUIRED_BY_KIND = {
     "whitespace_only_edit": ["min_chars"],
     "new_machinery_no_borrow_checkpoint": [],
     "delegated_diagnosis": [],
+    "unbanked_commitment": [],
 }
 
 REGEX_FIELDS = [

@@ -2264,6 +2264,60 @@ out=$(call_noselect cc116e sk116real "$TX" s116e)
 if ! echo "$out" | grep -q 'without LOOKING at it'; then ok "visual probe silent without .ai context"; else no "visual probe must stay silent without .ai context" "got: $(echo "$out" | head -c200)"; fi
 
 # ======================================================================
+# [117] unbanked_commitment (2026-07-20, no-drop gap): an assistant
+# self-commitment to bank a lesson/observation "later" has no capture path in
+# materialize_visible_ledger (which only sees USER-authored requests) —
+# detect_unbanked_commitment closes it. Skill dir is named "compliance-canary"
+# so discover_probes' _probe_id ("compliance-canary:unbanked-commitment")
+# matches the id used in the fixture below and in FRONTIER_VERIFY_PROBE_IDS.
+# ======================================================================
+PROBES='[{"id":"unbanked-commitment","kind":"unbanked_commitment","lookback_tool_uses":5}]'
+make_skill_with_probes sk117 compliance-canary "$PROBES"
+
+echo "[117a] fires: note-verb + deferral cue in the same sentence, no durable write"
+TX="$TRANSCRIPT_DIR/t117a.jsonl"
+write_transcript "$TX" \
+  "$(assistant_tool_use Read '{"file_path":"/tmp/notes.md"}')" \
+  "$(assistant_text 'Worth noting for your skill-effectiveness question later: the delegation path skipped a gate.' u117a)"
+out=$(call cc117a sk117 "$TX" s117a)
+if emitted "$out" && echo "$out" | grep -q 'unbanked_commitment'; then ok "note-for-later commitment fires"; else no "note-for-later commitment fires" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[117b] silent: worth-noting with no deferral cue (commentary, not a commitment)"
+TX="$TRANSCRIPT_DIR/t117b.jsonl"
+write_transcript "$TX" "$(assistant_text 'Worth noting that the file is 6MB.' u117b)"
+out=$(call cc117b sk117 "$TX" s117b)
+if ! echo "$out" | grep -q 'unbanked_commitment'; then ok "no-deferral commentary stays silent"; else no "no-deferral commentary must stay silent" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[117c] silent: durable Write to wiki/ in the last 5 tool_uses suppresses the fire"
+TX="$TRANSCRIPT_DIR/t117c.jsonl"
+write_transcript "$TX" \
+  "$(assistant_tool_use Write '{"file_path":"wiki/patterns/foo.md","content":"lesson banked"}')" \
+  "$(assistant_text 'Worth noting for later: this pattern recurs across sessions.' u117c)"
+out=$(call cc117c sk117 "$TX" s117c)
+if ! echo "$out" | grep -q 'unbanked_commitment'; then ok "durable wiki/ write suppresses the fire"; else no "durable wiki/ write must suppress the fire" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[117d] silent: commitment phrasing only inside a code fence"
+TX="$TRANSCRIPT_DIR/t117d.jsonl"
+write_transcript "$TX" "$(assistant_text '```
+Worth noting for later: this pattern recurs across sessions.
+```' u117d)"
+out=$(call cc117d sk117 "$TX" s117d)
+if ! echo "$out" | grep -q 'unbanked_commitment'; then ok "code-fenced phrasing stays silent"; else no "code-fenced phrasing must stay silent" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[117e] ledger capture: a fire also appends a source=self-commitment row to the visible ledger"
+TX="$TRANSCRIPT_DIR/t117e.jsonl"
+write_transcript "$TX" "$(assistant_text 'Worth noting for your skill-effectiveness question later: the delegation path skipped a gate.' u117e)"
+out=$(call cc117e sk117 "$TX" s117e)
+LEDGER_117E="$STATE_ROOT/ledger/$(python3 -c "import hashlib;print(hashlib.sha256(b's117e').hexdigest()[:16])").md"
+if emitted "$out" && echo "$out" | grep -q 'unbanked_commitment' \
+   && [ -f "$LEDGER_117E" ] && grep -q 'source=self-commitment' "$LEDGER_117E" \
+   && grep -q 'skill-effectiveness question later' "$LEDGER_117E"; then
+  ok "self-commitment fire appends a source=self-commitment ledger row"
+else
+  no "self-commitment fire must append a source=self-commitment ledger row" "got: $(echo "$out" | head -c200) | ledger: $(cat "$LEDGER_117E" 2>/dev/null | tail -c300)"
+fi
+
+# ======================================================================
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then

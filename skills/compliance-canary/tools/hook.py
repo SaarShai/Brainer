@@ -90,6 +90,12 @@ FRONTIER_VERIFY_PROBE_IDS = {
     # fires only on a dispatch to a KNOWN sub-frontier agent type whose brief
     # contains diagnosis phrasing — narrow enough for the frontier emit set.
     "compliance-canary:delegated-diagnosis",
+    # No-drop closure for assistant self-commitments (2026-07-20 live
+    # incident — see detect_unbanked_commitment docstring): two-cue
+    # conjunction (note-verb + deferral cue, same sentence) plus a right-
+    # class-evidence suppression keeps the false-fire surface narrow enough
+    # for the frontier emit set.
+    "compliance-canary:unbanked-commitment",
 }
 
 # Hard wall-clock budget for the probe phase. drift_probes.json regexes are
@@ -1345,23 +1351,19 @@ def _visible_ledger_text(text: str) -> str:
             .replace("<!--", "&lt;!--").replace("-->", "--&gt;"))
 
 
-def materialize_visible_ledger(session_id: str, turn: int, user_text: str) -> bool:
-    """Append a coarse visible capture row without touching agent-owned rows.
-
-    An agent workflow may still split compound requests and reconcile
-    statuses in the atomic rows above. This hook-owned section prevents an
-    installed project from having only an invisible JSON backstop when no
-    such workflow was chosen.
-    """
-    if not user_text.strip():
-        return False
-    sid = _session_hash(session_id or "unknown")
-    text = _visible_ledger_text(user_text)
+def _append_visible_ledger_row(session_id: str, turn: int, text: str, source: str) -> bool:
+    """Shared flock/header/append logic for one visible-ledger capture row.
+    Factored out (2026-07-20, unbanked-commitment probe) so the self-
+    commitment capture path (source=self-commitment) can share the append
+    machinery with the user-request capture path (source=compliance-canary,
+    via materialize_visible_ledger below) instead of duplicating the
+    flock/header logic."""
     if not text:
         return False
-    item_id = _ledger_make_id(turn, user_text)
+    sid = _session_hash(session_id or "unknown")
+    item_id = _ledger_make_id(turn, text)
     line = (f"- [ ] ({item_id}) {text} "
-            f"<!-- id={item_id} turn={turn} type=capture status=open source=compliance-canary -->\n")
+            f"<!-- id={item_id} turn={turn} type=capture status=open source={source} -->\n")
     path = visible_ledger_path(session_id)
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -1388,6 +1390,35 @@ def materialize_visible_ledger(session_id: str, turn: int, user_text: str) -> bo
     except Exception as e:
         log_err(f"visible-ledger-materialize-fail err={e!r}")
         return False
+
+
+def materialize_visible_ledger(session_id: str, turn: int, user_text: str) -> bool:
+    """Append a coarse visible capture row without touching agent-owned rows.
+
+    An agent workflow may still split compound requests and reconcile
+    statuses in the atomic rows above. This hook-owned section prevents an
+    installed project from having only an invisible JSON backstop when no
+    such workflow was chosen.
+    """
+    if not user_text.strip():
+        return False
+    text = _visible_ledger_text(user_text)
+    if not text:
+        return False
+    return _append_visible_ledger_row(session_id, turn, text, "compliance-canary")
+
+
+def capture_self_commitment_ledger(session_id: str, turn: int, sentence: str) -> bool:
+    """No-drop closure for the unbanked-commitment probe (detect_
+    unbanked_commitment below): once a self-commitment fires, this appends
+    a capture row (source=self-commitment) so the existing request-ledger
+    wrap-up machinery owns it like any user-authored capture — closing the
+    gap that let 'Worth noting for your skill-effectiveness question later'
+    evaporate silently (live incident, 2026-07-20)."""
+    text = _visible_ledger_text(sentence)
+    if not text:
+        return False
+    return _append_visible_ledger_row(session_id, turn, text, "self-commitment")
 
 
 def _scrub_intent_text(text: str) -> str | None:
@@ -2715,6 +2746,62 @@ def detect_delegated_diagnosis(probe: dict, messages: list[dict], tool_uses: lis
 DETECTORS["delegated_diagnosis"] = detect_delegated_diagnosis
 
 
+# Detector for the no-drop gap in this hook's OWN ledger (2026-07-20 live
+# incident: the agent wrote "Worth noting for your skill-effectiveness
+# question later" and never persisted it — materialize_visible_ledger only
+# captures USER-authored requests, so an ASSISTANT self-commitment to bank a
+# lesson/observation has no capture path and silently evaporates unless the
+# user happens to catch it). Precision guard: BOTH a note-verb AND a
+# deferral cue must land in the SAME sentence — "it's worth noting that X is
+# big" (commentary, no deferral) must not fire.
+_UNBANKED_NOTE_VERB_RE = re.compile(
+    r"(?i:worth\s+noting|worth\s+flagging|(?:I'll|I\s+will|should|need\s+to|going\s+to|let\s+me)\s+"
+    r"(?:note|bank|record|capture|write\s+up|queue|remember|save|persist|log)\b|"
+    r"lesson\s+(?:for|to\s+bank)|note\s+(?:this|that)\s+for)"
+)
+_UNBANKED_DEFERRAL_RE = re.compile(
+    r"(?i:\blater\b|\bafterwards\b|after\s+(?:this|we|the)\b|next\s+(?:session|time|pass)\b|"
+    r"when\s+(?:we|I)\s+(?:finish|get|wrap)\b|at\s+the\s+end\b|\beventually\b|\bdownstream\b|"
+    r"for\s+(?:your|the)\s+.{0,40}?(?:question|review|retro|audit|report))"
+)
+# Right-class evidence (same shape as claim_without_evidence's verify_tools
+# logic): a durable-capture Write/Edit under one of these path markers, or a
+# TaskCreate, in the recent tool_uses window suppresses the fire — the
+# commitment WAS discharged, just not narrated as such.
+_UNBANKED_CAPTURE_PATH_MARKERS = ("wiki/", "/memory/", "MEMORY.md", ".brainer/reports/", ".brainer/baton/")
+
+
+def detect_unbanked_commitment(probe: dict, messages: list[dict], tool_uses: list[dict],
+                                _tool_errors=None, user_prompt: str = "",
+                                traj_stats: dict | None = None) -> dict | None:
+    if not messages:
+        return None
+    last_text = messages[-1]["text"]
+    sentence = None
+    for sent in re.split(r"[.!?\n]", last_text):
+        if _UNBANKED_NOTE_VERB_RE.search(sent) and _UNBANKED_DEFERRAL_RE.search(sent):
+            sentence = sent.strip()
+            break
+    if not sentence:
+        return None
+    try:
+        lookback = int(probe.get("lookback_tool_uses", 5))
+    except (TypeError, ValueError):
+        lookback = 5
+    for tu in (tool_uses or [])[-lookback:]:
+        name = tu.get("name", "")
+        if name == "TaskCreate":
+            return None
+        if name in ("Write", "Edit"):
+            fp = str((tu.get("input") or {}).get("file_path", ""))
+            if fp and any(marker in fp for marker in _UNBANKED_CAPTURE_PATH_MARKERS):
+                return None
+    return {"sentence": sentence[:300]}
+
+
+DETECTORS["unbanked_commitment"] = detect_unbanked_commitment
+
+
 class _ProbeBudgetExceeded(BaseException):
     """Raised by the SIGALRM handler to abort a runaway probe phase. Derives
     from BaseException (not Exception) on purpose: run_probes' per-detector
@@ -2824,6 +2911,16 @@ def format_one_probe(probe: dict) -> str:
             f"appears in the last 5 tool uses (no fresh, successful, post-edit "
             f"check of the right class) — run a fresh check (test, build, lint, "
             f"curl, etc.) and quote its output"
+        )
+    if kind == "unbanked_commitment":
+        # Byte-identical to unbanked-commitment's `message` field in
+        # drift_probes.json — keep in sync (same pattern as
+        # claim_without_evidence's D5 note above).
+        return (
+            f"- {skill} [unbanked_commitment]: recent reply makes a note-for-later "
+            f"commitment but no durable capture (wiki/memory/task/report write) "
+            f"appears in the last 5 tool uses — bank it now or explicitly discharge "
+            f"it. Self-commitments are ledger items, not vibes."
         )
     return f"- {skill} [{kind}]: triggered"
 
@@ -3385,6 +3482,19 @@ def main() -> int:
                     save_state(path, state)
                     entries = kept
             pending_content = entries
+
+    # --- self-commitment capture (no-drop closure for unbanked_commitment) -
+    # Runs OUTSIDE the PROBE_TIMEOUT_SECONDS signal window above — probe
+    # evaluation already returned, so this flock write cannot interact with
+    # the SIGALRM budget (always-exit-0 contract). Best-effort: a write
+    # failure only logs (capture_self_commitment_ledger -> log_err), never
+    # blocks the turn.
+    for probe in fired:
+        if probe.get("kind") != "unbanked_commitment":
+            continue
+        sentence = (probe.get("_result") or {}).get("sentence", "")
+        if sentence:
+            capture_self_commitment_ledger(session_id, turn, sentence)
 
     # --- request-ledger surfacing (coupled to drift) --------------------
     # The ledger reminder rides along with the canary's drift response: open
