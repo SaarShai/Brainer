@@ -423,3 +423,22 @@ Created `concepts/when-to-extract-a-skill-md-section-into-tools.md` from `page` 
   651e850..a7a1854; run_all_tests 88->89/89 green throughout.
 
 - 2026-07-18: recorded and closed the snarktank/ralph fresh-pass queue experiment. A controlled three-arm PROMPTER pilot was correct in every arm, so it showed no reliability lift; the queue-fresh arm's 77.6% lower input-token traffic occurred under synthetic 200 KB pressure and was not treated as a billing or real-problem claim. Removed the untracked harness, raw results, and disposable PROMPTER fixtures because unsupported orchestration machinery would add maintenance cost. The recipe-index direction remains deferred with no implementation retained. See [[queries/external-validation]] and [[queries/covered-verdicts]].
+
+- 2026-07-19: executed catalog contraction v1.12 (31 -> 24 skills) on branch
+  simplify-2026-07-19. Retired the unproven doctrine bodies standing-orders,
+  self-improvement-loops, requirements-ledger, wayfinder, fable-mode,
+  plan-first-execute, lean-execution — because the FRONTIER-vs-OFF pilot showed
+  zero pass-rate lift from compact static doctrine, the 2026-07-17
+  adversarial-review taxonomy proposed retire/demote for each, and
+  TARGET_ARCHITECTURE's adopted migration map assigned them to "role briefs or
+  retirement"; retention now requires measured-positive or cheap+load-bearing,
+  not "not proven harmful". Their 5 still-valuable mechanical probes were
+  rehomed to compliance-canary/drift_probes.json (canary's unconditional intent
+  capture already replaced the ledger workflow). Resident catalog block
+  8012 -> 7237 bytes. Kept deliberately: think + caveman-ultra (actively used,
+  cheap), team-lead (fresh routing hardening is load-bearing), prompt-triage
+  (wired hooks; phase-2 cede-to-host candidate). Phase 2 deferred: wiki-trio
+  merge (sibling CUSTOMIZED blast radius), team-lead -> role briefs, canary
+  SKILL.md deep trim. Six project goals registered in the resident boot block
+  of all three host files, see [[concepts/brainer-goals]]. Full record:
+  eval/FINDINGS.md "Catalog cuts (v1.12)".

@@ -50,9 +50,6 @@ occupy resident context on every boot.
 - `prompt-triage` and the `index-first` augment hook install only into Claude
   Code. `output-filter` has only a Claude Code hook recipe; its shell-pipe mode
   remains portable.
-- `requirements-ledger` names Claude task tools (`TaskCreate`, `TaskUpdate`,
-  `TaskList`). Its Markdown ledger is portable; its native-task mirroring is
-  not.
 - `semantic-diff`'s slim CLI is portable, but its optional installer registers
   the MCP server through `claude mcp`, not Codex or Claude Desktop.
 - `cache-lint` intentionally audits Claude Code cache/config/transcript surfaces;
@@ -74,11 +71,10 @@ external dependencies still degrade exactly as documented by the skill.
 
 | Skills | Codex Desktop | Claude Desktop Code | Simplest disposition |
 |---|---|---|---|
-| `baton`, `brainer`, `caveman-ultra`, `eval-gate`, `fable-mode`, `impact-of-change`, `lean-execution`, `loop-engineering`, `output-filter`, `plan-first-execute`, `propagate`, `security-oversight`, `self-improvement-loops`, `semantic-diff`, `standing-orders`, `task-retrospective`, `team-lead`, `think`, `verify-before-completion`, `wayfinder`, `wiki-memory`, `wiki-refresh`, `write-gate` | Operational; host-native collaboration is used where available | Operational through the native plugin; `/think` UI visibility is live-observed | Keep the shared skill/tool implementation; capability-detect optional models, graph/MCP, and subagents |
+| `baton`, `brainer`, `caveman-ultra`, `eval-gate`, `impact-of-change`, `loop-engineering`, `output-filter`, `propagate`, `security-oversight`, `semantic-diff`, `task-retrospective`, `team-lead`, `think`, `verify-before-completion`, `wiki-memory`, `wiki-refresh`, `write-gate` | Operational; host-native collaboration is used where available | Operational through the native plugin; `/think` UI visibility is live-observed | Keep the shared skill/tool implementation; capability-detect optional models, graph/MCP, and subagents |
 | `brainer-audit` | Offline normalization works; full native event delivery is unverified | Skill/tools packaged; broad automatic audit hooks remain opt-in and are not in the default plugin hooks | Keep explicit/manual audit mode; do not auto-wire unproved events |
 | `compliance-canary` | Consumer hook is installed and exact-once delivery is live-observed in both native Codex CLI and a fresh Codex Desktop task | Default `UserPromptSubmit` plugin hook is live-observed through the installed Claude Code carrier; mixed project/plugin delivery is single-shot | Retain one effective host-specific command and require per-host live evidence |
 | `context-keeper` | `Stop` archive is live-observed; unsupported `PreCompact` is not wired | Desktop `/compact` checkpoint is live-observed; the Claude Code engine delivers `SessionEnd`, while closing the Desktop UI is not a session-end event | Use `/compact` when a durable Desktop checkpoint matters; no watcher or transcript scraper |
 | `index-first` | Skill and CLI operational; automatic `PreToolUse` augmentation is not installed | Skill and CLI operational; plugin does not enable augmentation by default | Keep index-first as an explicit rule/CLI until a host event is deliberately enabled and tested |
 | `learn-skill`, `prompt-triage` | Explicit/manual and opt-in as designed | Packaged as explicit/manual skills; no default hooks | Preserve `auto-install: false`; never turn evaluation arms into defaults for parity |
-| `requirements-ledger` | Markdown ledger operational; Claude-named task mirroring has no Codex adapter | Markdown ledger operational; native task mirroring is host-dependent | Markdown remains the portable source of truth; native mirroring is optional |
 | `cache-lint` | Intentionally unsupported: it audits Claude Code-specific cache/config surfaces | Operational for the embedded Claude Code surface | Keep the limitation explicit; do not build a fake cross-host cache audit |

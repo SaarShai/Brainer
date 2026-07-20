@@ -293,8 +293,8 @@ def detect_dropped_requirements(events: Sequence[Dict[str, Any]]) -> List[Findin
                 observed="; ".join(missing),
                 expected="Track each user requirement until explicitly closed or deferred.",
                 event_refs=[event_ref(event)],
-                skill="requirements-ledger",
-                suggested_target="skills/requirements-ledger",
+                skill="compliance-canary",
+                suggested_target="skills/compliance-canary",
                 suggested_pr_scope="add fixture or stricter completion closure check",
             ))
     return findings

@@ -29,7 +29,7 @@ criteria, proxy evidence, or claims done mid-closeout.)
 
 ## 1. Plan (leader, in-context)
 
-Run [`plan-first-execute`](../plan-first-execute/SKILL.md). Output must include:
+Output must include:
 
 - **Lane decomposition** — independent pieces that do NOT touch the same files.
   Two lanes sharing a file = one lane, or worktree-isolate both.
@@ -173,7 +173,7 @@ Catching yourself doing bulk mechanical edits — stop, brief a builder.
 
 ## 6. When NOT to use this
 
-- Task is a one-sentence diff → just do it (plan-first-execute bypass).
+- Task is a one-sentence diff → just do it.
 - Unattended/scheduled regeneration loop → `loop-engineering` first.
 - Conversational / analysis-only turns → no fleet, just answer.
 

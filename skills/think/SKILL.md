@@ -11,7 +11,7 @@ pulse_reminder: think from evidence, the actual goal, and real constraints; corr
 
 How to think and approach problems. **Manual-only** — invoke with `/think` (a literal token recognised across hosts, even where no such command is installed); it does not auto-fire. Use it when the task benefits from deliberate method: ideation, root-causing, pre-mortems, or an open-ended or high-stakes decision.
 
-`/think` governs the **diverge/approach** phase; [`fable-mode`](../fable-mode/SKILL.md) is the FULL converge/execute arm. During evaluation neither loads automatically. A result may recommend an explicit `/wayfinder` follow-up when the destination is known but the decision route remains foggy.
+`/think` governs the **diverge/approach** phase. During evaluation it does not load automatically.
 
 ## How to apply this
 
@@ -42,7 +42,7 @@ The IDs map in order to the four **Always** bullets and eleven
 Before optional methods, load every matched companion skill and follow its current contract. The companion is authoritative; the compact rules below are fallback invariants, not a duplicate runbook. If a required companion is unavailable, apply the relevant invariant and report the degraded route.
 
 - **Durable repo knowledge:** load [`wiki-memory`](../wiki-memory/SKILL.md) before ingest or write, [`wiki-refresh`](../wiki-refresh/SKILL.md) when derived knowledge may be stale or conflicting, and [`write-gate`](../write-gate/SKILL.md) before persistent memory writes. Preserve source provenance and layer ownership: raw sources are immutable (correct them by adding a source), generated wiki pages are model-owned derived artifacts, and schema rules are shared. Start with a small heterogeneous pilot; scale through bounded, resumable batches only after compile and integrity checks. Link, index, and lint the derived pages; prefer a fresh, fit-for-purpose index and return to raw evidence for fidelity, ambiguity, missing coverage, or suspected drift.
-- **Code or artifact changes:** read the actual target and local conventions before proposing a project-specific change; state the success criterion and material assumptions; reproduce or otherwise diagnose faults before patching. Load [`plan-first-execute`](../plan-first-execute/SKILL.md) for non-trivial, unclear, risky, multi-file, or architectural work; [`lean-execution`](../lean-execution/SKILL.md) when scope widens; and [`verify-before-completion`](../verify-before-completion/SKILL.md) before a completion claim. The fallback minimum is the smallest self-contained reversible change, no new dependency without concrete net benefit, and a fresh check at the layer of the claim.
+- **Code or artifact changes:** read the actual target and local conventions before proposing a project-specific change; state the success criterion and material assumptions; reproduce or otherwise diagnose faults before patching. Load [`verify-before-completion`](../verify-before-completion/SKILL.md) before a completion claim. The fallback minimum is the smallest self-contained reversible change, no new dependency without concrete net benefit, and a fresh check at the layer of the claim.
 
 ## Role
 

@@ -36,7 +36,7 @@ Brainer must not drift. This page defines which files are canonical, which files
 | `.brainer/audit_workflow.js` | Local audit workflow output | Audit workflow run | Documented as local runtime state | Usually no | Keep local unless intentionally promoted into docs or wiki. |
 | `.brainer/verify_results.json` | Local verification output | Verification workflow run | Documented as local runtime state | Usually no | Keep local unless intentionally promoted into docs or wiki. |
 | `.brainer/verify_workflow.js` | Local verification workflow output | Verification workflow run | Documented as local runtime state | Usually no | Keep local unless intentionally promoted into docs or wiki. |
-| `.brainer/ledger/` | Local requirements ledger state | Per-session requirements-ledger runtime | requirements-ledger/compliance-canary | No | Runtime state; do not promote unless summarized into durable docs. |
+| `.brainer/ledger/` | Local requirements ledger state | Per-session runtime | compliance-canary | No | Runtime state; do not promote unless summarized into durable docs. |
 | `.brainer/task-retrospective/` | Local task audit evidence | Armed task-retrospective runs | `skills/task-retrospective/tools/task_audit.py` | No | Runtime state; keep ignored, then promote accepted durable lessons through project memory/SOP/checklist/skill targets. |
 | `.brainer/brainer-audit/` | Local Brainer audit events/reports | Brainer audit mode | `skills/brainer-audit/tools/` | No | Runtime state; keep ignored unless an accepted candidate improvement is promoted into a reviewed PR. |
 | `.brainer/sessions/` | Local session state | Hook/runtime sessions | runtime tools | No | Runtime state; keep ignored. |

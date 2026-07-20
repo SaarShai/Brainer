@@ -67,8 +67,8 @@ The historical directional N=1 run used `gemma4:26b-mlx` as subject and
 `qwen3.6:35b-a3b-q4km` as separate judge. It materially improved source
 immutability and then-current batch-ingest behavior and held dependency
 restraint. The unexplained-null case still failed: the subject requested the
-real code but continued to recommend an early return, even with `fable-mode`,
-`plan-first-execute`, and `verify-before-completion` loaded. Because the body and
+real code but continued to recommend an early return, even with
+`verify-before-completion` loaded. Because the body and
 rubric have now changed, those results are historical and do not validate the
 pruned version.
 
@@ -160,13 +160,12 @@ one canonical should-fire prompt per skill:
 |---|---|
 | top-1 accuracy | **14/14 = 1.0** |
 | canonical `think` description match | ✅ correct |
-| regression on other 15 skills | **none** — adding `think`'s broad description stole no other skill's prompt (incl. `plan-first-execute`, `lean-execution`) |
+| regression on other skills | **none** — adding `think`'s broad description stole no other skill's prompt |
 
 Raw: [`eval/exp8_trigger/results/with-think.json`](../../eval/exp8_trigger/results/with-think.json).
 Caveat: this measured description classification, not current activation.
 `disable-model-invocation: true` keeps direct `/think` activation explicit, while
-the loaded skill may hand off to model-invokable Wayfinder when the route is too
-foggy for a complete plan. The historical
+the loaded skill remains explicit. The historical
 one-prompt-per-skill design did **not** test that boundary.
 
 ## Historical A/B (smoke — NON-CONFIRMING) — N=3 × 5 then-current trap probes
@@ -206,7 +205,7 @@ The whole −0.6 comes from probe 3 (−2) and probe 4 (−1); probes 0–2 are 
 1. **`think` is token-positive (+23.7% output).** Ideation, premise-challenging,
    and the named methods add prose. Its justification therefore **cannot** be
    token economy — it is the one discipline skill expected to *increase* output.
-   It composes badly on the same axis as `caveman-ultra`/`lean-execution`; if
+   It composes badly on the same axis as `caveman-ultra`; if
    stacked, expect the output reducers to claw most of it back. Measure the
    `think + caveman` interaction before relying on it in a terse stack.
 2. **The −0.6 coincides with method-theater; causation is unresolved.** Manual read
@@ -271,7 +270,7 @@ Raw: workflow run `wf_bd0b9813` (subject/judge transcripts under the session's
 ## What the skill currently rests on
 
 - ✅ Historical catalog classification was clean; literal manual activation still needs a boundary fixture.
-- ✅ Trivially cheap resident (manual `/think`; Wayfinder handoff is model-invokable, with no hook/dep).
+- ✅ Trivially cheap resident (manual `/think`, with no hook/dep).
 - ✅ Manual activation, compact routes, role posture, removed absolutes, and the drift-probe regex are statically regression-locked with negative fixtures.
 - ✅ Role wording is behavior-first and statically rejects restoration of the prestige claim.
 - ➖ The role-behavior probe exists, but no isolated role-only A/B has been run.

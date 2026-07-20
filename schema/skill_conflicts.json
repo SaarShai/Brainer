@@ -2,58 +2,49 @@
   "version": 1,
   "conflicts": [
     {
-      "skills": ["plan-first-execute", "lean-execution"],
-      "status": "accepted",
-      "risk": "Planning can become too verbose for tasks that should stay lean.",
-      "resolution": "Plan before non-trivial work, then prune the plan to the smallest shape that still reduces risk and supports verification."
-    },
-    {
-      "skills": ["requirements-ledger", "caveman-ultra"],
-      "status": "accepted",
-      "risk": "A visible requirements ledger can add verbosity while caveman-ultra demands terse output.",
-      "resolution": "Track requirements in the ledger or task system as needed, while keeping user-facing prose terse when caveman-ultra is active."
-    },
-    {
-      "skills": ["wiki-memory", "write-gate"],
+      "skills": [
+        "wiki-memory",
+        "write-gate"
+      ],
       "status": "accepted",
       "risk": "Memory writes can preserve unverified or low-signal facts.",
       "resolution": "write-gate controls persistence; wiki-memory writes only verified, durable, useful facts that pass the gate."
     },
     {
-      "skills": ["loop-engineering", "lean-execution"],
-      "status": "accepted",
-      "risk": "Loop design can become process-heavy or add unnecessary delegation.",
-      "resolution": "Use loop-engineering only for real generator-verifier or retry loops, and cap scope, budget, and stop conditions up front."
-    },
-    {
-      "skills": ["task-retrospective", "verify-before-completion"],
+      "skills": [
+        "task-retrospective",
+        "verify-before-completion"
+      ],
       "status": "accepted",
       "risk": "A task retrospective can start before evidence exists, or verification can imply an automatic learning write.",
       "resolution": "Run fresh verification first; only armed task-retrospective or explicit persistence requests may route durable project lessons through write-gate."
     },
     {
-      "skills": ["prompt-triage", "cache-lint"],
+      "skills": [
+        "prompt-triage",
+        "cache-lint"
+      ],
       "status": "accepted",
       "risk": "Model-routing hooks can save tokens while also changing hot-path cache behavior.",
       "resolution": "Keep prompt-triage routing explicit in hook config and run cache-lint before relying on prompt-cache measurements."
     },
     {
-      "skills": ["brainer-audit", "task-retrospective"],
+      "skills": [
+        "brainer-audit",
+        "task-retrospective"
+      ],
       "status": "accepted",
       "risk": "Both use audit language; an agent could confuse Brainer skill-use audit with project task learning.",
       "resolution": "Default 'activate audit mode' to brainer-audit unless the user uses task/project-learning language. task-retrospective writes only project learnings; brainer-audit is report-only by default and proposes Brainer improvements."
     },
     {
-      "skills": ["team-lead", "prompt-triage"],
+      "skills": [
+        "team-lead",
+        "prompt-triage"
+      ],
       "status": "accepted",
       "risk": "prompt-triage (per-prompt model routing) and team-lead (per-task lane decomposition) can both fire, and running both on one small ask adds delegation ceremony that costs more than the task.",
       "resolution": "Triage wins for a single-shot task, team-lead for genuinely decomposable multi-lane work — don't run both on one small ask."
-    },
-    {
-      "skills": ["wayfinder", "plan-first-execute"],
-      "status": "accepted",
-      "risk": "Both govern uncertain planning work, so an agent could create a decision map and an implementation plan for the same unresolved effort.",
-      "resolution": "Use slash-only wayfinder while a gradeable spec cannot yet be produced; hand the cleared route to plan-first-execute once no active tickets or unformulated fog remain."
     }
   ]
 }

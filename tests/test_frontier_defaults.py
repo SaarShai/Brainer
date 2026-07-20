@@ -17,19 +17,13 @@ from scripts.prune_optin_hooks import prune  # noqa: E402
 ROOT = Path(__file__).resolve().parents[1]
 MANUAL_SKILLS = (
     "caveman-ultra",
-    "fable-mode",
     "learn-skill",
-    "lean-execution",
     "loop-engineering",
-    "plan-first-execute",
     "prompt-triage",
-    "requirements-ledger",
-    "standing-orders",
     "task-retrospective",
     "team-lead",
     "think",
     "verify-before-completion",
-    "wayfinder",
 )
 ROLE_FILES = (
     ROOT / ".claude/agents/builder.md",
@@ -37,9 +31,7 @@ ROLE_FILES = (
     ROOT / ".claude/agents/research-lite.md",
 )
 FRONTIER_ECONOMY_SKILLS = (
-    "lean-execution",
     "loop-engineering",
-    "plan-first-execute",
     "prompt-triage",
     "team-lead",
     "think",
@@ -267,9 +259,15 @@ def test_orchestration_skills_reference_canonical_economy_policy() -> None:
         assert "§6" in text, name
 
 
-def test_fable_mode_does_not_duplicate_orchestration_policy() -> None:
-    text = (ROOT / "skills/fable-mode/SKILL.md").read_text(encoding="utf-8")
-    assert "ORCHESTRATION.md §6" not in text
+def test_retired_doctrine_skills_stay_deleted() -> None:
+    # 2026-07-19 catalog contraction (eval/FINDINGS.md "Catalog cuts v1.12"):
+    # a retired body silently reappearing would re-grow the resident catalog.
+    for name in (
+        "fable-mode", "lean-execution", "plan-first-execute",
+        "requirements-ledger", "standing-orders", "wayfinder",
+        "self-improvement-loops",
+    ):
+        assert not (ROOT / "skills" / name).exists(), name
 
 
 TESTS = [value for name, value in sorted(globals().items()) if name.startswith("test_")]

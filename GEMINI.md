@@ -37,20 +37,13 @@ improvise a hand-rolled equivalent:
 - `/brainer-audit` — Use when the user explicitly activates Brainer audit mode, asks to audit this session, audit Brainer use, or track Brainer skill usage
 - `/brainer` — Use when the user explicitly says `/brainer` or asks to use any relevant Brainer skill: inspect the optional-method reference, select the smallest task-relevant set, and apply only exported methods or complete skill contracts as declared
 - `/caveman-ultra` — Experimental/manual terse-output style retained for paired evaluation
-- `/fable-mode` — Experimental/manual five-gate work discipline retained for paired evaluation
-- `/lean-execution` — Experimental/manual lean-work protocol retained for paired evaluation
 - `/learn-skill` — Experimental/manual skill-learning workflow retained for paired evaluation
 - `/loop-engineering` — Experimental/manual loop-design workflow retained for paired evaluation
-- `/plan-first-execute` — Experimental/manual planning protocol retained for paired evaluation
 - `/prompt-triage` — Experimental manual router for paired evaluation
-- `/requirements-ledger` — Experimental/manual visible requirements-ledger workflow retained for paired evaluation
-- `/self-improvement-loops` — Govern loops that optimize their own agent machinery.
-- `/standing-orders` — Experimental standing-directive probes retained for shadow telemetry and paired evaluation
 - `/task-retrospective` — Use only when the user explicitly arms task audit mode: /retro, asks for task-retrospective, says this task will repeat and should be learned from, or requests an after-the-fact task learning audit
 - `/team-lead` — Experimental/manual orchestration protocol retained for paired evaluation
 - `/think` — How an agent should think and approach problems — first-principles, reduce/simplify before adding, research-and-borrow before building, experiment-and-falsify, never hallucinate or flatter
 - `/verify-before-completion` — Experimental/manual FULL verification workflow retained for paired evaluation
-- `/wayfinder` — Experimental/manual decision-recovery workflow retained for paired evaluation
 
 ### Model-invokable (host fires on matching context)
 
@@ -85,9 +78,9 @@ a skill happens to trigger:
 
 - **Surgical diffs.** Smallest reversible change; touch only what the ask needs;
   match local style; never reformat code you didn't change. Justify every changed
-  line by the task — revert "while I was in there" edits. (`lean-execution` covers
-  this when invoked; this is the always-on copy. The `whitespace_only_edit` +
-  `dependency-manifest-changed` `compliance-canary` probes enforce it mechanically.)
+  line by the task — revert "while I was in there" edits. (The
+  `whitespace_only_edit` + `dependency-manifest-changed` `compliance-canary`
+  probes enforce it mechanically.)
 - **Failure-mode interrupt.** If mid-task you slide into scope-creep (Kitchen
   Sink), premature abstraction (abstract only on the 3rd repeat — rule of three),
   happy-path-only (error path ignored), a fix cascading across files (Runaway

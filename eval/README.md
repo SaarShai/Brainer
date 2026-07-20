@@ -29,7 +29,7 @@ For each skill, run the same task prompt twice: once with the SKILL.md body prep
 ```bash
 python3 eval/runner.py --task eval/tasks/caveman-ultra.yaml --n 10 \
     --backend ollama --model phi4:14b
-python3 eval/runner.py --combo eval/combos/caveman+lean.yaml --n 10 \
+python3 eval/runner.py --combo eval/combos/triage+caveman+keeper.yaml --n 10 \
     --backend anthropic --model claude-haiku-4-5-20251001
 ```
 

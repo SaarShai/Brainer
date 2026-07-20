@@ -122,8 +122,7 @@ when a harness emits an explicit iteration trace it can run `loop_run_monitor.py
 as a domain-specific runtime health gate. Cron/interval execution remains host
 wiring (`/loop` + schedule). The net-new core is the **topology-choice +
 generator↔verifier-wiring** layer, which no existing skill provides:
-`plan-first-execute` assumes one closed loop already exists, `lean-execution` only
-prunes, `prompt-triage` picks a worker not a topology, and `verify-before-completion`
+`prompt-triage` picks a worker not a topology, and `verify-before-completion`
 runs one done-claim check but never bounds an iteration count or rejects a self-grading
 loop. Every enforcement *reflex* is delegated by link, not re-implemented.
 

@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "candidates": [
-    "compliance-canary", "caveman-ultra", "fable-mode", "lean-execution",
-    "learn-skill", "loop-engineering", "plan-first-execute", "prompt-triage",
-    "requirements-ledger", "standing-orders", "task-retrospective", "team-lead",
-    "think", "verify-before-completion", "wayfinder", "generic-role-brief"
+    "compliance-canary", "caveman-ultra",
+    "learn-skill", "loop-engineering", "prompt-triage",
+    "task-retrospective", "team-lead",
+    "think", "verify-before-completion", "generic-role-brief"
   ],
   "workflow_case_candidates": ["learn-skill", "task-retrospective"],
   "arms": ["OFF", "FULL", "COMPACT", "PLACEBO"],
@@ -29,7 +29,7 @@
     "BODY_CARRIER": "single-turn static body ablation; valid only for body estimand and explicitly not native lazy loading",
     "STACK_RESIDENT_CONTEXT": "single-turn resident catalog/default-context ablation; excludes default hook effect",
     "PROBE_HOOK": "same-turn prompt-triage is eligible; canary/drift probes require T1 mutation/claim and T2 same-session hook delivery in an isolated per-run workspace",
-    "longitudinal_required": ["compliance-canary", "caveman-ultra", "fable-mode", "requirements-ledger", "standing-orders", "verify-before-completion", "stack-comparison"],
+    "longitudinal_required": ["compliance-canary", "caveman-ultra", "verify-before-completion", "stack-comparison"],
     "single_turn_verdict_for_longitudinal": "NO_VERDICT_PROTOCOL"
   },
   "security": {

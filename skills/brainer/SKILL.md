@@ -147,9 +147,5 @@ judgment.
 
 - [`think`](../think/SKILL.md) — first skill exporting independently selectable
   methods.
-- [`plan-first-execute`](../plan-first-execute/SKILL.md) — complete planning
-  workflow when the task meets its threshold.
-- [`wayfinder`](../wayfinder/SKILL.md) — complete decision-recovery workflow for
-  a known destination with a foggy route.
 - [`learn-skill`](../learn-skill/SKILL.md) — authors skills only when separately
   authorized; it is not the selector.

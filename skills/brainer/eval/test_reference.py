@@ -103,8 +103,7 @@ class BrainerReferenceTests(unittest.TestCase):
             self.assertIn(f"`{export_id}`", think)
             self.assertIn(f"`{export_id}`", text)
         for name in (
-            "caveman-ultra", "fable-mode", "prompt-triage",
-            "requirements-ledger", "standing-orders", "compliance-canary",
+            "caveman-ultra", "prompt-triage", "compliance-canary",
             "context-keeper", "semantic-diff", "wiki-memory", "write-gate",
         ):
             self.assertIn(f"`{name}`", text)

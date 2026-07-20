@@ -108,27 +108,9 @@ argparse.py, 2575 lines:
 | re-read after 2 method edits | **859** | **95.5%** |
 | stable re-read (no changes) | **101** | **99.5%** |
 
-## Option B (built): Claude Code plugin directory
+## Option B (not yet shipped): Claude Code plugin directory
 
-The `plugin/` subdirectory contains a Claude Code plugin manifest that wraps the MCP server.
-
-To install locally:
-```bash
-# Point Claude Code at the plugin directory
-claude plugin install /absolute/path/to/semdiff/plugin
-```
-
-Or publish via a plugin marketplace. After install, `/plugin list` shows semdiff
-and the MCP tools become available automatically.
-
-The plugin `.mcp.json` launches `semdiff_mcp/server.py` via Python. Requires Python ≥ 3.10 and `pip install -r requirements-mcp.txt` on the user's system.
-
-## Project-local installer
-
-Use the bundled helper to print or apply the relevant install path:
-
-```bash
-bash projects/semdiff/install.sh --project
-```
-
-It prefers the plugin path when `claude` is available and falls back to the MCP server command.
+The `plugin/` subdirectory currently contains only a bare `.claude-plugin/plugin.json`
+manifest — there is no `.mcp.json` and no wired-up MCP server wrapper yet, so this
+path is not installable today. Use the slim CLI (default, above) or Option A
+(MCP server) instead.

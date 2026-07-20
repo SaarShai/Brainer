@@ -71,7 +71,7 @@ to auto-compose every listed body on current frontier models. See
 
 | Slot | Skill | Why it's in the stack |
 |---|---|---|
-| Output style | [`caveman-ultra`](skills/caveman-ultra/SKILL.md) + [`lean-execution`](skills/lean-execution/SKILL.md) | Historical verbose-prompt result: **−87.7%** output; both bodies are now manual/unproven on current frontier hosts ([result](eval/results/caveman+lean.json)) |
+| Output style | [`caveman-ultra`](skills/caveman-ultra/SKILL.md) | Historical verbose-prompt result: **−87.7%** output; the body is now manual/unproven on current frontier hosts ([result](eval/results/caveman+lean.json)) |
 | Routing | [`prompt-triage`](skills/prompt-triage/SKILL.md) | Historical N=13 result: −20.9% total tokens; current native-host lift is unmeasured, so the hook is opt-in |
 | Memory across compaction | [`context-keeper`](skills/context-keeper/SKILL.md) | 97.7% transcript compression, 100% URL recall, hook-driven (zero per-prompt cost) |
 | Retrieval (*what / how / connected*) | [graphify](https://github.com/safishamsi/graphify) (`graphify-out/graph.json`, external) | **−93% tokens** vs grep+read at parity evidence using `graphify explain` ([eval/results/graphify_retrieval.json](eval/results/graphify_retrieval.json)) |
@@ -93,17 +93,14 @@ graphify extract .
 
 `./install.sh` installs `graphify` from our maintained fork ([SaarShai/graphify@token-economy-patches](https://github.com/SaarShai/graphify/tree/token-economy-patches)) — published `graphifyy` 0.8.17 ships four bugs that affect our skill flow (see [skills/index-first/EVAL.md](skills/index-first/EVAL.md) for the bug list and impact). The installer prefers `pipx` and falls back to `python3 -m pip install --user`. Opt out with `./install.sh --no-graphify` (the wiki-memory and index-first skills degrade gracefully when the graph isn't present). After bootstrap only default-on hooks fire automatically; experimental process skills require explicit invocation during the effectiveness evaluation.
 
-## The catalog (31 skills)
+## The catalog (24 skills)
 
-**All 31 are symlinked and listed by `./install.sh`.** `compliance-canary` retains the default frontier service. Every suspect body is experimental/manual while paired evaluations run; bodies and tools remain installed for explicit FULL arms and rollback. Reinstall removes old managed hooks—including caveman's user-global SessionStart injection—for skills marked `auto-install: false`.
+**All 24 are symlinked and listed by `./install.sh`.** `compliance-canary` retains the default frontier service. Every suspect body is experimental/manual while paired evaluations run; bodies and tools remain installed for explicit FULL arms and rollback. Reinstall removes old managed hooks—including caveman's user-global SessionStart injection—for skills marked `auto-install: false`.
 
 | Skill | Trigger | Desc tokens | Notes |
 |---|---|---:|---|
 | [caveman-ultra](skills/caveman-ultra/SKILL.md) | explicit `/caveman-ultra` | 68 | Experimental FULL terse style; no default SessionStart injection. |
-| [plan-first-execute](skills/plan-first-execute/SKILL.md) | explicit/manual evaluation arm | 50 | Experimental FULL planning protocol; compact planning rules live in the builder brief. |
-| [wayfinder](skills/wayfinder/SKILL.md) | explicit/manual evaluation arm | 56 | Experimental pre-spec flow retained for paired testing. |
 | [think](skills/think/SKILL.md) | `/think` (manual; slash-only) | 81 | How an agent should think: first-principles, reduce/simplify, research-and-borrow, experiment-to-falsify, no flattery; ideation + 5-whys + pre-mortem/inversion. Frontier A/B: posture **neutral for Opus** (+0.07) but **load-bearing for weak models** (7b failed the traps); restructured Always/When-relevant; slash-only `/think`. See [EVAL](skills/think/EVAL.md). |
-| [lean-execution](skills/lean-execution/SKILL.md) | explicit/manual evaluation arm | 51 | Experimental FULL pruning protocol; compact stop rules live in the builder brief. |
 | [verify-before-completion](skills/verify-before-completion/SKILL.md) | explicit/manual FULL arm | 34 | Canary's compact compliance-aware verification probe remains default. |
 | [wiki-memory](skills/wiki-memory/SKILL.md) | retrieve OR write durable | 90 | Tier-aware (L0–L4) repo-local markdown wiki. |
 | [prompt-triage](skills/prompt-triage/SKILL.md) | explicit opt-in only | 69 | Experimental pre-model router; root reinstall removes prior per-prompt hooks. |
@@ -119,7 +116,6 @@ graphify extract .
 | [brainer](skills/brainer/SKILL.md) | `/brainer` or explicit umbrella request | 74 | Proposed/manual selector for the smallest relevant set of optional Brainer skills or exported methods; reads its reference only on explicit invocation. |
 | [brainer-audit](skills/brainer-audit/SKILL.md) | explicit Brainer/session audit | 67 | Report-only Brainer skill-use audit mode over normalized events. Detects missed skill triggers, unverified completion claims, output-filter opportunities, dropped requirements, write-gate bypasses, and task-retrospective boundary violations. Claude/Codex hooks are opt-in and marker-gated; Antigravity uses lower-fidelity sidecar snapshots. |
 | [loop-engineering](skills/loop-engineering/SKILL.md) | explicit `/loop-engineering` arm | 96 | Experimental/manual prose; deterministic loop tools remain independently callable. |
-| [self-improvement-loops](skills/self-improvement-loops/SKILL.md) | `/self-improvement-loops` (manual; slash-only) | 9 | Proposed policy for loops that may modify their own prompt, context, workflow, harness, or optimizer; adds locked surfaces, hidden held-out gates, artifact binding, and human approval boundaries over `loop-engineering`. |
 | [eval-gate](skills/eval-gate/SKILL.md) | "is this good enough / score this" | 117 | Score AI output against a written rubric before it ships — an LLM-as-judge quality gate for content output (drafts, posts, answers) and product output (an agent's reply, an extraction, a generated payload). Use when asked "is this good enough", "score/grade this", "would this pass", to gate output on quality, to regression-check a prompt/model/pipeline change, or to turn a flagged bad output into a permanent test case. Returns 0-5 + reason; exit code gates. **Default-installed** (v1.11; N≥50 validation pending). |
 
 **Always-resident context tax (resident sentinel block, all skill descriptions): 8,407 bytes.** Roughly 1.2% of a 200K context window using the repo's chars/3.5 estimate (the `marketplace.json` `context_cost_estimate_tokens` figure predates the current catalog and needs remeasuring). Every skill's description is resident; hook scripts and `tools/` load only when fired, adding no resident tax.
@@ -167,7 +163,7 @@ file is the authoritative, copy-pasteable clone/update/install/verify procedure.
 | Copilot / VS Code | per-project | use the root `AGENTS.md` shim from the Brainer checkout; there is no `install.sh --host copilot` flag |
 | any supported host (inside the brainer clone itself, e.g. contributing) | for that clone only | `./install.sh` (all supported hosts) or `./install.sh --host <claude-code|codex|gemini>` |
 
-The plugin (`brainer` v1.13.0) bundles all 31 skills. Its manifest declares the default-on `compliance-canary` hook plus optional `prompt-triage` and `context-keeper` hooks; `index-first` remains opt-in.
+The plugin (`brainer` v1.13.0) bundles all 24 skills. Its manifest declares the default-on `compliance-canary` hook plus optional `prompt-triage` and `context-keeper` hooks; `index-first` remains opt-in.
 
 ### Host install matrix
 
@@ -275,7 +271,7 @@ Built on prior work:
 
 ## Status
 
-- 31 skills written and lint-clean.
+- 24 skills written and lint-clean.
 - 3 hosts wired and verified (Claude Code, Codex, Gemini CLI).
 - Static-cost measurements published.
 - Live A/B harness ready; needs a healthy Ollama / explicit `ANTHROPIC_API_KEY` / `HF_TOKEN` to run.

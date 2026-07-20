@@ -20,7 +20,7 @@ Upgrade Brainer's skill-evaluation methodology to measure **external validity** 
   - `eval-gate/SKILL.md` (protocol section) + `eval-gate/tools/eval_gate.py` (case validation)
   - `suite-health/SKILL.md` (test harness design) + its runner
   - `eval/FINDINGS.md` (case selection, measurement narrative, per-skill results)
-- **Skills in scope:** foundational skills that make measurable claims about output / retrieval / memory (caveman-ultra, semantic-diff, wiki-memory, verify-before-completion, eval-gate itself, plan-first-execute, lean-execution, prompt-triage, context-keeper). Also skills with unverified A/B (loop-engineering, eval-gate, learn-skill at v1.13).
+- **Skills in scope:** foundational skills that make measurable claims about output / retrieval / memory (caveman-ultra, semantic-diff, wiki-memory, verify-before-completion, eval-gate itself, prompt-triage, context-keeper). Also skills with unverified A/B (loop-engineering, eval-gate, learn-skill at v1.13). (plan-first-execute and lean-execution were in the original scope; retired 2026-07-19 — historical rows below keep their names.)
 - **Measurement boundary:** the existing **N≥50 Kaggle-T4 regime stays unchanged**; this upgrade is about *what* we measure (question provenance / authorship bias / circularity checks), not *where* (host, model, scale).
 
 ### Non-Goals
