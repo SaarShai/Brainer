@@ -781,6 +781,34 @@ def detect_word_count_per_message(probe: dict, messages: list[dict], _tool_uses,
     return None
 
 
+# 2026-07-20 precision fix (14 live false-fires in one session — see
+# skills/compliance-canary/tests/fixtures/false_fires_20260720.md): the
+# tool-call evidence timeline below is legitimately EMPTY on a turn that (a)
+# SUMMARIZES already-verified work with the verification numbers or a commit
+# hash quoted right there in the reply, or (b) reports the RUNNING/PENDING
+# status of a delegated lane or background agent ("lane 5 is mid-work",
+# "the audits are running", "waiting on lane 2's report") — a frontier
+# main-loop has no fresh tool call for either case because the work was
+# verified/executed earlier or by someone else, not because it is unverified.
+# Both signals are read straight off the reply TEXT, independent of tool
+# history, so a bare unverified "done, tests pass" claim with neither signal
+# still fires exactly as before (RECALL unaffected — see test.sh/test_profiles.py).
+_SELF_QUOTED_EVIDENCE_RE = re.compile(
+    r"\b(\d{1,4})\s*/\s*\1\b"       # matching pass-count ratio, e.g. "105/105"
+    r"|`[0-9a-f]{7,12}`"             # backtick-wrapped commit hash, e.g. `8eaa45e`
+    r"|(?i:\bexits?\s+0\b)"          # quoted exit-code-0 evidence, e.g. "gate exits 0"
+)
+_PENDING_DELEGATION_RE = re.compile(
+    r"(?i:\b(?:is|are|remains?)\s+(?:still\s+)?(?:running|underway|alive|launched|"
+    r"in\s*progress|mid-work|pending)\b"
+    r"|\bin\s+flight\b"
+    r"|\bstill\s+(?:running|ahead|pending|gathering|drafting|exploring)\b"
+    r"|\bunderway\b"
+    r"|\bwake\s+armed\b"
+    r"|\bwaiting\s+on\b)"
+)
+
+
 def _claim_evidence_class(text: str, probe: dict) -> str:
     explicit = probe.get("evidence_class")
     if explicit in {"test/build", "filesystem/diff", "live service", "visual"}:
@@ -806,6 +834,11 @@ def detect_claim_without_evidence(probe: dict, messages: list[dict], tool_uses: 
         return None
     claim_match = claim_pat.search(last_text)
     if not claim_match:
+        return None
+    # Precision fix (2026-07-20): the reply itself carries evidence the tool
+    # timeline can't see — see _SELF_QUOTED_EVIDENCE_RE/_PENDING_DELEGATION_RE
+    # above.
+    if _SELF_QUOTED_EVIDENCE_RE.search(last_text) or _PENDING_DELEGATION_RE.search(last_text):
         return None
     try:
         lookback = int(probe.get("lookback_tool_uses", 5))

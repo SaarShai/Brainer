@@ -2023,6 +2023,74 @@ write_transcript "$TX" \
 out=$(call cc113 sk111 "$TX" s113)
 if [ -z "$out" ]; then ok "spec'd builder brief → silent"; else no "spec'd builder brief → silent" "got: $(echo "$out"|head -c200)"; fi
 
+# ======================================================================
+# [114] Precision fix (2026-07-20): claim-without-evidence false-fire corpus —
+# 14 REAL false-fires captured from one live session
+# (skills/compliance-canary/tests/fixtures/false_fires_20260720.md),
+# deduplicated to 10 distinct reply texts
+# (tests/fixtures/false_fires_20260720.json). Each used the SHIPPED
+# claim-without-evidence probe (loaded from the real drift_probes.json, same
+# technique [103a] used for REAL_STALL_PROBE) and legitimately fired on live
+# turns that were either (a) SUMMARIZING already-verified work with the
+# verification numbers/commit hash quoted in the reply itself, or (b)
+# reporting a delegated lane/background agent's RUNNING/PENDING status — a
+# frontier main-loop has no fresh tool call for either case. Both must now be
+# SILENT (see _SELF_QUOTED_EVIDENCE_RE / _PENDING_DELEGATION_RE in hook.py).
+# ======================================================================
+REAL_CLAIM_PROBE="$(python3 -c "
+import json
+probes = json.load(open('$TOOLS_DIR/../drift_probes.json'))
+sel = [p for p in probes if p.get('id') == 'claim-without-evidence']
+assert sel, 'claim-without-evidence probe missing from shipped drift_probes.json'
+print(json.dumps(sel))
+")"
+mkdir -p "$SKILLS_ROOT/ffc/compliance-canary"
+printf '%s\n' "$REAL_CLAIM_PROBE" > "$SKILLS_ROOT/ffc/compliance-canary/drift_probes.json"
+
+FIXTURES_JSON="$TOOLS_DIR/../tests/fixtures/false_fires_20260720.json"
+FIXTURE_IDS=$(python3 -c "
+import json
+for e in json.load(open('$FIXTURES_JSON')):
+    print(e['id'])
+")
+n=0
+for fid in $FIXTURE_IDS; do
+  n=$((n+1))
+  echo "[114.$n] false-fire corpus: $fid stays SILENT under the shipped claim-without-evidence probe"
+  TX="$TRANSCRIPT_DIR/ffc_$fid.jsonl"
+  python3 -c "
+import json
+fixtures = json.load(open('$FIXTURES_JSON'))
+text = next(e['text'] for e in fixtures if e['id'] == '$fid')
+print(json.dumps({'type':'assistant','message':{'role':'assistant','content':[{'type':'text','text':text}]}}))
+" > "$TX"
+  out=$(call "cc_ffc_$fid" ffc "$TX" "s_ffc_$fid")
+  if ! echo "$out" | grep -q 'claim_without_evidence'; then
+    ok "false-fire corpus $fid stays silent"
+  else
+    no "false-fire corpus $fid must stay silent" "got: $(echo "$out" | head -c200)"
+  fi
+done
+
+echo "[115] false-fire fix does NOT weaken recall: 3 NEW unverified true-positive claims (no quoted evidence, no pending-delegation language, no tool evidence anywhere) still fire"
+NEW_TP=(
+  "All done -- all tests pass! Shipping this now."
+  "Fixed the bug and verified it works correctly."
+  "Implementation complete, build passes, ready to ship."
+)
+tp_n=0
+for tp in "${NEW_TP[@]}"; do
+  tp_n=$((tp_n+1))
+  TX="$TRANSCRIPT_DIR/tp_$tp_n.jsonl"
+  write_transcript "$TX" "$(assistant_text "$tp" "utp$tp_n")"
+  out=$(call "cc_tp_$tp_n" ffc "$TX" "s_tp_$tp_n")
+  if emitted "$out" && echo "$out" | grep -q 'claim_without_evidence'; then
+    ok "new true-positive #$tp_n still fires ('$tp')"
+  else
+    no "new true-positive #$tp_n must still fire ('$tp')" "got: $(echo "$out" | head -c200)"
+  fi
+done
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then
