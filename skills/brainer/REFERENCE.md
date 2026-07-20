@@ -67,7 +67,7 @@ Use the exact `think:<id>` form in the final selection:
 
 | Signal | Source | Mode | Additional authority required |
 |---|---|---|---|
-| Separable parallel work would benefit from builders or a cold verifier | [`team-lead`](../team-lead/SKILL.md#6-when-not-to-use-this) | `authority-gated` | The user or governing task must authorize subagents/delegation |
+| Applicable governing authority requires delegation, or separable work would benefit from builders or a cold verifier | [`team-lead`](../team-lead/SKILL.md#6-when-not-to-use-this) | `authority-gated` | The user or governing task must authorize delegation; applicable `AGENTS.md` is governing authority |
 | A completed recurring procedure appears worth packaging | [`learn-skill`](../learn-skill/SKILL.md#when-to-use) | `authority-gated` | The user must ask to capture/create a skill; dedup and write-gate still apply |
 | Work should continue in another session or agent | [`baton`](../baton/SKILL.md#when-to-use) | `authority-gated` | The task must actually request or require a handoff artifact |
 | Canonical Brainer changes should reach consumer repositories | [`propagate`](../propagate/SKILL.md#preconditions-hard) | `authority-gated` | Explicit propagate/sync/rollout scope and a committed canonical change |
@@ -98,5 +98,6 @@ their instructions conflict, do not blend them: follow the higher item above or
 surface the unresolved choice. Declining an optional choice never suppresses a
 mandatory route required by governing authority.
 
-Final identifiers are `<skill>:<export-id>`, `<skill>:whole`, or `none`; bare
-skill names are invalid.
+Final optional-method identifiers are `<skill>:<export-id>`, `<skill>:whole`, or
+`none`; bare skill names are invalid. Always label this field "optional methods":
+`none` is not an execution route.

@@ -153,6 +153,8 @@ class BrainerReferenceTests(unittest.TestCase):
         self.assertIn("applicable `AGENTS.md`", skill)
         self.assertIn("applicable `AGENTS.md`", reference)
         self.assertIn("mandatory route required by governing authority", reference)
+        self.assertIn("Optional methods `none` never means route `direct`", skill)
+        self.assertIn('`none` is not an execution route', reference)
 
     def test_consumer_verification_marks_missing_checks_unavailable(self) -> None:
         text = SKILL.read_text(encoding="utf-8")
