@@ -360,7 +360,7 @@ alone. Read as direction, not magnitude.
 
 ## Catalog cuts (v1.12 — 31 → 24 skills, 2026-07-19 contraction)
 
-*Measured-on: codex + claude hosts, corpus focused-pilot-v2 (19 frozen coding cases per host, pass-rate figure cited from the 2026-07-16 campaign above), code @43738eb, stamped retroactively 2026-07-20.*
+*Measured-on: codex + claude hosts, corpus focused-pilot-v2 (19 frozen coding cases per host, pass-rate figure cited from the 2026-07-16 campaign above); evidence snapshot measured @499bd9e, catalog cut implemented @f9740a4, reference purge finalized @43738eb; stamped retroactively 2026-07-20, sha split corrected same day (Sol audit).*
 
 Executed the contraction the 2026-07 evidence had already converged on:
 FRONTIER-vs-OFF pilot showed **zero pass-rate lift** from compact static
@@ -814,10 +814,18 @@ thresholds.
   requires_context_regex gate from screenery-lean's fork — the earlier harvest
   took the mechanism (388338e) but never applied it to this probe (the gate
   exists because of 3 measured false fires, 2026-07-01). Frozen gate unchanged:
-  fp=0, tp=328, all gates True. test.sh 189/189, then 193/193 after f033bd9
-  upstreamed the sibling fork's generic tests ([117]-[120]); the shared
-  screenery test.sh fork was rebuilt as canonical + fable-only tail (197/197 in
-  both screenery repos).
+  fp=0, tp=328, all gates True — CAVEAT (Sol xhigh audit, 2026-07-20 evening):
+  the E1 corpus's 6 visual positives carry generic chart/UI/PDF wording with
+  none of the context tokens the new gate requires, so the gate structurally
+  filters them and tp=328 does not exercise the post-gate visual path; the
+  probe's post-gate coverage rests on the two shell cases only, and
+  non-Screenery visual contexts are outside the gate by design. Known gap,
+  accepted for canonical (visual work is rare here); revisit if a
+  context-bearing corpus is built. test.sh 189/189, then 193/193 after
+  f033bd9 upstreamed sibling tests [117]-[120] — REVERTED same day: Sol found
+  them near-duplicates of existing [104]-[107]; suite back to 190/190 (the
+  [116a-e] mechanism tests remain). The shared screenery test.sh fork was
+  rebuilt as canonical + fable-only tail (197/197 in both screenery repos).
 
 ## 2026-07-20 claim_without_evidence ablation — Phase 0 (free replays)
 
@@ -834,7 +842,10 @@ distinct counts, commit 0b73737).
 - Cap-pricing replay (labels 31/46 individual): NO cap/cooldown policy in
   grid {session_cap 1-10, kind_cap 1-3, cooldown 5/8} suppresses zero ACTED
   events; ACTED fires persist to rank 28/28 of the long session. Cheapest
-  (cooldown_5) loses 12 ACTED for ~13.5KB distinct. Cap branch rejected.
+  (cooldown_5) loses 12 ACTED for ~13.5KB distinct. Caveat (Sol audit): the
+  simulation models a coarser same-kind mechanism than the hook's per-probe-id
+  cooldown and proxies turn distance by reminder ordinal — exploratory pricing
+  only. No cap was adopted; "cap branch rejected" is correlational, not proven.
 - Corpus labels, 100% reviewed: ACTED 69, IGNORED 1, UNCLEAR 16 of 86 raw.
 - Interim verdict: KEEP default-on pending lane-B causal test (design v2,
   .brainer/research/2026-07-skills-overhaul/ablation-design-*.md, advisor-
@@ -842,13 +853,19 @@ distinct counts, commit 0b73737).
 
 ## 2026-07-20 claim_without_evidence ablation — CLOSED at Phase 1
 
-Verdict: KEEP default-on, no cap; causal lanes (A/B/C) not run. Grounds:
-volume already ~60-70% lower under current hook (14/46 legacy contexts,
-verified against premise-rebaseline JSONL), ACTED 69/86 raw with 1 IGNORED,
-no ACTED-free cap policy exists, and remaining causal uncertainty no longer
-justifies the machinery (user scope-discipline directive + Phase 1 smoke
-NO-GO: isolated-HOME `claude -p` cannot authenticate — rejected pre-hook,
-reproduced 3 ways at $0; unblock paths recorded in
+Standing decision: keep default-on, no cap adopted; causal lanes (A/B/C) not
+run, so this is a COST-BENEFIT JUDGMENT ON CORRELATIONAL EVIDENCE, not a
+proven verdict. Grounds: volume already ~60-70% lower under current hook
+(14/46 legacy contexts, verified against premise-rebaseline JSONL — note this
+replay conditions on old-fire events and cannot count new fires on formerly
+silent turns), ACTED 69/86 raw with 1 IGNORED (observational labels; ~40
+raw events are compaction re-injections), and remaining causal uncertainty no
+longer justifies the machinery (user scope-discipline directive + Phase 1
+smoke NO-GO: isolated-HOME `claude -p` cannot authenticate — rejected
+pre-hook, reproduced 3 ways at $0; unblock paths recorded in
 .brainer/research/2026-07-skills-overhaul/phase1-feasibility-smoke-2026-07-20.md).
-Revival requires: auth path decision (setup-token vs relaxed isolation) +
-the advisor-reconciled v2 protocol as-is.
+Sol's audit dissent (2026-07-20 evening) is on record: prefers armed-only
+demotion absent causal proof. Revisit trigger: if fire volume or IGNORED
+rate rises materially on a future corpus, or a model upgrade re-test (2e
+ritual) flags this probe, reopen via the preserved v2 protocol + auth-path
+decision.
