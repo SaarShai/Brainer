@@ -123,7 +123,7 @@ Same mechanism as `user_correction` (matches the CURRENT user prompt) but for a 
 
 ### `early_stop` *(v1.11)*
 
-Fires when the agent's LAST turn ended on a forward-looking PROMISE ("I'll now implement…", "let me start…") with no completion claim, no question, and no tool call that turn — it narrated the next step instead of doing it. Suppressed when the closing turn called a tool (work happened), reported completion (a legit "next steps" note), or asked the user a question (a legitimate pause). The anti-early-stop reflex; ships in `verify-before-completion/drift_probes.json`. Overridable: `pattern` (the promise), `done_pattern` (suppress on completion), `question_pattern` (suppress on a question).
+Fires when the agent's LAST turn ended on a forward-looking PROMISE ("I'll now implement…", "let me start…") with no completion claim, no question, and no tool call that turn — it narrated the next step instead of doing it. Suppressed when the closing turn called a tool (work happened), reported completion (a legit "next steps" note), or asked the user a question (a legitimate pause). The anti-early-stop reflex; ships in `compliance-canary/drift_probes.json` (rehomed 2026-07-19 from `verify-before-completion` — that skill remains for the FULL manual workflow, but the mechanical probe is canary-owned). Overridable: `pattern` (the promise), `done_pattern` (suppress on completion), `question_pattern` (suppress on a question).
 
 ```json
 {
@@ -135,7 +135,7 @@ Fires when the agent's LAST turn ended on a forward-looking PROMISE ("I'll now i
 
 ### `completion_without_closure` *(v1.11)*
 
-The closure gate — mirror of `early_stop`. Fires when the agent's last turn makes a TERMINAL "whole task is finished" claim ("all done", "task is complete", "ready to ship") but does NOT ask the user to confirm closure — i.e. it self-closes. Suppressed when the message invites confirmation ("shall I close this?", "anything else?") or is only a mid-task milestone (the claim regex is tighter than `claim_without_evidence`'s, which fires on any sub-step "done"). Distinct from `claim_without_evidence` (that is about EVIDENCE; this fires even when verification ran, because a verified-done still must be offered to the user). Ships in `verify-before-completion/drift_probes.json`. Overridable: `claim_pattern` (terminal claim), `ask_pattern` (closure invite that suppresses).
+The closure gate — mirror of `early_stop`. Fires when the agent's last turn makes a TERMINAL "whole task is finished" claim ("all done", "task is complete", "ready to ship") but does NOT ask the user to confirm closure — i.e. it self-closes. Suppressed when the message invites confirmation ("shall I close this?", "anything else?") or is only a mid-task milestone (the claim regex is tighter than `claim_without_evidence`'s, which fires on any sub-step "done"). Distinct from `claim_without_evidence` (that is about EVIDENCE; this fires even when verification ran, because a verified-done still must be offered to the user). Ships in `compliance-canary/drift_probes.json` (rehomed 2026-07-19 from `verify-before-completion` — that skill remains for the FULL manual workflow, but the mechanical probe is canary-owned). Overridable: `claim_pattern` (terminal claim), `ask_pattern` (closure invite that suppresses).
 
 ```json
 {

@@ -85,7 +85,9 @@ MAX_REMINDER_CHARS = 280         # cap one re-anchor line (a runaway pulse_remin
 
 PROFILES = {"frontier", "shadow", "legacy", "off"}
 FRONTIER_VERIFY_PROBE_IDS = {
-    "verify-before-completion:claim-without-evidence",
+    # Rehomed 2026-07-19 from verify-before-completion (skill remains; probes
+    # now canary-owned like all default-on enforcement).
+    "compliance-canary:claim-without-evidence",
     # Borrow-checkpoint enforcement (research-and-borrow handoff 2026-07-18):
     # narrow path-name trigger + explicit checkpoint-line suppression keeps the
     # false-fire surface small enough for the frontier emit set.
@@ -2854,9 +2856,10 @@ def format_one_probe(probe: dict) -> str:
         )
     if kind == "claim_without_evidence":
         # D5 (2026-07-19): this fallback is BYTE-IDENTICAL to the `message`
-        # field of verify-before-completion's claim-without-evidence probe in
-        # drift_probes.json — one wording for the two message sources (they
-        # had drifted apart). test_profiles.py pins the equality; keep in sync.
+        # field of compliance-canary's claim-without-evidence probe (rehomed
+        # 2026-07-19 from verify-before-completion) in drift_probes.json — one
+        # wording for the two message sources (they had drifted apart).
+        # test_profiles.py pins the equality; keep in sync.
         return (
             f"- {skill} [claim_without_evidence]: recent reply claims work is "
             f"done/fixed/passing, but no verification evidence matching the claim "

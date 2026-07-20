@@ -17,7 +17,7 @@ Set `COMPLIANCE_CANARY_PROFILE=frontier|shadow|legacy|off` (default:
 `frontier`):
 
 - `frontier` silently records pending intent and emits only
-  `verify-before-completion:claim-without-evidence`, plus pending intent at a
+  `compliance-canary:claim-without-evidence`, plus pending intent at a
   genuine wrap-up. There is no pulse, generic style probe, correction nag, or
   escalation wrapper.
 - `shadow` makes the same task-facing decisions and emits byte-identical output
@@ -409,7 +409,7 @@ A skill can do both. `drift_probes.json` example for caveman-ultra:
 ]
 ```
 
-Fourteen shipped skill directories currently include `drift_probes.json`;
+Thirteen shipped skill directories currently include `drift_probes.json`;
 additional skills opt in by adding the same file beside their `SKILL.md`.
 
 ## Tuning

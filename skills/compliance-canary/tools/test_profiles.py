@@ -129,9 +129,12 @@ def run(root: Path, transcript: list[dict], profile: str | None, session: str | 
 
 
 def install_fixtures(root: Path) -> None:
-    vbc = root / "skills" / "verify-before-completion"
-    vbc.mkdir(parents=True)
-    (vbc / "drift_probes.json").write_text(json.dumps([{
+    # Named "compliance-canary" (not "verify-before-completion") because the
+    # 2026-07-19 rehome moved the real claim-without-evidence probe there;
+    # FRONTIER_VERIFY_PROBE_IDS now gates on "compliance-canary:claim-without-evidence".
+    cc = root / "skills" / "compliance-canary"
+    cc.mkdir(parents=True)
+    (cc / "drift_probes.json").write_text(json.dumps([{
         "id": "claim-without-evidence",
         "kind": "claim_without_evidence",
         "claim_pattern": "(?i)\\b(pass|ready|done|fixed)\\b",
@@ -291,7 +294,7 @@ def main() -> int:
                       if r["mechanism"] == "suppressed_notification"]
         check("notification-suppression-telemetry-logged",
               len(suppressed) == 1 and not suppressed[0]["emitted"]
-              and suppressed[0]["probe_id"] == "verify-before-completion:claim-without-evidence",
+              and suppressed[0]["probe_id"] == "compliance-canary:claim-without-evidence",
               repr(suppressed))
         pending = state_file(root, "notif-timer").get("notification_pending_content", [])
         check("notification-pointer-only-records-pending-content",
@@ -340,7 +343,7 @@ def main() -> int:
         markers = state_file(root, "notif-defer").get("deferred_fires", [])
         check("notification-suppression-persists-deferred-fire",
               len(markers) == 1
-              and markers[0]["probe_id"] == "verify-before-completion:claim-without-evidence"
+              and markers[0]["probe_id"] == "compliance-canary:claim-without-evidence"
               and markers[0]["deferred_at_turn"] == 1
               and markers[0]["notification_kind"] == "timer",
               repr(markers))
@@ -446,21 +449,24 @@ def main() -> int:
 
         # --- D5: the hook's format_one_probe fallback and drift_probes.json's
         # `message` are ONE wording (the two message sources had drifted).
-        vbc_probes = json.loads(
-            (HERE.parents[1] / "verify-before-completion" / "drift_probes.json").read_text(encoding="utf-8"))
-        vbc_message = next(p["message"] for p in vbc_probes if p["id"] == "claim-without-evidence")
+        # Sourced from the REAL shipped skills/compliance-canary/drift_probes.json
+        # (rehomed 2026-07-19 from verify-before-completion; skill remains, but
+        # the probe file and its qualified id are now canary-owned).
+        cc_probes = json.loads(
+            (HERE.parents[1] / "compliance-canary" / "drift_probes.json").read_text(encoding="utf-8"))
+        cc_message = next(p["message"] for p in cc_probes if p["id"] == "claim-without-evidence")
         spec = importlib.util.spec_from_file_location("compliance_canary_hook", HOOK)
         hook_mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(hook_mod)
-        bare_probe = {"_skill": "verify-before-completion",
-                      "_probe_id": "verify-before-completion:claim-without-evidence",
+        bare_probe = {"_skill": "compliance-canary",
+                      "_probe_id": "compliance-canary:claim-without-evidence",
                       "kind": "claim_without_evidence",
                       "_result": {"claim": "done", "lookback": 5}}
         fallback_line = hook_mod.format_one_probe(dict(bare_probe))
-        message_line = hook_mod.format_one_probe(dict(bare_probe, message=vbc_message))
+        message_line = hook_mod.format_one_probe(dict(bare_probe, message=cc_message))
         check("claim-fallback-matches-drift-probes-message",
               fallback_line == message_line
-              == f"- verify-before-completion [claim_without_evidence]: {vbc_message}",
+              == f"- compliance-canary [claim_without_evidence]: {cc_message}",
               repr((fallback_line, message_line)))
 
         # --- verbatim intent log (L0 no-drop capture) ----------------------

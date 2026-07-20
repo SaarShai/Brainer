@@ -1257,7 +1257,9 @@ out=$(call cc81 sk81 "$TX" s81)
 if ! echo "$out" | grep -q 'completion_without_closure'; then ok "sign-off → no false completion gate"; else no "N1 sign-off false-fire" "got: $(echo "$out"|head -c160)"; fi
 
 echo "[73] completion gate message names QUESTIONs (guards the copy-edit)"
-if grep -q 'QUESTION' "$TOOLS_DIR/../../verify-before-completion/drift_probes.json"; then ok "completion gate enumerates questions"; else no "completion gate names questions"; fi
+# Rehomed 2026-07-19 from verify-before-completion/drift_probes.json to
+# skills/compliance-canary/drift_probes.json — skill remains, probe is canary-owned.
+if grep -q 'QUESTION' "$TOOLS_DIR/../drift_probes.json"; then ok "completion gate enumerates questions"; else no "completion gate names questions"; fi
 
 echo "[82] drift-coupled: when a drift probe fires AND items are open, the open items ride along"
 FILLER='[{"id":"filler","kind":"forbidden_regex","pattern":"(?i)\\bcertainly\\b","message":"no certainly"}]'
