@@ -840,6 +840,41 @@ else
   no "current.json (status: armed) should arm the correction ledger" "got: $(echo "$out" | head -c220)"
 fi
 
+echo "[34r] REGRESSION (2026-07-20 farey-hecke repro) — harness isolation holds even when the process cwd itself contains a real armed current.json"
+POISON34R="$(mktemp -d -t cc-poison34r-XXXX)"
+mkdir -p "$POISON34R/.brainer/task-retrospective"
+cat > "$POISON34R/.brainer/task-retrospective/current.json" <<'EOF'
+{"status": "armed", "task_id": "poison"}
+EOF
+TX34R="$TRANSCRIPT_DIR/t34r.jsonl"
+write_transcript "$TX34R" "$(assistant_text 'ok, using tabs' u34r)"
+payload=$(python3 -c "
+import json,sys
+print(json.dumps({'session_id':sys.argv[1],'transcript_path':sys.argv[2],'hook_event_name':'UserPromptSubmit','prompt':'no, I said use spaces'}))
+" s34r "$TX34R")
+# Deliberately does NOT override CLAUDE_PROJECT_DIR here — it must inherit the
+# script's own global PROJECT_ANCHOR pin (line 28) even though the shell's cwd
+# below is the poisoned dir holding a REAL armed current.json. This is the
+# exact repro that failed live in farey-hecke before harnesses pinned
+# CLAUDE_PROJECT_DIR (correction_ledger_armed() falls back to cwd when unset).
+out=$(cd "$POISON34R" && printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc34r" \
+  COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk34" "${HOOK[@]}")
+STATE_FILE_34R="$STATE_ROOT/cc34r/$(python3 -c "import hashlib,sys; print(hashlib.sha256(sys.argv[1].encode()).hexdigest()[:16])" s34r).json"
+has_ledger_key="no"
+if [ -f "$STATE_FILE_34R" ]; then
+  if python3 -c "
+import json,sys
+d = json.load(open(sys.argv[1]))
+sys.exit(0 if 'correction_ledger' in d else 1)
+" "$STATE_FILE_34R"; then has_ledger_key="yes"; fi
+fi
+rm -rf "$POISON34R"
+if [ -z "$out" ] && [ "$has_ledger_key" = "no" ]; then
+  ok "harness-pinned CLAUDE_PROJECT_DIR isolates against a real armed current.json sitting in cwd"
+else
+  no "harness isolation must hold even when cwd itself is poisoned with an armed current.json" "out=$(echo "$out" | head -c150) has_ledger_key=$has_ledger_key"
+fi
+
 # [34j] (allowlist-scoped ledger opening via the retired COMPLIANCE_CANARY_
 # PROBE_SKILLS legacy feature) deleted 2026-07-19 — that mechanism no longer
 # exists. Its property ("ledger OPENING happens even when the probe is

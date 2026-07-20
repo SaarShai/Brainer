@@ -64,6 +64,7 @@ S|core|python3|skills/_shared/test_model_roster.py|-|-
 S|core|python3|skills/_shared/test_brief_header.py|-|-
 S|core|python3|tests/test_frontier_defaults.py|-|-
 S|core|python3|skills/compliance-canary/tools/test_profiles.py|-|-
+S|core|python3|skills/compliance-canary/tools/test_profiles_vendoring.py|-|-
 S|core|python3|skills/_shared/test_orchestration_trace.py|-|-
 S|core|python3|skills/_shared/test_activation_trace.py|-|-
 S|core|python3|skills/team-lead/tools/test_team_lead_eval.py|-|-
@@ -78,6 +79,7 @@ S|core|python3|skills/brainer-audit/tools/test_detector_precision.py|-|-
 S|core|python3|skills/brainer/eval/test_reference.py|-|-
 S|core|python3|skills/loop-engineering/tools/test_loop_lint.py|-|-
 S|core|python3|skills/context-keeper/tools/tests/test_extract.py|-|-
+S|core|python3|skills/context-keeper/tools/test_retention.py|-|-
 S|core|python3|skills/output-filter/tools/test_output_filter.py|-|-
 S|core|python3|skills/prompt-triage/tools/test_classify.py|-|-
 S|core|python3|skills/write-gate/tools/test_write_gate.py|-|-
