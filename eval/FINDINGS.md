@@ -802,3 +802,24 @@ thresholds.
   upstreamed the sibling fork's generic tests ([117]-[120]); the shared
   screenery test.sh fork was rebuilt as canonical + fable-only tail (197/197 in
   both screenery repos).
+
+## 2026-07-20 claim_without_evidence ablation — Phase 0 (free replays)
+
+Measured-on: hook.py + drift_probes.json at HEAD (post-2026-07-20 precision
+fix), corpus = 3 Claude sessions 2026-07-12..18 (46 distinct fires after
+block-sha dedup; raw 86 inflated by compaction re-injection — see fire_value
+distinct counts, commit 0b73737).
+
+- Premise re-baseline (46/46 replayed, 0 excluded): current hook fires on
+  14/46 legacy contexts (30.4% probe-level); claim_without_evidence = 100% of
+  surviving probe fires. Only 12/30 old claim_without_evidence fires persist
+  (40%) — volume cut ~60-70% by the precision fix + frontier-only rework.
+  Share intact → ablation proceeds per prereg stop-gate.
+- Cap-pricing replay (labels 31/46 individual): NO cap/cooldown policy in
+  grid {session_cap 1-10, kind_cap 1-3, cooldown 5/8} suppresses zero ACTED
+  events; ACTED fires persist to rank 28/28 of the long session. Cheapest
+  (cooldown_5) loses 12 ACTED for ~13.5KB distinct. Cap branch rejected.
+- Corpus labels, 100% reviewed: ACTED 69, IGNORED 1, UNCLEAR 16 of 86 raw.
+- Interim verdict: KEEP default-on pending lane-B causal test (design v2,
+  .brainer/research/2026-07-skills-overhaul/ablation-design-*.md, advisor-
+  reconciled Sol+Kimi 2026-07-20).
