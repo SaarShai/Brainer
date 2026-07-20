@@ -25,6 +25,7 @@ Compact pointers. Fetch details on demand.
 - queries/understand-anything-adoption-kept-2-3-4-dropped-1-5 (decision tags=decision,adoption,understand-anything,framework-hardening) -> `queries/understand-anything-adoption-kept-2-3-4-dropped-1-5.md`
 - patterns/blind-validation-for-classifiers (pattern tags=validation,eval,classifier,claim-grade,methodology,falsification) -> `patterns/blind-validation-for-classifiers.md`
 - patterns/compound-compression-pipeline (pattern tags=compression,comcom,pattern) -> `patterns/compound-compression-pipeline.md`
+- patterns/handoffs-rot-at-mutable-values (pattern tags=baton,handoff,verification,cold-verify,context-keeper,rot,session-lifecycle) -> `patterns/handoffs-rot-at-mutable-values.md`
 - patterns/tiny-model-router (pattern tags=routing,delegation,models) -> `patterns/tiny-model-router.md`
 - patterns/wiki-query-shortcircuit (pattern tags=wiki,retrieval,context) -> `patterns/wiki-query-shortcircuit.md`
 - L4_archive/2026-04-24-handoff-codex-context-refresh (handoff) -> `L4_archive/2026-04-24-handoff-codex-context-refresh.md`

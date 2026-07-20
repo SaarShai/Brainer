@@ -9,6 +9,9 @@
 > 4 retire, 5 role-brief demotions, 4 explicit manual tool/workflows, and 1
 > split. Missing outcome runs remain missing evidence, never null effects.
 
+Field observations (adherence/obedience/drift in live sessions, as opposed to
+controlled A/Bs) are tracked separately in `LIVE_OBSERVATION_REGISTER.md`.
+
 Catalog policy: only measured-win or cheap load-bearing skills stay on the
 default path. 10 of 24 skills are unmeasured/pending. This queue orders them by
 **resident-cost × uncertainty** (a default-installed skill with no number is the

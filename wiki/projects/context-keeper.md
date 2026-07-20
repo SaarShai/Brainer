@@ -78,7 +78,15 @@ Unique: schema-stable extraction (structured `tool_use` walks for commands/files
 - `failed_attempts` is keyword-first windowing (2026-06-12 rewrite — the old leading-`{10,150}` regex went quadratic on long unbroken lines: 23s → 0.5s per 10k events); heuristic either way — capture rationale in the handoff or wiki page when you need it.
 - Tests: `skills/context-keeper/tools/tests/test_extract.py` (crash, fidelity, linear-time bound) — in `run_all_tests.sh`.
 
+## Known gap (2026-07-20)
+- SessionEnd never fires on the Claude desktop app (no exit action → sessions
+  idle forever), so the raw-transcript archive is silently dead there; final
+  post-compaction stretch also uncovered. Evidence + manual-fire workaround:
+  [[handoffs-rot-at-mutable-values]] (`patterns/handoffs-rot-at-mutable-values.md`).
+
 ## Next
+- Fix the SessionEnd gap above (archive_now.sh entry point, or archive from
+  the PreCompact path too), then propagate.
 - Add `decisions` extraction from `<thinking>` blocks (currently skipped — encrypted signature).
 - Emit a `todos_pending` section by scanning for TodoWrite tool blocks.
 - Post-compact auto-read: skill that detects `[context-keeper]` pointer and auto-Reads the memory file.
