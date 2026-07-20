@@ -43,6 +43,10 @@ def load_and_validate(path: Path = DEFAULT_SOURCE) -> dict:
         if not row.get("reason") or not isinstance(row.get("retain"), list):
             raise ValueError(f"incomplete rationale for {row['name']}")
         skill = REPO / "skills" / row["name"] / "SKILL.md"
+        if not skill.is_file():
+            # Body removed since classification (retired in catalog contraction
+            # or sibling-only); nothing left to drift-check.
+            continue
         actual = hashlib.sha256(skill.read_bytes()).hexdigest()
         if actual != row.get("skill_sha256"):
             raise ValueError(f"stale classification for {row['name']}: body hash changed")

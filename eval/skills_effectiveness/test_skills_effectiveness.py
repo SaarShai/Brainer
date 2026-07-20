@@ -193,7 +193,7 @@ class FireValueTests(unittest.TestCase):
 
 class HarnessTests(unittest.TestCase):
     def test_matrix_size_and_single_use_fixtures(self):
-        self.assertEqual(8300, len(ab_harness.plan_rows()))
+        self.assertEqual(5300, len(ab_harness.plan_rows()))
         case = cases.outcome_cases()[0]
         one = ab_harness.fixture(case)
         two = ab_harness.fixture(case)
