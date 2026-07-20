@@ -758,3 +758,10 @@ routes any resulting retire/demote decision through the normal branch +
 adversarial-review flow — reusing the preregistered gates in
 `docs/SKILLS_EFFECTIVENESS_VERIFICATION.md` rather than inventing new
 thresholds.
+
+## 2026-07-20 phase-2 follow-on lanes (2f-2i)
+
+- **2f — positive-phrasing directives.** Resident Code-craft directives block (install.sh CRAFT heredoc) rewritten from prohibition/coercion phrasing (never/STOP) to positive-example phrasing per Claude-4.x migration guidance; semantics, artifact names, failure-mode names frozen. Resident block 7164B → 7133B (H1a budget 7989B, PASS). Two golden-string literals in tests/test_frontier_defaults.py updated to the new phrasing.
+- **2g — claim-without-evidence precision.** A 14-fire live-session corpus (session 62ae33f7) showed the probe false-firing on replies that (a) quoted their own already-verified numbers/commit hashes or (b) reported a delegated lane's RUNNING/PENDING status. Added two text-only regexes (_SELF_QUOTED_EVIDENCE_RE, _PENDING_DELEGATION_RE) in detect_claim_without_evidence; corpus durable at skills/compliance-canary/tests/fixtures/false_fires_20260720.{md,json}. 10/10 deduplicated false-fires now silent; 3 new unverified-claim fixtures still fire; test.sh 169→182/182.
+- **2h — hybrid probe-root masking (Sol phase-2 MAJOR 2).** project_hook_precedence.py now exports the plugin skills root only when the project has no local probe-bearing .claude/skills, so hybrid installs discover project-local probes again while plugin-only installs keep the phase-2a fix. Union/multi-root semantics noted as future work.
+- **2i — canonical-deletion propagation (Sol phase-2 MAJOR 1).** sibling_sync_audit.py gains canon_deleted enumeration + classify_deleted (DELETE = byte-matches prior canonical history; CONFLICT = sibling-customized, never auto-deleted) and an opt-in --apply-deletions flag. Live read-only check vs screenery-lean: 4 retired files DELETE, its customized verify-before-completion/drift_probes.json correctly CONFLICT. scripts/-level files remain outside the tool's coverage model by design (flagged, not silently expanded).
