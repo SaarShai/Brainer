@@ -4,25 +4,23 @@
 Frontier expectations are mechanism-specific: verification and genuine wrap-up
 may emit; correction and error-loop cases remain semantic positives but are
 expected silent because frontier intentionally suppresses those mechanisms.
-Notification cases (2026-07-18) expect frontier/shadow silent on terminal-
+Notification cases (2026-07-18) expect frontier silent on terminal-
 SUCCESS self-contained job notifications and firing on failed jobs and on
 forwarded implementation-subagent world-state claims. Hardening cases
 (2026-07-19, lane A2): neg-n3 adds the result-ATTACHED timer hard negative
 (the live FP shape); pos-p3 must fire on an unprovenanced (pasted)
 notification whose task-id never appears in the transcript; pos-d1 is a
 TWO-TURN deferred-fire sequence — turn A carries an unverified claim plus a
-qualifying provenanced notification (frontier/shadow must NOT emit;
+qualifying provenanced notification (frontier must NOT emit;
 suppression defers), turn B is a plain non-notification turn whose transcript
-has slid the claim out of the message window (frontier/shadow MUST emit
-exactly once via the persisted deferred_fire marker; legacy keeps its
-pre-boundary behavior and fires immediately at turn A).
+has slid the claim out of the message window (frontier MUST emit
+exactly once via the persisted deferred_fire marker).
 
 Adversarial-audit fault shapes (2026-07-18, lane A3 — outcomes per the FIXED
 G4 behavior):
   pos-flood (N1)   two-turn notification flood — turn A defers (silent), a
                    SECOND qualifying provenanced notification at turn B emits
-                   the pending marker anyway (a flood cannot destroy a fire);
-                   legacy fires at turn A.
+                   the pending marker anyway (a flood cannot destroy a fire).
   pos-shortid (N2) `<task-id>0</task-id>` present in tool content still must
                    not suppress (F1 entropy floor) — every profile fires.
   pos-destpend (N3) two-turn destruction-vs-pending — turn A records a
@@ -43,8 +41,7 @@ G4 behavior):
   pos-emptypend (N6) two-turn ledger-empty wrap-up — the session's only
                    prompts are the notification + trivia, so the request
                    ledger is EMPTY at turn B's wrap-up; the unread pending
-                   output still surfaces (frontier/shadow; legacy's
-                   completion gate fires instead).
+                   output still surfaces.
   pos-wstate (N7)  passive/rephrased world-state prose ("files were moved",
                    "checks green", "uploaded", "deleted", "was deployed")
                    keeps the gate armed; every profile fires.
@@ -355,9 +352,8 @@ def _run_deferred_case(root: Path, case: dict, profile: str,
     iff the probe line appears EXACTLY once — a double-fire is a detectable
     failure, not a pass. `fired` folds the sequence into the gate's binary
     shape: for an expected-fire profile it is the profile-correct composite
-    (legacy: the immediate turn-A fire; frontier/shadow: turn A silent AND
-    exactly one turn-B mechanism emission); for an expected-silent profile
-    it is any emission on either turn."""
+    (turn A silent AND exactly one turn-B mechanism emission); for an
+    expected-silent profile it is any emission on either turn."""
     proc_a = invoke(root, case, profile, turn="a")
     proc_b = invoke(root, case, profile, turn="b")
     turn_a_any = bool(proc_a.stdout.strip())
@@ -367,7 +363,7 @@ def _run_deferred_case(root: Path, case: dict, profile: str,
     turn_a_mech = turn_a_mech_count == 1
     turn_b_mech = turn_b_mech_count == 1
     expected = case["profile_expect"][profile] == "fire"
-    mechanism_fired = turn_a_mech if profile == "legacy" else (not turn_a_any) and turn_b_mech
+    mechanism_fired = (not turn_a_any) and turn_b_mech
     any_emitted = turn_a_any or turn_b_any
     encoded = proc_a.stdout.encode() + b"\x00" + proc_b.stdout.encode()
     probes = sorted({f"{a}:{b}" for a, b in
@@ -404,20 +400,15 @@ def _run_pending_wrap_case(root: Path, case: dict, profile: str,
     ledger (for N3 the transcript also shows `rm` on the output file —
     destruction must not reconcile it). The discriminating signal is the
     terminal turn's "output never read" line, COUNT-based (F7): exactly one
-    occurrence — a duplicate surface is a failure, not a pass. legacy has
-    no pending surface; its completion-gate probe firing at turn B is the
-    expected emission. `fired` folds the sequence into the gate's binary
-    shape as in _run_deferred_case."""
+    occurrence — a duplicate surface is a failure, not a pass. `fired` folds
+    the sequence into the gate's binary shape as in _run_deferred_case."""
     proc_a = invoke(root, case, profile, turn="a")
     proc_b = invoke(root, case, profile, turn="b")
     turn_a_any = bool(proc_a.stdout.strip())
     turn_b_any = bool(proc_b.stdout.strip())
     line_count = proc_b.stdout.count("output never read")
     expected = case["profile_expect"][profile] == "fire"
-    if profile == "legacy":
-        mechanism_fired = turn_b_any
-    else:
-        mechanism_fired = (not turn_a_any) and line_count == 1
+    mechanism_fired = (not turn_a_any) and line_count == 1
     any_emitted = turn_a_any or turn_b_any
     encoded = proc_a.stdout.encode() + b"\x00" + proc_b.stdout.encode()
     probes = sorted({f"{a}:{b}" for a, b in
@@ -457,10 +448,8 @@ def _run_audit_seq_case(root: Path, case: dict, profile: str,
       N5 — turn A silent; the terminal wrap-up quote carries the pasted
            block's task-id (verbatim capture survived stripping; pre-fix
            the strip ate the quoted block, id absent — a fail).
-    legacy shares both folds: its wrap-up surface reads the same intent
-    log, and it has no pending-content lines (N4's absence check is
-    trivially satisfied by its normal wrap-up fire). `fired` folds the
-    sequence into the gate's binary shape as in _run_deferred_case."""
+    `fired` folds the sequence into the gate's binary shape as in
+    _run_deferred_case."""
     turns = ["a", "b", "c"] if case["kind"] == "notification_relative_read" else ["a", "b"]
     procs = {t: invoke(root, case, profile, turn=t) for t in turns}
     out = {t: procs[t].stdout for t in turns}
@@ -545,20 +534,14 @@ def run_case(root: Path, case: dict, profile: str) -> dict:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--profile", choices=["frontier", "shadow", "legacy", "off"], default="frontier")
+    ap.add_argument("--profile", choices=["frontier", "off"], default="frontier")
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--limit", type=int)
     args = ap.parse_args()
     corpus = trigger_cases()[:args.limit]
     with tempfile.TemporaryDirectory(prefix="brainer-trigger-gate-") as tmp:
         root = Path(tmp)
-        rows = []
-        for case in corpus:
-            row = run_case(root / args.profile, case, args.profile)
-            if args.profile == "shadow":
-                reference = run_case(root / "frontier-reference", case, "frontier")
-                row["frontier_output_identical"] = row["stdout_sha256"] == reference["stdout_sha256"]
-            rows.append(row)
+        rows = [run_case(root / args.profile, case, args.profile) for case in corpus]
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in rows))
     return 0 if all(row["returncode"] == 0 for row in rows) else 1

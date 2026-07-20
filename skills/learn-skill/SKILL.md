@@ -128,7 +128,7 @@ When a non-trivial multi-step workflow completes (≥6 tool calls, at a wrap-up 
 not build/test/git boilerplate), `compliance-canary`'s `workflow_nomination` detector
 nudges you to `/learn` it. It **nominates, never writes** — write-gate + dedup (in the
 /learn flow) make the actual call. Shipped as [`drift_probes.json`](drift_probes.json);
-the canary auto-discovers it. Silence per-deployment via `COMPLIANCE_CANARY_PROBE_SKILLS`.
+the canary auto-discovers it. Silence per-deployment via `COMPLIANCE_CANARY_PROBE_IDS` (exact-id selection).
 
 ## Pitfalls
 - **Summarization collapse** — the model writes "configure auth and paginate" instead of

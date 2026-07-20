@@ -166,12 +166,13 @@ skill_is_slash_only() {
 # default install path (see eval/FINDINGS.md).
 # compliance-canary is the DEFAULT-ON output-style drift defense (auto-install:
 # true since 2026-06-09; absorbed skill-pulse at v1.10, so it is now the SINGLE
-# drift watcher). One UserPromptSubmit hook runs both halves — a periodic
-# re-anchor of active skill rules every N turns AND symptomatic drift probes —
-# keeping caveman-ultra (and any pulse_reminder/drift_probes skill) from decaying
-# over a long session. Turn off per-project via env without uninstall:
-# COMPLIANCE_CANARY_DISABLED=1 (both) — SKILL_PULSE_DISABLED=1 still disables
-# just the re-anchor (back-compat alias).
+# drift watcher). One UserPromptSubmit hook runs three mechanisms — symptomatic
+# drift probes, a request ledger, and an armed-only correction ledger — keeping
+# caveman-ultra (and any drift_probes skill) from decaying over a long session.
+# (The periodic skill-rule re-anchor `legacy`/`shadow` once ran was retired
+# 2026-07-19, not rehomed.) Turn off per-project via env without uninstall:
+# COMPLIANCE_CANARY_DISABLED=1, or COMPLIANCE_CANARY_PROFILE=off for a fully
+# mutation-free experimental control.
 # NOTE: per-skill installers MERGE into host settings. A bare ./install.sh
 # AUTO-PRUNES hooks whose script is gone and hooks owned by skills now marked
 # `auto-install: false`. The latter makes a default-on -> opt-in transition
@@ -252,18 +253,18 @@ STORE
 Always-on rules for writing code — they apply on every coding turn, not only when
 a skill happens to trigger:
 
-- **Surgical diffs.** Smallest reversible change; touch only what the ask needs;
-  match local style; never reformat code you didn't change. Justify every changed
-  line by the task — revert "while I was in there" edits. (The
+- **Surgical diffs.** Smallest reversible change, touching only what the ask
+  needs, matched to local style. Leave untouched code byte-identical — a
+  changed line exists only because the task required it. (The
   `whitespace_only_edit` + `dependency-manifest-changed` `compliance-canary`
   probes enforce it mechanically.)
-- **Failure-mode interrupt.** If mid-task you slide into scope-creep (Kitchen
-  Sink), premature abstraction (abstract only on the 3rd repeat — rule of three),
-  happy-path-only (error path ignored), a fix cascading across files (Runaway
-  Refactor), or building what an existing tool already provides (Reinvented
-  Wheel — STOP, run a borrow check) — STOP, restate the goal, narrow scope.
-- **Borrow first.** Before building machinery, name the existing tool checked
-  and why it fails; otherwise the brief is malformed. Deep: `/think`.
+- **Failure-mode interrupt.** Catch mid-task drift by name — scope-creep is
+  Kitchen Sink, an abstraction before the 3rd repeat skips rule of three, an
+  ignored error path is happy-path-only, a cascading fix is Runaway Refactor,
+  rebuilding what a tool provides is Reinvented Wheel (borrow-check first) —
+  then pause, restate the goal, and narrow scope.
+- **Borrow first.** Name the existing tool checked and why it falls short
+  before building machinery; a brief missing that is malformed. Deep: `/think`.
 - **Frontier ownership.** Top-tier agents own the end-to-end goal and hard
   judgment. Run independent, gated work concurrently on the cheapest reliable
   lanes; retain direct work only when no suitable lane is reachable or the
@@ -273,9 +274,9 @@ a skill happens to trigger:
   §6.
 - **Task routing.** Before root/child mutation, receipt: artifacts,
   SPEC'D/GATED, size, authority, route, owner, exception. Project/AGENTS.md
-  authority beats generic default; speed never waives required routes.
+  authority beats generic default; required routes hold regardless of speed.
   Delegate SPEC'D+GATED >~30-line work; frontier owns unresolved diagnosis.
-  Late receipt: stop, re-route rest, cold-review early edits.
+  Late receipt: pause, re-route the rest, cold-review early edits.
 CRAFT
   cat <<'MATRIX'
 

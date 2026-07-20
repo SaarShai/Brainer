@@ -2,9 +2,17 @@
 # compliance-canary self-test.
 set -uo pipefail
 
-# This is the legacy behavior regression suite. Profile-specific frontier,
-# shadow, and off gates live in test_profiles.py.
-export COMPLIANCE_CANARY_PROFILE=legacy
+# This is the detector/kind-level regression suite (symptomatic probes,
+# request ledger, correction ledger) run under the frontier profile — the
+# only profile besides `off` since legacy/shadow were retired 2026-07-19.
+# Profile-selection/normalization and `off` gates live in test_profiles.py.
+# Frontier selects probes by EXACT id (COMPLIANCE_CANARY_PROBE_IDS); since
+# every test below declares its own ad hoc probe id under a synthetic skills
+# root, `call`/`call34`/`call_p` auto-inject COMPLIANCE_CANARY_PROBE_IDS
+# (see _probe_ids_for) so each test's probe is selected without hardcoding
+# ids at every call site — this reproduces "run this test's probes" without
+# the retired legacy profile's implicit "select every discovered probe".
+export COMPLIANCE_CANARY_PROFILE=frontier
 
 TOOLS_DIR="$(cd "$(dirname "$0")" && pwd)"
 HOOK=(bash "$TOOLS_DIR/hook.sh")
@@ -83,6 +91,33 @@ print(json.dumps({'type':'user',
 " "$1" "$2" "$3"
 }
 
+_probe_ids_for() {
+  # _probe_ids_for <skills_sub> — comma-joined "skill:id" list of every probe
+  # declared under $SKILLS_ROOT/<skills_sub>/*/drift_probes.json (mirrors
+  # hook.py discover_probes' _probe_id assembly: f"{skill_dir}:{probe.id}").
+  # Frontier selects probes by EXACT id via COMPLIANCE_CANARY_PROBE_IDS; this
+  # lets each test's ad hoc probe fire without hardcoding ids per call site.
+  local dir="$SKILLS_ROOT/$1"
+  [ -d "$dir" ] || { echo ""; return; }
+  python3 -c "
+import json, sys
+from pathlib import Path
+root = Path(sys.argv[1])
+ids = []
+for f in sorted(root.glob('*/drift_probes.json')):
+    try:
+        probes = json.loads(f.read_text())
+    except Exception:
+        continue
+    skill = f.parent.name
+    for p in probes:
+        pid = p.get('id')
+        if pid:
+            ids.append(f'{skill}:{pid}')
+print(','.join(ids))
+" "$dir"
+}
+
 call() {
   # call <state_sub> <skills_sub> <transcript_file> <session_id> [env_overrides...]
   local state_sub="$1" skills_sub="$2" tx="$3" sid="$4"; shift 4
@@ -92,7 +127,8 @@ import json,sys
 print(json.dumps({'session_id':sys.argv[1],'transcript_path':sys.argv[2],'hook_event_name':'UserPromptSubmit','prompt':'next'}))
 " "$sid" "$tx")
   local env_args=(COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/$state_sub"
-                  COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/$skills_sub")
+                  COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/$skills_sub"
+                  COMPLIANCE_CANARY_PROBE_IDS="$(_probe_ids_for "$skills_sub")")
   if [ "$#" -gt 0 ]; then
     printf '%s' "$payload" | env "${env_args[@]}" "$@" "${HOOK[@]}"
   else
@@ -153,10 +189,20 @@ out=$(call cc5 sk5 "$TX" s5)
 if emitted "$out" && echo "$out" | grep -q 'claim_without_evidence'; then ok "unverified-done fires"; else no "unverified-done fires" "got: $(echo "$out" | head -c200)"; fi
 
 echo "[6] claim_without_evidence: verify tool_use present → silent"
+# Claim text must itself carry the evidence-class language ("tests pass"),
+# and the Bash tool_use needs a PAIRED, successful tool_result — frontier's
+# evidence_class/execution_timeline mechanism (the legacy verify_tools/
+# verify_keywords keyword-scan on bare tool_use INPUT was retired 2026-07-19)
+# only counts evidence with a matching tool_result, and matches the CLAIM's
+# classified evidence class against the executed command's classified
+# evidence class. A bare "all done!" claim with no class-indicating words
+# falls back to the default "filesystem/diff" class, exercised separately in
+# test_profiles.py.
 TX="$TRANSCRIPT_DIR/t6.jsonl"
 write_transcript "$TX" \
-  "$(assistant_tool_use Bash '{"command":"npm test"}')" \
-  "$(assistant_text 'all done!' u1)"
+  "$(assistant_tool_use_with_id Bash '{"command":"npm test"}' tu6)" \
+  "$(user_tool_result_for tu6 '12 passed' 0)" \
+  "$(assistant_text 'all tests pass — done!' u1)"
 out=$(call cc6 sk5 "$TX" s6)
 if [ -z "$out" ]; then ok "verified-done → silent"; else no "verified-done → silent" "got: $(echo "$out" | head -c200)"; fi
 
@@ -393,7 +439,8 @@ payload=$(python3 -c "
 import json,sys
 print(json.dumps({'session_id':'s27','transcript_path':sys.argv[1],'hook_event_name':'UserPromptSubmit','prompt':'no, I said use spaces not tabs'}))
 " "$TX")
-out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc27" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk27" "${HOOK[@]}")
+out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc27" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk27" \
+  COMPLIANCE_CANARY_PROBE_IDS="$(_probe_ids_for sk27)" "${HOOK[@]}")
 if emitted "$out" && echo "$out" | grep -q 'user_correction'; then ok "correction prompt fires"; else no "correction prompt fires" "got: $(echo "$out" | head -c120)"; fi
 
 echo "[28] user_correction: ordinary prompt stays silent"
@@ -401,7 +448,8 @@ payload=$(python3 -c "
 import json,sys
 print(json.dumps({'session_id':'s28','transcript_path':sys.argv[1],'hook_event_name':'UserPromptSubmit','prompt':'now add a unit test for the parser'}))
 " "$TX")
-out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc28" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk27" "${HOOK[@]}")
+out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc28" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk27" \
+  COMPLIANCE_CANARY_PROBE_IDS="$(_probe_ids_for sk27)" "${HOOK[@]}")
 if [ -z "$out" ]; then ok "ordinary prompt silent"; else no "ordinary prompt silent" "got: $(echo "$out" | head -c100)"; fi
 
 echo "[29] malformed transcript events: detection still WORKS with garbage lines present"
@@ -485,16 +533,21 @@ payload=$(python3 -c "
 import json,sys
 print(json.dumps({'session_id':'s34','transcript_path':sys.argv[1],'hook_event_name':'UserPromptSubmit','prompt':'no, I said use spaces'}))
 " "$TX")
-out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc34" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk34" "${HOOK[@]}")
+out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc34" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk34" \
+  COMPLIANCE_CANARY_PROBE_IDS="$(_probe_ids_for sk34)" "${HOOK[@]}")
 if emitted "$out" && echo "$out" | grep -q 'user_correction'; then ok "user_correction fires with no assistant prose"; else no "user_correction fires with no assistant prose" "got: $(echo "$out" | head -c150)"; fi
 
 # ======================================================================
-# Mechanism 4 — correction ledger (LEARNING_CONTRACT §2): a fired
+# Mechanism 4 — correction ledger (LEARNING_CONTRACT §2): ARMED-ONLY
+# (2026-07-20 policy fix — see hook.py's correction_ledger_armed()). A fired
 # user_correction probe opens a closeout-blocking OPEN item that is surfaced
 # every turn until a banking tool call (write_gate.py / wiki.py new) is
 # observed to have ACTUALLY RUN (a Bash tool_use with matching invocation
 # shape AND a paired tool_result carrying a passing execution signature), or
-# the user explicitly closes it. Reuses the sk34/PROBES fixture above (the
+# the user explicitly closes it. call34() sets COMPLIANCE_CANARY_CORRECTION_
+# LEDGER=1 so [34a]-[34o] below exercise the ARMED lifecycle unchanged from
+# the 2026-07-19 rehome; [34p]-[34q] below cover the UNARMED boundary the
+# armed env normally masks. Reuses the sk34/PROBES fixture above (the
 # user_correction probe from test [34]).
 # ======================================================================
 
@@ -507,7 +560,7 @@ import json,sys
 print(json.dumps({'session_id':sys.argv[1],'transcript_path':sys.argv[2],'hook_event_name':'UserPromptSubmit','prompt':sys.argv[3]}))
 " "$sid" "$tx" "$prompt")
   printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/$state_sub" \
-    COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk34" "${HOOK[@]}"
+    COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk34" COMPLIANCE_CANARY_CORRECTION_LEDGER=1 "${HOOK[@]}"
 }
 
 echo "[34a] correction ledger: a fired user_correction opens an item citing LEARNING_CONTRACT §2"
@@ -726,47 +779,79 @@ else
   no "wiki.py new with \"refused\" result must stay OPEN" "got: $(echo "$out2" | head -c220)"
 fi
 
-echo "[34j] allowlist excluding user_correction's owning skill still OPENS a ledger item"
-# COMPLIANCE_CANARY_PROBE_SKILLS scoped to an UNRELATED skill: the sk34
-# user_correction probe (skill 'cv') is excluded from DISPLAY, but ledger
-# OPENING must still happen (capture is unconditional, HOLE #2).
-TX34J="$TRANSCRIPT_DIR/t34j.jsonl"
-write_transcript "$TX34J" "$(assistant_text 'ok, using tabs' u34j)"
-payload34j=$(python3 -c "
+# ======================================================================
+# ARMED-only boundary (2026-07-20 policy fix): [34a]-[34o] above all run
+# through call34(), which now sets COMPLIANCE_CANARY_CORRECTION_LEDGER=1 —
+# i.e. every one of those is an ARMED-lifecycle test. [34p]/[34q] below cover
+# the boundary itself: unarmed must be fully inert (silent, no ledger state
+# write), and arming via task-retrospective's own mechanical signal (no env
+# var) must work exactly like the env var.
+# ======================================================================
+
+echo "[34p] UNARMED — correction-shaped prompt is fully inert on the ledger: silent + no correction_ledger state write"
+TX34P="$TRANSCRIPT_DIR/t34p.jsonl"
+write_transcript "$TX34P" "$(assistant_text 'ok, using tabs' u34p)"
+payload=$(python3 -c "
 import json,sys
-print(json.dumps({'session_id':sys.argv[1],'transcript_path':sys.argv[2],'hook_event_name':'UserPromptSubmit','prompt':sys.argv[3]}))
-" s34j "$TX34J" 'no, I said use spaces not tabs')
-out=$(printf '%s' "$payload34j" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc34j" \
-  COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk34" COMPLIANCE_CANARY_PROBE_SKILLS=some-other-skill "${HOOK[@]}")
-if echo "$out" | grep -qi 'still OPEN' && echo "$out" | grep -q '§2'; then
-  ok "allowlist excluding user_correction's skill still opens the correction ledger"
+print(json.dumps({'session_id':sys.argv[1],'transcript_path':sys.argv[2],'hook_event_name':'UserPromptSubmit','prompt':'no, I said use spaces'}))
+" s34p "$TX34P")
+out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc34p" \
+  COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk34" "${HOOK[@]}")
+STATE_FILE_34P="$STATE_ROOT/cc34p/$(python3 -c "import hashlib,sys; print(hashlib.sha256(sys.argv[1].encode()).hexdigest()[:16])" s34p).json"
+has_ledger_key="no"
+if [ -f "$STATE_FILE_34P" ]; then
+  if python3 -c "
+import json,sys
+d = json.load(open(sys.argv[1]))
+sys.exit(0 if 'correction_ledger' in d else 1)
+" "$STATE_FILE_34P"; then has_ledger_key="yes"; fi
+fi
+if [ -z "$out" ] && [ "$has_ledger_key" = "no" ]; then
+  ok "unarmed correction is silent and writes no correction_ledger state key"
 else
-  no "allowlist must not block ledger OPENING" "got: $(echo "$out" | head -c220)"
+  no "unarmed correction must be silent + write no ledger state" "out=$(echo "$out" | head -c150) has_ledger_key=$has_ledger_key"
 fi
 
-echo "[35] claim_without_evidence: incidental substring ('cat' inside 'category') does NOT count as verification"
-# Word-boundary fix: short verify keywords (cat, ls, build) must not match
-# inside unrelated words. Bash ran 'mkdir category' — the keyword 'cat' is a
-# substring of 'category' but NOT a standalone command, so it is NOT real
-# verification and the done-claim must STILL fire.
-PROBES='[{"id":"unverified","kind":"claim_without_evidence","claim_pattern":"(?i)\\b(done|fixed)\\b","verify_tools":["Bash"],"verify_keywords":["cat","ls","build"]}]'
-make_skill_with_probes sk35 vbc "$PROBES"
-TX="$TRANSCRIPT_DIR/t35.jsonl"
-write_transcript "$TX" \
-  "$(assistant_tool_use Bash '{"command":"mkdir category && echo tools rebuild"}')" \
-  "$(assistant_text 'all done!' u1)"
-out=$(call cc35 sk35 "$TX" s35)
-if emitted "$out" && echo "$out" | grep -q 'claim_without_evidence'; then ok "incidental 'cat'/'ls'/'build' substrings do NOT suppress claim probe"; else no "incidental substrings do NOT suppress claim probe" "got: $(echo "$out" | head -c200)"; fi
+echo "[34q] ARMED via task-retrospective's own mechanical current.json (status: armed) — no env var needed"
+PROJ34Q="$(mktemp -d -t cc-proj34q-XXXX)"
+mkdir -p "$PROJ34Q/.brainer/task-retrospective"
+cat > "$PROJ34Q/.brainer/task-retrospective/current.json" <<'EOF'
+{"status": "armed", "task_id": "t1"}
+EOF
+TX34Q="$TRANSCRIPT_DIR/t34q.jsonl"
+write_transcript "$TX34Q" "$(assistant_text 'ok, using tabs' u34q)"
+payload=$(python3 -c "
+import json,sys
+print(json.dumps({'session_id':sys.argv[1],'transcript_path':sys.argv[2],'hook_event_name':'UserPromptSubmit','prompt':'no, I said use spaces'}))
+" s34q "$TX34Q")
+out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc34q" \
+  COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk34" CLAUDE_PROJECT_DIR="$PROJ34Q" "${HOOK[@]}")
+rm -rf "$PROJ34Q"
+if echo "$out" | grep -qi 'still OPEN' && echo "$out" | grep -q '§2'; then
+  ok "task-retrospective's mechanical current.json arms the correction ledger without the env var"
+else
+  no "current.json (status: armed) should arm the correction ledger" "got: $(echo "$out" | head -c220)"
+fi
 
-echo "[36] claim_without_evidence: a real 'cat' command (word-bounded) DOES count as verification"
-# True-positive preservation: the same keyword as a standalone token must still
-# register as evidence and silence the claim.
-TX="$TRANSCRIPT_DIR/t36.jsonl"
-write_transcript "$TX" \
-  "$(assistant_tool_use Bash '{"command":"cat build/output.log"}')" \
-  "$(assistant_text 'all done!' u1)"
-out=$(call cc36 sk35 "$TX" s36)
-if [ -z "$out" ]; then ok "real 'cat' counts as verification → silent"; else no "real 'cat' counts as verification → silent" "got: $(echo "$out" | head -c200)"; fi
+# [34j] (allowlist-scoped ledger opening via the retired COMPLIANCE_CANARY_
+# PROBE_SKILLS legacy feature) deleted 2026-07-19 — that mechanism no longer
+# exists. Its property ("ledger OPENING happens even when the probe is
+# excluded from DISPLAY") is already covered by [34a]-[34o]: call34() never
+# sets COMPLIANCE_CANARY_PROBE_IDS, so sk34's user_correction probe is
+# excluded from frontier's display scope (frontier_ids) in every one of
+# those tests, yet the correction ledger still opens/resolves correctly.
+
+# [35]/[36] (probe-declared verify_tools/verify_keywords substring/word-
+# boundary matching, incl. custom 'cat' keyword) deleted 2026-07-19 with the
+# retired legacy keyword-scan path in detect_claim_without_evidence — under
+# frontier's evidence_class mechanism (test_profiles.py) a probe cannot
+# declare its own ad hoc verify_keywords at all, and 'cat' specifically is
+# not in the fixed filesystem/diff command classifier
+# (git diff|status|stat|ls|find|rg|grep|jq|shasum), so 'cat' is not evidence
+# under frontier by design (unlike under the retired legacy scan). Frontier's
+# real word-boundary/incidental-substring safety is covered directly by
+# test_profiles.py's incidental-result-keywords/incidental-command-path
+# cases.
 
 echo "[37] state_lock: a body exception propagates cleanly (not swallowed/replaced)"
 # Exception-safety fix: with state_lock(path) must let a body ValueError
@@ -831,7 +916,8 @@ pay39=$(python3 -c "
 import json,sys
 print(json.dumps({'session_id':'s39','transcript_path':sys.argv[1],'hook_event_name':'UserPromptSubmit','prompt':'explain how this works in depth'}))
 " "$TXW")
-out=$(printf '%s' "$pay39" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc39" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk39" "${HOOK[@]}")
+out=$(printf '%s' "$pay39" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc39" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk39" \
+  COMPLIANCE_CANARY_PROBE_IDS="$(_probe_ids_for sk39)" "${HOOK[@]}")
 if [ -z "$out" ]; then ok "warranted (detail) prompt → creep suppressed"; else no "warranted prompt → suppressed" "got: $(echo "$out" | head -c150)"; fi
 
 echo "[40] word_count warrant: trivial prompt still fires"
@@ -839,96 +925,16 @@ pay40=$(python3 -c "
 import json,sys
 print(json.dumps({'session_id':'s40','transcript_path':sys.argv[1],'hook_event_name':'UserPromptSubmit','prompt':'fix the typo'}))
 " "$TXW")
-out=$(printf '%s' "$pay40" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc40" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk39" "${HOOK[@]}")
+out=$(printf '%s' "$pay40" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc40" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk39" \
+  COMPLIANCE_CANARY_PROBE_IDS="$(_probe_ids_for sk39)" "${HOOK[@]}")
 if emitted "$out" && echo "$out" | grep -q 'word_count_per_message'; then ok "unwarranted (trivial) prompt → creep fires"; else no "trivial prompt → fires" "got: $(echo "$out" | head -c150)"; fi
 
-# ======================================================================
-# Periodic re-anchor (absorbed skill-pulse, merged 2026-06-16). The second
-# mechanism: every Nth turn, re-state active skills' `pulse_reminder:` rules.
-# ======================================================================
-
-make_skill_with_pulse() {
-  # make_skill_with_pulse <skills_subdir> <dir_name> <yaml_name> <pulse_reminder> [extra_frontmatter_line]
-  local sk_root="$SKILLS_ROOT/$1"; local dir="$2"; local nm="$3"; local pr="$4"; local extra="${5:-}"
-  mkdir -p "$sk_root/$dir"
-  {
-    echo "---"
-    echo "name: $nm"
-    echo "description: Test skill $nm. Second sentence here."
-    [ -n "$pr" ] && echo "pulse_reminder: $pr"
-    [ -n "$extra" ] && echo "$extra"
-    echo "---"
-    echo "body"
-  } > "$sk_root/$dir/SKILL.md"
-}
-
+# Periodic re-anchor (Mechanism 2, tests [41]-[50]/[54]) and its
+# make_skill_with_pulse fixture were deleted 2026-07-19 along with the
+# legacy profile that was its sole gate (discover_pulse_skills/
+# parse_frontmatter/first_sentence no longer exist in hook.py — not
+# rehomed, unlike Mechanism 4's correction ledger).
 EMPTYTX="$TRANSCRIPT_DIR/empty.jsonl"; : > "$EMPTYTX"
-
-echo "[41] re-anchor: silent below cadence, fires on cadence turn (PULSE_EVERY=2)"
-make_skill_with_pulse skp1 caveman caveman-ultra "terse — drop filler"
-o1=$(call ccp1 skp1 "$EMPTYTX" sp1 COMPLIANCE_CANARY_PULSE_EVERY=2)
-o2=$(call ccp1 skp1 "$EMPTYTX" sp1 COMPLIANCE_CANARY_PULSE_EVERY=2)
-if [ -z "$o1" ] && emitted "$o2" && echo "$o2" | grep -q 're-anchor (turn 2)' && echo "$o2" | grep -q 'caveman-ultra: terse'; then
-  ok "re-anchor fires on cadence turn, silent before"; else no "re-anchor cadence" "t1=[$o1] t2=[$(echo "$o2"|head -c80)]"; fi
-
-echo "[42] re-anchor: repeats on turn 4, silent on turn 3 (off-cadence)"
-o3=$(call ccp1 skp1 "$EMPTYTX" sp1 COMPLIANCE_CANARY_PULSE_EVERY=2)   # turn3
-o4=$(call ccp1 skp1 "$EMPTYTX" sp1 COMPLIANCE_CANARY_PULSE_EVERY=2)   # turn4
-if [ -z "$o3" ] && echo "$o4" | grep -q 're-anchor (turn 4)'; then ok "re-anchor repeats on cadence, silent between"; else no "re-anchor repeat" "t3=[$o3] t4=[$(echo "$o4"|head -c80)]"; fi
-
-echo "[43] re-anchor: skill WITHOUT pulse_reminder is excluded"
-make_skill_with_pulse skp2 withpr has-pr "rule A"
-make_skill_with_pulse skp2 nopr no-pr ""        # no pulse_reminder line
-call ccp2 skp2 "$EMPTYTX" sp2 COMPLIANCE_CANARY_PULSE_EVERY=2 >/dev/null
-o=$(call ccp2 skp2 "$EMPTYTX" sp2 COMPLIANCE_CANARY_PULSE_EVERY=2)
-if echo "$o" | grep -q 'has-pr: rule A' && ! echo "$o" | grep -q 'no-pr'; then ok "no-pulse_reminder skill excluded"; else no "pulse exclusion" "got: $(echo "$o"|head -c120)"; fi
-
-echo "[44] re-anchor YIELDS to a fired probe on a shared cadence turn (no double-nag)"
-# Skill carries BOTH a pulse_reminder AND a filler probe; transcript has filler.
-make_skill_with_pulse skp3 caveman caveman-ultra "terse — drop filler"
-cat > "$SKILLS_ROOT/skp3/caveman/drift_probes.json" <<'EOF'
-[{"id":"filler","kind":"forbidden_regex","pattern":"(?i)\\bcertainly\\b","message":"no certainly"}]
-EOF
-TXF="$TRANSCRIPT_DIR/t44.jsonl"
-write_transcript "$TXF" "$(assistant_text 'Certainly! Proceeding now.' u1)"
-# turn1 CLEAN (no fire, no cooldown set); turn2 = cadence AND fresh filler →
-# probe fires, re-anchor must yield. (If turn1 had filler too, cooldown would
-# suppress the turn2 fire — a separate, already-tested behavior.)
-call ccp3 skp3 "$EMPTYTX" sp3 COMPLIANCE_CANARY_PULSE_EVERY=2 >/dev/null   # turn1 clean
-o=$(call ccp3 skp3 "$TXF" sp3 COMPLIANCE_CANARY_PULSE_EVERY=2)            # turn2 cadence + filler
-if echo "$o" | grep -q 'forbidden_regex' && ! echo "$o" | grep -q 're-anchor'; then ok "probe fires; re-anchor yields"; else no "yield-on-shared-turn" "got: $(echo "$o"|head -c160)"; fi
-
-echo "[45] SKILL_PULSE_DISABLED=1: re-anchor off, but probe STILL fires (fresh session, turn 1)"
-o=$(call ccp3b skp3 "$TXF" sp3b COMPLIANCE_CANARY_PULSE_EVERY=2 SKILL_PULSE_DISABLED=1)
-if echo "$o" | grep -q 'forbidden_regex' && ! echo "$o" | grep -q 're-anchor'; then ok "pulse-disable ≠ probe-disable"; else no "SKILL_PULSE_DISABLED scope" "got: $(echo "$o"|head -c120)"; fi
-
-echo "[46] COMPLIANCE_CANARY_PULSE_EVERY=0 disables re-anchor (clean transcript → silent)"
-call ccp4 skp1 "$EMPTYTX" sp4 COMPLIANCE_CANARY_PULSE_EVERY=0 >/dev/null
-o=$(call ccp4 skp1 "$EMPTYTX" sp4 COMPLIANCE_CANARY_PULSE_EVERY=0)
-if [ -z "$o" ]; then ok "PULSE_EVERY=0 → re-anchor disabled"; else no "PULSE_EVERY=0" "got: $(echo "$o"|head -c120)"; fi
-
-echo "[47] cadence floor: PULSE_EVERY=1 clamps to 2 (silent on turn 1)"
-o1=$(call ccp5 skp1 "$EMPTYTX" sp5 COMPLIANCE_CANARY_PULSE_EVERY=1)   # turn1: if floored to 2, silent
-o2=$(call ccp5 skp1 "$EMPTYTX" sp5 COMPLIANCE_CANARY_PULSE_EVERY=1)   # turn2: fires
-if [ -z "$o1" ] && echo "$o2" | grep -q 're-anchor (turn 2)'; then ok "cadence floors to 2"; else no "cadence floor" "t1=[$o1] t2=[$(echo "$o2"|head -c80)]"; fi
-
-echo "[48] SKILL_PULSE_EVERY back-compat alias drives cadence"
-call ccp6 skp1 "$EMPTYTX" sp6 SKILL_PULSE_EVERY=2 >/dev/null
-o=$(call ccp6 skp1 "$EMPTYTX" sp6 SKILL_PULSE_EVERY=2)
-if echo "$o" | grep -q 're-anchor (turn 2)'; then ok "SKILL_PULSE_EVERY alias honored"; else no "alias cadence" "got: $(echo "$o"|head -c120)"; fi
-
-echo "[49] BOM-prefixed SKILL.md frontmatter still parses (skill not dropped)"
-mkdir -p "$SKILLS_ROOT/skp7/bomskill"
-printf '\xef\xbb\xbf---\nname: bom-skill\ndescription: x. y.\npulse_reminder: bom rule\n---\nbody\n' > "$SKILLS_ROOT/skp7/bomskill/SKILL.md"
-call ccp7 skp7 "$EMPTYTX" sp7 COMPLIANCE_CANARY_PULSE_EVERY=2 >/dev/null
-o=$(call ccp7 skp7 "$EMPTYTX" sp7 COMPLIANCE_CANARY_PULSE_EVERY=2)
-if echo "$o" | grep -q 'bom-skill: bom rule'; then ok "BOM frontmatter parsed"; else no "BOM tolerance" "got: $(echo "$o"|head -c120)"; fi
-
-echo "[50] allowlist forces inclusion w/ description first-sentence fallback"
-make_skill_with_pulse skp8 nopr no-pr ""    # no pulse_reminder; desc = "Test skill no-pr. Second sentence here."
-call ccp8 skp8 "$EMPTYTX" sp8 COMPLIANCE_CANARY_PULSE_EVERY=2 COMPLIANCE_CANARY_PULSE_SKILLS=no-pr >/dev/null
-o=$(call ccp8 skp8 "$EMPTYTX" sp8 COMPLIANCE_CANARY_PULSE_EVERY=2 COMPLIANCE_CANARY_PULSE_SKILLS=no-pr)
-if echo "$o" | grep -q 'no-pr: Test skill no-pr'; then ok "allowlist + description fallback"; else no "allowlist fallback" "got: $(echo "$o"|head -c120)"; fi
 
 # ======================================================================
 # Robustness hardening (adversarial fuzz, 2026-06-16). Always-exit-0 must
@@ -958,21 +964,16 @@ TXR="$TRANSCRIPT_DIR/t53.jsonl"
 write_transcript "$TXR" "$(assistant_text 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!' u1)"
 pay53='{"session_id":"s53","transcript_path":"'"$TXR"'","prompt":"next"}'
 t0=$(python3 -c 'import time;print(time.time())')
-out=$(printf '%s' "$pay53" | timeout 6 env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc53" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk53" "${HOOK[@]}" 2>/dev/null); ec=$?
+out=$(printf '%s' "$pay53" | timeout 6 env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc53" COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk53" \
+  COMPLIANCE_CANARY_PROBE_IDS="$(_probe_ids_for sk53)" "${HOOK[@]}" 2>/dev/null); ec=$?
 t1=$(python3 -c 'import time;print(time.time())')
 elapsed=$(python3 -c "print($t1-$t0)")
 # exit 0, no output, and well under the 6s timeout wall (budget is 1.5s)
 if [ "$ec" -eq 0 ] && [ -z "$out" ] && python3 -c "import sys;sys.exit(0 if $elapsed < 4 else 1)"; then
   ok "ReDoS regex time-bounded (${elapsed%.*}s, exit 0, silent)"; else no "ReDoS guard" "exit=$ec elapsed=$elapsed out=[$out]"; fi
 
-echo "[54] runaway pulse_reminder is length-capped in the re-anchor"
-LONG=$(python3 -c "print('x'*600)")
-make_skill_with_pulse sk54 big big-skill "$LONG"
-call cc54 sk54 "$EMPTYTX" s54 COMPLIANCE_CANARY_PULSE_EVERY=2 >/dev/null
-o=$(call cc54 sk54 "$EMPTYTX" s54 COMPLIANCE_CANARY_PULSE_EVERY=2)
-line=$(echo "$o" | grep 'big-skill:')
-linelen=${#line}
-if echo "$line" | grep -q '…' && [ "$linelen" -lt 320 ]; then ok "pulse_reminder capped (line=$linelen chars, ellipsized)"; else no "pulse_reminder cap" "len=$linelen line=$(echo "$line"|head -c80)"; fi
+# [54] (pulse_reminder length cap) deleted 2026-07-19 with the retired
+# periodic re-anchor mechanism (not rehomed).
 
 # ======================================================================
 # early_stop detector (v1.11): fires when the closing turn is a forward
@@ -1048,7 +1049,8 @@ import json,sys
 print(json.dumps({'session_id':sys.argv[1],'transcript_path':sys.argv[2],'hook_event_name':'UserPromptSubmit','prompt':sys.argv[3]}))
 " "$sid" "$tx" "$prompt")
   printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/$state_sub" \
-    COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/$skills_sub" "$@" "${HOOK[@]}"
+    COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/$skills_sub" \
+    COMPLIANCE_CANARY_PROBE_IDS="$(_probe_ids_for "$skills_sub")" "$@" "${HOOK[@]}"
 }
 
 echo "[62] ledger: a user request is tracked and surfaced at a wrap-up turn"
@@ -1257,16 +1259,24 @@ out=$(call cc81 sk81 "$TX" s81)
 if ! echo "$out" | grep -q 'completion_without_closure'; then ok "sign-off → no false completion gate"; else no "N1 sign-off false-fire" "got: $(echo "$out"|head -c160)"; fi
 
 echo "[73] completion gate message names QUESTIONs (guards the copy-edit)"
-if grep -q 'QUESTION' "$TOOLS_DIR/../../verify-before-completion/drift_probes.json"; then ok "completion gate enumerates questions"; else no "completion gate names questions"; fi
+# Rehomed 2026-07-19 from verify-before-completion/drift_probes.json to
+# skills/compliance-canary/drift_probes.json — skill remains, probe is canary-owned.
+if grep -q 'QUESTION' "$TOOLS_DIR/../drift_probes.json"; then ok "completion gate enumerates questions"; else no "completion gate names questions"; fi
 
-echo "[82] drift-coupled: when a drift probe fires AND items are open, the open items ride along"
+echo "[82] drift-coupled surfacing is completion-claim-gated, not drift-fire-gated: a drift probe firing alone does NOT surface open ledger items"
+# Under the retired legacy profile, request-ledger surfacing also rode along
+# on any turn a drift probe fired. That coupling was legacy-only and was
+# retired with it 2026-07-19 (never rehomed) — frontier only surfaces open
+# items at a genuine wrap-up (completion_claim) or on explicit closure. This
+# asserts the CURRENT frontier behavior: the probe fires, but the ledger
+# stays silent absent a completion claim.
 FILLER='[{"id":"filler","kind":"forbidden_regex","pattern":"(?i)\\bcertainly\\b","message":"no certainly"}]'
 make_skill_with_probes sk82 cv "$FILLER"
 TXP="$TRANSCRIPT_DIR/t82p.jsonl"; write_transcript "$TXP" "$(assistant_text 'ok' u)"
 call_p cc82 sk82 "$TXP" s82 'add a retry cap to the loop' >/dev/null   # open item, turn 1
 TXF="$TRANSCRIPT_DIR/t82f.jsonl"; write_transcript "$TXF" "$(assistant_text 'Certainly! On it.' u82)"   # drift (filler) on turn 2
 out=$(call_p cc82 sk82 "$TXF" s82 'go on')
-if echo "$out" | grep -q 'forbidden_regex' && echo "$out" | grep -qi 'still open'; then ok "drift fires AND open items surfaced together"; else no "drift-coupled surfacing" "got: $(echo "$out"|head -c220)"; fi
+if echo "$out" | grep -q 'forbidden_regex' && ! echo "$out" | grep -qi 'still open'; then ok "drift fires; ledger stays quiet absent a completion claim"; else no "drift-coupled surfacing" "got: $(echo "$out"|head -c220)"; fi
 
 echo "[83] global kill silences nags but still RECORDS the request (ledger never disabled)"
 TX="$TRANSCRIPT_DIR/t83.jsonl"; write_transcript "$TX" "$(assistant_text 'ok' u83)"
@@ -1668,50 +1678,9 @@ PY
 out=$(call cc93o tl "$TX" s93o)
 if [ -z "$out" ]; then ok "3 exempt apply_patch calls amid JavaScript arrows stay quiet"; else no "JavaScript arrows should not become Bash redirections" "got: $(echo "$out"|head -c160)"; fi
 
-# ======================================================================
-# Mechanism 5: probe escalation (advisory→blocking after 3 uncorrected fires)
-# Stateless from probe_history; clears after 3 silent turns. Direct-asserts.
-# ======================================================================
-ESC_PY='import sys; sys.path.insert(0,"'"$TOOLS_DIR"'"); import hook
-def esc(hist, turn): return hook.build_probe_escalation_lines(hist, turn)
-def H(pid, *turns): return [{"probe_id": pid, "fired_at_turn": t} for t in turns]'
-
-echo "[96a] escalation trips: 3 fires, last one recent → blocking lines name the probe"
-r=$(python3 -c "$ESC_PY
-L=esc(H('vision:claim-without-render',2,5,8), 9)
-print('yes' if L and 'ESCALATION' in L[0] and any('vision:claim-without-render' in x and '3 fires' in x for x in L) else 'no:'+repr(L)[:120])")
-if [ "$r" = yes ]; then ok "3 recent fires escalate"; else no "escalation did not trip" "$r"; fi
-
-echo "[96b] negative: 2 fires never escalate (threshold is 3)"
-r=$(python3 -c "$ESC_PY
-print('yes' if esc(H('x:p',5,8), 9)==[] else 'no')")
-if [ "$r" = yes ]; then ok "2 fires stay advisory"; else no "under-threshold escalated"; fi
-
-echo "[96c] clears on observed correction: 3 fires but silent >=3 turns → no lines"
-r=$(python3 -c "$ESC_PY
-print('yes' if esc(H('x:p',2,5,8), 11)==[] and esc(H('x:p',2,5,8), 10)!=[] else 'no')")
-if [ "$r" = yes ]; then ok "silence clears at exactly +$((3)) turns"; else no "clear boundary wrong"; fi
-
-echo "[96d] independence: only the repeat offender escalates, not co-firing probes"
-r=$(python3 -c "$ESC_PY
-L=esc(H('bad:p',3,6,9)+H('ok:p',9), 9)
-print('yes' if any('bad:p' in x for x in L) and not any('ok:p' in x for x in L) else 'no')")
-if [ "$r" = yes ]; then ok "per-probe isolation"; else no "co-firing probe wrongly escalated"; fi
-
-echo "[96e] end-to-end: escalation line reaches hook stdout via build_output path"
-SESC="sesc"; TESC="$TRANSCRIPT_DIR/tesc.jsonl"; write_transcript "$TESC" "$(assistant_text 'ok.' uesc)"
-COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cesc" python3 - <<PYEOF
-import json, os, sys
-sys.path.insert(0, "$TOOLS_DIR"); import hook
-p = hook.state_path("$SESC")
-os.makedirs(os.path.dirname(p), exist_ok=True)
-st = hook.load_state(p)
-st["turn_count"] = 8
-st["probe_history"] = [{"probe_id":"vision:claim-without-render","fired_at_turn":t} for t in (2,5,8)]
-hook.save_state(p, st)
-PYEOF
-out=$(call_p cesc skesc "$TESC" "$SESC" 'continue')
-if echo "$out" | grep -q 'ESCALATION' && echo "$out" | grep -q 'closeout-blocking gate'; then ok "escalation surfaces in hook output"; else no "escalation missing from output" "got: $(echo "$out"|head -c200)"; fi
+# Mechanism 5 (probe escalation, tests [96a]-[96e]) was deleted 2026-07-19
+# with the retired legacy profile — build_probe_escalation_lines no longer
+# exists in hook.py; not rehomed (unlike Mechanism 4's correction ledger).
 
 # ======================================================================
 # Live-monitoring drift probes (3 new probes, canary Mechanism 5 follow-up):
@@ -2111,6 +2080,74 @@ write_transcript "$TX" \
   "$(assistant_tool_use Agent '{"subagent_type":"builder","prompt":"Root cause: exporter buffers whole file. Replace read() with 64KB chunked reads in export.py lines 40-55; gate: pytest tests/test_export.py."}')"
 out=$(call cc113 sk111 "$TX" s113)
 if [ -z "$out" ]; then ok "spec'd builder brief → silent"; else no "spec'd builder brief → silent" "got: $(echo "$out"|head -c200)"; fi
+
+# ======================================================================
+# [114] Precision fix (2026-07-20): claim-without-evidence false-fire corpus —
+# 14 REAL false-fires captured from one live session
+# (skills/compliance-canary/tests/fixtures/false_fires_20260720.md),
+# deduplicated to 10 distinct reply texts
+# (tests/fixtures/false_fires_20260720.json). Each used the SHIPPED
+# claim-without-evidence probe (loaded from the real drift_probes.json, same
+# technique [103a] used for REAL_STALL_PROBE) and legitimately fired on live
+# turns that were either (a) SUMMARIZING already-verified work with the
+# verification numbers/commit hash quoted in the reply itself, or (b)
+# reporting a delegated lane/background agent's RUNNING/PENDING status — a
+# frontier main-loop has no fresh tool call for either case. Both must now be
+# SILENT (see _SELF_QUOTED_EVIDENCE_RE / _PENDING_DELEGATION_RE in hook.py).
+# ======================================================================
+REAL_CLAIM_PROBE="$(python3 -c "
+import json
+probes = json.load(open('$TOOLS_DIR/../drift_probes.json'))
+sel = [p for p in probes if p.get('id') == 'claim-without-evidence']
+assert sel, 'claim-without-evidence probe missing from shipped drift_probes.json'
+print(json.dumps(sel))
+")"
+mkdir -p "$SKILLS_ROOT/ffc/compliance-canary"
+printf '%s\n' "$REAL_CLAIM_PROBE" > "$SKILLS_ROOT/ffc/compliance-canary/drift_probes.json"
+
+FIXTURES_JSON="$TOOLS_DIR/../tests/fixtures/false_fires_20260720.json"
+FIXTURE_IDS=$(python3 -c "
+import json
+for e in json.load(open('$FIXTURES_JSON')):
+    print(e['id'])
+")
+n=0
+for fid in $FIXTURE_IDS; do
+  n=$((n+1))
+  echo "[114.$n] false-fire corpus: $fid stays SILENT under the shipped claim-without-evidence probe"
+  TX="$TRANSCRIPT_DIR/ffc_$fid.jsonl"
+  python3 -c "
+import json
+fixtures = json.load(open('$FIXTURES_JSON'))
+text = next(e['text'] for e in fixtures if e['id'] == '$fid')
+print(json.dumps({'type':'assistant','message':{'role':'assistant','content':[{'type':'text','text':text}]}}))
+" > "$TX"
+  out=$(call "cc_ffc_$fid" ffc "$TX" "s_ffc_$fid")
+  if ! echo "$out" | grep -q 'claim_without_evidence'; then
+    ok "false-fire corpus $fid stays silent"
+  else
+    no "false-fire corpus $fid must stay silent" "got: $(echo "$out" | head -c200)"
+  fi
+done
+
+echo "[115] false-fire fix does NOT weaken recall: 3 NEW unverified true-positive claims (no quoted evidence, no pending-delegation language, no tool evidence anywhere) still fire"
+NEW_TP=(
+  "All done -- all tests pass! Shipping this now."
+  "Fixed the bug and verified it works correctly."
+  "Implementation complete, build passes, ready to ship."
+)
+tp_n=0
+for tp in "${NEW_TP[@]}"; do
+  tp_n=$((tp_n+1))
+  TX="$TRANSCRIPT_DIR/tp_$tp_n.jsonl"
+  write_transcript "$TX" "$(assistant_text "$tp" "utp$tp_n")"
+  out=$(call "cc_tp_$tp_n" ffc "$TX" "s_tp_$tp_n")
+  if emitted "$out" && echo "$out" | grep -q 'claim_without_evidence'; then
+    ok "new true-positive #$tp_n still fires ('$tp')"
+  else
+    no "new true-positive #$tp_n must still fire ('$tp')" "got: $(echo "$out" | head -c200)"
+  fi
+done
 
 # ----------------------------------------------------------------------
 echo

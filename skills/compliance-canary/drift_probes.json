@@ -7,6 +7,47 @@
     "message": "tool-error rate over the recent window crossed 25% — stop retrying variations; re-read the failing tool's contract (params, required prior calls like Read-before-Edit, cwd state) before the next attempt"
   },
   {
+    "id": "claim-without-evidence",
+    "kind": "claim_without_evidence",
+    "claim_pattern": "(?i)\\b(done|fixed|completed|passes|passing|verified|shipped|all set|working(?!\\s+(?:dir|directory|tree|copy|set|group))|ready(?!\\s+(?:queue|state|set|list)))\\b",
+    "lookback_tool_uses": 5,
+    "message": "recent reply claims work is done/fixed/passing, but no verification evidence matching the claim appears in the last 5 tool uses (no fresh, successful, post-edit check of the right class) — run a fresh check (test, build, lint, curl, etc.) and quote its output",
+    "severity": "warn",
+    "_note": "Rehomed 2026-07-19 from verify-before-completion (skill remains; probes now canary-owned like all default-on enforcement)."
+  },
+  {
+    "id": "edit-without-read",
+    "kind": "repeated_tool_error",
+    "pattern": "File has not been read yet",
+    "min_count": 2,
+    "message": "2+ Edit/Write attempts failed with 'File has not been read yet' — Read the target file with the Read tool before editing; bash cat/sed output does not register as a read",
+    "severity": "warn",
+    "_note": "Rehomed 2026-07-19 from verify-before-completion (skill remains; probes now canary-owned like all default-on enforcement)."
+  },
+  {
+    "id": "visual-claim-without-vision",
+    "kind": "claim_without_evidence",
+    "claim_pattern": "(?i)\\b(chart|diagram|graph|figure|render(?:ed|s|ing)?|screenshot|layout|mockup|plot|svg|png|jpe?g|pdf|visuali[sz]ation|the ui|web ?page|slide)\\b[^.?!\\n]{0,45}\\b(?:looks?|renders?|displays?|correct|good|right|fine|aligned|positioned|legible|readable)\\b",
+    "lookback_tool_uses": 6,
+    "message": "claimed a VISUAL / rendered output (chart, diagram, UI, PDF, image) looks correct without LOOKING at it — text-only checks miss occlusion, flattening, overlap, and scale. Open or screenshot the rendered artifact with a vision-capable tool (preview / screenshot, or Read the saved image) and verify it visually, or say it is unverified.",
+    "severity": "warn",
+    "_note": "Rehomed 2026-07-19 from verify-before-completion (skill remains; probes now canary-owned like all default-on enforcement)."
+  },
+  {
+    "id": "early-stop-on-promise",
+    "kind": "early_stop",
+    "message": "your last turn ended on a PLAN or a PROMISE ('I'll…/let me…/next I'll…') with no completion and no tool call — anti-early-stop: if your final paragraph is a plan or a promise, do that work NOW instead of yielding. Pause only for a genuine blocker — a destructive/irreversible action, a real scope change, or input only the user can give.",
+    "severity": "warn",
+    "_note": "Rehomed 2026-07-19 from verify-before-completion (skill remains; probes now canary-owned like all default-on enforcement)."
+  },
+  {
+    "id": "completion-without-closure",
+    "kind": "completion_without_closure",
+    "message": "you claimed the task is finished but did not ASK the user to confirm closure — do not self-close. Enumerate every distinct thing the user requested — INCLUDING every QUESTION they asked (state the answer, or why it is unanswered — not just adjacent work you did) — map each item to what you did (with verification evidence) or note why it is deferred, then explicitly ask the user whether the task can be closed.",
+    "severity": "warn",
+    "_note": "Rehomed 2026-07-19 from verify-before-completion (skill remains; probes now canary-owned like all default-on enforcement)."
+  },
+  {
     "id": "hook-output-anomaly",
     "kind": "forbidden_regex",
     "pattern": "(?:hook[^\\n]{0,40}(?:exit(?:ed|ing)?\\s+(?:code\\s+)?[1-9]|non-?zero\\s+exit|traceback)|(?:PreToolUse|UserPromptSubmit|PreCompact|SessionEnd)\\s+hook[^\\n]{0,60}(?:fail|error|block|denied))",

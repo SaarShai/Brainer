@@ -98,6 +98,5 @@ python3 skills/loop-engineering/tools/loop_lint.py --diagram <file>   # Mermaid 
 ## Files
 
 - [`tools/loop_lint.py`](tools/loop_lint.py) — static loop-spec linter; exit code = verdict.
-- [`tools/loop_run_monitor.py`](tools/loop_run_monitor.py) — runtime trace gate: stuck + cost-per-accepted-change.
 - [`tools/schema.md`](tools/schema.md) — loop-spec field reference.
 - [`../_shared/model_roster.py`](../_shared/model_roster.py) — detect reachable cross-vendor backends; render read-only advisor (diverge) / verifier (converge) dispatches. Native CLIs preferred; optional **OpenRouter** transport backfills absent lanes (`--via openrouter` to prefer it) and offers **Fusion** as an advisor (`--fusion`). Shared with [`verify-before-completion`](../verify-before-completion/SKILL.md).

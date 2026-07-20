@@ -129,9 +129,12 @@ def run(root: Path, transcript: list[dict], profile: str | None, session: str | 
 
 
 def install_fixtures(root: Path) -> None:
-    vbc = root / "skills" / "verify-before-completion"
-    vbc.mkdir(parents=True)
-    (vbc / "drift_probes.json").write_text(json.dumps([{
+    # Named "compliance-canary" (not "verify-before-completion") because the
+    # 2026-07-19 rehome moved the real claim-without-evidence probe there;
+    # FRONTIER_VERIFY_PROBE_IDS now gates on "compliance-canary:claim-without-evidence".
+    cc = root / "skills" / "compliance-canary"
+    cc.mkdir(parents=True)
+    (cc / "drift_probes.json").write_text(json.dumps([{
         "id": "claim-without-evidence",
         "kind": "claim_without_evidence",
         "claim_pattern": "(?i)\\b(pass|ready|done|fixed)\\b",
@@ -264,23 +267,174 @@ def main() -> int:
         check("genuine-wrap-up-surfaces-pending-intent",
               second.stdout.count("request(s) are still OPEN") == 1, second.stdout)
 
+        # legacy/shadow are retired (2026-07-19): PROFILES = {frontier, off}.
+        # A stale COMPLIANCE_CANARY_PROFILE=legacy/shadow must fail-safe
+        # normalize to frontier (never crash, never silently no-op) — assert
+        # byte-identical output to a genuine frontier run, plus the stderr
+        # warning active_profile() logs on the fallback.
         mixed = [claim("Certainly. The tests pass; this is ready.")]
-        frontier = run(root, mixed, "frontier", "frontier-equivalence")
-        shadow = run(root, mixed, "shadow", "shadow-equivalence")
-        check("shadow-frontier-output-equivalence", shadow.stdout == frontier.stdout,
-              f"frontier={frontier.stdout!r} shadow={shadow.stdout!r}")
-        frontier_repeat = run(root, mixed, "frontier", "frontier-equivalence")
-        shadow_repeat = run(root, mixed, "shadow", "shadow-equivalence")
-        check("shadow-repeat-keeps-task-output-equivalent", shadow_repeat.stdout == frontier_repeat.stdout,
-              shadow_repeat.stdout)
+        legacy_value = run(root, mixed, "legacy", "legacy-normalizes")
+        frontier_again = run(root, mixed, "frontier", "frontier-normalizes")
+        check("legacy-profile-value-normalizes-to-frontier-output",
+              legacy_value.stdout == frontier_again.stdout,
+              f"legacy={legacy_value.stdout!r} frontier={frontier_again.stdout!r}")
+        check("legacy-profile-value-logs-unknown-profile-fallback-warning",
+              "unknown-profile value='legacy'" in legacy_value.stderr
+              and "using frontier" in legacy_value.stderr,
+              legacy_value.stderr)
+        shadow_value = run(root, mixed, "shadow", "shadow-normalizes")
+        check("shadow-profile-value-normalizes-to-frontier-output",
+              shadow_value.stdout == frontier_again.stdout,
+              f"shadow={shadow_value.stdout!r} frontier={frontier_again.stdout!r}")
+
         records = [json.loads(line) for line in (root / "telemetry.jsonl").read_text().splitlines()]
-        suppressed = [r for r in records if r["session_hash"] and r["probe_id"] == "noisy:filler"]
-        check("shadow-logs-every-suppressed-repeat", len(suppressed) == 2 and
-              all(not row["emitted"] for row in suppressed))
         check("telemetry-schema-redacted", all(set(r) == {
             "session_hash", "turn", "mechanism", "probe_id", "emitted",
             "injected_bytes", "content_hash"
-        } for r in records))
+        } for r in records), repr(records[:3]))
+
+        # --- probe-ID migration alias (MINOR 1): a configured OLD id
+        # `verify-before-completion:<name>` (pre-2026-07-19 rehome) still
+        # selects the rehomed `compliance-canary:<name>` probe, with a
+        # one-line stderr warning naming the rename; an unrecognized id is
+        # unchanged (selects nothing, no crash, no warning).
+        alias_claim = [
+            tool_use("al1", "Bash", {"command": "echo status"}),
+            tool_result("al1", "nothing relevant"),
+            claim("all done"),
+        ]
+        aliased = run(root, alias_claim, "frontier", "probe-id-alias", extra_env={
+            "COMPLIANCE_CANARY_PROBE_IDS": "verify-before-completion:claim-without-evidence"})
+        check("probe-id-alias-selects-rehomed-probe",
+              aliased.stdout.count("[claim_without_evidence]:") == 1, aliased.stdout)
+        check("probe-id-alias-warns-on-stderr",
+              "probe-id-renamed: 'verify-before-completion:claim-without-evidence' -> "
+              "'compliance-canary:claim-without-evidence'" in aliased.stderr,
+              aliased.stderr)
+        unknown = run(root, alias_claim, "frontier", "probe-id-unknown", extra_env={
+            "COMPLIANCE_CANARY_PROBE_IDS": "nonexistent-skill:some-id"})
+        check("probe-id-unknown-id-selects-nothing-silently-no-warning",
+              not unknown.stdout and "probe-id-renamed" not in unknown.stderr,
+              (unknown.stdout, unknown.stderr))
+
+        # --- Mechanism 4: correction ledger rehomed into frontier (2026-07-19,
+        # LEARNING_CONTRACT §2) — ARMED-ONLY (2026-07-20 policy fix): an
+        # earlier unconditional reading regressed the frozen 862-case frontier
+        # trigger-gate corpus (FP=175, precision 65.2%). Armed (env var here;
+        # test.sh's [34q] covers the task-retrospective current.json signal),
+        # a correction-shaped prompt fires user_correction and opens a
+        # closeout-blocking OPEN item; a banked write_gate.py call (command
+        # position + a PASSED execution-evidence tool_result) resolves it and
+        # stops surfacing.
+        correction_skill = root / "skills" / "corrections"
+        correction_skill.mkdir(parents=True)
+        (correction_skill / "drift_probes.json").write_text(json.dumps([{
+            "id": "uc", "kind": "user_correction",
+            "pattern": r"(?i)(?:^\s*no[,. ]|i said\b)",
+            "message": "harvest the correction",
+        }]), encoding="utf-8")
+        armed_env = {"COMPLIANCE_CANARY_CORRECTION_LEDGER": "1"}
+        opened = run(root, [claim("ok, using tabs")], "frontier", "correction-rehome",
+                    prompt="no, I said use spaces not tabs", extra_env=armed_env)
+        check("frontier-correction-ledger-opens-on-fired-user-correction",
+              "correction(s) still OPEN" in opened.stdout and "§2" in opened.stdout,
+              opened.stdout)
+        bank_tx = [
+            tool_use("bank1", "Bash", {
+                "command": "python3 skills/write-gate/tools/write_gate.py score --json --text x"}),
+            tool_result("bank1", '{"verdict": "PASSED: ok"}'),
+            claim("banked the lesson"),
+        ]
+        banked = run(root, bank_tx, "frontier", "correction-rehome", prompt="go ahead",
+                    extra_env=armed_env)
+        check("frontier-correction-ledger-resolves-on-banked-write-gate-call",
+              "resolved 1 correction" in banked.stdout and "still OPEN" not in banked.stdout,
+              banked.stdout)
+        quiet = run(root, [claim("continuing")], "frontier", "correction-rehome", prompt="next",
+                   extra_env=armed_env)
+        check("frontier-correction-ledger-stays-quiet-once-resolved",
+              "correction ledger" not in quiet.stdout, quiet.stdout)
+
+        # --- ARMED-only boundary (2026-07-20): unarmed is fully inert — the
+        # user_correction probe still opens nothing and the ledger's state
+        # key is never written, even though the SAME probe fixture (sk
+        # "corrections") is discovered on every run.
+        unarmed = run(root, [claim("ok, using tabs")], "frontier", "correction-unarmed",
+                     prompt="no, I said use spaces not tabs")
+        check("unarmed-correction-ledger-stays-silent", not unarmed.stdout, unarmed.stdout)
+        check("unarmed-correction-ledger-writes-no-state-key",
+              "correction_ledger" not in state_file(root, "correction-unarmed"),
+              repr(state_file(root, "correction-unarmed")))
+
+        # --- ARMED context-safe matching (2026-07-20 reviewer fix) ---------
+        # The raw user_correction regex matched inside quoted/fenced text
+        # (2026-07-17 adversarial review: 250/400 false injections on this
+        # exact class). Import the frozen corpus's exact hard-negative case
+        # texts (eval/skills_effectiveness/cases.py) and run the REAL,
+        # tightened task-retrospective/wiki-memory patterns armed, over both
+        # the hard negatives (must stay silent) and a set of genuine
+        # correction-shaped prompts (must open the ledger).
+        _cases_path = HERE.parent.parent.parent / "eval" / "skills_effectiveness" / "cases.py"
+        _cases_spec = importlib.util.spec_from_file_location("cc_test_cases", _cases_path)
+        _cases_mod = importlib.util.module_from_spec(_cases_spec)
+        _cases_spec.loader.exec_module(_cases_mod)
+
+        for _skill_name in ("task-retrospective", "wiki-memory"):
+            _src = HERE.parent.parent / _skill_name / "drift_probes.json"
+            _dst_dir = root / "skills" / _skill_name
+            _dst_dir.mkdir(parents=True, exist_ok=True)
+            (_dst_dir / "drift_probes.json").write_text(
+                _src.read_text(encoding="utf-8"), encoding="utf-8")
+
+        armed_ctx_env = {"COMPLIANCE_CANARY_CORRECTION_LEDGER": "1"}
+        HARD_NEGATIVE_KINDS = ("bare_again", "quoted_article", "code_fence")
+        armed_fp = 0
+        armed_neg_total = 0
+        for kind in HARD_NEGATIVE_KINDS:
+            for i in range(5):
+                prompt = _cases_mod._NEG[kind].format(i=i)
+                armed_neg_total += 1
+                out = run(root, [claim("noted")], "frontier", f"ctxsafe-neg-{kind}-{i}",
+                          prompt=prompt, extra_env=armed_ctx_env)
+                fired_ledger = "correction(s) still OPEN" in out.stdout
+                if fired_ledger:
+                    armed_fp += 1
+                check(f"armed-hard-negative-{kind}-{i}-ledger-silent",
+                      not fired_ledger, out.stdout)
+        print(f"INFO armed-hard-negative-false-positive-count={armed_fp}/{armed_neg_total}")
+
+        genuine_corrections = [
+            "No, use tabs instead of spaces.",
+            "That's wrong, the port should be 8443.",
+            "You were wrong about that.",
+            "You didn't actually run the tests.",
+            "You just assumed the config was fine.",
+            "This is the second time you've made this mistake.",
+            "You keep making this mistake.",
+            "Every time I ask, you skip the check.",
+            "I told you to use spaces, not tabs.",
+            "Stop doing that.",
+            "Nope, that's not right.",
+            "Don't use tabs here.",
+        ]
+        armed_tp = 0
+        for i, prompt in enumerate(genuine_corrections):
+            out = run(root, [claim("ok, noted")], "frontier", f"ctxsafe-pos-{i}",
+                      prompt=prompt, extra_env=armed_ctx_env)
+            fired_ledger = "correction(s) still OPEN" in out.stdout and "§2" in out.stdout
+            if fired_ledger:
+                armed_tp += 1
+            check(f"armed-genuine-correction-{i}-ledger-opens", fired_ledger, out.stdout)
+        check("armed-genuine-corrections-at-least-ten", len(genuine_corrections) >= 10,
+              len(genuine_corrections))
+        print(f"INFO armed-genuine-correction-true-positive-count={armed_tp}/{len(genuine_corrections)}")
+
+        # "run it again" must NOT match armed; the tightened pattern dropped
+        # the bare `again` alternative entirely (2026-07-20).
+        again_out = run(root, [claim("ok, noted")], "frontier", "ctxsafe-run-again",
+                        prompt="run it again", extra_env=armed_ctx_env)
+        check("armed-run-it-again-stays-silent",
+              "correction(s) still OPEN" not in again_out.stdout, again_out.stdout)
 
         # --- notification evidence boundary (2026-07-18) -------------------
         timer_prompt = notification('Timer "focus-25m" completed (exit code 0)')
@@ -291,7 +445,7 @@ def main() -> int:
                       if r["mechanism"] == "suppressed_notification"]
         check("notification-suppression-telemetry-logged",
               len(suppressed) == 1 and not suppressed[0]["emitted"]
-              and suppressed[0]["probe_id"] == "verify-before-completion:claim-without-evidence",
+              and suppressed[0]["probe_id"] == "compliance-canary:claim-without-evidence",
               repr(suppressed))
         pending = state_file(root, "notif-timer").get("notification_pending_content", [])
         check("notification-pointer-only-records-pending-content",
@@ -340,7 +494,7 @@ def main() -> int:
         markers = state_file(root, "notif-defer").get("deferred_fires", [])
         check("notification-suppression-persists-deferred-fire",
               len(markers) == 1
-              and markers[0]["probe_id"] == "verify-before-completion:claim-without-evidence"
+              and markers[0]["probe_id"] == "compliance-canary:claim-without-evidence"
               and markers[0]["deferred_at_turn"] == 1
               and markers[0]["notification_kind"] == "timer",
               repr(markers))
@@ -446,21 +600,24 @@ def main() -> int:
 
         # --- D5: the hook's format_one_probe fallback and drift_probes.json's
         # `message` are ONE wording (the two message sources had drifted).
-        vbc_probes = json.loads(
-            (HERE.parents[1] / "verify-before-completion" / "drift_probes.json").read_text(encoding="utf-8"))
-        vbc_message = next(p["message"] for p in vbc_probes if p["id"] == "claim-without-evidence")
+        # Sourced from the REAL shipped skills/compliance-canary/drift_probes.json
+        # (rehomed 2026-07-19 from verify-before-completion; skill remains, but
+        # the probe file and its qualified id are now canary-owned).
+        cc_probes = json.loads(
+            (HERE.parents[1] / "compliance-canary" / "drift_probes.json").read_text(encoding="utf-8"))
+        cc_message = next(p["message"] for p in cc_probes if p["id"] == "claim-without-evidence")
         spec = importlib.util.spec_from_file_location("compliance_canary_hook", HOOK)
         hook_mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(hook_mod)
-        bare_probe = {"_skill": "verify-before-completion",
-                      "_probe_id": "verify-before-completion:claim-without-evidence",
+        bare_probe = {"_skill": "compliance-canary",
+                      "_probe_id": "compliance-canary:claim-without-evidence",
                       "kind": "claim_without_evidence",
                       "_result": {"claim": "done", "lookback": 5}}
         fallback_line = hook_mod.format_one_probe(dict(bare_probe))
-        message_line = hook_mod.format_one_probe(dict(bare_probe, message=vbc_message))
+        message_line = hook_mod.format_one_probe(dict(bare_probe, message=cc_message))
         check("claim-fallback-matches-drift-probes-message",
               fallback_line == message_line
-              == f"- verify-before-completion [claim_without_evidence]: {vbc_message}",
+              == f"- compliance-canary [claim_without_evidence]: {cc_message}",
               repr((fallback_line, message_line)))
 
         # --- verbatim intent log (L0 no-drop capture) ----------------------

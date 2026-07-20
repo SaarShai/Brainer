@@ -373,6 +373,35 @@ default frontier profile — see `FRONTIER_VERIFY_PROBE_IDS` in
 
 Bodies live in git history (`git show f9740a4^:skills/<name>/SKILL.md`).
 
+## compliance-canary: legacy/shadow profile retirement (2026-07-19)
+
+Retired the `legacy` and `shadow` canary profiles; `PROFILES` is now
+`{frontier, off}`. Both profiles cost machinery with no default-on path
+(legacy: periodic re-anchor, allowlist-scoped probe selection, probe
+escalation; shadow: byte-identical-output equivalence checking plus a
+suppressed-legacy-surface telemetry mirror) — the same "rehomed probes are
+live only in the non-default legacy/shadow profiles" gap the v1.12 contraction
+above had already flagged for the *skill* catalog, now applied to canary's own
+internal profile matrix. Net: `hook.py` −256 lines (445 removed / 189 added),
+`tools/test.sh` −91 lines net (194 removed / 103 added, default profile
+switched from `legacy` to `frontier`, auto probe-id selection added so the
+existing detector-kind corpus runs under frontier instead of the retired
+implicit "select every discovered probe"), `SKILL.md` −21 lines net (Mechanism
+2 periodic-re-anchor section deleted, profile table collapsed to
+frontier/off). A stale `COMPLIANCE_CANARY_PROFILE=legacy`/`shadow` value now
+fails safe (normalizes to `frontier`, logs a warning) rather than being a
+live-but-undocumented deployment mode.
+
+One capability was rehomed rather than deleted: Mechanism 4 (the correction
+ledger, LEARNING_CONTRACT §2 enforcement) moved from legacy-only into
+`frontier` — a fired `user_correction` probe still opens a closeout-blocking
+ledger item regardless of frontier's compact display scope, and it still
+resolves only on a banked `write_gate.py`/`wiki.py new` call with paired
+execution evidence or an explicit user close. Mechanism 5 (probe escalation,
+LEARNING_CONTRACT §8) was deleted outright, not rehomed — no design contract
+called for preserving it, and it had no rehome path independent of the
+periodic-re-anchor cadence it escalated against.
+
 ## Catalog cuts (v1.6.0–1.6.1 — 19 → 15 skills)
 
 Trimmed the unproven-gain tail. Principle: a skill stays only if it's either **measured-positive** or **cheap + load-bearing-by-design** (operational utility, no gain claim). A skill that is *both* ❌/🟡 on measured benefit *and* redundant with a kept skill is dead weight — cut it.
@@ -710,3 +739,29 @@ bash eval/finalize.sh
 - **Judge model**: `mimo-v2-flash` (after we discovered `mimo-v2.5-pro` exhausts max_tokens on reasoning_content for long candidates — see commit `5b5ed16`).
 - **Temperature**: 0.0 throughout.
 - **Sample sizes**: N=3 trials × 3–5 prompts for in-context discipline skills. N=1 × 13 mixed prompts for routing. N=1 real transcript for memory fidelity. Direction-of-effect is clear at these sizes; tighten the CI with Kaggle T4 batches when ready.
+
+## 2026-07-20 model-upgrade re-test ritual documented
+
+Added `docs/MODEL_UPGRADE_RETEST.md`: the standing operational ritual for
+re-testing Brainer's measured claims whenever a host adopts a new frontier
+model tier for main-loop work. It is the operational answer to the shelf-life
+doctrine (Every.to "The Case Against Skills"; a scaffold compensating for a
+model's weaknesses is a capability-dated artifact) surfaced by the 2026-07-16
+harmful-skills campaign, grounded directly in this file's own
+FRONTIER-vs-OFF null (19-task-family focused pilot, "2026-07-16
+skill-effectiveness verification campaign" above) and the 2026-07-18
+`no_improvement_n2_zero_better` DEMOTE verdict ("2026-07-18 long-horizon
+counted probe: SCORED" above). No new tooling: the ritual re-runs
+`focused_pilot.py`, spot-checks `compliance-canary`'s live hook against the
+new model's actual session prompts, greps the current auto-on skill list, and
+routes any resulting retire/demote decision through the normal branch +
+adversarial-review flow — reusing the preregistered gates in
+`docs/SKILLS_EFFECTIVENESS_VERIFICATION.md` rather than inventing new
+thresholds.
+
+## 2026-07-20 phase-2 follow-on lanes (2f-2i)
+
+- **2f — positive-phrasing directives.** Resident Code-craft directives block (install.sh CRAFT heredoc) rewritten from prohibition/coercion phrasing (never/STOP) to positive-example phrasing per Claude-4.x migration guidance; semantics, artifact names, failure-mode names frozen. Resident block 7164B → 7133B (H1a budget 7989B, PASS). Two golden-string literals in tests/test_frontier_defaults.py updated to the new phrasing.
+- **2g — claim-without-evidence precision.** A 14-fire live-session corpus (session 62ae33f7) showed the probe false-firing on replies that (a) quoted their own already-verified numbers/commit hashes or (b) reported a delegated lane's RUNNING/PENDING status. Added two text-only regexes (_SELF_QUOTED_EVIDENCE_RE, _PENDING_DELEGATION_RE) in detect_claim_without_evidence; corpus durable at skills/compliance-canary/tests/fixtures/false_fires_20260720.{md,json}. 10/10 deduplicated false-fires now silent; 3 new unverified-claim fixtures still fire; test.sh 169→182/182.
+- **2h — hybrid probe-root masking (Sol phase-2 MAJOR 2).** project_hook_precedence.py now exports the plugin skills root only when the project has no local probe-bearing .claude/skills, so hybrid installs discover project-local probes again while plugin-only installs keep the phase-2a fix. Union/multi-root semantics noted as future work.
+- **2i — canonical-deletion propagation (Sol phase-2 MAJOR 1).** sibling_sync_audit.py gains canon_deleted enumeration + classify_deleted (DELETE = byte-matches prior canonical history; CONFLICT = sibling-customized, never auto-deleted) and an opt-in --apply-deletions flag. Live read-only check vs screenery-lean: 4 retired files DELETE, its customized verify-before-completion/drift_probes.json correctly CONFLICT. scripts/-level files remain outside the tool's coverage model by design (flagged, not silently expanded).

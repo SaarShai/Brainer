@@ -25,10 +25,11 @@ UTF-8 bytes across the same 80 genuine reminders.
 
 ## Frozen trigger gate
 
-`cases.py` deterministically defines 850 cases (475 hard negatives / 375
-must-fire positives), grown by frozen-prefix generations: the original 500
+`cases.py` deterministically defines 862 cases (483 hard negatives / 379
+semantic positives), grown by frozen-prefix generations: the original 500
 (400 neg / 100 pos), +100 notification morphologies (600), +75 deferred-fire/
-timer/provenance shapes (675), +175 adversarial audit fault shapes (850).
+timer/provenance shapes (675), +175 adversarial audit fault shapes (850),
++12 subsequent additions (862; see git history of `cases.py`).
 Every earlier prefix stays byte-identical (digest-pinned in
 `test_skills_effectiveness.py`). NOTE: templated repetition means the 475
 negatives collapse to ~11 distinct shapes — treat results as a clustered
@@ -50,15 +51,15 @@ correction and error-loop cases are expected silent. Verification variants
 cover no evidence, failed evidence, stale/pre-mutation evidence, wrong evidence
 class, incidental keywords, and successful fresh post-mutation suppression.
 
-Run `shadow` separately: it has the same 50 output emissions as frontier, and
-the gate additionally requires byte-identical frontier output plus suppressed
-correction/error-loop telemetry for all 50 policy-silent semantic positives.
-Run `legacy` with 100 expected positive emissions to measure the rollback/full
-surface. On 2026-07-16 the current corpus measured frontier and shadow at
-TP=50/FP=0/FN=0, with shadow telemetry/output equivalence passing. Legacy
-measured TP=85/FP=250/FN=15 and failed all precision/FIR gates; the failure is
-retained rather than weakening labels. Exact result files were ephemeral `/tmp`
-artifacts, reproducible with these commands.
+Historical record (2026-07-16, three-profile world): the corpus measured
+frontier and shadow at TP=50/FP=0/FN=0, with shadow telemetry/output
+equivalence passing; legacy measured TP=85/FP=250/FN=15 and failed all
+precision/FIR gates, and the failure was retained rather than weakening
+labels. Exact result files were ephemeral `/tmp` artifacts, reproducible at
+the time with `--profile shadow` / `--profile legacy`. The `shadow` and
+`legacy` profiles were retired 2026-07-19 (PROFILES is now `{frontier, off}`
+in `skills/compliance-canary/tools/hook.py`); `--profile` only accepts
+`frontier` or `off` today.
 
 The gate requires reviewed precision at least 95%, false injection below 1%,
 and a one-sided 95% Wilson upper bound below 1%. With 400 negatives, zero false
@@ -256,3 +257,10 @@ longitudinal hook behavior. See
 ```bash
 python3 -m unittest discover -s eval/skills_effectiveness -p 'test_*.py'
 ```
+
+## Model-upgrade re-test
+
+When a host adopts a new frontier model tier for main-loop work, re-run this
+harness against it rather than assuming prior verdicts still hold — see
+`docs/MODEL_UPGRADE_RETEST.md` for the standing ritual (which commands to
+re-run, in what order, against which preregistered thresholds).

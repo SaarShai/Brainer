@@ -1,38 +1,38 @@
 #!/usr/bin/env python3
 r"""compliance-canary UserPromptSubmit hook — the single drift watcher.
 
-Five anti-drift mechanisms in ONE hook process (skill-pulse was folded in
+Three anti-drift mechanisms in ONE hook process (skill-pulse was folded in
 here 2026-06-16 — one reactive hook instead of two, the leaner target the
 eval notes had flagged; the request ledger was added 2026-06-17; the
-correction ledger and probe escalation close the LEARNING_CONTRACT §2/§8
-gaps):
+correction ledger closes the LEARNING_CONTRACT §2 gap). Two profiles only:
+`frontier` (default-on) and `off` (a true experimental control — see
+PROFILES below). The legacy and shadow profiles (periodic re-anchor,
+allowlist-scoped probe selection, probe escalation, and shadow's
+suppressed-surface telemetry) were retired 2026-07-19: they cost ~450
+hook.py lines and served no default-on path. The one capability worth
+keeping — the correction ledger (Mechanism 4) — was rehomed into frontier;
+the rest (Mechanism 2 periodic re-anchor, Mechanism 5 probe escalation) is
+deleted outright. Numbering below keeps the surviving mechanisms' original
+numbers (1, 3, 4) rather than renumbering, to match in-code comments/tests.
 
   1. SYMPTOMATIC probes (every turn) — detect per-skill drift symptoms in
      recent assistant messages / tool results and inject a targeted,
      evidence-quoting corrective. Silent until a symptom shows.
-  2. PERIODIC re-anchor (every Nth turn, legacy profile) — unconditionally
-     re-state the active skills' rules before they fade from attention.
-     Paper-calibrated cadence (arXiv 2510.07777). Covers rules that have NO
-     symptom probe.
-  3. REQUEST ledger (every turn, every profile) — no user request is
-     dropped until it is completed or the user says so; open items surface
-     at wrap-up turns.
-  4. CORRECTION ledger (legacy profile) — a user correction stays
-     closeout-blocking until banked as a durable artifact or user-closed.
-  5. PROBE escalation (legacy profile) — repeated probe fires escalate from
-     advisory to closeout-blocking (LEARNING_CONTRACT §8).
+  3. REQUEST ledger (every turn) — no user request is dropped until it is
+     completed or the user says so; open items surface at wrap-up turns.
+  4. CORRECTION ledger (rehomed from legacy 2026-07-19) — a user correction
+     stays closeout-blocking until banked as a durable artifact or
+     user-closed (LEARNING_CONTRACT §2).
 
 Cross-cutting, same process: the verbatim INTENT LOG (every user-authored
-prompt, append-only — L0 of the no-drop guarantee) and, on the
-frontier/shadow profiles, the task-NOTIFICATION evidence boundary (a
-qualifying substrate notification IS the turn's evidence; suppression
-defers, never destroys — with full-transcript provenance and full-
-transcript pending-output read reconciliation).
+prompt, append-only — L0 of the no-drop guarantee) and the task-
+NOTIFICATION evidence boundary (a qualifying substrate notification IS the
+turn's evidence; suppression defers, never destroys — with full-transcript
+provenance and full-transcript pending-output read reconciliation).
 
 One process, one dir-walk, one transcript read, one state file, one injected
-<system-reminder>. The re-anchor YIELDS to fired probes on a shared turn
-(symptom correction is higher-signal and itself re-anchors) — a single global
-budget, so the mechanisms never double-nag.
+<system-reminder> — a single global budget shared by all three mechanisms
+(probes, request ledger, correction ledger), so they never double-nag.
 
 Per-skill probes are declared in `<.claude/skills>/<name>/drift_probes.json`:
 
@@ -76,16 +76,12 @@ MAX_PROBES_TRIGGERED = 4          # cap symptomatic payload
 GC_AGE_SECONDS = 7 * 24 * 3600
 GC_SCAN_MAX = 500
 
-# Periodic re-anchor (absorbed skill-pulse). Cadence is paper-calibrated:
-# arXiv 2510.07777 tested reminder injections at turns 4 + 7 of 10-turn convos.
-CADENCE_DEFAULT = 4
-CADENCE_FLOOR = 2                 # a cadence below 2 re-anchors every turn — noise
-MAX_SKILLS_IN_PULSE = 8          # cap re-anchor payload
-MAX_REMINDER_CHARS = 280         # cap one re-anchor line (a runaway pulse_reminder)
-
-PROFILES = {"frontier", "shadow", "legacy", "off"}
+# Two profiles only (legacy/shadow retired 2026-07-19 — see module docstring).
+PROFILES = {"frontier", "off"}
 FRONTIER_VERIFY_PROBE_IDS = {
-    "verify-before-completion:claim-without-evidence",
+    # Rehomed 2026-07-19 from verify-before-completion (skill remains; probes
+    # now canary-owned like all default-on enforcement).
+    "compliance-canary:claim-without-evidence",
     # Borrow-checkpoint enforcement (research-and-borrow handoff 2026-07-18):
     # narrow path-name trigger + explicit checkpoint-line suppression keeps the
     # false-fire surface small enough for the frontier emit set.
@@ -135,6 +131,32 @@ def strip_code(text: str) -> str:
     return text
 
 
+# Context-safe matching for the `user_correction` probe KIND only (2026-07-20
+# reviewer fix): the raw regex matched inside quoted/fenced text the user was
+# merely POINTING AT, not a live correction directed at the agent — the
+# 2026-07-17 adversarial review measured this exact false-injection class at
+# 250/400 on the frozen corpus's quoted-article/code-fence hard negatives.
+# Strip fenced code blocks, inline backtick spans, double-quoted spans, and
+# markdown `>` blockquote lines from the CURRENT USER PROMPT before matching —
+# applied only inside detect_user_correction for the `user_correction` kind
+# (never `prompt_intent`, which shares the same detector function but keeps
+# its own frozen corpus behavior; never any other detector/kind, all of which
+# are frozen/gated). Unlike strip_code() above (built for ASSISTANT text,
+# where a whitespace backtick span may be a done-claim styled in backticks
+# worth preserving), this runs on the raw user prompt: there is no such case
+# to preserve here, so every span is fully removed, not unwrapped.
+_DQUOTE_SPAN_RE = re.compile(r'"[^"\n]*"')
+_BLOCKQUOTE_LINE_RE = re.compile(r"(?m)^[ \t]*>.*$")
+
+
+def strip_quoted_and_code(text: str) -> str:
+    text = _CODE_BLOCK_RE.sub(" ", text)
+    text = _INLINE_CODE_RE.sub(" ", text)
+    text = _DQUOTE_SPAN_RE.sub(" ", text)
+    text = _BLOCKQUOTE_LINE_RE.sub(" ", text)
+    return text
+
+
 def _as_int(value, default: int = 0) -> int:
     """Coerce a persisted/state value to int without ever raising — a corrupted
     or null field must NOT crash the hook (the always-exit-0 contract)."""
@@ -150,7 +172,10 @@ def log_err(msg: str) -> None:
 
 
 def active_profile() -> str:
-    """Return the deployment profile, failing quiet and lean on bad input."""
+    """Return the deployment profile, failing quiet and lean on bad input.
+    Fail-safe normalization: any value outside PROFILES — including the
+    retired `legacy`/`shadow` profiles a stale env var might still set —
+    falls back to `frontier` rather than crashing or silently no-opting."""
     raw = os.environ.get("COMPLIANCE_CANARY_PROFILE", "frontier").strip().lower()
     if raw in PROFILES:
         return raw
@@ -158,16 +183,46 @@ def active_profile() -> str:
     return "frontier"
 
 
+# Bounded rename alias: a probe's `skill:id` prefix that moved to a new owning
+# skill (rehomed, not renamed-within-place) maps forward so a configured old
+# id keeps selecting the probe instead of silently selecting nothing. Add an
+# entry here ONLY for a confirmed rehome (never a generic fuzzy-match) — the
+# 2026-07-19 verify-before-completion -> compliance-canary probe rehome is the
+# one case today.
+_PROBE_ID_SKILL_RENAMES = {
+    "verify-before-completion": "compliance-canary",
+}
+
+
 def selected_probe_ids(defaults: set[str] | None = None) -> set[str]:
     """Exact probe-ID selector (`skill:id`), replacing skill-level selection.
 
     An unset variable uses ``defaults``. An explicitly empty value selects no
     probes, which is useful for controlled experiments without disabling state.
+    A `skill:id` whose skill prefix is a known rehome target (
+    `_PROBE_ID_SKILL_RENAMES`) is translated to the new owning skill, with a
+    one-line stderr warning naming the rename — the exact-match selector
+    otherwise fails silently (selects nothing) on a stale configured id.
     """
     raw = os.environ.get("COMPLIANCE_CANARY_PROBE_IDS")
     if raw is None:
         return set(defaults or ())
-    return {part.strip() for part in raw.split(",") if part.strip()}
+    ids: set[str] = set()
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        skill, sep, name = part.partition(":")
+        if sep and skill in _PROBE_ID_SKILL_RENAMES:
+            new_skill = _PROBE_ID_SKILL_RENAMES[skill]
+            new_id = f"{new_skill}:{name}"
+            log_err(f"probe-id-renamed: '{part}' -> '{new_id}' "
+                    f"({skill} probes were rehomed into {new_skill} 2026-07-19 — "
+                    f"update COMPLIANCE_CANARY_PROBE_IDS)")
+            ids.add(new_id)
+        else:
+            ids.add(part)
+    return ids
 
 
 def state_dir() -> Path:
@@ -203,6 +258,38 @@ def skills_root() -> Path:
     project = os.environ.get("CLAUDE_PROJECT_DIR")
     base = Path(project) if project else Path.cwd()
     return base / ".claude" / "skills"
+
+
+def correction_ledger_armed() -> bool:
+    """Mechanism 4 (correction ledger) is ARMED-ONLY (2026-07-19/20 policy fix
+    — LEARNING_CONTRACT §2): an earlier unconditional reading regressed the
+    frozen 862-case frontier trigger-gate corpus (FP=175, precision 65.2% —
+    bare-again/quoted-article/code-fence hard negatives all opened closeout-
+    blocking ledger items). A user correction is still always acted on and
+    acknowledged in the reply (Mechanism 1's symptomatic display, unaffected);
+    only the DURABLE-BANKING ledger requires arming. Armed via either:
+
+      (a) explicit COMPLIANCE_CANARY_CORRECTION_LEDGER=1, or
+      (b) task-retrospective's own mechanical armed-state file —
+          .brainer/task-retrospective/current.json with "status": "armed" —
+          anchored to CLAUDE_PROJECT_DIR/cwd exactly like state_dir()/
+          skills_root() above. That file exists iff a task-retrospective
+          session is currently armed (task_audit.py's `start` writes it,
+          `finish` unlinks it) — the one mechanical signal task-retrospective
+          exposes; there is no other machine-readable "armed" state, so this
+          is the whole armed-detection surface (a purely conversational
+          "I'm arming task-retrospective" with no `start` call leaves this
+          check unarmed by design, same as any other mechanical gate)."""
+    if os.environ.get("COMPLIANCE_CANARY_CORRECTION_LEDGER") == "1":
+        return True
+    project = os.environ.get("CLAUDE_PROJECT_DIR")
+    base = Path(project) if project else Path.cwd()
+    current = base / ".brainer" / "task-retrospective" / "current.json"
+    try:
+        data = json.loads(current.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(data, dict) and data.get("status") == "armed"
 
 
 @contextmanager
@@ -344,86 +431,6 @@ def discover_probes(root: Path) -> list[dict]:
     return out
 
 
-# -------------------------- periodic re-anchor (absorbed skill-pulse) -------
-# The probes above are SYMPTOMATIC. This second mechanism is UNCONDITIONAL: on
-# every Nth turn it re-states the active skills' `pulse_reminder:` rules so they
-# stay in effective attention. Curated, not noisy — a skill participates only if
-# its frontmatter declares `pulse_reminder:` (or it's force-listed via env).
-
-# `﻿?` tolerates a UTF-8 BOM before the opening fence — without it a
-# BOM-prefixed SKILL.md silently yields {} and the skill drops from the
-# re-anchor (the fix-one-copy-not-the-sibling divergence class).
-_FRONTMATTER_RE = re.compile(r"^﻿?---\s*\n(.*?)\n---\s*\n", re.DOTALL)
-
-
-def parse_frontmatter(text: str) -> dict:
-    """Minimal `key: value` frontmatter parser (no PyYAML dep). Handles plain
-    and quoted scalars — all this catalog's SKILL.md files use."""
-    m = _FRONTMATTER_RE.match(text)
-    if not m:
-        return {}
-    out: dict = {}
-    for raw in m.group(1).splitlines():
-        if not raw.strip() or raw.lstrip().startswith("#"):
-            continue
-        if ":" not in raw:
-            continue
-        key, _, val = raw.partition(":")
-        key = key.strip()
-        val = val.strip()
-        if len(val) >= 2 and val[0] == val[-1] and val[0] in ('"', "'"):
-            val = val[1:-1]
-        out[key] = val
-    return out
-
-
-def first_sentence(text: str) -> str:
-    if not text:
-        return ""
-    # Split on sentence-final punctuation + space so decimals / "e.g." survive.
-    parts = re.split(r"(?<=[.!?])\s+", text.strip(), maxsplit=1)
-    return parts[0].rstrip(".") if parts else text.strip()
-
-
-def discover_pulse_skills(root: Path, allowlist: set[str]) -> list[tuple[str, str]]:
-    """[(name, reminder), ...] for skills to re-anchor. Included iff frontmatter
-    has `pulse_reminder:`, OR the skill is named in `allowlist` (then fall back
-    to the first sentence of `description`). Deduped by the `name:` field."""
-    if not root.is_dir():
-        return []
-    seen: set[str] = set()
-    out: list[tuple[str, str]] = []
-    try:
-        for entry in sorted(root.iterdir()):
-            if not entry.is_dir():
-                continue
-            skill_md = entry / "SKILL.md"
-            if not skill_md.is_file():
-                continue
-            try:
-                text = skill_md.read_text(encoding="utf-8", errors="replace")
-            except OSError as e:
-                log_err(f"skill-read-fail path={skill_md} err={e!r}")
-                continue
-            fm = parse_frontmatter(text)
-            name = fm.get("name") or entry.name
-            if name in seen:
-                continue
-            reminder = fm.get("pulse_reminder")
-            if reminder:
-                out.append((name, reminder))
-                seen.add(name)
-                continue
-            if name in allowlist:
-                hint = first_sentence(fm.get("description", ""))
-                if hint:
-                    out.append((name, hint))
-                    seen.add(name)
-    except OSError as e:
-        log_err(f"discover-pulse-fail root={root} err={e!r}")
-    return out[:MAX_SKILLS_IN_PULSE]
-
-
 # -------------------------- transcript reading ------------------------------
 
 def _normalize_events(events: list[dict]) -> list[dict]:
@@ -451,7 +458,7 @@ def _record_trigger_matched_activations(fired: list[dict]) -> None:
     is a real session, not a fixture writer.
 
     This is telemetry, not a drift mechanism: it must NEVER affect drift
-    logic, the ledger, or the re-anchor, and it must NEVER be the thing that
+    logic or the ledgers, and it must NEVER be the thing that
     breaks the hook's always-exit-0 / <PROBE_TIMEOUT_SECONDS contract.
     record_activation() itself never raises (fails closed, returns False on
     any error) — this wrapper is belt-and-suspenders on top of that guarantee,
@@ -861,6 +868,34 @@ def detect_word_count_per_message(probe: dict, messages: list[dict], _tool_uses,
     return None
 
 
+# 2026-07-20 precision fix (14 live false-fires in one session — see
+# skills/compliance-canary/tests/fixtures/false_fires_20260720.md): the
+# tool-call evidence timeline below is legitimately EMPTY on a turn that (a)
+# SUMMARIZES already-verified work with the verification numbers or a commit
+# hash quoted right there in the reply, or (b) reports the RUNNING/PENDING
+# status of a delegated lane or background agent ("lane 5 is mid-work",
+# "the audits are running", "waiting on lane 2's report") — a frontier
+# main-loop has no fresh tool call for either case because the work was
+# verified/executed earlier or by someone else, not because it is unverified.
+# Both signals are read straight off the reply TEXT, independent of tool
+# history, so a bare unverified "done, tests pass" claim with neither signal
+# still fires exactly as before (RECALL unaffected — see test.sh/test_profiles.py).
+_SELF_QUOTED_EVIDENCE_RE = re.compile(
+    r"\b(\d{1,4})\s*/\s*\1\b"       # matching pass-count ratio, e.g. "105/105"
+    r"|`[0-9a-f]{7,12}`"             # backtick-wrapped commit hash, e.g. `8eaa45e`
+    r"|(?i:\bexits?\s+0\b)"          # quoted exit-code-0 evidence, e.g. "gate exits 0"
+)
+_PENDING_DELEGATION_RE = re.compile(
+    r"(?i:\b(?:is|are|remains?)\s+(?:still\s+)?(?:running|underway|alive|launched|"
+    r"in\s*progress|mid-work|pending)\b"
+    r"|\bin\s+flight\b"
+    r"|\bstill\s+(?:running|ahead|pending|gathering|drafting|exploring)\b"
+    r"|\bunderway\b"
+    r"|\bwake\s+armed\b"
+    r"|\bwaiting\s+on\b)"
+)
+
+
 def _claim_evidence_class(text: str, probe: dict) -> str:
     explicit = probe.get("evidence_class")
     if explicit in {"test/build", "filesystem/diff", "live service", "visual"}:
@@ -872,24 +907,6 @@ def _claim_evidence_class(text: str, probe: dict) -> str:
     if re.search(r"(?i)\b(test|tests|build|lint|check|passes|passing|green)\b", text):
         return "test/build"
     return "filesystem/diff"
-
-
-_HAYSTACK_DQUOTE_RE = re.compile(r'"(?:\\.|[^"\\])*"', re.S)
-_HAYSTACK_SQUOTE_RE = re.compile(r"'(?:\\.|[^'\\])*'", re.S)
-
-
-def _strip_quoted_args(cmd: str) -> str:
-    """Strip double/single-quoted STRING CONTENTS from a Bash command before
-    scanning verify_keywords — a keyword landing only inside a quoted
-    argument (e.g. the commit MESSAGE of `git commit -m "render this PR
-    obsolete, closing"`) is ordinary English inside a string literal, not
-    evidence the command actually invoked a verification tool (red-team
-    2026-07-11: this decoy shape defeated all 8 claim_without_evidence
-    probes in the catalog via each probe's own keyword list). Applied only
-    to the Bash `command` string on the legacy keyword-scan path."""
-    cmd = _HAYSTACK_DQUOTE_RE.sub(" ", cmd)
-    cmd = _HAYSTACK_SQUOTE_RE.sub(" ", cmd)
-    return cmd
 
 
 def detect_claim_without_evidence(probe: dict, messages: list[dict], tool_uses: list[dict], _tool_errors=None, user_prompt: str = "", traj_stats: dict | None = None) -> dict | None:
@@ -905,24 +922,16 @@ def detect_claim_without_evidence(probe: dict, messages: list[dict], tool_uses: 
     claim_match = claim_pat.search(last_text)
     if not claim_match:
         return None
+    # Precision fix (2026-07-20): the reply itself carries evidence the tool
+    # timeline can't see — see _SELF_QUOTED_EVIDENCE_RE/_PENDING_DELEGATION_RE
+    # above.
+    if _SELF_QUOTED_EVIDENCE_RE.search(last_text) or _PENDING_DELEGATION_RE.search(last_text):
+        return None
     try:
         lookback = int(probe.get("lookback_tool_uses", 5))
     except (TypeError, ValueError):
         log_err(f"bad-lookback probe={probe.get('_probe_id')} value={probe.get('lookback_tool_uses')!r}")
         lookback = 5
-    if (traj_stats or {}).get("profile") == "legacy":
-        verify_tools = set(probe.get("verify_tools", ["Bash"]))
-        keywords = [str(k).lower() for k in probe.get("verify_keywords", [])]
-        verify_re = (re.compile(r"\b(" + "|".join(re.escape(k) for k in keywords) + r")\b")
-                     if keywords else None)
-        for tool_use in tool_uses[-lookback:]:
-            if tool_use.get("name") not in verify_tools:
-                continue
-            inp = tool_use.get("input") or {}
-            haystack = (_strip_quoted_args(_command_from_input(inp)) if tool_use.get("name") == "Bash"
-                        else json.dumps(inp)).lower()
-            if verify_re is not None and verify_re.search(haystack):
-                return None
     evidence_class = _claim_evidence_class(last_text, probe)
     timeline = (traj_stats or {}).get("execution_timeline", {})
     last_mutation = _as_int(timeline.get("last_mutation_index"), -1)
@@ -1037,10 +1046,14 @@ def detect_user_correction(probe: dict, _messages, _tool_uses, _tool_errors=None
     except re.error as e:
         log_err(f"bad-regex probe={probe.get('_probe_id')} err={e!r}")
         return None
-    m = pat.search(user_prompt)
+    # Context-safe matching: only the `user_correction` kind (not
+    # `prompt_intent`, which shares this function) strips quoted/fenced spans
+    # before matching — see strip_quoted_and_code() above.
+    haystack = strip_quoted_and_code(user_prompt) if probe.get("kind") == "user_correction" else user_prompt
+    m = pat.search(haystack)
     if m:
         return {"matched": m.group(0),
-                "snippet": user_prompt[max(0, m.start() - 10): m.end() + 50].replace("\n", " ")}
+                "snippet": haystack[max(0, m.start() - 10): m.end() + 50].replace("\n", " ")}
     return None
 
 
@@ -1276,7 +1289,7 @@ DETECTORS["completion_without_closure"] = detect_completion_without_closure
 # surface quotes from it (build_ledger_lines); PLANNED close-boundary
 # reconciliation maps every captured intent to satisfied / deferred /
 # uncovered. Standing user directive: capture has NO opt-out flag —
-# frontier/shadow/legacy all capture. Two exceptions: profile `off` (the
+# frontier always captures. Two exceptions: profile `off` (the
 # experimental control arm) exits before ANY mutation, so it writes no
 # records; and the whole-hook COMPLIANCE_CANARY_DISABLED valve suppresses
 # capture like every other mechanism (F5c, 2026-07-18 audit — the request
@@ -1538,7 +1551,7 @@ def strip_harness_injected(text: str) -> str:
     return out.strip()
 
 
-# ---- task-notification evidence boundary (frontier/shadow only) -------------
+# ---- task-notification evidence boundary -------------------------------
 # A harness <task-notification> arrives on the UserPromptSubmit channel. When
 # it reports a TERMINAL SUCCESS for a self-contained substrate job kind (timer
 # wakeup / background command / advisor consult), the notification IS the
@@ -2348,59 +2361,6 @@ def build_correction_ledger_lines(open_items: list, closed_now: list, turn: int)
     return lines
 
 
-# --- Mechanism 5: probe escalation (LEARNING_CONTRACT §8, detection→prevention) --
-# Live evidence 2026-07-07 (screenery-lean + product-images monitoring): the same
-# advisory probe fired 3-5x uncorrected while the defect shipped — advisory
-# reminders lose to speed pressure. After ESCALATION_THRESHOLD fires with the
-# latest fire still recent, the probe stops being advice and becomes a
-# closeout-blocking directive. Stateless by design: derived from probe_history
-# every turn, so it clears itself only when the probe goes silent for
-# ESCALATION_CLEAR_TURNS consecutive turns (observed correction) — there is no
-# flag to forget and no state to rot.
-ESCALATION_THRESHOLD = 3      # fires (within the capped history) that trip escalation
-ESCALATION_CLEAR_TURNS = 3    # consecutive silent turns that prove correction
-ESCALATION_SHOW_MAX = 4       # max escalated probes surfaced per reminder
-
-
-def build_probe_escalation_lines(history: list, turn: int) -> list[str]:
-    counts: dict[str, int] = {}
-    last_fired: dict[str, int] = {}
-    for h in history:
-        if not isinstance(h, dict):
-            continue
-        pid = str(h.get("probe_id", ""))
-        if not pid:
-            continue
-        counts[pid] = counts.get(pid, 0) + 1
-        ft = _as_int(h.get("fired_at_turn"), 0)
-        if ft > last_fired.get(pid, 0):
-            last_fired[pid] = ft
-    escalated = sorted(
-        (pid for pid, n in counts.items()
-         if n >= ESCALATION_THRESHOLD
-         and turn - last_fired.get(pid, 0) < ESCALATION_CLEAR_TURNS),
-        key=lambda p: -counts[p])
-    if not escalated:
-        return []
-    lines = [
-        f"compliance-canary ESCALATION (turn {turn}): {len(escalated)} drift probe(s) "
-        f"fired {ESCALATION_THRESHOLD}+ times UNCORRECTED — advisory reminders have "
-        f"failed; each named rule is now a closeout-blocking gate (LEARNING_CONTRACT "
-        f"§8: detection is not prevention). Before ANY further progress or done-claim, "
-        f"perform the named rule's required action THIS turn and show its evidence "
-        f"(render/test/ledger write). Clears only after {ESCALATION_CLEAR_TURNS} "
-        f"consecutive turns without a re-fire:"
-    ]
-    for pid in escalated[:ESCALATION_SHOW_MAX]:
-        lines.append(
-            f"- {pid}: {counts[pid]} fires, last at turn {last_fired[pid]} — act now, "
-            f"do not acknowledge-and-continue")
-    extra = len(escalated) - ESCALATION_SHOW_MAX
-    if extra > 0:
-        lines.append(f"- (+{extra} more escalated)")
-    return lines
-
-
 # Ledger-materialization detector: fire when the user has raised
 # trackable requests but the agent shows no sign of MATERIALIZING the visible
 # ledger (no Edit/Write to a *ledger*.md and no TaskCreate/TaskUpdate). The
@@ -2854,9 +2814,10 @@ def format_one_probe(probe: dict) -> str:
         )
     if kind == "claim_without_evidence":
         # D5 (2026-07-19): this fallback is BYTE-IDENTICAL to the `message`
-        # field of verify-before-completion's claim-without-evidence probe in
-        # drift_probes.json — one wording for the two message sources (they
-        # had drifted apart). test_profiles.py pins the equality; keep in sync.
+        # field of compliance-canary's claim-without-evidence probe (rehomed
+        # 2026-07-19 from verify-before-completion) in drift_probes.json — one
+        # wording for the two message sources (they had drifted apart).
+        # test_profiles.py pins the equality; keep in sync.
         return (
             f"- {skill} [claim_without_evidence]: recent reply claims work is "
             f"done/fixed/passing, but no verification evidence matching the claim "
@@ -2867,16 +2828,14 @@ def format_one_probe(probe: dict) -> str:
     return f"- {skill} [{kind}]: triggered"
 
 
-def build_output(fired: list[dict], pulse_skills: list[tuple[str, str]], turn: int,
+def build_output(fired: list[dict], turn: int,
                  ledger_lines: list[str] | None = None,
                  correction_ledger_lines: list[str] | None = None) -> str:
     """One <system-reminder> carrying whichever mechanism(s) produced output.
     Symptomatic correctives lead (higher signal); the request-ledger section
     follows (it does NOT yield at a wrap-up turn — surfacing open requests as the
     agent closes is the whole point); the correction ledger (LEARNING_CONTRACT
-    §2) comes next — also non-yielding, closeout-blocking; the periodic
-    re-anchor comes last and only when no probe fired this turn (it yields —
-    see main)."""
+    §2) comes last — also non-yielding, closeout-blocking."""
     lines = ["<system-reminder>"]
     if fired:
         lines.append(
@@ -2889,15 +2848,6 @@ def build_output(fired: list[dict], pulse_skills: list[tuple[str, str]], turn: i
         lines.extend(ledger_lines)
     if correction_ledger_lines:
         lines.extend(correction_ledger_lines)
-    if pulse_skills:
-        lines.append(
-            f"compliance-canary re-anchor (turn {turn}): these active skills' rules remain "
-            f"in force — re-read each and check your most recent reply against it."
-        )
-        for name, reminder in pulse_skills:
-            # Cap a runaway pulse_reminder so one skill can't flood the block.
-            r = reminder if len(reminder) <= MAX_REMINDER_CHARS else reminder[:MAX_REMINDER_CHARS - 1] + "…"
-            lines.append(f"- {name}: {r}")
     lines.append("</system-reminder>")
     return "\n".join(lines)
 
@@ -3033,9 +2983,9 @@ def main() -> int:
     # Ledger + prompt-scanning probes see only user-AUTHORED text; harness
     # injections (task-notifications, command transcripts) are stripped.
     prompt_text_user = strip_harness_injected(prompt_text)
-    # Task-notification evidence boundary (applied to the frontier/shadow probe
-    # surface below; legacy keeps pre-fix behavior for rollback). Pure fail-open
-    # classification here — no state or telemetry mutation at this point.
+    # Task-notification evidence boundary (applied to the probe surface below).
+    # Pure fail-open classification here — no state or telemetry mutation at
+    # this point.
     notification = notification_suppression_decision(prompt_text, prompt_text_user)
     # One transcript tail-read feeds the probe/ledger gate below (via
     # `events`); the D2 provenance check scans the FULL file separately
@@ -3109,26 +3059,9 @@ def main() -> int:
     if os.environ.get("COMPLIANCE_CANARY_DISABLED") == "1":
         return 0
 
-    # --- periodic re-anchor cadence (absorbed skill-pulse) ---------------
-    # COMPLIANCE_CANARY_PULSE_EVERY is primary; SKILL_PULSE_EVERY is a
-    # back-compat alias. 0 (or *_PULSE_DISABLED / legacy SKILL_PULSE_DISABLED)
-    # disables JUST the re-anchor — symptomatic probes still run.
-    try:
-        raw_every = int(os.environ.get(
-            "COMPLIANCE_CANARY_PULSE_EVERY",
-            os.environ.get("SKILL_PULSE_EVERY", CADENCE_DEFAULT)))
-    except ValueError:
-        raw_every = CADENCE_DEFAULT
-    if (os.environ.get("COMPLIANCE_CANARY_PULSE_DISABLED") == "1"
-            or os.environ.get("SKILL_PULSE_DISABLED") == "1"):
-        raw_every = 0
-    pulse_every = 0 if raw_every <= 0 else max(CADENCE_FLOOR, raw_every)
-    is_pulse_turn = bool(pulse_every) and turn >= pulse_every and turn % pulse_every == 0
-
     # --- symptomatic probes (every turn) --------------------------------
     fired: list[dict] = []
     all_probes = discover_probes(skills_root())
-    probes = all_probes
     frontier_ids = selected_probe_ids(FRONTIER_VERIFY_PROBE_IDS)
     # D1 — claim_without_evidence probe ids suppressed by THIS turn's
     # qualifying notification. They are NOT dropped from `probes`: they still
@@ -3136,76 +3069,62 @@ def main() -> int:
     # marker (suppression defers the fire past the notification turn, it never
     # destroys it).
     notification_suppressed_ids: set[str] = set()
-    # C4 — scope probes to a deployment's ACTIVE skills. Default (unset) = every
-    # discovered skill's probes run, exactly as before (no regression). Set
-    # COMPLIANCE_CANARY_PROBE_SKILLS=a,b,c to fire ONLY those skills' probes — so a
-    # session that never invoked caveman-ultra's terse style isn't nagged by its
-    # filler/word-count probes. Mirrors COMPLIANCE_CANARY_PULSE_SKILLS (re-anchor).
-    #
-    # EXCEPTION: `user_correction` probes are exempt from this filter for LEDGER
-    # OPENING (Mechanism 4) — display/nagging may still be filtered, but ledger
-    # capture is unconditional (HOLE, adversarially confirmed: an allowlist that
-    # excludes a skill's `user_correction` probe silently prevented its
-    # corrections from EVER opening a closeout-blocking item). `ledger_probes`
-    # below always includes every discovered `user_correction` probe regardless
-    # of the allowlist; `probes` (display-filtered) still governs `fired`/output.
-    _probe_allow = {s.strip() for s in
-                    os.environ.get("COMPLIANCE_CANARY_PROBE_SKILLS", "").split(",") if s.strip()}
-    if profile == "legacy":
-        explicit_ids = selected_probe_ids()
-        if explicit_ids:
-            probes = [p for p in probes if p.get("_probe_id") in explicit_ids]
-        elif _probe_allow:
-            probes = [p for p in probes if p.get("_skill") in _probe_allow]
-        ledger_probes = [p for p in all_probes if p.get("kind") == "user_correction"]
-    else:
-        # Frontier evaluates only the compact verification guard. Shadow also
-        # evaluates the suppressed legacy surface for observational telemetry,
-        # but its emitted/task-decision surface remains byte-identical.
-        probes = [
-            p for p in all_probes if p.get("_probe_id") in frontier_ids
-        ]
-        ledger_probes = []
-        if notification["active"]:
-            # The current turn is a substrate-authored terminal-SUCCESS
-            # task-notification for an allowlisted self-contained job kind —
-            # claim_without_evidence does not EMIT this turn (the notification
-            # is the evidence boundary; the agent made no claim). Logged as a
-            # suppressed_notification telemetry event so the counterfactual
-            # stays measurable; confined to the frontier/shadow surface so
-            # shadow output stays byte-identical to frontier and legacy keeps
-            # its frozen rollback behavior. Fail-open already happened in the
-            # classifier AND the provenance check above — reaching this point
-            # means every condition matched. The probe stays in `probes` and
-            # is still EVALUATED (D1 deferral — see below).
-            for p in probes:
-                if p.get("kind") != "claim_without_evidence":
-                    continue
-                notification_suppressed_ids.add(p["_probe_id"])
-                append_telemetry(
-                    session_id, turn, "suppressed_notification",
-                    p.get("_probe_id", "unknown"), False,
-                    f"task-notification kind={notification['kind']} "
-                    f"pointer_only={notification['pointer_only']}")
-            if notification["pointer_only"]:
-                # Pointer-only success: the result content has not been seen —
-                # record the output-file pointer as pending_content so the gap
-                # is visible in state instead of silently dropped. Reconciled
-                # on later turns (D4): cleared once the transcript shows the
-                # file being read back; surfaced at wrap-up while unresolved.
-                with state_lock(path):
-                    state = load_state(path)
-                    pending = state.get("notification_pending_content", [])
-                    if not isinstance(pending, list):
-                        pending = []
-                    pending.append({
-                        "output_file": notification["output_file"],
-                        "turn": turn,
-                        "recorded_iso": notification["recorded_iso"],
-                        "kind": notification["kind"],
-                    })
-                    state["notification_pending_content"] = pending[-NOTIFICATION_PENDING_CAP:]
-                    save_state(path, state)
+    # Frontier evaluates only the compact verification guard (frontier_ids).
+    # Every discovered `user_correction` probe additionally feeds LEDGER
+    # OPENING (Mechanism 4, LEARNING_CONTRACT §2) — display/nagging stays
+    # scoped to frontier_ids, but correction-ledger capture would ignore that
+    # scope (a display-only scope must never silently drop a correction from
+    # ever opening a closeout-blocking item) — EXCEPT the ledger itself is
+    # ARMED-ONLY (2026-07-19/20 policy fix, correction_ledger_armed() above):
+    # unarmed, `ledger_probes` stays empty so a correction-shaped prompt opens
+    # nothing and writes no ledger state at all — only the always-on
+    # in-reply acknowledgement (Mechanism 1 display, still gated by
+    # frontier_ids like any other probe) survives.
+    probes = [
+        p for p in all_probes if p.get("_probe_id") in frontier_ids
+    ]
+    ledger_probes = (
+        [p for p in all_probes if p.get("kind") == "user_correction"]
+        if correction_ledger_armed() else []
+    )
+    if notification["active"]:
+        # The current turn is a substrate-authored terminal-SUCCESS
+        # task-notification for an allowlisted self-contained job kind —
+        # claim_without_evidence does not EMIT this turn (the notification
+        # is the evidence boundary; the agent made no claim). Logged as a
+        # suppressed_notification telemetry event so the counterfactual
+        # stays measurable. Fail-open already happened in the classifier AND
+        # the provenance check above — reaching this point means every
+        # condition matched. The probe stays in `probes` and is still
+        # EVALUATED (D1 deferral — see below).
+        for p in probes:
+            if p.get("kind") != "claim_without_evidence":
+                continue
+            notification_suppressed_ids.add(p["_probe_id"])
+            append_telemetry(
+                session_id, turn, "suppressed_notification",
+                p.get("_probe_id", "unknown"), False,
+                f"task-notification kind={notification['kind']} "
+                f"pointer_only={notification['pointer_only']}")
+        if notification["pointer_only"]:
+            # Pointer-only success: the result content has not been seen —
+            # record the output-file pointer as pending_content so the gap
+            # is visible in state instead of silently dropped. Reconciled
+            # on later turns (D4): cleared once the transcript shows the
+            # file being read back; surfaced at wrap-up while unresolved.
+            with state_lock(path):
+                state = load_state(path)
+                pending = state.get("notification_pending_content", [])
+                if not isinstance(pending, list):
+                    pending = []
+                pending.append({
+                    "output_file": notification["output_file"],
+                    "turn": turn,
+                    "recorded_iso": notification["recorded_iso"],
+                    "kind": notification["kind"],
+                })
+                state["notification_pending_content"] = pending[-NOTIFICATION_PENDING_CAP:]
+                save_state(path, state)
     # One transcript read feeds the probes, the ledger's wrap-up check, and the
     # correction ledger's bank-resolution check (needs recent Bash tool_uses
     # PAIRED with their tool_results — execution evidence, not just command
@@ -3267,7 +3186,6 @@ def main() -> int:
             }
 
             traj = trajectory_stats(events)
-            traj["profile"] = profile
             traj["execution_timeline"] = execution_timeline(events)
             traj["final_assistant_has_tool_use"] = final_assistant_has_tool_use(events)
             # Feed the ledger cross-check (ledger_not_materialized).
@@ -3294,8 +3212,8 @@ def main() -> int:
                                        traj_stats=traj)
             except _ProbeBudgetExceeded:
                 # A drift_probes regex blew the time budget (likely ReDoS). Skip
-                # probes this turn rather than wedge the prompt. Re-anchor below
-                # still runs (it uses only fixed regexes).
+                # probes this turn rather than wedge the prompt. The ledgers
+                # below still run (they use only fixed regexes).
                 log_err(f"probe-budget-exceeded: skipped probes (>{PROBE_TIMEOUT_SECONDS}s)")
                 fired = []
             if notification_suppressed_ids:
@@ -3349,12 +3267,12 @@ def main() -> int:
                     state["probe_history"] = history[-50:]
                     save_state(path, state)
                 # Best-effort activation telemetry — ADDS a record only, never
-                # touches drift logic/ledger/re-anchor above or below. Outside
+                # touches drift logic or the ledgers above or below. Outside
                 # state_lock on purpose: it's an independent append-only sink,
                 # not part of this session's locked state.
                 _record_trigger_matched_activations(fired)
 
-    # --- D1 deferred-fire emission (frontier/shadow) ----------------------
+    # --- D1 deferred-fire emission -----------------------------------------
     # On the first turn that is NOT itself a qualifying notification, emit
     # each persisted deferred_fire marker once and clear it — regardless of
     # message-window slide (the marker carries the result captured at the
@@ -3367,66 +3285,65 @@ def main() -> int:
     # anyway (a notification flood cannot destroy a fire). At emission time
     # freshness is re-checked: matching successful evidence after the
     # original claim drops the marker silently instead of emitting.
-    if profile in {"frontier", "shadow"}:
-        deferred_markers: list[dict] = []
-        with state_lock(path):
-            state = load_state(path)
-            raw_markers = state.get("deferred_fires", [])
-            if isinstance(raw_markers, list) and raw_markers:
-                candidates = [m for m in raw_markers if isinstance(m, dict)]
-                if not notification["active"]:
-                    deferred_markers = candidates
-                    state["deferred_fires"] = []
+    deferred_markers: list[dict] = []
+    with state_lock(path):
+        state = load_state(path)
+        raw_markers = state.get("deferred_fires", [])
+        if isinstance(raw_markers, list) and raw_markers:
+            candidates = [m for m in raw_markers if isinstance(m, dict)]
+            if not notification["active"]:
+                deferred_markers = candidates
+                state["deferred_fires"] = []
+                save_state(path, state)
+            else:
+                # F2 flood rule: markers persisted BEFORE this turn have
+                # already survived their one qualifying-notification
+                # grace — they are due now. Markers persisted THIS turn
+                # keep their grace.
+                due = [m for m in candidates
+                       if _as_int(m.get("deferred_at_turn"), turn) < turn]
+                if due:
+                    deferred_markers = due
+                    state["deferred_fires"] = [m for m in candidates if m not in due]
                     save_state(path, state)
-                else:
-                    # F2 flood rule: markers persisted BEFORE this turn have
-                    # already survived their one qualifying-notification
-                    # grace — they are due now. Markers persisted THIS turn
-                    # keep their grace.
-                    due = [m for m in candidates
-                           if _as_int(m.get("deferred_at_turn"), turn) < turn]
-                    if due:
-                        deferred_markers = due
-                        state["deferred_fires"] = [m for m in candidates if m not in due]
-                        save_state(path, state)
-        if deferred_markers:
-            if not events:
-                # Freshness re-check needs a transcript; none readable →
-                # fail-open and emit (never destroy a fire on uncertainty).
-                events = read_transcript_tail(transcript_path)
-            by_id = {p.get("_probe_id"): p for p in all_probes}
-            delivered = {p.get("_probe_id") for p in fired}
-            emitted_deferred: list[dict] = []
-            for marker in deferred_markers:
-                pid = str(marker.get("probe_id") or "")
-                if not pid or pid in delivered:
-                    continue
-                if deferred_marker_verified_fresh(marker, events):
-                    continue  # F2 — verified in the meantime; drop silently
-                delivered.add(pid)
-                base = by_id.get(pid)
-                probe = dict(base) if isinstance(base, dict) else {
-                    "_skill": marker.get("skill") or pid.split(":")[0],
-                    "_probe_id": pid,
-                    "kind": marker.get("kind") or "claim_without_evidence",
-                }
-                probe["_probe_id"] = pid
-                probe["_result"] = marker.get("result") or {}
-                fired.append(probe)
-                emitted_deferred.append(probe)
-            if emitted_deferred:
-                with state_lock(path):
-                    state = load_state(path)
-                    history = state.get("probe_history", [])
-                    if not isinstance(history, list):
-                        history = []
-                    for probe in emitted_deferred:
-                        history.append({"probe_id": probe["_probe_id"], "fired_at_turn": turn})
-                    state["probe_history"] = history[-50:]
-                    save_state(path, state)
-                _record_trigger_matched_activations(emitted_deferred)
+    if deferred_markers:
+        if not events:
+            # Freshness re-check needs a transcript; none readable →
+            # fail-open and emit (never destroy a fire on uncertainty).
+            events = read_transcript_tail(transcript_path)
+        by_id = {p.get("_probe_id"): p for p in all_probes}
+        delivered = {p.get("_probe_id") for p in fired}
+        emitted_deferred: list[dict] = []
+        for marker in deferred_markers:
+            pid = str(marker.get("probe_id") or "")
+            if not pid or pid in delivered:
+                continue
+            if deferred_marker_verified_fresh(marker, events):
+                continue  # F2 — verified in the meantime; drop silently
+            delivered.add(pid)
+            base = by_id.get(pid)
+            probe = dict(base) if isinstance(base, dict) else {
+                "_skill": marker.get("skill") or pid.split(":")[0],
+                "_probe_id": pid,
+                "kind": marker.get("kind") or "claim_without_evidence",
+            }
+            probe["_probe_id"] = pid
+            probe["_result"] = marker.get("result") or {}
+            fired.append(probe)
+            emitted_deferred.append(probe)
+        if emitted_deferred:
+            with state_lock(path):
+                state = load_state(path)
+                history = state.get("probe_history", [])
+                if not isinstance(history, list):
+                    history = []
+                for probe in emitted_deferred:
+                    history.append({"probe_id": probe["_probe_id"], "fired_at_turn": turn})
+                state["probe_history"] = history[-50:]
+                save_state(path, state)
+            _record_trigger_matched_activations(emitted_deferred)
 
-    # --- D4a notification pending-content reconciliation (frontier/shadow) --
+    # --- D4a notification pending-content reconciliation -------------------
     # notification_pending_content gets a consumer: an entry recorded at an
     # EARLIER turn leaves the pending set once the transcript shows its
     # output-file actually being READ (F3: full path, or basename + parent-dir
@@ -3436,59 +3353,33 @@ def main() -> int:
     # at the existing wrap-up surface below (D4b — no new emission point),
     # independent of request-ledger state (F3).
     pending_content: list[dict] = []
-    if profile in {"frontier", "shadow"}:
-        with state_lock(path):
-            state = load_state(path)
-            raw_pending = state.get("notification_pending_content", [])
-            if isinstance(raw_pending, list):
-                entries = [e for e in raw_pending if isinstance(e, dict)]
-                if entries:
-                    kept: list[dict] = []
-                    cleared_any = False
-                    for entry in entries:
-                        out_path = str(entry.get("output_file") or "")
-                        if (out_path and _as_int(entry.get("turn"), turn) < turn
-                                and _notification_output_read(transcript_path, out_path)):
-                            cleared_any = True
-                            continue
-                        kept.append(entry)
-                    if cleared_any:
-                        state["notification_pending_content"] = kept
-                        save_state(path, state)
-                        entries = kept
-                pending_content = entries
-
-    suppressed_fired: list[dict] = []
-    if profile == "shadow" and events:
-        shadow_probes = [p for p in all_probes if p.get("_probe_id") not in frontier_ids]
-        try:
-            with probe_time_limit(PROBE_TIMEOUT_SECONDS):
-                # No cooldown and no output cap: shadow must record every legacy
-                # mechanism that would have fired, including repeated noise.
-                suppressed_fired = run_probes(
-                    shadow_probes, messages, tool_uses, set(), tool_errors,
-                    user_prompt=prompt_text_user, traj_stats=traj, max_fired=None)
-        except _ProbeBudgetExceeded:
-            log_err(f"probe-budget-exceeded: skipped shadow probes (>{PROBE_TIMEOUT_SECONDS}s)")
-
-    # --- periodic re-anchor (yields to fired probes — no double-nag) -----
-    pulse_skills: list[tuple[str, str]] = []
-    if profile == "legacy" and is_pulse_turn and not fired:
-        allow_raw = os.environ.get(
-            "COMPLIANCE_CANARY_PULSE_SKILLS",
-            os.environ.get("SKILL_PULSE_SKILLS", ""))
-        allowlist = {s.strip() for s in allow_raw.split(",") if s.strip()}
-        pulse_skills = discover_pulse_skills(skills_root(), allowlist)
+    with state_lock(path):
+        state = load_state(path)
+        raw_pending = state.get("notification_pending_content", [])
+        if isinstance(raw_pending, list):
+            entries = [e for e in raw_pending if isinstance(e, dict)]
+            if entries:
+                kept: list[dict] = []
+                cleared_any = False
+                for entry in entries:
+                    out_path = str(entry.get("output_file") or "")
+                    if (out_path and _as_int(entry.get("turn"), turn) < turn
+                            and _notification_output_read(transcript_path, out_path)):
+                        cleared_any = True
+                        continue
+                    kept.append(entry)
+                if cleared_any:
+                    state["notification_pending_content"] = kept
+                    save_state(path, state)
+                    entries = kept
+            pending_content = entries
 
     # --- request-ledger surfacing (coupled to drift) --------------------
     # The ledger reminder rides along with the canary's drift response: open
     # requests are re-surfaced exactly when attention is being re-directed —
-    #   • a drift probe fired (DRIFT → "you're drifting; don't drop these"),
-    #   • the agent is wrapping up on a completion claim (don't self-close),
-    #   • the periodic re-anchor turn (preventive), or
+    #   • the agent is wrapping up on a completion claim (don't self-close), or
     #   • the user just closed something (confirm it).
-    # No drift, no wrap-up, no cadence → stay quiet. This is the "remind about
-    # ledger items IF there is drift" coupling.
+    # No wrap-up, no closure → stay quiet.
     ledger_lines: list[str] = []
     # F3 — the wrap-up detector also arms when unresolved pointer-only
     # notification outputs exist, even with an EMPTY request ledger: a
@@ -3497,8 +3388,7 @@ def main() -> int:
     completion_claim = (has_completion_claim(events)
                         if (ledger or pending_content) else False)
     if closed_now or ledger:
-        show = bool(closed_now) or (bool(ledger) and (
-            completion_claim or (profile == "legacy" and (bool(fired) or is_pulse_turn))))
+        show = bool(closed_now) or (bool(ledger) and completion_claim)
         if show:
             # Ground the wrap-up surface in the verbatim intent log (L0) —
             # quote the user's own captured words instead of ledger state
@@ -3520,17 +3410,28 @@ def main() -> int:
             kind = str(entry.get("kind") or "task")
             ledger_lines.append(f"- {kind} output never read: {out_path}")
 
-    # --- Mechanism 4: correction ledger (LEARNING_CONTRACT §2) ------------
-    # UNCONDITIONAL, same as Mechanism 3: opens on every fired `user_correction`
-    # probe, persisted across turns, surfaced EVERY turn it is non-empty (closeout-
-    # blocking — unlike the request ledger, this does not wait for a wrap-up turn
-    # or drift coupling, since a banked-but-forgotten correction must not go quiet).
-    # `fired + ledger_only_fired`: ledger OPENING sees every fired user_correction
-    # probe regardless of COMPLIANCE_CANARY_PROBE_SKILLS (the allowlist scopes
-    # DISPLAY only — `fired` alone still drives `build_output`/nagging).
+    # --- Mechanism 4: correction ledger (LEARNING_CONTRACT §2, rehomed into
+    # frontier 2026-07-19, ARMED-ONLY 2026-07-20) -----------------------------
+    # ARMED-ONLY, not unconditional (policy fix — see correction_ledger_armed()
+    # above): a user correction is always acted on and acknowledged in the
+    # reply regardless of arming; only durable-banking enforcement (this
+    # ledger) requires task-audit mode to be armed or an explicit user ask.
+    # Unarmed, `ledger_probes`/`ledger_only_fired` are already empty (gated
+    # above) and this whole block is skipped — no update_correction_ledger
+    # call, no state_lock, no write, nothing surfaced: a correction-shaped
+    # prompt is fully inert on the ledger side. Armed, behavior is unchanged
+    # from the 2026-07-19 rehome: opens on every fired `user_correction` probe,
+    # persisted across turns, surfaced EVERY turn it is non-empty (closeout-
+    # blocking — unlike the request ledger, this does not wait for a wrap-up
+    # turn or drift coupling, since a banked-but-forgotten correction must not
+    # go quiet). `fired + ledger_only_fired`: ledger OPENING sees every fired
+    # user_correction probe regardless of frontier's display scoping
+    # (frontier_ids) — display stays scoped, `fired` alone still drives
+    # `build_output`/nagging. No new nagging cadence and no probe-escalation
+    # (Mechanism 5, deleted, not rehomed).
+    correction_closed_now, correction_action = [], "none"
     correction_ledger_lines: list[str] = []
-    if profile == "legacy":
-        correction_closed_now, correction_action = [], "none"
+    if correction_ledger_armed():
         correction_ledger, correction_closed_now, correction_action = update_correction_ledger(
             correction_ledger, fired + ledger_only_fired, bash_results, prompt_text_user, turn)
         if correction_action != "none":
@@ -3541,31 +3442,17 @@ def main() -> int:
         correction_ledger_lines = build_correction_ledger_lines(
             correction_ledger, correction_closed_now, turn)
 
-    # --- Mechanism 5: probe escalation (advisory → closeout-blocking) -----
-    # Reload state so this turn's just-appended fires are included; stateless
-    # derivation from probe_history — see build_probe_escalation_lines.
-    if profile == "legacy":
-        escalation_lines: list[str] = build_probe_escalation_lines(
-            load_state(path).get("probe_history", []), turn)
-        correction_ledger_lines = escalation_lines + correction_ledger_lines
-
-    for probe in suppressed_fired:
-        append_telemetry(session_id, turn, "symptomatic_probe",
-                         probe.get("_probe_id", "unknown"), False,
-                         format_one_probe(probe))
-
-    if not fired and not pulse_skills and not ledger_lines and not correction_ledger_lines:
+    if not fired and not ledger_lines and not correction_ledger_lines:
         return 0
 
-    output = build_output(fired, pulse_skills, turn, ledger_lines, correction_ledger_lines)
-    if profile in {"frontier", "shadow"}:
-        for probe in fired:
-            append_telemetry(session_id, turn, "symptomatic_probe",
-                             probe.get("_probe_id", "unknown"), True,
-                             format_one_probe(probe))
-        if ledger_lines:
-            append_telemetry(session_id, turn, "intent_wrap_up", "request-ledger:wrap-up",
-                             True, "\n".join(ledger_lines))
+    output = build_output(fired, turn, ledger_lines, correction_ledger_lines)
+    for probe in fired:
+        append_telemetry(session_id, turn, "symptomatic_probe",
+                         probe.get("_probe_id", "unknown"), True,
+                         format_one_probe(probe))
+    if ledger_lines:
+        append_telemetry(session_id, turn, "intent_wrap_up", "request-ledger:wrap-up",
+                         True, "\n".join(ledger_lines))
     sys.stdout.write(output)
     sys.stdout.write("\n")
     return 0

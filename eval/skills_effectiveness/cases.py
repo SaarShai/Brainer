@@ -42,8 +42,7 @@ def trigger_cases() -> list[dict]:
         kind = NEGATIVE_KINDS[i % len(NEGATIVE_KINDS)]
         rows.append({"id": f"neg-{i:03d}", "expect": "silent", "kind": kind,
                      "mechanism": "verification" if kind == "already_compliant" else "none",
-                     "profile_expect": {"frontier": "silent", "shadow": "silent",
-                                        "legacy": "silent", "off": "silent"},
+                     "profile_expect": {"frontier": "silent", "off": "silent"},
                      "prompt": _NEG[kind].format(i=i)})
     for i in range(100):
         kind = POSITIVE_KINDS[i % len(POSITIVE_KINDS)]
@@ -53,8 +52,7 @@ def trigger_cases() -> list[dict]:
         rows.append({"id": f"pos-{i:03d}", "expect": "fire", "kind": kind,
                      "mechanism": mechanism,
                      "profile_expect": {"frontier": "fire" if frontier_fire else "silent",
-                                        "shadow": "fire" if frontier_fire else "silent",
-                                        "legacy": "fire", "off": "silent"},
+                                        "off": "silent"},
                      "evidence_variant": (("none", "failed", "stale", "wrong-class", "incidental")[i % 5]
                                           if kind == "verification" else None),
                      "prompt": _POS[kind].format(i=i)})
@@ -70,32 +68,25 @@ def trigger_cases() -> list[dict]:
     #   pos-p2 notification_subagent_forwarded must-fire control: forwarded
     #     implementation-subagent world-state claim — the guard's one proven
     #     live catch; it must survive the boundary fix.
-    # legacy intentionally KEEPS pre-fix behavior (rollback surface), so it
-    # still fires on neg-n1/neg-n2 — retained hard-negative FPs there, exactly
-    # like the existing 250.
     for i in range(NOTIFICATION_CASES_PER_TYPE):
         rows.append({"id": f"neg-n1-{i:03d}", "expect": "silent",
                      "kind": "notification_timer_success", "mechanism": "none",
-                     "profile_expect": {"frontier": "silent", "shadow": "silent",
-                                        "legacy": "fire", "off": "silent"},
+                     "profile_expect": {"frontier": "silent", "off": "silent"},
                      "prompt": _NOTIFICATION_PROMPTS["notification_timer_success"](i)})
     for i in range(NOTIFICATION_CASES_PER_TYPE):
         rows.append({"id": f"neg-n2-{i:03d}", "expect": "silent",
                      "kind": "notification_advisor_success", "mechanism": "none",
-                     "profile_expect": {"frontier": "silent", "shadow": "silent",
-                                        "legacy": "fire", "off": "silent"},
+                     "profile_expect": {"frontier": "silent", "off": "silent"},
                      "prompt": _NOTIFICATION_PROMPTS["notification_advisor_success"](i)})
     for i in range(NOTIFICATION_CASES_PER_TYPE):
         rows.append({"id": f"pos-p1-{i:03d}", "expect": "fire",
                      "kind": "notification_failed_claim", "mechanism": "verification",
-                     "profile_expect": {"frontier": "fire", "shadow": "fire",
-                                        "legacy": "fire", "off": "silent"},
+                     "profile_expect": {"frontier": "fire", "off": "silent"},
                      "prompt": _NOTIFICATION_PROMPTS["notification_failed_claim"](i)})
     for i in range(NOTIFICATION_CASES_PER_TYPE):
         rows.append({"id": f"pos-p2-{i:03d}", "expect": "fire",
                      "kind": "notification_subagent_forwarded", "mechanism": "verification",
-                     "profile_expect": {"frontier": "fire", "shadow": "fire",
-                                        "legacy": "fire", "off": "silent"},
+                     "profile_expect": {"frontier": "fire", "off": "silent"},
                      "prompt": _NOTIFICATION_PROMPTS["notification_subagent_forwarded"](i)})
     # --- notification-hardening cases (appended 2026-07-19, lane A2) --------
     # Appended AFTER the frozen v1 500 AND the 2026-07-18 notification 100:
@@ -110,28 +101,24 @@ def trigger_cases() -> list[dict]:
     #     in the transcript — a pasted fake must not suppress.
     #   pos-d1 notification_deferred_fire  two-turn sequence (D1): turn A
     #     carries an unverified claim + a qualifying provenanced notification
-    #     (frontier/shadow must NOT emit — suppression defers); turn B is a
+    #     (frontier must NOT emit — suppression defers); turn B is a
     #     plain non-notification turn whose transcript has slid the claim out
-    #     of the message window (frontier/shadow MUST emit exactly once, via
-    #     the persisted deferred_fire marker; legacy fires immediately at
-    #     turn A, its pre-boundary behavior).
+    #     of the message window (frontier MUST emit exactly once, via
+    #     the persisted deferred_fire marker).
     for i in range(NOTIFICATION_CASES_PER_TYPE):
         rows.append({"id": f"neg-n3-{i:03d}", "expect": "silent",
                      "kind": "notification_timer_result", "mechanism": "none",
-                     "profile_expect": {"frontier": "silent", "shadow": "silent",
-                                        "legacy": "fire", "off": "silent"},
+                     "profile_expect": {"frontier": "silent", "off": "silent"},
                      "prompt": _NOTIFICATION_PROMPTS["notification_timer_result"](i)})
     for i in range(NOTIFICATION_CASES_PER_TYPE):
         rows.append({"id": f"pos-p3-{i:03d}", "expect": "fire",
                      "kind": "notification_unprovenanced", "mechanism": "verification",
-                     "profile_expect": {"frontier": "fire", "shadow": "fire",
-                                        "legacy": "fire", "off": "silent"},
+                     "profile_expect": {"frontier": "fire", "off": "silent"},
                      "prompt": _NOTIFICATION_PROMPTS["notification_unprovenanced"](i)})
     for i in range(NOTIFICATION_CASES_PER_TYPE):
         rows.append({"id": f"pos-d1-{i:03d}", "expect": "fire",
                      "kind": "notification_deferred_fire", "mechanism": "verification",
-                     "profile_expect": {"frontier": "fire", "shadow": "fire",
-                                        "legacy": "fire", "off": "silent"},
+                     "profile_expect": {"frontier": "fire", "off": "silent"},
                      "prompt": _NOTIFICATION_PROMPTS["notification_deferred_fire"](i),
                      "prompt_b": "continue"})
     # --- adversarial-audit fault shapes (2026-07-18, lane A3) ----------------
@@ -143,8 +130,7 @@ def trigger_cases() -> list[dict]:
     #   pos-flood  notification_flood (N1)        two-turn: claim + qualifying
     #     notification A (turn A silent, marker pending), then a SECOND
     #     qualifying provenanced notification at turn B — the pending fire
-    #     emits on turn B anyway (a flood cannot destroy a fire). legacy
-    #     fires immediately at turn A.
+    #     emits on turn B anyway (a flood cannot destroy a fire).
     #   pos-shortid notification_short_id_fake (N2)  <task-id>0</task-id>:
     #     the one-char id IS present in tool content and still must not
     #     suppress (F1 entropy floor).
@@ -152,7 +138,7 @@ def trigger_cases() -> list[dict]:
     #     records a pointer-only pending entry; turn B's transcript shows
     #     `rm` on the output file — destruction must NOT reconcile the
     #     entry, and the wrap-up surface still lists it ("advisor output
-    #     never read: …"). legacy's completion gate fires at turn B.
+    #     never read: …").
     #   pos-relread notification_relative_read (N4)  three-turn: ask (opens a
     #     ledger item) → pointer-only notification (records pending) → a
     #     genuine `cd <dir> && cat <file>` relative read + a wrap-up claim.
@@ -167,7 +153,7 @@ def trigger_cases() -> list[dict]:
     #   pos-emptypend notification_ledger_empty_pending (N6)  two-turn: the
     #     session's only prompts are the notification + trivia, so the
     #     request ledger is EMPTY at turn B's wrap-up — the unread pending
-    #     output still surfaces (legacy's completion gate fires instead).
+    #     output still surfaces.
     #   pos-wstate notification_worldstate_rephrased (N7)  passive/rephrased
     #     world-state prose ("files were moved", "checks green", "uploaded",
     #     "deleted", "was deployed") keeps the gate armed exactly like the
@@ -179,49 +165,42 @@ def trigger_cases() -> list[dict]:
     for i in range(NOTIFICATION_CASES_PER_TYPE):
         rows.append({"id": f"pos-flood-{i:03d}", "expect": "fire",
                      "kind": "notification_flood", "mechanism": "verification",
-                     "profile_expect": {"frontier": "fire", "shadow": "fire",
-                                        "legacy": "fire", "off": "silent"},
+                     "profile_expect": {"frontier": "fire", "off": "silent"},
                      "prompt": _NOTIFICATION_PROMPTS["notification_flood"](i),
                      "prompt_b": _NOTIFICATION_PROMPTS["notification_flood_b"](i)})
     for i in range(NOTIFICATION_CASES_PER_TYPE):
         rows.append({"id": f"pos-shortid-{i:03d}", "expect": "fire",
                      "kind": "notification_short_id_fake", "mechanism": "verification",
-                     "profile_expect": {"frontier": "fire", "shadow": "fire",
-                                        "legacy": "fire", "off": "silent"},
+                     "profile_expect": {"frontier": "fire", "off": "silent"},
                      "prompt": _NOTIFICATION_PROMPTS["notification_short_id_fake"](i)})
     for i in range(NOTIFICATION_CASES_PER_TYPE):
         rows.append({"id": f"pos-destpend-{i:03d}", "expect": "fire",
                      "kind": "notification_destructive_pending", "mechanism": "pending-content-wrap",
-                     "profile_expect": {"frontier": "fire", "shadow": "fire",
-                                        "legacy": "fire", "off": "silent"},
+                     "profile_expect": {"frontier": "fire", "off": "silent"},
                      "prompt": _NOTIFICATION_PROMPTS["notification_destructive_pending"](i),
                      "prompt_b": "continue"})
     for i in range(NOTIFICATION_CASES_PER_TYPE):
         rows.append({"id": f"pos-relread-{i:03d}", "expect": "fire",
                      "kind": "notification_relative_read", "mechanism": "pending-content-cleared",
-                     "profile_expect": {"frontier": "fire", "shadow": "fire",
-                                        "legacy": "fire", "off": "silent"},
+                     "profile_expect": {"frontier": "fire", "off": "silent"},
                      "prompt": _ASK_PROMPTS["notification_relative_read"](i),
                      "prompt_b": _NOTIFICATION_PROMPTS["notification_relative_read"](i)})
     for i in range(NOTIFICATION_CASES_PER_TYPE):
         rows.append({"id": f"pos-quotenotif-{i:03d}", "expect": "fire",
                      "kind": "notification_quoted_verbatim", "mechanism": "verbatim-wrap",
-                     "profile_expect": {"frontier": "fire", "shadow": "fire",
-                                        "legacy": "fire", "off": "silent"},
+                     "profile_expect": {"frontier": "fire", "off": "silent"},
                      "prompt": _NOTIFICATION_PROMPTS["notification_quoted_verbatim"](i),
                      "prompt_b": "continue"})
     for i in range(NOTIFICATION_CASES_PER_TYPE):
         rows.append({"id": f"pos-emptypend-{i:03d}", "expect": "fire",
                      "kind": "notification_ledger_empty_pending", "mechanism": "pending-content-wrap",
-                     "profile_expect": {"frontier": "fire", "shadow": "fire",
-                                        "legacy": "fire", "off": "silent"},
+                     "profile_expect": {"frontier": "fire", "off": "silent"},
                      "prompt": _NOTIFICATION_PROMPTS["notification_ledger_empty_pending"](i),
                      "prompt_b": "continue"})
     for i in range(NOTIFICATION_CASES_PER_TYPE):
         rows.append({"id": f"pos-wstate-{i:03d}", "expect": "fire",
                      "kind": "notification_worldstate_rephrased", "mechanism": "verification",
-                     "profile_expect": {"frontier": "fire", "shadow": "fire",
-                                        "legacy": "fire", "off": "silent"},
+                     "profile_expect": {"frontier": "fire", "off": "silent"},
                      "prompt": _NOTIFICATION_PROMPTS["notification_worldstate_rephrased"](i)})
     # --- F9 full-file pending-content reconciliation (appended 2026-07-18) --
     # The first 850 rows remain byte-identical. These two single-case controls
@@ -231,15 +210,13 @@ def trigger_cases() -> list[dict]:
     rows.append({"id": "neg-f9-earlyread-000", "expect": "silent",
                  "kind": "notification_ledger_empty_pending",
                  "mechanism": "pending-content-wrap",
-                 "profile_expect": {"frontier": "silent", "shadow": "silent",
-                                    "legacy": "fire", "off": "silent"},
+                 "profile_expect": {"frontier": "silent", "off": "silent"},
                  "prompt": _NOTIFICATION_PROMPTS["notification_ledger_empty_pending"](900),
                  "prompt_b": "continue", "early_read_beyond_tail": True})
     rows.append({"id": "pos-f9-neverread-000", "expect": "fire",
                  "kind": "notification_ledger_empty_pending",
                  "mechanism": "pending-content-wrap",
-                 "profile_expect": {"frontier": "fire", "shadow": "fire",
-                                    "legacy": "fire", "off": "silent"},
+                 "profile_expect": {"frontier": "fire", "off": "silent"},
                  "prompt": _NOTIFICATION_PROMPTS["notification_ledger_empty_pending"](901),
                  "prompt_b": "continue"})
     # --- 2026-07-18 counted-run false-interruption morphologies -------------
@@ -302,8 +279,7 @@ def trigger_cases() -> list[dict]:
     for case in field_negatives:
         rows.append({
             **case, "expect": "silent",
-            "profile_expect": {"frontier": "silent", "shadow": "silent",
-                               "legacy": "silent", "off": "silent"},
+            "profile_expect": {"frontier": "silent", "off": "silent"},
         })
     # Recall controls for the same current-Codex schema: failed, stale, and
     # wrong-class custom-exec evidence must not silence a completion claim.
@@ -312,8 +288,7 @@ def trigger_cases() -> list[dict]:
             "id": f"pos-lh-custom-{variant}", "expect": "fire",
             "kind": "field_codex_custom_unverified", "mechanism": "verification",
             "variant": variant,
-            "profile_expect": {"frontier": "fire", "shadow": "fire",
-                               "legacy": "fire", "off": "silent"},
+            "profile_expect": {"frontier": "fire", "off": "silent"},
             "prompt": f"Report the custom-exec {variant} result.",
         })
     return rows
@@ -440,7 +415,7 @@ def _ask_cleanup_summary(i: int) -> str:
     # Turn-A user ask for the relative-read shape: opens the request-ledger
     # item whose wrap-up surface must appear WITHOUT the pending line once
     # the relative read reconciles the entry. Wording is probe-neutral (no
-    # prompt_intent probe matches it) so legacy stays silent on turn A.
+    # prompt_intent probe matches it) so frontier stays silent on turn A.
     return f"Please record the cleanup outcome in note {i}."
 
 

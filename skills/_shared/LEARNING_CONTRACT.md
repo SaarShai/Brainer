@@ -30,14 +30,26 @@ Banking a cross-skill lesson into a single skill's notes is a **gate
 failure**, not a style choice — the next skill that needed it will not read
 it (failures #1, #3). Unclassified = unbanked.
 
-## §2 A user correction is closeout-blocking
+## §2 A user correction is acted on now; durable banking is armed-gated
 
-A user correction (relabel, "no — do X", repeated re-teach) MUST become a
-durable artifact — **rule + gate + exemplar** — before the task closes.
-Not opt-in, not "if a retrospective is armed" (failure #2: the same
-correction re-taught across sessions). Minimum durable artifact: a
-SCOPE-classified rule (§1) plus, when the lesson is PASS/FAIL-expressible,
-the executable guard of §3. Chat-turn compliance is not capture.
+A user correction (relabel, "no — do X", repeated re-teach) is **always**
+acted on immediately and acknowledged in the reply — that half is never
+optional. Durable banking — **rule + gate + exemplar**, SCOPE-classified per
+§1, before the task closes — prevents the same correction being re-taught
+across sessions (failure #2); it is **closeout-blocking exactly when
+task-audit mode is armed** (`task-retrospective`, `/retro`) **or the user
+explicitly asks** for durable capture. When neither holds, the agent notes
+the correction to the user and may suggest arming task-retrospective for a
+task that looks repeatable — it does not bank on its own. This replaces an
+earlier "not opt-in, not 'if a retrospective is armed'" reading: taken
+literally into compliance-canary's Mechanism 4 (unconditional ledger
+opening on every fired correction), that wording regressed the frozen
+862-case frontier trigger-gate corpus (FP=175, precision 65.2% — bare-again/
+quoted-article/code-fence hard negatives all opened closeout-blocking
+items). Armed-only is the one policy every consuming surface states.
+Minimum durable artifact when banking applies: a SCOPE-classified rule (§1)
+plus, when the lesson is PASS/FAIL-expressible, the executable guard of §3.
+Chat-turn compliance alone is not capture.
 
 ## §3 Mechanism over prose
 

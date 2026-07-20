@@ -32,6 +32,7 @@ REVIEWER = "---\nname: reviewer\n---\nnew roster lane\n"
 LOCAL_LINE = "LOCAL SIBLING TWEAK: keep me\n"
 INDENT_CANON = "---\nname: indent-demo\n---\n## Steps\n  - preserve indentation\n"
 INDENT_LOCAL = "---\nname: indent-demo\n---\n## Steps\n    - preserve indentation\n"
+RETIRED_TOOL = "def retired(): pass  # v1 canonical, deleted in v2\n"
 APPLY_FLAGS = ("--apply-stale", "--apply-absent", "--adopt-new-skills", "--adopt-agents")
 
 FAILS: list[str] = []
@@ -59,14 +60,20 @@ def git(cwd: Path, *args: str):
 def build_canon(canon: Path):
     """A throwaway canonical repo: skills/ + .claude/agents/ + install.sh, with
     the audit script copied in so it resolves BRAINER=canon, DOCS=canon.parent.
-    builder.md gets TWO committed versions so a sibling holding v1 is STALE."""
+    builder.md gets TWO committed versions so a sibling holding v1 is STALE.
+    `dummy/tools/retired_tool.py` exists in v1 and is deleted in v2 — the
+    canonical-deletion case a sibling that never re-synced would still hold."""
     (canon / "scripts").mkdir(parents=True)
     shutil.copy2(SCRIPT, canon / "scripts" / "sibling_sync_audit.py")
     write(canon / "skills" / "dummy" / "SKILL.md", "---\nname: dummy\n---\nbody\n")
+    write(canon / "skills" / "dummy" / "tools" / "retired_tool.py", RETIRED_TOOL)
     write(canon / "skills" / "indent-demo" / "SKILL.md", INDENT_CANON)
     write(canon / "install.sh", "#!/usr/bin/env bash\n")
     # Mirror the real carve-out: agents are tracked, rest of .claude is not.
-    write(canon / ".gitignore", ".claude/*\n!.claude/agents/\n")
+    # ".brainer/" mirrors the real repo's runtime-state carve-out (a canary's
+    # `.brainer/<hash>.json`) — never canonical source, never a deletion
+    # candidate even though it is absent from canonical HEAD by design.
+    write(canon / ".gitignore", ".claude/*\n!.claude/agents/\n.brainer/\n")
     write(canon / AGENTS / "builder.md", BUILDER_V1)
     write(canon / AGENTS / "verifier.md", VERIFIER)
     write(canon / AGENTS / "reviewer.md", REVIEWER)
@@ -76,6 +83,7 @@ def build_canon(canon: Path):
     git(canon, "add", "-A")
     git(canon, "commit", "-qm", "v1")
     write(canon / AGENTS / "builder.md", BUILDER_V2)   # v2 supersedes v1
+    (canon / "skills" / "dummy" / "tools" / "retired_tool.py").unlink()  # v2 retires it
     git(canon, "add", "-A")
     git(canon, "commit", "-qm", "v2")
 
@@ -139,6 +147,14 @@ def main() -> int:
         write(sib / AGENTS / "verifier.md", VERIFIER + LOCAL_LINE)  # CUSTOMIZED
         write(sib / AGENTS / "local-only.md", "sibling roster\n")   # sibling-only
         # (reviewer.md deliberately absent -> new_agents)
+        # canon_deleted case: retired_tool.py never re-synced after canonical
+        # v2 retired it -> DELETE; local_only_tool.py never existed canonically
+        # -> CONFLICT; the gitignored runtime file is never a candidate at all.
+        write(sib / "skills" / "dummy" / "tools" / "retired_tool.py", RETIRED_TOOL)
+        write(sib / "skills" / "dummy" / "tools" / "local_only_tool.py",
+              "def sibling_local(): pass  # never canonical\n")
+        write(sib / "skills" / "dummy" / "tools" / ".brainer" / "dummy"
+              / "state.json", '{"fires": 1}\n')
 
         # --- sib2: opt-out case (declines an agent AND a skill via one file) ---
         sib2 = docs / "screenery-lean"
@@ -170,8 +186,16 @@ def main() -> int:
               s["identical"] == 1
               and s["differs"] == ["skills/indent-demo/SKILL.md"]
               and s["absent_count"] == 0)
+        check("canon_deleted lists retired_tool.py and local_only_tool.py only "
+              "(gitignored runtime state is never a deletion candidate)",
+              set(s["canon_deleted"]) == {
+                  "skills/dummy/tools/retired_tool.py",
+                  "skills/dummy/tools/local_only_tool.py",
+              })
 
-        # 2. classify: builder STALE, verifier CUSTOMIZED with its local line shown.
+        # 2. classify: builder STALE, verifier CUSTOMIZED with its local line shown;
+        #    retired_tool.py DELETE (byte-matches canonical v1), local_only_tool.py
+        #    CONFLICT (content never matched any canonical version).
         c = run("--repo", "PROMPTER", "--classify").stdout
         check("classify marks builder AGENT-STALE",
               "AGENT-STALE" in c and "builder.md" in c)
@@ -181,6 +205,22 @@ def main() -> int:
         check("classify marks indentation-only edit CUSTOMIZED",
               any("CUSTOMIZED" in line and "skills/indent-demo/SKILL.md" in line
                   for line in c.splitlines()))
+        check("classify marks retired_tool.py DELETE",
+              any(line.strip().startswith("DELETE") and "retired_tool.py" in line
+                  for line in c.splitlines()))
+        check("classify marks local_only_tool.py CONFLICT",
+              any(line.strip().startswith("CONFLICT") and "local_only_tool.py" in line
+                  for line in c.splitlines()))
+        check("gitignored runtime state never surfaces as DELETE/CONFLICT",
+              "state.json" not in c)
+
+        # 2b. dry-run: --classify alone (no --apply-deletions) deletes nothing.
+        retired_path = sib / "skills" / "dummy" / "tools" / "retired_tool.py"
+        conflict_path = sib / "skills" / "dummy" / "tools" / "local_only_tool.py"
+        check("dry-run (--classify only) leaves retired_tool.py in place",
+              retired_path.is_file())
+        check("dry-run (--classify only) leaves local_only_tool.py in place",
+              conflict_path.is_file())
 
         # 3. apply: STALE fast-forwards, absent adopts, CUSTOMIZED + sibling-only
         #    are left exactly as-is.
@@ -196,6 +236,19 @@ def main() -> int:
               (sib / AGENTS / "local-only.md").read_text() == "sibling roster\n")
         check("indentation-only customization NOT overwritten",
               (sib / "skills" / "indent-demo" / "SKILL.md").read_text() == INDENT_LOCAL)
+
+        # 3b. --apply-deletions: DELETE-class retired_tool.py is removed;
+        #     CONFLICT-class local_only_tool.py is left exactly as-is.
+        applied = run("--repo", "PROMPTER", "--apply-deletions").stdout
+        check("apply-deletions reports retired_tool.py deleted",
+              "deleted     skills/dummy/tools/retired_tool.py" in applied)
+        check("apply-deletions removes DELETE-class retired_tool.py",
+              not retired_path.exists())
+        check("apply-deletions leaves CONFLICT-class local_only_tool.py untouched",
+              conflict_path.is_file()
+              and conflict_path.read_text() == "def sibling_local(): pass  # never canonical\n")
+        check("apply-deletions never mentions deleting the CONFLICT file",
+              "deleted     skills/dummy/tools/local_only_tool.py" not in applied)
 
         # 4. opt-out: `agent:reviewer` declines the roster def; `dummy` still
         #    parses as a skill opt-out (shared file, both prefixes coexist).

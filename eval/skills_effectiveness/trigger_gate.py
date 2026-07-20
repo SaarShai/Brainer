@@ -13,7 +13,7 @@ from statistics import trigger_metrics, wilson_upper_one_sided
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("results", type=Path, help="JSONL rows with id and fired")
-    ap.add_argument("--profile", choices=["frontier", "shadow", "legacy", "off"], default="frontier")
+    ap.add_argument("--profile", choices=["frontier", "off"], default="frontier")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
     corpus = trigger_cases()
@@ -44,14 +44,6 @@ def main() -> int:
               "hard_negative_false_injection_upper_95_one_sided": hard_upper,
               "policy_suppressed_unexpected_emissions": suppressed_unexpected,
               **metrics}
-    if args.profile == "shadow":
-        shadow_rows = [json.loads(line) for line in args.results.read_text().splitlines() if line.strip()]
-        expected_suppressed = [r for r in shadow_rows if r.get("kind") in {"correction", "error_loop"}]
-        report["shadow_suppressed_telemetry_complete"] = bool(expected_suppressed) and all(
-            r.get("suppressed_probe_ids") for r in expected_suppressed)
-        report["shadow_frontier_output_identical"] = all(r.get("frontier_output_identical") for r in shadow_rows)
-        metrics["gates"]["shadow_suppressed_telemetry_complete"] = report["shadow_suppressed_telemetry_complete"]
-        metrics["gates"]["shadow_frontier_output_identical"] = report["shadow_frontier_output_identical"]
     print(json.dumps(report, indent=2) if args.json else report)
     return 0 if all(metrics["gates"].values()) else 1
 

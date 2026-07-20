@@ -10,8 +10,6 @@
     "id": "propagate-run-without-harvest",
     "kind": "claim_without_evidence",
     "claim_pattern": "(?i)\\b(propagat(?:ed|ion)?\\s+(?:done|complete|finished)|(?:sync|pushed|rolled\\s+out)\\b[^.?!\\n]{0,40}\\b(?:siblings?|repos?)\\b[^.?!\\n]{0,20}\\b(?:done|complete|finished)?)\\b",
-    "verify_tools": ["Bash"],
-    "verify_keywords": ["harvest", "for-brainer", "harvested", "brainer-learn"],
     "lookback_tool_uses": 20,
     "message": "a propagation run was claimed complete without evidence of the harvest (reverse) lane in the last 20 tool uses — a run that only pushes and skips harvest is INCOMPLETE unless you state why; scan siblings for lesson artifacts (harvest/for-brainer/harvested/brainer-learn) or explicitly note the skip reason",
     "severity": "warn"

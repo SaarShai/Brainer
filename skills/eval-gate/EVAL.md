@@ -1,7 +1,8 @@
 # EVAL — `eval-gate`
 
-LLM-as-judge quality gate. **Status: opt-in, unmeasured** — plumbing verified
-offline; effectiveness A/B pending (N≥50 before any default promotion).
+LLM-as-judge quality gate. **Status: default-installed** (v1.11; previously
+opt-in) — plumbing verified offline, judge–human agreement measured at 79%
+(below); task-level effectiveness A/B still pending (N≥50).
 
 ## Verified — plumbing (offline, no network)
 

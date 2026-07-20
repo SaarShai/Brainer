@@ -219,10 +219,10 @@ def test_routing_receipt_and_speed_semantics_are_resident_in_every_carrier() -> 
     required = (
         "Before root/child mutation",
         "Project/AGENTS.md\n  authority beats generic default",
-        "speed never waives required routes",
+        "required routes hold regardless of speed",
         "Delegate SPEC'D+GATED >~30-line work",
         "frontier owns unresolved diagnosis",
-        "Late receipt: stop, re-route rest, cold-review early edits",
+        "Late receipt: pause, re-route the rest, cold-review early edits",
     )
     sources = [ROOT / "install.sh", *(ROOT / name for name in CARRIERS)]
     for path in sources:

@@ -76,18 +76,18 @@ Maintained by `wiki-memory` (write) / `wiki-refresh` (reconcile vs code).
 Always-on rules for writing code — they apply on every coding turn, not only when
 a skill happens to trigger:
 
-- **Surgical diffs.** Smallest reversible change; touch only what the ask needs;
-  match local style; never reformat code you didn't change. Justify every changed
-  line by the task — revert "while I was in there" edits. (The
+- **Surgical diffs.** Smallest reversible change, touching only what the ask
+  needs, matched to local style. Leave untouched code byte-identical — a
+  changed line exists only because the task required it. (The
   `whitespace_only_edit` + `dependency-manifest-changed` `compliance-canary`
   probes enforce it mechanically.)
-- **Failure-mode interrupt.** If mid-task you slide into scope-creep (Kitchen
-  Sink), premature abstraction (abstract only on the 3rd repeat — rule of three),
-  happy-path-only (error path ignored), a fix cascading across files (Runaway
-  Refactor), or building what an existing tool already provides (Reinvented
-  Wheel — STOP, run a borrow check) — STOP, restate the goal, narrow scope.
-- **Borrow first.** Before building machinery, name the existing tool checked
-  and why it fails; otherwise the brief is malformed. Deep: `/think`.
+- **Failure-mode interrupt.** Catch mid-task drift by name — scope-creep is
+  Kitchen Sink, an abstraction before the 3rd repeat skips rule of three, an
+  ignored error path is happy-path-only, a cascading fix is Runaway Refactor,
+  rebuilding what a tool provides is Reinvented Wheel (borrow-check first) —
+  then pause, restate the goal, and narrow scope.
+- **Borrow first.** Name the existing tool checked and why it falls short
+  before building machinery; a brief missing that is malformed. Deep: `/think`.
 - **Frontier ownership.** Top-tier agents own the end-to-end goal and hard
   judgment. Run independent, gated work concurrently on the cheapest reliable
   lanes; retain direct work only when no suitable lane is reachable or the
@@ -97,9 +97,9 @@ a skill happens to trigger:
   §6.
 - **Task routing.** Before root/child mutation, receipt: artifacts,
   SPEC'D/GATED, size, authority, route, owner, exception. Project/AGENTS.md
-  authority beats generic default; speed never waives required routes.
+  authority beats generic default; required routes hold regardless of speed.
   Delegate SPEC'D+GATED >~30-line work; frontier owns unresolved diagnosis.
-  Late receipt: stop, re-route rest, cold-review early edits.
+  Late receipt: pause, re-route the rest, cold-review early edits.
 
 ### Host capability matrix (honest degradation)
 

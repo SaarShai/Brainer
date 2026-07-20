@@ -219,18 +219,19 @@ instead of bloating. For heavier signal-scoring of the reason, pipe it through
 
 ## Status
 
-**Opt-in / unmeasured.** Plumbing self-tested offline (`tools/test.sh` +
-`tools/test_validate_case.py`, no network). Per catalog policy it earns N≥50
-before any default promotion — target: gating output on a rubric cuts downstream
-rework / re-reads / "done"-reversals without rejecting good runs. See
-[EVAL.md](EVAL.md).
+**Default-installed** (v1.11; previously opt-in, promoted on user request).
+Plumbing self-tested offline (`tools/test.sh` + `tools/test_validate_case.py`,
+no network). Judge–human agreement is measured at **79%** (see [EVAL.md](EVAL.md));
+the task-level effectiveness A/B (defect catch-rate vs false-reject, N≥50) is
+still pending — that gap is tracked, not a blocker to the default-install status
+already granted.
 
-**eval-gate is itself exempt from the N≥50 ground-truth regime** — it is a
+**eval-gate is itself exempt from the N≥50 ground-truth-target regime** — it is a
 **design-by-intent** gate, not an empirically-measured skill. Its rubrics encode
 human taste ("the answer must include a copy-pasteable step"), which is authored
 intent, not a fact recoverable from git/file/LSP. So Step 0's `validate_case.py`
-has no verifiable target to check on eval-gate's *own* output, and N≥50 is not a
-meaningful bar for it. The Step-0 gate applies to the **case-sets eval-gate
-evaluates** (retrieval/comprehension skills with verifiable ground truth), not to
-the rubric-grading gate itself. To empirically validate a rubric, write a
-separate validator that judges against human-labeled gold outputs.
+has no verifiable target to check on eval-gate's *own* output, and that N≥50
+ground-truth bar is not meaningful for it. The Step-0 gate applies to the
+**case-sets eval-gate evaluates** (retrieval/comprehension skills with verifiable
+ground truth), not to the rubric-grading gate itself. To empirically validate a
+rubric, write a separate validator that judges against human-labeled gold outputs.

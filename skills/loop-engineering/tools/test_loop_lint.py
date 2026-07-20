@@ -514,8 +514,8 @@ def test_scheduled_loop_without_memory_contract_warns_r8():
     assert _has(spec, 8, "WARN"), _rules(spec)
 
 
-def test_loop_run_monitor_gate_not_scheduled_r8():
-    spec = CLEAN.replace("gate: pytest tests/ -q", "gate: python3 skills/loop-engineering/tools/loop_run_monitor.py trace.json")
+def test_monitor_named_gate_not_scheduled_r8():
+    spec = CLEAN.replace("gate: pytest tests/ -q", "gate: python3 tools/run_monitor.py trace.json")
     assert not _has(spec, 8, "WARN"), _rules(spec)
 
 
