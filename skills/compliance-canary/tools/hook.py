@@ -31,9 +31,8 @@ turn's evidence; suppression defers, never destroys — with full-transcript
 provenance and full-transcript pending-output read reconciliation).
 
 One process, one dir-walk, one transcript read, one state file, one injected
-<system-reminder>. The re-anchor YIELDS to fired probes on a shared turn
-(symptom correction is higher-signal and itself re-anchors) — a single global
-budget, so the mechanisms never double-nag.
+<system-reminder> — a single global budget shared by all three mechanisms
+(probes, request ledger, correction ledger), so they never double-nag.
 
 Per-skill probes are declared in `<.claude/skills>/<name>/drift_probes.json`:
 
@@ -158,16 +157,46 @@ def active_profile() -> str:
     return "frontier"
 
 
+# Bounded rename alias: a probe's `skill:id` prefix that moved to a new owning
+# skill (rehomed, not renamed-within-place) maps forward so a configured old
+# id keeps selecting the probe instead of silently selecting nothing. Add an
+# entry here ONLY for a confirmed rehome (never a generic fuzzy-match) — the
+# 2026-07-19 verify-before-completion -> compliance-canary probe rehome is the
+# one case today.
+_PROBE_ID_SKILL_RENAMES = {
+    "verify-before-completion": "compliance-canary",
+}
+
+
 def selected_probe_ids(defaults: set[str] | None = None) -> set[str]:
     """Exact probe-ID selector (`skill:id`), replacing skill-level selection.
 
     An unset variable uses ``defaults``. An explicitly empty value selects no
     probes, which is useful for controlled experiments without disabling state.
+    A `skill:id` whose skill prefix is a known rehome target (
+    `_PROBE_ID_SKILL_RENAMES`) is translated to the new owning skill, with a
+    one-line stderr warning naming the rename — the exact-match selector
+    otherwise fails silently (selects nothing) on a stale configured id.
     """
     raw = os.environ.get("COMPLIANCE_CANARY_PROBE_IDS")
     if raw is None:
         return set(defaults or ())
-    return {part.strip() for part in raw.split(",") if part.strip()}
+    ids: set[str] = set()
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        skill, sep, name = part.partition(":")
+        if sep and skill in _PROBE_ID_SKILL_RENAMES:
+            new_skill = _PROBE_ID_SKILL_RENAMES[skill]
+            new_id = f"{new_skill}:{name}"
+            log_err(f"probe-id-renamed: '{part}' -> '{new_id}' "
+                    f"({skill} probes were rehomed into {new_skill} 2026-07-19 — "
+                    f"update COMPLIANCE_CANARY_PROBE_IDS)")
+            ids.add(new_id)
+        else:
+            ids.add(part)
+    return ids
 
 
 def state_dir() -> Path:
@@ -203,6 +232,38 @@ def skills_root() -> Path:
     project = os.environ.get("CLAUDE_PROJECT_DIR")
     base = Path(project) if project else Path.cwd()
     return base / ".claude" / "skills"
+
+
+def correction_ledger_armed() -> bool:
+    """Mechanism 4 (correction ledger) is ARMED-ONLY (2026-07-19/20 policy fix
+    — LEARNING_CONTRACT §2): an earlier unconditional reading regressed the
+    frozen 862-case frontier trigger-gate corpus (FP=175, precision 65.2% —
+    bare-again/quoted-article/code-fence hard negatives all opened closeout-
+    blocking ledger items). A user correction is still always acted on and
+    acknowledged in the reply (Mechanism 1's symptomatic display, unaffected);
+    only the DURABLE-BANKING ledger requires arming. Armed via either:
+
+      (a) explicit COMPLIANCE_CANARY_CORRECTION_LEDGER=1, or
+      (b) task-retrospective's own mechanical armed-state file —
+          .brainer/task-retrospective/current.json with "status": "armed" —
+          anchored to CLAUDE_PROJECT_DIR/cwd exactly like state_dir()/
+          skills_root() above. That file exists iff a task-retrospective
+          session is currently armed (task_audit.py's `start` writes it,
+          `finish` unlinks it) — the one mechanical signal task-retrospective
+          exposes; there is no other machine-readable "armed" state, so this
+          is the whole armed-detection surface (a purely conversational
+          "I'm arming task-retrospective" with no `start` call leaves this
+          check unarmed by design, same as any other mechanical gate)."""
+    if os.environ.get("COMPLIANCE_CANARY_CORRECTION_LEDGER") == "1":
+        return True
+    project = os.environ.get("CLAUDE_PROJECT_DIR")
+    base = Path(project) if project else Path.cwd()
+    current = base / ".brainer" / "task-retrospective" / "current.json"
+    try:
+        data = json.loads(current.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(data, dict) and data.get("status") == "armed"
 
 
 @contextmanager
@@ -371,7 +432,7 @@ def _record_trigger_matched_activations(fired: list[dict]) -> None:
     is a real session, not a fixture writer.
 
     This is telemetry, not a drift mechanism: it must NEVER affect drift
-    logic, the ledger, or the re-anchor, and it must NEVER be the thing that
+    logic or the ledgers, and it must NEVER be the thing that
     breaks the hook's always-exit-0 / <PROBE_TIMEOUT_SECONDS contract.
     record_activation() itself never raises (fails closed, returns False on
     any error) — this wrapper is belt-and-suspenders on top of that guarantee,
@@ -2978,17 +3039,24 @@ def main() -> int:
     # marker (suppression defers the fire past the notification turn, it never
     # destroys it).
     notification_suppressed_ids: set[str] = set()
-    # Frontier evaluates only the compact verification guard (frontier_ids),
-    # plus every discovered `user_correction` probe for LEDGER OPENING
-    # (Mechanism 4, rehomed from legacy 2026-07-19 — LEARNING_CONTRACT §2):
-    # display/nagging stays scoped to frontier_ids, but correction-ledger
-    # capture is unconditional regardless of which probes are on display
-    # (a display-only scope must never silently drop a correction from ever
-    # opening a closeout-blocking item).
+    # Frontier evaluates only the compact verification guard (frontier_ids).
+    # Every discovered `user_correction` probe additionally feeds LEDGER
+    # OPENING (Mechanism 4, LEARNING_CONTRACT §2) — display/nagging stays
+    # scoped to frontier_ids, but correction-ledger capture would ignore that
+    # scope (a display-only scope must never silently drop a correction from
+    # ever opening a closeout-blocking item) — EXCEPT the ledger itself is
+    # ARMED-ONLY (2026-07-19/20 policy fix, correction_ledger_armed() above):
+    # unarmed, `ledger_probes` stays empty so a correction-shaped prompt opens
+    # nothing and writes no ledger state at all — only the always-on
+    # in-reply acknowledgement (Mechanism 1 display, still gated by
+    # frontier_ids like any other probe) survives.
     probes = [
         p for p in all_probes if p.get("_probe_id") in frontier_ids
     ]
-    ledger_probes = [p for p in all_probes if p.get("kind") == "user_correction"]
+    ledger_probes = (
+        [p for p in all_probes if p.get("kind") == "user_correction"]
+        if correction_ledger_armed() else []
+    )
     if notification["active"]:
         # The current turn is a substrate-authored terminal-SUCCESS
         # task-notification for an allowlisted self-contained job kind —
@@ -3114,8 +3182,8 @@ def main() -> int:
                                        traj_stats=traj)
             except _ProbeBudgetExceeded:
                 # A drift_probes regex blew the time budget (likely ReDoS). Skip
-                # probes this turn rather than wedge the prompt. Re-anchor below
-                # still runs (it uses only fixed regexes).
+                # probes this turn rather than wedge the prompt. The ledgers
+                # below still run (they use only fixed regexes).
                 log_err(f"probe-budget-exceeded: skipped probes (>{PROBE_TIMEOUT_SECONDS}s)")
                 fired = []
             if notification_suppressed_ids:
@@ -3169,7 +3237,7 @@ def main() -> int:
                     state["probe_history"] = history[-50:]
                     save_state(path, state)
                 # Best-effort activation telemetry — ADDS a record only, never
-                # touches drift logic/ledger/re-anchor above or below. Outside
+                # touches drift logic or the ledgers above or below. Outside
                 # state_lock on purpose: it's an independent append-only sink,
                 # not part of this session's locked state.
                 _record_trigger_matched_activations(fired)
@@ -3313,27 +3381,36 @@ def main() -> int:
             ledger_lines.append(f"- {kind} output never read: {out_path}")
 
     # --- Mechanism 4: correction ledger (LEARNING_CONTRACT §2, rehomed into
-    # frontier 2026-07-19) ---------------------------------------------------
-    # UNCONDITIONAL, same as Mechanism 3: opens on every fired `user_correction`
-    # probe, persisted across turns, surfaced EVERY turn it is non-empty (closeout-
-    # blocking — unlike the request ledger, this does not wait for a wrap-up turn
-    # or drift coupling, since a banked-but-forgotten correction must not go quiet).
-    # `fired + ledger_only_fired`: ledger OPENING sees every fired user_correction
-    # probe regardless of frontier's display scoping (frontier_ids) — display
-    # stays scoped, `fired` alone still drives `build_output`/nagging. Minimal
-    # rehome: same surfacing cadence as the retired legacy profile, no new
-    # nagging cadence and no probe-escalation (Mechanism 5, deleted, not
-    # rehomed).
+    # frontier 2026-07-19, ARMED-ONLY 2026-07-20) -----------------------------
+    # ARMED-ONLY, not unconditional (policy fix — see correction_ledger_armed()
+    # above): a user correction is always acted on and acknowledged in the
+    # reply regardless of arming; only durable-banking enforcement (this
+    # ledger) requires task-audit mode to be armed or an explicit user ask.
+    # Unarmed, `ledger_probes`/`ledger_only_fired` are already empty (gated
+    # above) and this whole block is skipped — no update_correction_ledger
+    # call, no state_lock, no write, nothing surfaced: a correction-shaped
+    # prompt is fully inert on the ledger side. Armed, behavior is unchanged
+    # from the 2026-07-19 rehome: opens on every fired `user_correction` probe,
+    # persisted across turns, surfaced EVERY turn it is non-empty (closeout-
+    # blocking — unlike the request ledger, this does not wait for a wrap-up
+    # turn or drift coupling, since a banked-but-forgotten correction must not
+    # go quiet). `fired + ledger_only_fired`: ledger OPENING sees every fired
+    # user_correction probe regardless of frontier's display scoping
+    # (frontier_ids) — display stays scoped, `fired` alone still drives
+    # `build_output`/nagging. No new nagging cadence and no probe-escalation
+    # (Mechanism 5, deleted, not rehomed).
     correction_closed_now, correction_action = [], "none"
-    correction_ledger, correction_closed_now, correction_action = update_correction_ledger(
-        correction_ledger, fired + ledger_only_fired, bash_results, prompt_text_user, turn)
-    if correction_action != "none":
-        with state_lock(path):
-            state = load_state(path)
-            state["correction_ledger"] = correction_ledger
-            save_state(path, state)
-    correction_ledger_lines = build_correction_ledger_lines(
-        correction_ledger, correction_closed_now, turn)
+    correction_ledger_lines: list[str] = []
+    if correction_ledger_armed():
+        correction_ledger, correction_closed_now, correction_action = update_correction_ledger(
+            correction_ledger, fired + ledger_only_fired, bash_results, prompt_text_user, turn)
+        if correction_action != "none":
+            with state_lock(path):
+                state = load_state(path)
+                state["correction_ledger"] = correction_ledger
+                save_state(path, state)
+        correction_ledger_lines = build_correction_ledger_lines(
+            correction_ledger, correction_closed_now, turn)
 
     if not fired and not ledger_lines and not correction_ledger_lines:
         return 0

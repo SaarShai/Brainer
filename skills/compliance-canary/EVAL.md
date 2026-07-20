@@ -14,6 +14,18 @@ findings below describe historical `legacy`/`shadow` behavior from before the
 2026-07-19 retirement and are not evidence that those mechanisms improve
 current frontier-model outcomes.
 
+**2026-07-20 correction:** the 2026-07-19 rehome made the correction ledger
+UNCONDITIONAL (opened on every fired `user_correction` probe regardless of
+task-audit state), which regressed the frozen 862-case frontier trigger-gate
+corpus (FP=175, precision 65.2% — bare-again/quoted-article/code-fence hard
+negatives all opened closeout-blocking items; byte-identical gate on `main`
+is FP=0/precision 1.0). Fixed to **armed-only**
+(`COMPLIANCE_CANARY_CORRECTION_LEDGER=1`, or task-retrospective's own
+mechanical `.brainer/task-retrospective/current.json` `"status": "armed"`
+signal) — LEARNING_CONTRACT §2 amended to match: a correction is always
+acted on and acknowledged, durable banking is closeout-blocking only while
+armed or on explicit user ask.
+
 **Status:** v1.10.0 — **skill-pulse folded in** (2026-06-16): one `UserPromptSubmit` hook now runs both mechanisms — symptomatic per-skill probes *and* the periodic skill-rule re-anchor. Hook correctness verified by [tools/test.sh](tools/test.sh) (56 cases — probes + re-anchor cadence/yield/floor/alias/BOM/allowlist + adversarial hardening: malformed payload, non-str session_id, ReDoS time-budget, reminder cap); offline probe baselining via [tools/measure.py](tools/measure.py); canary p99 latency 41 ms on a 400-line synthetic transcript.
 
 ## Why merged (one reactive hook instead of two)
@@ -139,8 +151,8 @@ Premortem ([`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §8):
   that reconciliation is `wiki-refresh`'s cycle, not this skill's.
 - **No-hooks host** — Codex/Gemini require an explicit hook-porting step (`.codex/hooks.json`,
   `gemini hooks migrate --from-claude`) per `docs/HOST_CAPABILITY_MATRIX.md`; on a host where
-  that step was skipped, none of the three mechanisms (probes, re-anchor, ledger) fire at
-  all, and — unlike a Claude Code session where `auto-install: true` wires it by default —
+  that step was skipped, none of the three mechanisms (probes, request ledger, correction
+  ledger) fire at all, and — unlike a Claude Code session where `auto-install: true` wires it by default —
   there is no fallback in-band enforcement, so every rule this skill covers reverts to being
   manually self-policed.
 - **Correction-ledger bank-resolution is execution-evidence, not command-text** — Mechanism 4's

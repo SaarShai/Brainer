@@ -293,10 +293,37 @@ def main() -> int:
             "injected_bytes", "content_hash"
         } for r in records), repr(records[:3]))
 
+        # --- probe-ID migration alias (MINOR 1): a configured OLD id
+        # `verify-before-completion:<name>` (pre-2026-07-19 rehome) still
+        # selects the rehomed `compliance-canary:<name>` probe, with a
+        # one-line stderr warning naming the rename; an unrecognized id is
+        # unchanged (selects nothing, no crash, no warning).
+        alias_claim = [
+            tool_use("al1", "Bash", {"command": "echo status"}),
+            tool_result("al1", "nothing relevant"),
+            claim("all done"),
+        ]
+        aliased = run(root, alias_claim, "frontier", "probe-id-alias", extra_env={
+            "COMPLIANCE_CANARY_PROBE_IDS": "verify-before-completion:claim-without-evidence"})
+        check("probe-id-alias-selects-rehomed-probe",
+              aliased.stdout.count("[claim_without_evidence]:") == 1, aliased.stdout)
+        check("probe-id-alias-warns-on-stderr",
+              "probe-id-renamed: 'verify-before-completion:claim-without-evidence' -> "
+              "'compliance-canary:claim-without-evidence'" in aliased.stderr,
+              aliased.stderr)
+        unknown = run(root, alias_claim, "frontier", "probe-id-unknown", extra_env={
+            "COMPLIANCE_CANARY_PROBE_IDS": "nonexistent-skill:some-id"})
+        check("probe-id-unknown-id-selects-nothing-silently-no-warning",
+              not unknown.stdout and "probe-id-renamed" not in unknown.stderr,
+              (unknown.stdout, unknown.stderr))
+
         # --- Mechanism 4: correction ledger rehomed into frontier (2026-07-19,
-        # LEARNING_CONTRACT §2) — minimal rehome from the retired legacy
-        # profile: a correction-shaped prompt fires user_correction and opens
-        # a closeout-blocking OPEN item; a banked write_gate.py call (command
+        # LEARNING_CONTRACT §2) — ARMED-ONLY (2026-07-20 policy fix): an
+        # earlier unconditional reading regressed the frozen 862-case frontier
+        # trigger-gate corpus (FP=175, precision 65.2%). Armed (env var here;
+        # test.sh's [34q] covers the task-retrospective current.json signal),
+        # a correction-shaped prompt fires user_correction and opens a
+        # closeout-blocking OPEN item; a banked write_gate.py call (command
         # position + a PASSED execution-evidence tool_result) resolves it and
         # stops surfacing.
         correction_skill = root / "skills" / "corrections"
@@ -306,8 +333,9 @@ def main() -> int:
             "pattern": r"(?i)(?:^\s*no[,. ]|i said\b)",
             "message": "harvest the correction",
         }]), encoding="utf-8")
+        armed_env = {"COMPLIANCE_CANARY_CORRECTION_LEDGER": "1"}
         opened = run(root, [claim("ok, using tabs")], "frontier", "correction-rehome",
-                    prompt="no, I said use spaces not tabs")
+                    prompt="no, I said use spaces not tabs", extra_env=armed_env)
         check("frontier-correction-ledger-opens-on-fired-user-correction",
               "correction(s) still OPEN" in opened.stdout and "§2" in opened.stdout,
               opened.stdout)
@@ -317,13 +345,26 @@ def main() -> int:
             tool_result("bank1", '{"verdict": "PASSED: ok"}'),
             claim("banked the lesson"),
         ]
-        banked = run(root, bank_tx, "frontier", "correction-rehome", prompt="go ahead")
+        banked = run(root, bank_tx, "frontier", "correction-rehome", prompt="go ahead",
+                    extra_env=armed_env)
         check("frontier-correction-ledger-resolves-on-banked-write-gate-call",
               "resolved 1 correction" in banked.stdout and "still OPEN" not in banked.stdout,
               banked.stdout)
-        quiet = run(root, [claim("continuing")], "frontier", "correction-rehome", prompt="next")
+        quiet = run(root, [claim("continuing")], "frontier", "correction-rehome", prompt="next",
+                   extra_env=armed_env)
         check("frontier-correction-ledger-stays-quiet-once-resolved",
               "correction ledger" not in quiet.stdout, quiet.stdout)
+
+        # --- ARMED-only boundary (2026-07-20): unarmed is fully inert — the
+        # user_correction probe still opens nothing and the ledger's state
+        # key is never written, even though the SAME probe fixture (sk
+        # "corrections") is discovered on every run.
+        unarmed = run(root, [claim("ok, using tabs")], "frontier", "correction-unarmed",
+                     prompt="no, I said use spaces not tabs")
+        check("unarmed-correction-ledger-stays-silent", not unarmed.stdout, unarmed.stdout)
+        check("unarmed-correction-ledger-writes-no-state-key",
+              "correction_ledger" not in state_file(root, "correction-unarmed"),
+              repr(state_file(root, "correction-unarmed")))
 
         # --- notification evidence boundary (2026-07-18) -------------------
         timer_prompt = notification('Timer "focus-25m" completed (exit code 0)')

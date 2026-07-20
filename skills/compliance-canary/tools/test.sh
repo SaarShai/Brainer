@@ -538,12 +538,16 @@ out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc34
 if emitted "$out" && echo "$out" | grep -q 'user_correction'; then ok "user_correction fires with no assistant prose"; else no "user_correction fires with no assistant prose" "got: $(echo "$out" | head -c150)"; fi
 
 # ======================================================================
-# Mechanism 4 — correction ledger (LEARNING_CONTRACT §2): a fired
+# Mechanism 4 — correction ledger (LEARNING_CONTRACT §2): ARMED-ONLY
+# (2026-07-20 policy fix — see hook.py's correction_ledger_armed()). A fired
 # user_correction probe opens a closeout-blocking OPEN item that is surfaced
 # every turn until a banking tool call (write_gate.py / wiki.py new) is
 # observed to have ACTUALLY RUN (a Bash tool_use with matching invocation
 # shape AND a paired tool_result carrying a passing execution signature), or
-# the user explicitly closes it. Reuses the sk34/PROBES fixture above (the
+# the user explicitly closes it. call34() sets COMPLIANCE_CANARY_CORRECTION_
+# LEDGER=1 so [34a]-[34o] below exercise the ARMED lifecycle unchanged from
+# the 2026-07-19 rehome; [34p]-[34q] below cover the UNARMED boundary the
+# armed env normally masks. Reuses the sk34/PROBES fixture above (the
 # user_correction probe from test [34]).
 # ======================================================================
 
@@ -556,7 +560,7 @@ import json,sys
 print(json.dumps({'session_id':sys.argv[1],'transcript_path':sys.argv[2],'hook_event_name':'UserPromptSubmit','prompt':sys.argv[3]}))
 " "$sid" "$tx" "$prompt")
   printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/$state_sub" \
-    COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk34" "${HOOK[@]}"
+    COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk34" COMPLIANCE_CANARY_CORRECTION_LEDGER=1 "${HOOK[@]}"
 }
 
 echo "[34a] correction ledger: a fired user_correction opens an item citing LEARNING_CONTRACT §2"
@@ -773,6 +777,60 @@ if echo "$out2" | grep -qi 'correction(s) still OPEN' && ! echo "$out2" | grep -
   ok "wiki.py new with \"refused\" result stays OPEN"
 else
   no "wiki.py new with \"refused\" result must stay OPEN" "got: $(echo "$out2" | head -c220)"
+fi
+
+# ======================================================================
+# ARMED-only boundary (2026-07-20 policy fix): [34a]-[34o] above all run
+# through call34(), which now sets COMPLIANCE_CANARY_CORRECTION_LEDGER=1 —
+# i.e. every one of those is an ARMED-lifecycle test. [34p]/[34q] below cover
+# the boundary itself: unarmed must be fully inert (silent, no ledger state
+# write), and arming via task-retrospective's own mechanical signal (no env
+# var) must work exactly like the env var.
+# ======================================================================
+
+echo "[34p] UNARMED — correction-shaped prompt is fully inert on the ledger: silent + no correction_ledger state write"
+TX34P="$TRANSCRIPT_DIR/t34p.jsonl"
+write_transcript "$TX34P" "$(assistant_text 'ok, using tabs' u34p)"
+payload=$(python3 -c "
+import json,sys
+print(json.dumps({'session_id':sys.argv[1],'transcript_path':sys.argv[2],'hook_event_name':'UserPromptSubmit','prompt':'no, I said use spaces'}))
+" s34p "$TX34P")
+out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc34p" \
+  COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk34" "${HOOK[@]}")
+STATE_FILE_34P="$STATE_ROOT/cc34p/$(python3 -c "import hashlib,sys; print(hashlib.sha256(sys.argv[1].encode()).hexdigest()[:16])" s34p).json"
+has_ledger_key="no"
+if [ -f "$STATE_FILE_34P" ]; then
+  if python3 -c "
+import json,sys
+d = json.load(open(sys.argv[1]))
+sys.exit(0 if 'correction_ledger' in d else 1)
+" "$STATE_FILE_34P"; then has_ledger_key="yes"; fi
+fi
+if [ -z "$out" ] && [ "$has_ledger_key" = "no" ]; then
+  ok "unarmed correction is silent and writes no correction_ledger state key"
+else
+  no "unarmed correction must be silent + write no ledger state" "out=$(echo "$out" | head -c150) has_ledger_key=$has_ledger_key"
+fi
+
+echo "[34q] ARMED via task-retrospective's own mechanical current.json (status: armed) — no env var needed"
+PROJ34Q="$(mktemp -d -t cc-proj34q-XXXX)"
+mkdir -p "$PROJ34Q/.brainer/task-retrospective"
+cat > "$PROJ34Q/.brainer/task-retrospective/current.json" <<'EOF'
+{"status": "armed", "task_id": "t1"}
+EOF
+TX34Q="$TRANSCRIPT_DIR/t34q.jsonl"
+write_transcript "$TX34Q" "$(assistant_text 'ok, using tabs' u34q)"
+payload=$(python3 -c "
+import json,sys
+print(json.dumps({'session_id':sys.argv[1],'transcript_path':sys.argv[2],'hook_event_name':'UserPromptSubmit','prompt':'no, I said use spaces'}))
+" s34q "$TX34Q")
+out=$(printf '%s' "$payload" | env COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/cc34q" \
+  COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/sk34" CLAUDE_PROJECT_DIR="$PROJ34Q" "${HOOK[@]}")
+rm -rf "$PROJ34Q"
+if echo "$out" | grep -qi 'still OPEN' && echo "$out" | grep -q '§2'; then
+  ok "task-retrospective's mechanical current.json arms the correction ledger without the env var"
+else
+  no "current.json (status: armed) should arm the correction ledger" "got: $(echo "$out" | head -c220)"
 fi
 
 # [34j] (allowlist-scoped ledger opening via the retired COMPLIANCE_CANARY_

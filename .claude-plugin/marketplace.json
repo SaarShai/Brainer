@@ -10,7 +10,7 @@
     {
       "name": "brainer",
       "version": "1.14.1",
-      "description": "All 24 skills bundled. compliance-canary auto-wires its quiet frontier profile: silent pending-intent state plus compact compliance-aware verification. Legacy broad probes and periodic re-anchor are disabled by default. Experimental process bodies and Brainer-audit hooks remain opt-in; deterministic tools stay callable.",
+      "description": "All 24 skills bundled. compliance-canary auto-wires its quiet frontier profile: silent pending-intent state, compact compliance-aware verification, and an armed-only correction ledger. Legacy broad probes and periodic re-anchor were retired, not disabled. Experimental process bodies and Brainer-audit hooks remain opt-in; deterministic tools stay callable.",
       "source": "./plugin"
     }
   ]

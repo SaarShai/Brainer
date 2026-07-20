@@ -1,6 +1,6 @@
 ---
 name: compliance-canary
-description: "Use when a long session may drift or needs verification-compliance monitoring. Frontier defaults to silent intent state plus one compact, compliance-aware verification probe and a closeout-blocking correction ledger; off is a mutation-free control."
+description: "Use when a long session may drift or needs verification-compliance monitoring. Frontier defaults to silent intent state plus one compact, compliance-aware verification probe and an armed-only closeout-blocking correction ledger; off is a mutation-free control."
 model: haiku
 effort: low
 tools: [Bash, Read, Write]
@@ -22,9 +22,10 @@ to `frontier` (never crashes, never silently no-ops).
 
 - `frontier` silently records pending intent and emits
   `compliance-canary:claim-without-evidence`, pending intent at a genuine
-  wrap-up, and the correction ledger (Mechanism 4, rehomed from legacy
-  2026-07-19 — the one capability preserved rather than deleted). There is
-  no periodic re-anchor, generic style probe, or escalation wrapper.
+  wrap-up, and — only when task-audit mode is armed (or the user asks) — the
+  correction ledger (Mechanism 4, rehomed from legacy 2026-07-19, armed-only
+  since 2026-07-20). There is no periodic re-anchor, generic style probe, or
+  escalation wrapper.
 - `off` exits before state, lock, ledger, telemetry, transcript, or activation
   mutation and is the clean experimental control.
 
@@ -117,20 +118,22 @@ skipping 2 and 5, the retired periodic re-anchor and probe-escalation
 mechanisms, to match `hook.py`'s in-code numbering rather than renumbering):
 skill-pulse was folded in here 2026-06-16 — the leaner "one reactive hook
 instead of two" the eval notes had flagged; the request ledger was added
-2026-06-17; the correction ledger closes the LEARNING_CONTRACT §2 gap — a
-user correction must become a durable artifact before the task closes:
+2026-06-17; the correction ledger enforces the LEARNING_CONTRACT §2 durable-
+banking half — when task-audit mode is armed (or the user asks) — that an
+armed user correction must become a durable artifact before the task closes:
 
 | # | Mechanism | When it speaks | Covers |
 |---|---|---|---|
 | 1 | **Symptomatic probes** | only when a drift symptom appears | filler, verbosity creep, unverified done-claims, self-closing without asking, looping tool errors, error-rate spikes |
 | 3 | **Request ledger** | at wrap-up turns | a user request silently dropped before it was completed or the user closed it |
-| 4 | **Correction ledger** | every turn it is non-empty | a user correction closed out without being banked as a durable rule + gate + exemplar (LEARNING_CONTRACT §2) |
+| 4 | **Correction ledger** *(armed-only)* | every turn it is non-empty, only while armed | an armed user correction closed out without being banked as a durable rule + gate + exemplar (LEARNING_CONTRACT §2) |
 
 All three emit into **one** `<system-reminder>` with a shared budget. The
 request ledger does NOT yield at a wrap-up turn: surfacing still-open
 requests precisely as the agent moves to close is the whole point. The
-correction ledger likewise does not yield — it is closeout-blocking, so it
-surfaces every turn it holds an open item.
+correction ledger likewise does not yield while armed — it is closeout-
+blocking, so it surfaces every turn it holds an open item; unarmed, it holds
+no items at all (see Mechanism 4 below).
 
 Emergency switch: `COMPLIANCE_CANARY_DISABLED=1`. For experiments use
 `COMPLIANCE_CANARY_PROFILE=off`, whose no-mutation contract is tested.
@@ -151,7 +154,7 @@ Each kind is the JSON shape an author writes in their skill's `drift_probes.json
 - **`word_count_per_message`** — avg words/msg over a window → terseness drift (caveman-ultra creep, explanation bloat).
 - **`claim_without_evidence`** — a claim word with no verify-style tool call in recent history → [verify-before-completion](../verify-before-completion/SKILL.md) drift.
 - **`repeated_tool_error`** *(v1.7)* — a recurring `is_error` signature → a tool error the agent keeps re-triggering.
-- **`user_correction`** *(v1.7)* — current prompt matches a correction pattern → surface it so it isn't ignored (route the lesson through [write-gate](../write-gate/SKILL.md)) and open a closeout-blocking correction-ledger item (Mechanism 4, LEARNING_CONTRACT §2) until it is banked or user-closed.
+- **`user_correction`** *(v1.7)* — current prompt matches a correction pattern → surface it so it isn't ignored (route the lesson through [write-gate](../write-gate/SKILL.md)); when task-audit mode is armed (or the user asks), also opens a closeout-blocking correction-ledger item (Mechanism 4, LEARNING_CONTRACT §2) until it is banked or user-closed — unarmed, the correction is acted on and acknowledged but the ledger stays inert (armed-only, 2026-07-20 policy fix).
 - **`trajectory_drift`** *(v1.8)* — session tool-error RATE over the tail → thrashing (retry loops, schema-mismatch storms).
 - **`prompt_intent`** *(v1.11)* — current prompt matches a governed situation → a PRE-TASK skill nudge (spontaneous Skill invocation is unreliable, so fire mechanically).
 - **`early_stop`** *(v1.11)* — last turn is a forward-looking promise with no tool/claim/question → the anti-early-stop reflex ([verify-before-completion](../verify-before-completion/SKILL.md)).
@@ -173,10 +176,10 @@ below).
 
 ## Mechanism 3 — request ledger
 
-Probes and the re-anchor are *stateless against intent* — they cannot tell that
-a thing the user asked for three turns ago was quietly dropped. The ledger is the
-stateful guard for that: **no user request is dropped until it is completed or the
-user says so.**
+Probes are *stateless against intent* — they cannot tell that a thing the user
+asked for three turns ago was quietly dropped. The ledger is the stateful guard
+for that: **no user request is dropped until it is completed or the user says
+so.**
 
 Lifecycle (per-session state under `COMPLIANCE_CANARY_STATE_DIR`, key
 `request_ledger`):
@@ -186,8 +189,7 @@ Lifecycle (per-session state under `COMPLIANCE_CANARY_STATE_DIR`, key
   skipped; a closure phrase is handled below, not appended.
 - **Surface.** Open items are re-injected when the agent's last message reads as a
   TERMINAL completion claim (a wrap-up turn — "you appear to be wrapping up, but N
-  requests are still OPEN — do NOT self-close…"), and, more quietly, on the
-  re-anchor cadence when nothing else fired.
+  requests are still OPEN — do NOT self-close…").
 - **Close.** An item leaves the ledger **only when the user says so** — a closure
   phrase in the user's prompt ("close it", "that's all", "drop that", "ship it",
   "we're done"). `close all / everything` clears the ledger; otherwise the
@@ -272,27 +274,42 @@ other mechanism (2026-07-18 audit — the request LEDGER is the sole record
 that stays ahead of the valve; the intent log is its verbatim mirror and
 follows the operator valve).
 
-## Mechanism 4 — correction ledger
+## Mechanism 4 — correction ledger (armed-only)
 
 [`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §2: a user correction is
-**closeout-blocking** — it must become a durable artifact (rule + gate +
-exemplar, SCOPE-classified per §1) before the task closes, unconditionally, not
-only "if a retrospective is armed". The `user_correction` probe (Mechanism 1)
-already detects the correction at the turn it lands; the correction ledger is
-the stateful guard that keeps it from being forgotten — mirroring the request
+always acted on immediately and acknowledged in the reply — that part is
+unconditional. Durable banking — a rule + gate + exemplar, SCOPE-classified
+per §1, before the task closes — is **closeout-blocking only when task-audit
+mode is armed** (`task-retrospective`, `/retro`) or the user explicitly asks
+for it; unarmed, the agent notes the correction and may suggest arming for a
+clearly repeatable task, but does not bank on its own. The `user_correction`
+probe (Mechanism 1) already detects the correction at the turn it lands
+(unaffected by arming — the in-reply acknowledgement always happens); the
+correction ledger below is the ARMED-ONLY stateful guard that keeps an
+armed-but-unbanked correction from being forgotten — mirroring the request
 ledger's shape exactly, one mechanism level up.
 
-Rehomed into `frontier` 2026-07-19 — this was the one capability worth
-preserving from the retired `legacy` profile (minimal rehome: same
-surfacing cadence, no new nagging, no probe-escalation wrapper — Mechanism 5
-was deleted, not rehomed).
+Rehomed into `frontier` 2026-07-19 as an UNCONDITIONAL mechanism — the one
+capability worth preserving from the retired `legacy` profile. That reading
+regressed the frozen 862-case frontier trigger-gate corpus (FP=175, precision
+65.2% — bare-again/quoted-article/code-fence hard negatives all opened
+closeout-blocking items), so it was corrected 2026-07-20 to **armed-only**:
+`COMPLIANCE_CANARY_CORRECTION_LEDGER=1`, or task-retrospective's own
+mechanical armed-state file (`.brainer/task-retrospective/current.json`,
+`"status": "armed"` — the one machine-readable armed signal task-retrospective
+exposes; a purely conversational "arming" with no `task_audit.py start` call
+does not arm the ledger — see `hook.py`'s `correction_ledger_armed()`). Same
+surfacing cadence, no new nagging, no probe-escalation wrapper (Mechanism 5,
+deleted, not rehomed) either way.
 
-Lifecycle (per-session state under `COMPLIANCE_CANARY_STATE_DIR`, key
-`correction_ledger`):
+Lifecycle when armed (per-session state under `COMPLIANCE_CANARY_STATE_DIR`,
+key `correction_ledger`). Unarmed, none of this runs at all — no state
+read/write, no surfacing, no matter how many `user_correction` probes fire
+that turn (a hard negative is fully inert, not merely quiet):
 
 - **Open.** Every fired `user_correction` probe (any skill's) opens an OPEN
-  item `{id, turn, text}` — unconditional capture, the same no-opt-out posture
-  as Mechanism 3. This is unconditional even when frontier's compact
+  item `{id, turn, text}` — unconditional capture once armed, the same
+  no-opt-out posture as Mechanism 3. This holds even when frontier's compact
   `COMPLIANCE_CANARY_PROBE_IDS` scope excludes a skill's `user_correction`
   probe from the DISPLAY (symptomatic) surface: every discovered
   `user_correction` probe is still evaluated for ledger OPENING regardless of
@@ -402,9 +419,10 @@ Env vars (all optional).
 | Var | Default | Effect |
 |---|---|---|
 | `COMPLIANCE_CANARY_PROFILE` | `frontier` | `frontier` or mutation-free `off`; an unrecognized value (incl. the retired `legacy`/`shadow`) fails safe to `frontier` |
-| `COMPLIANCE_CANARY_PROBE_IDS` | frontier verification probe | exact comma-separated `skill:id` selection; replaces skill-level selection |
+| `COMPLIANCE_CANARY_PROBE_IDS` | frontier verification probe | exact comma-separated `skill:id` selection; replaces skill-level selection. A configured `verify-before-completion:<name>` id (its pre-2026-07-19 owning skill) is translated forward to `compliance-canary:<name>` with a one-line stderr warning; any other unrecognized id simply selects nothing (unchanged behavior) |
 | `COMPLIANCE_CANARY_TELEMETRY_PATH` | state dir `telemetry.jsonl` | redacted append-only telemetry path |
 | `COMPLIANCE_CANARY_DISABLED=1` | — | break-glass: silences drift detection, all reminders, and intent-log capture, but the turn is still counted and the prompt still recorded to the request ledger first (ledger state mutation happens BEFORE the valve by standing user directive); only profile `off` is fully mutation-free |
+| `COMPLIANCE_CANARY_CORRECTION_LEDGER=1` | unset (unarmed) | arms Mechanism 4's correction ledger (see Mechanism 4 above); task-retrospective's own `.brainer/task-retrospective/current.json` (`"status": "armed"`) arms it mechanically too, without this env var |
 | `COMPLIANCE_CANARY_COOLDOWN` | 3 | turns to suppress the same probe after it fires |
 | `COMPLIANCE_CANARY_STATE_DIR` | `.brainer/compliance-canary` | override state location |
 | `COMPLIANCE_CANARY_SKILLS_ROOT` | `.claude/skills` | override skills lookup root |

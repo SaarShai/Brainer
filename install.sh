@@ -166,12 +166,13 @@ skill_is_slash_only() {
 # default install path (see eval/FINDINGS.md).
 # compliance-canary is the DEFAULT-ON output-style drift defense (auto-install:
 # true since 2026-06-09; absorbed skill-pulse at v1.10, so it is now the SINGLE
-# drift watcher). One UserPromptSubmit hook runs both halves — a periodic
-# re-anchor of active skill rules every N turns AND symptomatic drift probes —
-# keeping caveman-ultra (and any pulse_reminder/drift_probes skill) from decaying
-# over a long session. Turn off per-project via env without uninstall:
-# COMPLIANCE_CANARY_DISABLED=1 (both) — SKILL_PULSE_DISABLED=1 still disables
-# just the re-anchor (back-compat alias).
+# drift watcher). One UserPromptSubmit hook runs three mechanisms — symptomatic
+# drift probes, a request ledger, and an armed-only correction ledger — keeping
+# caveman-ultra (and any drift_probes skill) from decaying over a long session.
+# (The periodic skill-rule re-anchor `legacy`/`shadow` once ran was retired
+# 2026-07-19, not rehomed.) Turn off per-project via env without uninstall:
+# COMPLIANCE_CANARY_DISABLED=1, or COMPLIANCE_CANARY_PROFILE=off for a fully
+# mutation-free experimental control.
 # NOTE: per-skill installers MERGE into host settings. A bare ./install.sh
 # AUTO-PRUNES hooks whose script is gone and hooks owned by skills now marked
 # `auto-install: false`. The latter makes a default-on -> opt-in transition

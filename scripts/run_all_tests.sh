@@ -218,6 +218,13 @@ run "sims" env BRAINER_CHECK_NO_WRITE="$BRAINER_CHECK_NO_WRITE" python3 eval/sim
 # signal; 0-flip/low-impact features are reported but never fail the gate.
 run "ablation-guard" env BRAINER_CHECK_NO_WRITE="$BRAINER_CHECK_NO_WRITE" python3 eval/ablation.py --json
 
+# 5c2. Frozen 862-case frontier trigger gate — runs the CURRENT hook through the
+# preregistered corpus (precision >= 95%, false-injection < 1%). Digest-pinning
+# alone cannot pass this: run_trigger_cases executes hook.py live per case.
+# Required per the 2026-07-20 phase-2 audits (a 175-FP regression shipped while
+# ordinary suites stayed green because this gate was audit-only).
+run "canary-frontier-gate" bash -c 'out=$(mktemp); python3 eval/skills_effectiveness/run_trigger_cases.py --profile frontier --out "$out" >/dev/null && python3 eval/skills_effectiveness/trigger_gate.py --profile frontier "$out"'
+
 # 5d. Skill-corpus audit — fails if a NEW cross-skill directive conflict or a
 # near-duplicate directive is introduced (standing #3 guard; suite is clean now,
 # mutation-validated so the clean verdict is non-vacuous). Behavioral instruction
