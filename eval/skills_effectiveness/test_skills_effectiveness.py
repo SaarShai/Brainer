@@ -29,7 +29,6 @@ class FrozenCorpusTests(unittest.TestCase):
         self.assertEqual(483, sum(r["expect"] == "silent" for r in rows))
         self.assertEqual(379, sum(r["expect"] == "fire" for r in rows))
         self.assertEqual(329, sum(r["profile_expect"]["frontier"] == "fire" for r in rows))
-        self.assertEqual(455, sum(r["profile_expect"]["legacy"] == "fire" for r in rows))
         # Earlier corpus generations stay frozen byte-identically as baselines:
         # first 500 = old-rule, first 600 = notification morphologies, 675 adds
         # the deferred-fire / provenance / timer-with-result hardening cases,
@@ -42,28 +41,31 @@ class FrozenCorpusTests(unittest.TestCase):
         # regression cases (compound-supersession closures + custom_tool_call
         # evidence, deb2db8); its full digest is the corpus_sha256 in
         # eval/results/skills-effectiveness/frontier-trigger-post-demote-lane1.metrics.json.
+        # 2026-07-20: the "legacy"/"shadow" profile_expect keys were dropped
+        # (PROFILES retired to {frontier, off}, commit 459d35d), so every
+        # digest below moved on purpose.
         self.assertEqual(
-            "a6ad89582077faf83722be5ec2e9c9e1323ae058bb9db5116c57e89ee860c276",
+            "e923d0be0f3e6354259ea9f97b269dacfd5a7cea5a823665c891eef228d5ac86",
             cases.case_digest(rows[:500]),
         )
         self.assertEqual(
-            "57186e26e549f296d0f05cabe9c84c7bcf9f035496e1fe4e4672c34e62f5da89",
+            "ca46a26aa806838a8986f512e6a6035fcb385146398a4a53af4711c5ff6e3f8e",
             cases.case_digest(rows[:600]),
         )
         self.assertEqual(
-            "3258b8c567ac57624f419f83589d685dd304cd4e514e983f0708c6ccd1e9d12b",
+            "b4cd93b9794468f144ff6c80db43440d6a3489f8b8593cae87eb625909a638f1",
             cases.case_digest(rows[:675]),
         )
         self.assertEqual(
-            "1302bc23331159d8fcb4413fa2d9b31e21d6effb2b629ffc5057d1c200c9958a",
+            "c44dbf14e3e4f57f911b61444e7c7a7d7565c260b3c1b9837cd9bf3b181f6abf",
             cases.case_digest(rows[:850]),
         )
         self.assertEqual(
-            "81c4a9c145e6a5da11c12d7143f79f10490f7250c82bd3b75bc633ff669ac1de",
+            "3eb41f3416c988e7b93833e67dd280c49a96c1bf94a22a1bcd5e188baa4ddd43",
             cases.case_digest(rows[:852]),
         )
         self.assertEqual(
-            "812e2857c09a863406bbfd40842a0c59380231b4e59abccd91a6beb71f588a7f",
+            "0dedb03ad19426ced5662edc09206c0a6b98e4a391984a4cce2bf56774f76607",
             cases.case_digest(rows),
         )
 
