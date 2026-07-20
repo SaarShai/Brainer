@@ -765,3 +765,40 @@ thresholds.
 - **2g — claim-without-evidence precision.** A 14-fire live-session corpus (session 62ae33f7) showed the probe false-firing on replies that (a) quoted their own already-verified numbers/commit hashes or (b) reported a delegated lane's RUNNING/PENDING status. Added two text-only regexes (_SELF_QUOTED_EVIDENCE_RE, _PENDING_DELEGATION_RE) in detect_claim_without_evidence; corpus durable at skills/compliance-canary/tests/fixtures/false_fires_20260720.{md,json}. 10/10 deduplicated false-fires now silent; 3 new unverified-claim fixtures still fire; test.sh 169→182/182.
 - **2h — hybrid probe-root masking (Sol phase-2 MAJOR 2).** project_hook_precedence.py now exports the plugin skills root only when the project has no local probe-bearing .claude/skills, so hybrid installs discover project-local probes again while plugin-only installs keep the phase-2a fix. Union/multi-root semantics noted as future work.
 - **2i — canonical-deletion propagation (Sol phase-2 MAJOR 1).** sibling_sync_audit.py gains canon_deleted enumeration + classify_deleted (DELETE = byte-matches prior canonical history; CONFLICT = sibling-customized, never auto-deleted) and an opt-in --apply-deletions flag. Live read-only check vs screenery-lean: 4 retired files DELETE, its customized verify-before-completion/drift_probes.json correctly CONFLICT. scripts/-level files remain outside the tool's coverage model by design (flagged, not silently expanded).
+
+## 2026-07-20 phase-2l + post-merge propagation round
+
+- **2l — context-safe armed correction detector (Kimi C1 punch-list 3).** Armed
+  sessions previously used the raw pre-2j regex: bare `again` and quoted/fenced
+  correction-shaped text could open closeout-blocking ledger items in exactly
+  the sessions that opted into rigor, and the corpus had no armed arm. hook.py
+  gains `strip_quoted_and_code()` (fenced blocks, inline backticks, double-
+  quoted spans, blockquote lines; user_correction kind only), task-retrospective
+  dropped the bare-`again` alternative (anaphoric forms kept), test_profiles.py
+  gains an armed arm loading the real shipped probe files. Measured: armed FP
+  0/15 on bare_again/quoted_article/code_fence hard negatives, TP 12/12 on
+  genuine corrections; unarmed frontier gate byte-identical (fp=0, all gates
+  True). Committed as 024aa41 on the branch; merged in 7797fd9.
+- **Propagation-harvested canonical bugs (both found live in siblings, fixed
+  same day):** (a) 0c6a99b — the three canary test harnesses inherited the host
+  repo's arming state because none pinned CLAUDE_PROJECT_DIR; farey-hecke's
+  genuinely-armed retrospective flipped "unarmed" test 34p (183/184). All
+  harnesses now pin an isolated project anchor; verified 184/184 from an armed
+  cwd. (b) b5eaea2 — the 2l armed-arm test hard-required eval/cases.py, which
+  siblings don't vendor; test_profiles.py crashed after 33 checks in every
+  sibling (PROMPTER traceback). Corpus-dependent tests now skip with an INFO
+  line; inline checks run everywhere (canonical 120 checks, sibling-sim 105).
+- **frontier_emit per-probe opt-in (be2f35b).** The frontier profile's fixed
+  allowlist silently killed every probe outside FRONTIER_VERIFY_PROBE_IDS —
+  including canonical's visual-claim-without-vision (most valuable in the .ai/
+  Illustrator repos) and sibling-local probes, with no non-fork path back. A
+  probe may now declare "frontier_emit": true in drift_probes.json (same
+  inclusion bar as the allowlist; COMPLIANCE_CANARY_PROBE_IDS still defines the
+  complete set when set). The visual probe also gained the
+  requires_context_regex gate from screenery-lean's fork — the earlier harvest
+  took the mechanism (388338e) but never applied it to this probe (the gate
+  exists because of 3 measured false fires, 2026-07-01). Frozen gate unchanged:
+  fp=0, tp=328, all gates True. test.sh 189/189, then 193/193 after f033bd9
+  upstreamed the sibling fork's generic tests ([117]-[120]); the shared
+  screenery test.sh fork was rebuilt as canonical + fable-only tail (197/197 in
+  both screenery repos).
