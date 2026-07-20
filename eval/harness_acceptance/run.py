@@ -241,10 +241,10 @@ def check_h2a() -> tuple[str, str, bool, str]:
     != false), not the narrower auto-install-EXPLICITLY-true set (5 skills).
     Rescoped accordingly; this is a materially larger and stricter population.
 
-    Named exception (per brief): requirements-ledger passes by user fiat
+    Named exception (per brief): skills in this set pass by user fiat
     regardless of the mechanical evidence found.
     """
-    NAMED_EXCEPTION = {"requirements-ledger"}
+    NAMED_EXCEPTION = set()
     measured_re = re.compile(r"(%|\bN\s*=|\bn\s*=|×|\bvs\b)", re.IGNORECASE)
     offenders = []
     checked = []

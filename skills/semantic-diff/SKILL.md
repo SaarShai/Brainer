@@ -66,7 +66,7 @@ tools/
 ├── semdiff_mcp/         # optional MCP server
 ├── requirements.txt     # slim CORE: tree-sitter + 4 grammars (~9-18M)
 ├── requirements-mcp.txt # optional: + mcp/cryptography
-├── plugin/              # CC plugin wrapper (.claude-plugin/, .mcp.json)
+├── plugin/              # CC plugin wrapper, not yet shipped (bare .claude-plugin/ only, no .mcp.json)
 ├── tests/
 ├── install.sh           # default = slim CLI; --mcp adds the server
 └── INSTALL.md           # per-host install

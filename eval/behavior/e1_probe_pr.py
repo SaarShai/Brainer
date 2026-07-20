@@ -21,32 +21,6 @@ HOOK = SKILLS / "compliance-canary" / "tools" / "hook.py"
 
 # probe -> dict(mode, sig, pos[], neg[])
 CORPUS = {
- "orch-tier-intent": dict(mode="prompt", sig="[standing-orders] ORCH", pos=[
-   "spawn agents in parallel, split the work into independent pieces, dispatch them concurrently",
-   "break this into independent chunks and run several sub-agents at once",
-   "fan out a few workers to handle these concurrently",
-   "have a team of agents each tackle one part",
-   "dispatch multiple assistants to work simultaneously",
-   "use parallel agents, one per file, and merge the results",
-   "give each agent its own goal and run them together",
-   "orchestrate a swarm of subagents to cover this faster",
-   "kick off several agents at the same time and combine what they find",
-   "split this across a fleet of agents and synthesize their outputs",
-   "distribute this workload across several AI assistants for concurrent processing",
-   "assign different parts to separate AI agents for faster completion",
- ], neg=[
-   "run the unit tests in parallel and report the timings",
-   "we hit various instances of the bug across the codebase",
-   "process the CSV files in parallel",
-   "parallelize this loop with multiprocessing",
-   "fix the off-by-one bug in the parser",
-   "explain how the auth module works",
-   "summarize these three articles for me",
-   "refactor this function to be cleaner",
-   "what's the capital of France",
-   "add a retry to the network call",
-   "run the build and tell me if it passes",
- ]),
  "eval-gate-intent": dict(mode="prompt", sig="WRITTEN rubric", pos=[
    "is this draft good enough to ship?",
    "would this answer pass our quality bar?",

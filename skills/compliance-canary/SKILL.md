@@ -409,7 +409,7 @@ A skill can do both. `drift_probes.json` example for caveman-ultra:
 ]
 ```
 
-Eighteen shipped skill directories currently include `drift_probes.json`;
+Fourteen shipped skill directories currently include `drift_probes.json`;
 additional skills opt in by adding the same file beside their `SKILL.md`.
 
 ## Tuning

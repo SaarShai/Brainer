@@ -60,9 +60,8 @@ Bootstrap once per project: `python3 skills/wiki-memory/tools/wiki.py init && gr
 
 ## Prime directive
 
-- **Caveman-Ultra by default** for emitted prose. Reasoning budget separate.
-- **Plan-first** for non-trivial tasks.
-- **Lean execution**: smallest reversible action.
+- **Caveman-Ultra when elected** for emitted prose. Reasoning budget separate.
+- **Plan before non-trivial work; smallest reversible diffs** (resident code-craft directives).
 - **Verify before claiming done**.
 - **Retrieve before reasoning** about project/wiki facts — prefer `graphify explain` for code questions, `wiki-memory` for decision questions.
 - **Use cheapest capable worker**; keep main context clean. Dispatch speaks in capability **tiers**, resolved to the newest in-host (or clearly-better reachable) model at dispatch time — doctrine in [`_shared/ORCHESTRATION.md`](_shared/ORCHESTRATION.md).
@@ -78,4 +77,4 @@ Stacking, anti-patterns, and workload guidance live in [`eval/FINDINGS.md`](../e
 
 ## Status
 
-Twenty-five skills ship an `EVAL.md`; method/operational skills without one are named above. Skills claiming >20% savings get N≥50 verification before promotion. A skill carrying `auto-install: false` remains symlinked and listed, but its installer does not run. Root reinstall removes stale managed hooks for opt-in skills; explicit per-skill installation can re-enable one for a controlled arm.
+Twenty-two skills ship an `EVAL.md`; `baton` and `propagate` currently do not. Skills claiming >20% savings get N≥50 verification before promotion. A skill carrying `auto-install: false` remains symlinked and listed, but its installer does not run. Root reinstall removes stale managed hooks for opt-in skills; explicit per-skill installation can re-enable one for a controlled arm.

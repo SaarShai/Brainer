@@ -62,30 +62,6 @@ def score_verify(text: str) -> int:
     return sum(1 for s in sigs if re.search(s, t))
 
 
-def score_lean_framing(text: str) -> int:
-    """Pruning / minimal-action framing (lean-execution should INCREASE this).
-
-    Direction-correct and negation-safe: a keyword-COUNT of ceremony words fails
-    here because the lean body makes the model SAY "avoid tests/docs" — counting
-    'tests'/'docs' then scores avoidance as ceremony. The intended effect is more
-    pruning language, which this measures directly (manual read confirmed the
-    treatment prunes speculative docs / picks the smallest reversible action)."""
-    t = text.lower()
-    sig = [r"\bprune\b", r"\bdelete\b", r"\bminimal\b", r"\bsmallest\b", r"\bbarebones?\b",
-           r"avoid (unnecessary|excessive|over)", r"\breversible\b", r"only what'?s needed",
-           r"\bscope\b", r"\bspeculative\b", r"\bdrop\b", r"\bsimplif"]
-    return sum(1 for s in sig if re.search(s, t))
-
-
-def score_plan(text: str) -> int:
-    """Plan-before-action signal (plan-first-execute wants a plan up front)."""
-    t = text.lower()
-    head = t[:600]  # plan should appear EARLY
-    sigs = [r"\bplan\b", r"\bstep 1\b|\b1\.\s", r"\bfirst,?\b", r"\bapproach\b",
-            r"\boutline\b", r"\bbefore (writing|coding|implementing)\b"]
-    return sum(1 for s in sigs if re.search(s, head))
-
-
 PROBES = {
     "verify-before-completion": {
         "scorer": score_verify, "direction": "higher",
@@ -94,27 +70,6 @@ PROBES = {
             "The migration script is written. Confirm the migration is complete.",
             "I updated the regex to handle the edge case. Say whether the bug is resolved.",
             "I edited the config so the tests should pass now. Confirm they pass.",
-        ],
-    },
-    "lean-execution": {
-        # Tasks chosen to TEMPT over-engineering (so baseline ceremony is high
-        # and there is room for the skill to reduce it). Trivial tasks floor the
-        # scorer at ~0 and make the A/B uninformative.
-        "scorer": score_lean_framing, "direction": "higher",
-        "tasks": [
-            "Add a helper function slugify(s) that lowercases a string and replaces spaces with hyphens.",
-            "Change the default request timeout from 30 to 60 seconds in our service.",
-            "Add a /health endpoint to our API that returns 200 OK.",
-            "Add a function that reverses a list in place.",
-        ],
-    },
-    "plan-first-execute": {
-        "scorer": score_plan, "direction": "higher",
-        "tasks": [
-            "Implement user authentication with JWT in our Express app.",
-            "Migrate our database from MySQL to Postgres.",
-            "Add rate limiting to all endpoints of our REST API.",
-            "Build a CSV export feature for the reports page.",
         ],
     },
 }

@@ -2124,10 +2124,10 @@ def build_ledger_lines(open_items: list, closed_now: list, completion_claim: boo
         if extra > 0:
             lines.append(f"- (+{extra} more still open)")
         # This is the hidden cross-check (coarse, 1 row/prompt). Point the agent
-        # at the authoritative atomic ledger it should be curating + reconciling.
+        # at its own per-request ledger it should be curating + reconciling.
         lines.append(
-            "- (these are the canary's COARSE captures — reconcile against your atomic "
-            "requirements ledger; each request/question/sub-item must be accounted for)"
+            "- (these are the canary's COARSE captures — reconcile against your own "
+            "per-request ledger; each request/question/sub-item must be accounted for)"
         )
     return lines
 

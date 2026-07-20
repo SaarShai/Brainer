@@ -4,8 +4,6 @@
 # Scope (each step answers a specific "should we change something?" question):
 #   1. verify-before-completion @ N=50 with the new executable-prompt YAML
 #      → does the rubric rework flip the -0.40 judge artifact?
-#   2. plan-first-execute @ N=50
-#      → is the -20% claim real at scale? if not, reconsider keeping it.
 #
 # Skipped (already known / non-actionable):
 #   - caveman-ultra (just ran at N=50, -86.4% confirmed)
@@ -46,17 +44,9 @@ run_step "verify-before-completion (executable prompts, N=$N)" \
   python3 eval/runner.py --task eval/tasks/verify-before-completion.yaml \
     --n "$N" --backend mimo --model mimo-v2-flash
 
-run_step "plan-first-execute (N=$N)" \
-  python3 eval/runner.py --task eval/tasks/plan-first-execute.yaml \
-    --n "$N" --backend mimo --model mimo-v2-flash
-
 # Judge the new A/B result files (skip already-judged).
 run_step "judge: verify-before-completion" \
   python3 eval/judge.py eval/results/verify-before-completion.json \
-    --model mimo-v2-flash --backend mimo
-
-run_step "judge: plan-first-execute" \
-  python3 eval/judge.py eval/results/plan-first-execute.json \
     --model mimo-v2-flash --backend mimo
 
 # Refresh docs (cheap; runs over all results, only the deltas matter).

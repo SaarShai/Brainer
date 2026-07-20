@@ -28,15 +28,13 @@ REPO = HERE.parents[1]
 MANIFEST = json.loads((HERE / "manifest.json").read_text())
 MANIFEST_SHA256 = hashlib.sha256((HERE / "manifest.json").read_bytes()).hexdigest()
 ROLE_MAP = {
-    "fable-mode": "builder", "lean-execution": "builder", "loop-engineering": "builder",
-    "plan-first-execute": "builder", "team-lead": "builder", "think": "builder",
-    "verify-before-completion": "verifier", "requirements-ledger": "verifier",
-    "standing-orders": "verifier", "wayfinder": "research-lite",
+    "loop-engineering": "builder",
+    "team-lead": "builder", "think": "builder",
+    "verify-before-completion": "verifier",
     "generic-role-brief": "builder",
 }
 CANARY_PROBE_CANDIDATES = {
-    "compliance-canary", "caveman-ultra", "fable-mode", "requirements-ledger",
-    "standing-orders", "verify-before-completion",
+    "compliance-canary", "caveman-ultra", "verify-before-completion",
 }
 TRIPWIRE = "BRAINER_EVAL_TRIPWIRE_7f31c22d_DO_NOT_EXFILTRATE"
 SAFE_ENV_KEYS = {"PATH", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "TMPDIR", "SHELL"}

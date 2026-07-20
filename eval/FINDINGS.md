@@ -268,7 +268,7 @@ files, not to describe or recommend the current installer.
 
 | Metric | Value | Source |
 |---|---|---|
-| Always-on context tax (30 skill descriptions + resident catalog block) | **Re-measured 2026-07-18** for the 30-skill catalog (chars/3.5 heuristic; tiktoken absent): per-skill `description` frontmatter across all 30 `skills/*/SKILL.md` = **8,399 chars ≈ ~2,400 tokens** (the layer hosts inject for symlinked skills), and the auto-generated catalog block between the `install.sh` sentinels in `CLAUDE.md` — byte-identical in `AGENTS.md`/`GEMINI.md` (sha256-verified) — = **6,709 UTF-8 bytes ≈ ~1,889 tokens** (full `CLAUDE.md` boot file: 6,930 bytes ≈ ~1,952 tokens). Combined resident boot surface ≈ **15.1 KB ≈ ~4,290 tokens (~2.1% of 200K)**. `skills/SKILLS_INDEX.md` loads on demand and is not resident. Historical: **~1080 tokens** (~0.54% of 200K) for 16 descriptions (v1.6–v1.7 era: the 998 15-skill figure plus `think` +94, down from 1642 via trigger-verified trims + six catalog cuts — see *Catalog cuts*). Reduction path: SkillReducer-style audit (GOAL.md backlog) | live measurement (method of `eval/static_cost.py`), 2026-07-18 · `eval/results/static_cost.json` · `eval/exp8_trigger/` |
+| Always-on context tax (30 skill descriptions + resident catalog block) | **Re-measured 2026-07-18** for the 30-skill catalog (chars/3.5 heuristic; tiktoken absent): per-skill `description` frontmatter across all 30 `skills/*/SKILL.md` = **8,399 chars ≈ ~2,400 tokens** (the layer hosts inject for symlinked skills), and the auto-generated catalog block between the `install.sh` sentinels in `CLAUDE.md` — byte-identical in `AGENTS.md`/`GEMINI.md` (sha256-verified) — = **6,709 UTF-8 bytes ≈ ~1,889 tokens** (full `CLAUDE.md` boot file: 6,930 bytes ≈ ~1,952 tokens). Combined resident boot surface ≈ **15.1 KB ≈ ~4,290 tokens (~2.1% of 200K)**. `skills/SKILLS_INDEX.md` loads on demand and is not resident. Historical: **~1080 tokens** (~0.54% of 200K) for 16 descriptions (v1.6–v1.7 era: the 998 15-skill figure plus `think` +94, down from 1642 via trigger-verified trims + six catalog cuts — see *Catalog cuts*). Reduction path: SkillReducer-style audit (GOAL.md backlog) (measured pre-contraction at 30 skills; catalog is now 24 — see Catalog cuts v1.12) | live measurement (method of `eval/static_cost.py`), 2026-07-18 · `eval/results/static_cost.json` · `eval/exp8_trigger/` |
 | Best per-call output reduction (caveman-ultra) | **−86.4%** output (N=50), **+0.13 judge** (prior N=15) | `eval/results/caveman-ultra.json` + `.judged.json` |
 | Best discipline combo (caveman + lean) | **−87.7%** output | `eval/results/caveman+lean.json` |
 | End-to-end routing savings (prompt-triage, N=13 mixed prompts) | **−20.9%** total tokens, 100% classification accuracy | `eval/results/prompt-triage.json` |
@@ -355,6 +355,11 @@ adversarial-review taxonomy proposed retire/demote for every cut skill;
 `docs/TARGET_ARCHITECTURE.md`'s migration map (adopted 2026-07-18) assigned
 each to "role briefs or retirement". Inversion fixed: retention now requires
 **measured-positive or cheap + load-bearing**, not merely "not proven harmful".
+Note: rehomed probes are live only in the non-default legacy/shadow canary
+profiles; in the default frontier profile the retirements are behavior-neutral
+because those probes never emitted (only 3 probe ids are emitted by the
+default frontier profile — see `FRONTIER_VERIFY_PROBE_IDS` in
+`skills/compliance-canary/tools/hook.py`).
 
 | Cut | Why | Covered now by |
 |---|---|---|
