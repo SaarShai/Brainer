@@ -31,6 +31,7 @@ Compact pointers. Fetch details on demand.
 - L4_archive/2026-04-24-summ-codex-manual (source-summary tags=archive,codex,summ,provenance) -> `L4_archive/2026-04-24-summ-codex-manual.md`
 - L4_archive/2026-05-22-skill-crystallizer/README (project tags=skill,L3-sop,automation) -> `L4_archive/2026-05-22-skill-crystallizer/README.md`
 - L4_archive/2026-05-31-auto-handoff-dropped (decision tags=auto-handoff,dropped,session-launch,context-refresh) -> `L4_archive/2026-05-31-auto-handoff-dropped.md`
+- concepts/brainer-goals (concept tags=goals,purpose,scope,hard-rule) -> `concepts/brainer-goals.md`
 - concepts/adoption-covered-needs-merits-citation (concept tags=adoption,review,method,verification,code-graph) -> `concepts/adoption-covered-needs-merits-citation.md`
 - concepts/architect-loop-adoption-2026-07 (concept tags=orchestration,loop-engineering,adoption,external-review,architect-pattern,team-lead) -> `concepts/architect-loop-adoption-2026-07.md`
 - concepts/brainer-multi-repo-topology (concept tags=sibling-sync,propagation,multi-repo,topology,install,hard-rule) -> `concepts/brainer-multi-repo-topology.md`

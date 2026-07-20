@@ -4,6 +4,20 @@ Skills catalog: see [`skills/SKILLS_INDEX.md`](skills/SKILLS_INDEX.md).
 
 Each skill loads on its own trigger; full bodies are not in the boot context. Run `./install.sh` to wire skills into the current host.
 
+## Project goals (why Brainer exists — weigh every change against these)
+
+The Brainer skills exist to, in any project they are installed in:
+
+1. **Optimize token-use efficiency** — less context spent for the same outcome.
+2. **Maximize agent efficiency and reliability** — faster, correct, verifiable work.
+3. **Facilitate learning and self-improvement** — lessons captured once, reused everywhere.
+4. **Manage memory and the wiki** — durable, curated, retrievable project knowledge.
+5. **Operationalize loops** — recurring/multi-session work runs without hand-holding.
+6. **Provide instructions, suggestions, mindsets and thinking guidelines** to any agent working in the host project.
+
+A change that adds machinery without clearly serving one of these — or that costs
+more tokens/complexity than it saves — is out of scope. Prefer removing over adding.
+
 <!-- brainer:skills-catalog:start -->
 ## Repo-local trigger skills (resident at boot)
 
