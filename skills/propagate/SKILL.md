@@ -4,7 +4,7 @@ description: "Use when the user asks to propagate, sync, roll out, or push Brain
 effort: low
 tools: [Bash, Read]
 auto-install: true
-pulse_reminder: propagation is per-sibling and sequential — classify first, fast-forward only STALE, never overwrite CUSTOMIZED, adopt new skills AND agent-defs (--adopt-agents, else team-lead's roster ships inert), re-run the sibling's install.sh, verify with --repo, then --post-check. Canonical must be committed BEFORE apply. A run that only pushes and skips the harvest (reverse) lane is INCOMPLETE unless you state why.
+pulse_reminder: propagation is per-sibling and sequential — classify first, fast-forward only STALE, never overwrite CUSTOMIZED, adopt new skills AND agent-defs (--adopt-agents, else team-lead's roster ships inert), re-run the sibling's install.sh, refresh its resident docs with canonical install.sh --catalog-only, verify with --repo, then --post-check. Canonical must be committed BEFORE apply. A run that only pushes and skips the harvest (reverse) lane is INCOMPLETE unless you state why.
 ---
 
 # propagate — push canonical skill changes to the sibling repos
@@ -36,7 +36,8 @@ explicit `--repo`. The no-argument audit lists only the approved consumers.
    `git status --short` must be clean for `skills/` before any apply.
 2. Run every command from the Brainer repo root.
 3. **One sibling at a time, never in parallel** — each sibling's `install.sh`
-   writes user-global settings.
+   writes user-global settings. Its installer may intentionally differ; step 3b
+   uses canonical Brainer only for the generated resident-doc block.
 
 ## Per-sibling sequence
 
@@ -45,6 +46,7 @@ R="<sibling dir name>"   # e.g. screenery-lean · "product images repo" · farey
 python3 scripts/sibling_sync_audit.py --repo "$R" --classify        # 1. read-only: STALE vs CUSTOMIZED + NEW-SKILL/NEW-AGENT list
 python3 scripts/sibling_sync_audit.py --repo "$R" --apply-stale --apply-absent --adopt-new-skills --adopt-agents   # 2. fast-forward + adopt new skills + roster
 ( cd "/Users/za/Documents/$R" && bash install.sh )                  # 3. rewire that host's carriers/hooks
+SKILLS_DIR="../$R/skills" bash install.sh --project "/Users/za/Documents/$R" --catalog-only  # 3b. compile resident docs with canonical carrier logic
 python3 scripts/sibling_sync_audit.py --repo "$R" --classify        # 4. verify: differs ≈ CUSTOMIZED only, new-sk/ag-new 0
 python3 scripts/sibling_sync_audit.py --repo "$R" --post-check      # 5. mechanical target-repo test
 ```

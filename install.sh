@@ -8,6 +8,7 @@
 #   ./install.sh --project /path/to/proj   # install skills INTO an external
 #                                          # project (abs symlinks) instead of
 #                                          # the Brainer checkout itself
+#   ./install.sh --project /path --catalog-only  # refresh resident docs only
 #   ./install.sh --no-graphify             # skip graphify auto-install
 #   ./install.sh --dry-run                 # show what would happen
 #   SKILLS_DIR=skills.new ./install.sh     # alternate canonical dir (Phase A/B)
@@ -25,11 +26,13 @@ HOSTS_REQUESTED=""
 DRY_RUN=0
 INSTALL_GRAPHIFY=1
 PROJECT_DIR=""
+CATALOG_ONLY=0
 
 while (( "$#" )); do
   case "$1" in
     --host) HOSTS_REQUESTED="$2"; shift 2 ;;
     --project) PROJECT_DIR="$2"; shift 2 ;;
+    --catalog-only) CATALOG_ONLY=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     --no-graphify) INSTALL_GRAPHIFY=0; shift ;;
     -h|--help)
@@ -622,6 +625,14 @@ JSON
   fi
   inject_catalog_into_doc "$DEST_ROOT/GEMINI.md"
 }
+
+if [ "$CATALOG_ONLY" = "1" ]; then
+  echo "[catalog] refresh resident-context docs only"
+  for f in CLAUDE.md AGENTS.md GEMINI.md; do
+    inject_catalog_into_doc "$DEST_ROOT/$f"
+  done
+  exit 0
+fi
 
 IFS=',' read -ra HOST_LIST <<< "$HOSTS_REQUESTED"
 for h in "${HOST_LIST[@]}"; do

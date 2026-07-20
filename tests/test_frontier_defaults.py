@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 import sys
+import tempfile
 from math import ceil
 from pathlib import Path
 
@@ -229,6 +231,20 @@ def test_routing_receipt_and_speed_semantics_are_resident_in_every_carrier() -> 
     for path in sources:
         text = path.read_text(encoding="utf-8")
         assert not missing_phrases(text, required), path.name
+
+
+def test_catalog_only_refreshes_external_carriers_without_host_install() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        target = Path(tmp)
+        (target / "AGENTS.md").write_text("# Local\n", encoding="utf-8")
+        subprocess.run(
+            [str(ROOT / "install.sh"), "--project", tmp, "--catalog-only"],
+            cwd=ROOT, check=True, capture_output=True, text=True,
+        )
+        text = (target / "AGENTS.md").read_text(encoding="utf-8")
+        assert text.startswith("# Local\n")
+        assert "Delegate SPEC'D+GATED >~30-line work" in text
+        assert not (target / ".codex").exists()
 
 
 def test_end_to_end_ownership_policy_gate_rejects_partial_progress_drift() -> None:
