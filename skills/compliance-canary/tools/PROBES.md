@@ -10,6 +10,20 @@ behavior for every kind. This file and each skill's `drift_probes.json` both
 shadow it — keep all three in sync (the body lists the kind *names*, this file
 the *schemas*, `hook.py` the *implementation*).
 
+## Frontier emit opt-in (`"frontier_emit": true`, 2026-07-20)
+
+The frontier profile evaluates only `FRONTIER_VERIFY_PROBE_IDS` (hook.py) by
+default. A probe outside that set may opt in by declaring `"frontier_emit":
+true` in its `drift_probes.json` entry — the inclusion bar is the same as the
+hard-coded allowlist (narrow trigger, context-gated, small false-fire surface),
+but the decision rides in the probe file so a consumer repo can arm a local
+probe (e.g. screenery's `.ai` visual probe, their fable-mode stall probe)
+without forking `hook.py`. When `COMPLIANCE_CANARY_PROBE_IDS` is set it defines
+the complete evaluation set and the flag is ignored (controlled experiments
+need exact selection). Canonical ships exactly one flagged probe:
+`visual-claim-without-vision`, gated by `requires_context_regex` to
+.ai/Illustrator sessions.
+
 ## Probe kinds (v1)
 
 ### `forbidden_regex`

@@ -3080,8 +3080,20 @@ def main() -> int:
     # nothing and writes no ledger state at all — only the always-on
     # in-reply acknowledgement (Mechanism 1 display, still gated by
     # frontier_ids like any other probe) survives.
+    # A probe outside FRONTIER_VERIFY_PROBE_IDS may opt into the frontier
+    # emit set by declaring "frontier_emit": true in its drift_probes.json
+    # entry — the bar is the same as the allowlist comments above (narrow
+    # trigger / context-gated / small false-fire surface), but the decision
+    # rides in the probe FILE so consumer repos can arm their own local
+    # probes without forking hook.py (screenery harvest, 2026-07-20). When
+    # COMPLIANCE_CANARY_PROBE_IDS is set it defines the COMPLETE evaluation
+    # set and the flag is ignored — controlled experiments need exact
+    # selection.
+    env_selected = os.environ.get("COMPLIANCE_CANARY_PROBE_IDS") is not None
     probes = [
-        p for p in all_probes if p.get("_probe_id") in frontier_ids
+        p for p in all_probes
+        if p.get("_probe_id") in frontier_ids
+        or (not env_selected and p.get("frontier_emit") is True)
     ]
     ledger_probes = (
         [p for p in all_probes if p.get("kind") == "user_correction"]

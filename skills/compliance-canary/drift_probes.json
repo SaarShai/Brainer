@@ -31,7 +31,9 @@
     "lookback_tool_uses": 6,
     "message": "claimed a VISUAL / rendered output (chart, diagram, UI, PDF, image) looks correct without LOOKING at it — text-only checks miss occlusion, flattening, overlap, and scale. Open or screenshot the rendered artifact with a vision-capable tool (preview / screenshot, or Read the saved image) and verify it visually, or say it is unverified.",
     "severity": "warn",
-    "_note": "Rehomed 2026-07-19 from verify-before-completion (skill remains; probes now canary-owned like all default-on enforcement)."
+    "_note": "Rehomed 2026-07-19 from verify-before-completion. Context gate + frontier_emit adopted 2026-07-20 from screenery-lean's fork (the gate was born from 3 measured false fires in a meta-work session, 2026-07-01): the probe arms only when the session actually shows .ai/Illustrator activity, which keeps its false-fire surface small enough for the frontier emit set.",
+    "requires_context_regex": "(?i)\\.ai\\b|illustrator|dump-paths|screenery-design|render\\.py|\\bjsx\\b|artboard",
+    "frontier_emit": true
   },
   {
     "id": "early-stop-on-promise",

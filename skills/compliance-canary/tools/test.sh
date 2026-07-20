@@ -2156,6 +2156,78 @@ for tp in "${NEW_TP[@]}"; do
   fi
 done
 
+# ======================================================================
+# [116] frontier_emit opt-in (2026-07-20, screenery harvest): a probe outside
+# FRONTIER_VERIFY_PROBE_IDS may join the frontier emit set via
+# "frontier_emit": true in its drift_probes.json entry. The flag is honored
+# only when COMPLIANCE_CANARY_PROBE_IDS is UNSET (env defines the complete
+# set for controlled experiments). call() always sets PROBE_IDS, so these
+# tests use call_noselect (same, without the selector).
+# ======================================================================
+
+call_noselect() {
+  # call_noselect <state_sub> <skills_sub> <transcript_file> <session_id> [env_overrides...]
+  local state_sub="$1" skills_sub="$2" tx="$3" sid="$4"; shift 4
+  local payload
+  payload=$(python3 -c "
+import json,sys
+print(json.dumps({'session_id':sys.argv[1],'transcript_path':sys.argv[2],'hook_event_name':'UserPromptSubmit','prompt':'next'}))
+" "$sid" "$tx")
+  local env_args=(COMPLIANCE_CANARY_STATE_DIR="$STATE_ROOT/$state_sub"
+                  COMPLIANCE_CANARY_SKILLS_ROOT="$SKILLS_ROOT/$skills_sub")
+  if [ "$#" -gt 0 ]; then
+    printf '%s' "$payload" | env "${env_args[@]}" "$@" "${HOOK[@]}"
+  else
+    printf '%s' "$payload" | env "${env_args[@]}" "${HOOK[@]}"
+  fi
+}
+
+PROBES='[
+  {"id":"fe-on","kind":"forbidden_regex","pattern":"(?i)\\bflaggedphrase\\b","message":"FLAGONLY probe fired","frontier_emit":true},
+  {"id":"fe-off","kind":"forbidden_regex","pattern":"(?i)\\bunflaggedphrase\\b","message":"NOFLAG probe fired"}
+]'
+make_skill_with_probes sk116 fe "$PROBES"
+
+echo "[116a] frontier_emit:true probe outside the allowlist FIRES under frontier (no PROBE_IDS env)"
+TX="$TRANSCRIPT_DIR/t116a.jsonl"
+write_transcript "$TX" "$(assistant_text 'this reply contains flaggedphrase here' u116a)"
+out=$(call_noselect cc116a sk116 "$TX" s116a)
+if emitted "$out" && echo "$out" | grep -q 'FLAGONLY probe fired'; then ok "frontier_emit probe fires without env selection"; else no "frontier_emit probe fires without env selection" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[116b] unflagged non-allowlist probe stays OUT of the frontier emit set"
+TX="$TRANSCRIPT_DIR/t116b.jsonl"
+write_transcript "$TX" "$(assistant_text 'this reply contains unflaggedphrase here' u116b)"
+out=$(call_noselect cc116b sk116 "$TX" s116b)
+if [ -z "$out" ]; then ok "unflagged probe stays silent under frontier"; else no "unflagged probe stays silent under frontier" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[116c] COMPLIANCE_CANARY_PROBE_IDS set → env defines the COMPLETE set, frontier_emit ignored"
+TX="$TRANSCRIPT_DIR/t116c.jsonl"
+write_transcript "$TX" "$(assistant_text 'both flaggedphrase and unflaggedphrase appear' u116c)"
+out=$(call_noselect cc116c sk116 "$TX" s116c COMPLIANCE_CANARY_PROBE_IDS="fe:fe-off")
+if emitted "$out" && echo "$out" | grep -q 'NOFLAG probe fired' && ! echo "$out" | grep -q 'FLAGONLY probe fired'; then
+  ok "env selection wins: selected NOFLAG fires, FLAGONLY (frontier_emit) is ignored"
+else
+  no "env selection must win over frontier_emit" "got: $(echo "$out" | head -c200)"
+fi
+
+echo "[116d] REAL canonical visual-claim-without-vision probe (frontier_emit + context gate): fires in an .ai/Illustrator session"
+mkdir -p "$SKILLS_ROOT/sk116real/compliance-canary"
+cp "$TOOLS_DIR/../drift_probes.json" "$SKILLS_ROOT/sk116real/compliance-canary/drift_probes.json"
+TX="$TRANSCRIPT_DIR/t116d.jsonl"
+write_transcript "$TX" \
+  "$(assistant_tool_use Bash '{"command":"./cli/bin/screenery-design illustrator dump-paths --doc Space.ai"}')" \
+  "$(assistant_text 'The artboard layout looks correct now.' u116d)"
+out=$(call_noselect cc116d sk116real "$TX" s116d)
+if emitted "$out" && echo "$out" | grep -q 'without LOOKING at it'; then ok "visual probe fires on .ai session via frontier_emit"; else no "visual probe fires on .ai session via frontier_emit" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[116e] same claim in a docs-only session: requires_context_regex keeps the visual probe silent"
+TX="$TRANSCRIPT_DIR/t116e.jsonl"
+write_transcript "$TX" \
+  "$(assistant_tool_use Read '{"file_path":"/tmp/notes.md"}')" \
+  "$(assistant_text 'The layout looks correct now.' u116e)"
+out=$(call_noselect cc116e sk116real "$TX" s116e)
+if ! echo "$out" | grep -q 'without LOOKING at it'; then ok "visual probe silent without .ai context"; else no "visual probe must stay silent without .ai context" "got: $(echo "$out" | head -c200)"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then
