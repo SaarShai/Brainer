@@ -114,6 +114,11 @@ def run(root: Path, transcript: list[dict], profile: str | None, session: str | 
         "COMPLIANCE_CANARY_SKILLS_ROOT": str(root / "skills"),
         "COMPLIANCE_CANARY_TELEMETRY_PATH": str(root / "telemetry.jsonl"),
         "COMPLIANCE_CANARY_COOLDOWN": "0",
+        # Pin the project anchor to the isolated fixture root so a host
+        # repo's real armed task-retrospective current.json can't arm the
+        # correction ledger under an "unarmed" test (live farey-hecke
+        # failure, 2026-07-20). extra_env below can still override.
+        "CLAUDE_PROJECT_DIR": str(root),
     })
     if profile is None:
         env.pop("COMPLIANCE_CANARY_PROFILE", None)

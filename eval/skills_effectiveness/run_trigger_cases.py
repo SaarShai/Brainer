@@ -297,7 +297,13 @@ def invoke(root: Path, case: dict, profile: str, *, prompt: str | None = None,
            "COMPLIANCE_CANARY_STATE_DIR": str(root / "state"),
            "COMPLIANCE_CANARY_SKILLS_ROOT": str(REPO / "skills"),
            "COMPLIANCE_CANARY_TELEMETRY_PATH": str(root / "telemetry.jsonl"),
-           "COMPLIANCE_CANARY_COOLDOWN": "0"}
+           "COMPLIANCE_CANARY_COOLDOWN": "0",
+           # Pin the hook's project anchor to the isolated run root: without
+           # this, correction_ledger_armed() falls back to cwd and a host
+           # repo's real .brainer/task-retrospective/current.json (status:
+           # armed) silently arms the ledger mid-corpus (found live in
+           # farey-hecke, 2026-07-20).
+           "CLAUDE_PROJECT_DIR": str(root)}
     payload = {"session_id": f"trigger-{case['id']}", "transcript_path": str(tx),
                "hook_event_name": "UserPromptSubmit",
                "prompt": prompt or (case["prompt"] if turn == "a"

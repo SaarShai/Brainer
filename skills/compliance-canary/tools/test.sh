@@ -19,7 +19,14 @@ HOOK=(bash "$TOOLS_DIR/hook.sh")
 STATE_ROOT="$(mktemp -d -t cc-test-XXXX)"
 SKILLS_ROOT="$(mktemp -d -t cc-skills-XXXX)"
 TRANSCRIPT_DIR="$(mktemp -d -t cc-tx-XXXX)"
-trap 'rm -rf "$STATE_ROOT" "$SKILLS_ROOT" "$TRANSCRIPT_DIR"' EXIT
+# Isolated project anchor: correction_ledger_armed() falls back to cwd when
+# CLAUDE_PROJECT_DIR is unset, so a host repo's real armed
+# .brainer/task-retrospective/current.json would flip "unarmed" tests (34p
+# failed live in farey-hecke, 2026-07-20). Per-test overrides (34q) still win
+# via `env CLAUDE_PROJECT_DIR=...`.
+PROJECT_ANCHOR="$(mktemp -d -t cc-proj-XXXX)"
+export CLAUDE_PROJECT_DIR="$PROJECT_ANCHOR"
+trap 'rm -rf "$STATE_ROOT" "$SKILLS_ROOT" "$TRANSCRIPT_DIR" "$PROJECT_ANCHOR"' EXIT
 
 PASS=0; FAIL=0
 declare -a FAIL_NAMES
