@@ -2228,6 +2228,53 @@ write_transcript "$TX" \
 out=$(call_noselect cc116e sk116real "$TX" s116e)
 if ! echo "$out" | grep -q 'without LOOKING at it'; then ok "visual probe silent without .ai context"; else no "visual probe must stay silent without .ai context" "got: $(echo "$out" | head -c200)"; fi
 
+# ======================================================================
+# [117]-[120] upstreamed 2026-07-20 from screenery-lean's test.sh fork
+# (generic detector coverage that lived only in the sibling suite).
+# ======================================================================
+
+echo "[117] Inline backtick PHRASE unwrapped: backtick-wrapped done-claim still triggers claim probe"
+PROBES='[{"id":"unverified","kind":"claim_without_evidence","claim_pattern":"(?i)\\b(done|fixed)\\b","verify_tools":["Bash"]}]'
+make_skill_with_probes sk117 uwp "$PROBES"
+TX="$TRANSCRIPT_DIR/t117.jsonl"
+python3 <<PY > "$TX"
+import json
+bt = chr(96)
+msg = f"{bt}Done and dusted.{bt}"
+print(json.dumps({"type":"assistant","uuid":"u117","message":{"role":"assistant","content":[{"type":"text","text":msg}]}}))
+PY
+out=$(call cc117 sk117 "$TX" s117)
+if emitted "$out" && echo "$out" | grep -q 'claim_without_evidence'; then ok "backtick-wrapped phrase claim still triggers"; else no "backtick-wrapped phrase claim still triggers" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[118] Quoted-args decoy: verify keyword inside a quoted Bash string is NOT evidence"
+PROBES='[{"id":"unverified","kind":"claim_without_evidence","claim_pattern":"(?i)\\b(done|fixed)\\b","verify_tools":["Bash"],"verify_keywords":["test","verified"]}]'
+make_skill_with_probes sk118 qad "$PROBES"
+TX="$TRANSCRIPT_DIR/t118.jsonl"
+write_transcript "$TX" \
+  "$(assistant_tool_use Bash '{"command":"git commit -m \"verified and tested end to end\""}')" \
+  "$(assistant_text 'Done.' u118)"
+out=$(call cc118 sk118 "$TX" s118)
+if emitted "$out" && echo "$out" | grep -q 'claim_without_evidence'; then ok "quoted-string keyword decoy does not suppress claim probe"; else no "quoted-string keyword decoy does not suppress" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[119] requires_context_regex (mechanism, env-selected probe): silent when session lacks the context"
+PROBES='[{"id":"ai-only","kind":"claim_without_evidence","claim_pattern":"(?i)\\b(done|fixed)\\b","verify_tools":["Bash"],"verify_keywords":["render"],"requires_context_regex":"(?i)\\.ai\\b|illustrator|dump-paths"}]'
+make_skill_with_probes sk119 ctx "$PROBES"
+TX="$TRANSCRIPT_DIR/t119.jsonl"
+write_transcript "$TX" \
+  "$(assistant_tool_use Edit '{"file_path":"/repo/README.md","old_string":"a","new_string":"b"}')" \
+  "$(assistant_text 'all done!' u119)"
+out=$(call cc119 sk119 "$TX" s119)
+if [ -z "$out" ] || ! echo "$out" | grep -q 'claim_without_evidence'; then ok "context-gated probe silent on docs-only session"; else no "context-gated probe silent on docs-only session" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[120] requires_context_regex (mechanism, env-selected probe): fires when session shows the context"
+TX="$TRANSCRIPT_DIR/t120.jsonl"
+write_transcript "$TX" \
+  "$(assistant_tool_use Bash '{"command":"./cli/bin/screenery-design illustrator dump-paths --doc Space.ai"}')" \
+  "$(assistant_tool_use Edit '{"file_path":"/repo/parts.json","old_string":"a","new_string":"b"}')" \
+  "$(assistant_text 'all done!' u120)"
+out=$(call cc120 sk119 "$TX" s120)
+if emitted "$out" && echo "$out" | grep -q 'claim_without_evidence'; then ok "context-gated probe fires on .ai session"; else no "context-gated probe fires on .ai session" "got: $(echo "$out" | head -c200)"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then
