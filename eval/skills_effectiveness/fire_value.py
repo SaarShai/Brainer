@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 REMINDER_RE = re.compile(r"<system-reminder>[\s\S]*?</system-reminder>")
-PROBE_RE = re.compile(r"(?m)^-\s+([\w-]+)\[([\w-]+)\]:")
+PROBE_RE = re.compile(r"(?m)^-\s+([\w-]+)\s*\[([\w-]+)\]:")
 SECTION_PATTERNS = {
     "ledger": re.compile(r"compliance-canary ledger \(turn \d+\):"),
     "re-anchor": re.compile(r"compliance-canary re-anchor \(turn \d+\):"),
