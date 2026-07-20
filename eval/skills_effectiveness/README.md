@@ -25,10 +25,11 @@ UTF-8 bytes across the same 80 genuine reminders.
 
 ## Frozen trigger gate
 
-`cases.py` deterministically defines 850 cases (475 hard negatives / 375
-must-fire positives), grown by frozen-prefix generations: the original 500
+`cases.py` deterministically defines 862 cases (483 hard negatives / 379
+semantic positives), grown by frozen-prefix generations: the original 500
 (400 neg / 100 pos), +100 notification morphologies (600), +75 deferred-fire/
-timer/provenance shapes (675), +175 adversarial audit fault shapes (850).
+timer/provenance shapes (675), +175 adversarial audit fault shapes (850),
++12 subsequent additions (862; see git history of `cases.py`).
 Every earlier prefix stays byte-identical (digest-pinned in
 `test_skills_effectiveness.py`). NOTE: templated repetition means the 475
 negatives collapse to ~11 distinct shapes — treat results as a clustered
