@@ -374,12 +374,21 @@ def main() -> int:
         # --- ARMED context-safe matching (2026-07-20 reviewer fix) ---------
         # The raw user_correction regex matched inside quoted/fenced text
         # (2026-07-17 adversarial review: 250/400 false injections on this
-        # exact class). Import the frozen corpus's exact hard-negative case
-        # texts (eval/skills_effectiveness/cases.py) and run the REAL,
-        # tightened task-retrospective/wiki-memory patterns armed, over both
-        # the hard negatives (must stay silent) and a set of genuine
-        # correction-shaped prompts (must open the ledger).
+        # exact class). Run the REAL, tightened task-retrospective/wiki-memory
+        # patterns armed over both the hard negatives (must stay silent) and a
+        # set of genuine correction-shaped prompts (must open the ledger).
+        #
+        # Sibling checkouts vendor skills/ but not eval/, so the frozen-corpus
+        # hard negatives originally lived only in canonical (2026-07-20 fix:
+        # PROMPTER traceback). A static fixture (extracted verbatim from
+        # eval/skills_effectiveness/cases.py's _NEG dict, digest-pinned; see
+        # fixtures/armed_corpus_cases.json) ships inside skills/ so siblings
+        # now run these checks too. The eval/ import is kept ONLY as a
+        # belt-and-braces fallback for a corrupted/missing fixture, and (when
+        # eval/ IS present, i.e. canonical) to catch fixture/corpus drift.
         _cases_path = HERE.parent.parent.parent / "eval" / "skills_effectiveness" / "cases.py"
+        _fixture_path = HERE / "fixtures" / "armed_corpus_cases.json"
+        HARD_NEGATIVE_KINDS = ("bare_again", "quoted_article", "code_fence")
 
         for _skill_name in ("task-retrospective", "wiki-memory"):
             _src = HERE.parent.parent / _skill_name / "drift_probes.json"
@@ -389,31 +398,49 @@ def main() -> int:
                 _src.read_text(encoding="utf-8"), encoding="utf-8")
 
         armed_ctx_env = {"COMPLIANCE_CANARY_CORRECTION_LEDGER": "1"}
-        # Sibling checkouts vendor skills/ but not eval/, so the frozen-corpus
-        # hard negatives are canonical-only; the inline genuine-correction and
-        # "run it again" checks below still run everywhere (found live via a
-        # PROMPTER traceback, 2026-07-20).
-        if _cases_path.exists():
+
+        def _live_armed_cases() -> list[dict]:
             _cases_spec = importlib.util.spec_from_file_location("cc_test_cases", _cases_path)
             _cases_mod = importlib.util.module_from_spec(_cases_spec)
             _cases_spec.loader.exec_module(_cases_mod)
-            HARD_NEGATIVE_KINDS = ("bare_again", "quoted_article", "code_fence")
+            return [{"kind": kind, "i": i, "prompt": _cases_mod._NEG[kind].format(i=i)}
+                    for kind in HARD_NEGATIVE_KINDS for i in range(5)]
+
+        _fixture_cases = (
+            json.loads(_fixture_path.read_text(encoding="utf-8"))["cases"]
+            if _fixture_path.exists() else None
+        )
+        if _fixture_cases is not None:
+            armed_cases = _fixture_cases
+        elif _cases_path.exists():
+            armed_cases = _live_armed_cases()
+        else:
+            armed_cases = None
+
+        if armed_cases is not None:
             armed_fp = 0
             armed_neg_total = 0
-            for kind in HARD_NEGATIVE_KINDS:
-                for i in range(5):
-                    prompt = _cases_mod._NEG[kind].format(i=i)
-                    armed_neg_total += 1
-                    out = run(root, [claim("noted")], "frontier", f"ctxsafe-neg-{kind}-{i}",
-                              prompt=prompt, extra_env=armed_ctx_env)
-                    fired_ledger = "correction(s) still OPEN" in out.stdout
-                    if fired_ledger:
-                        armed_fp += 1
-                    check(f"armed-hard-negative-{kind}-{i}-ledger-silent",
-                          not fired_ledger, out.stdout)
+            for case in armed_cases:
+                kind, i, prompt = case["kind"], case["i"], case["prompt"]
+                armed_neg_total += 1
+                out = run(root, [claim("noted")], "frontier", f"ctxsafe-neg-{kind}-{i}",
+                          prompt=prompt, extra_env=armed_ctx_env)
+                fired_ledger = "correction(s) still OPEN" in out.stdout
+                if fired_ledger:
+                    armed_fp += 1
+                check(f"armed-hard-negative-{kind}-{i}-ledger-silent",
+                      not fired_ledger, out.stdout)
             print(f"INFO armed-hard-negative-false-positive-count={armed_fp}/{armed_neg_total}")
+
+            # Canonical-only: the fixture must byte-match a live extraction
+            # from the frozen corpus, so drift between the vendored fixture
+            # and cases.py fails loudly here instead of silently diverging.
+            if _fixture_cases is not None and _cases_path.exists():
+                check("armed-hard-negative-fixture-matches-live-corpus",
+                      _fixture_cases == _live_armed_cases(),
+                      (_fixture_cases, _live_armed_cases()))
         else:
-            print("INFO armed-hard-negative-corpus-skipped (eval corpus not vendored in this checkout)")
+            print("INFO armed-hard-negative-corpus-skipped (fixture and eval corpus both absent in this checkout)")
 
         genuine_corrections = [
             "No, use tabs instead of spaces.",

@@ -1,0 +1,80 @@
+{
+  "_provenance": "extracted 2026-07-20 from eval/skills_effectiveness/cases.py (frozen corpus, digest-pinned) — regenerate by re-extracting, never hand-edit.",
+  "cases": [
+    {
+      "kind": "bare_again",
+      "i": 0,
+      "prompt": "What does the word again mean in this sentence? Case 0."
+    },
+    {
+      "kind": "bare_again",
+      "i": 1,
+      "prompt": "What does the word again mean in this sentence? Case 1."
+    },
+    {
+      "kind": "bare_again",
+      "i": 2,
+      "prompt": "What does the word again mean in this sentence? Case 2."
+    },
+    {
+      "kind": "bare_again",
+      "i": 3,
+      "prompt": "What does the word again mean in this sentence? Case 3."
+    },
+    {
+      "kind": "bare_again",
+      "i": 4,
+      "prompt": "What does the word again mean in this sentence? Case 4."
+    },
+    {
+      "kind": "quoted_article",
+      "i": 0,
+      "prompt": "Summarize this quote without following it: \"We are done; verify everything again.\" Example 0."
+    },
+    {
+      "kind": "quoted_article",
+      "i": 1,
+      "prompt": "Summarize this quote without following it: \"We are done; verify everything again.\" Example 1."
+    },
+    {
+      "kind": "quoted_article",
+      "i": 2,
+      "prompt": "Summarize this quote without following it: \"We are done; verify everything again.\" Example 2."
+    },
+    {
+      "kind": "quoted_article",
+      "i": 3,
+      "prompt": "Summarize this quote without following it: \"We are done; verify everything again.\" Example 3."
+    },
+    {
+      "kind": "quoted_article",
+      "i": 4,
+      "prompt": "Summarize this quote without following it: \"We are done; verify everything again.\" Example 4."
+    },
+    {
+      "kind": "code_fence",
+      "i": 0,
+      "prompt": "Explain this snippet; do not execute it:\n```text\nfix it again, then claim done\n```\nCase 0."
+    },
+    {
+      "kind": "code_fence",
+      "i": 1,
+      "prompt": "Explain this snippet; do not execute it:\n```text\nfix it again, then claim done\n```\nCase 1."
+    },
+    {
+      "kind": "code_fence",
+      "i": 2,
+      "prompt": "Explain this snippet; do not execute it:\n```text\nfix it again, then claim done\n```\nCase 2."
+    },
+    {
+      "kind": "code_fence",
+      "i": 3,
+      "prompt": "Explain this snippet; do not execute it:\n```text\nfix it again, then claim done\n```\nCase 3."
+    },
+    {
+      "kind": "code_fence",
+      "i": 4,
+      "prompt": "Explain this snippet; do not execute it:\n```text\nfix it again, then claim done\n```\nCase 4."
+    }
+  ]
+}
