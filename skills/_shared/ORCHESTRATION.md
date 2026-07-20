@@ -76,6 +76,16 @@ state what happens if the lane dies at any instant — what is stranded, and
 the recovery step. No kill-safety line → the lane doesn't dispatch. (§7 is
 the dispatch mechanism this pairs with; the line is the design-time check.)
 
+**Measure-before-fix (owner-ratified 2026-07-20).** No repair lane
+dispatches without (a) a diagnostic receipt — a measured diff of actual vs
+ground truth AT THE TARGET STATE, produced before the fix — and (b) the
+ground-truth artifact cited as the repair target. "Restore how it was" is
+never a repair spec. Evidence: two same-day shear repairs shipped defects
+running ahead of ground truth; the third, sequenced behind a diff table +
+gate-verified export, was surgical on dispatch. Mechanical enforcement
+precedent: screenery-lean's release-controller lint rejects fix-class
+contracts lacking a diagnostic receipt.
+
 ## 6. Architect cost discipline (frontier-tier orchestrator)
 
 **Frontier economy invariant (hard).** This applies whenever the driving model
