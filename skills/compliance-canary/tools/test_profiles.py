@@ -366,6 +366,76 @@ def main() -> int:
               "correction_ledger" not in state_file(root, "correction-unarmed"),
               repr(state_file(root, "correction-unarmed")))
 
+        # --- ARMED context-safe matching (2026-07-20 reviewer fix) ---------
+        # The raw user_correction regex matched inside quoted/fenced text
+        # (2026-07-17 adversarial review: 250/400 false injections on this
+        # exact class). Import the frozen corpus's exact hard-negative case
+        # texts (eval/skills_effectiveness/cases.py) and run the REAL,
+        # tightened task-retrospective/wiki-memory patterns armed, over both
+        # the hard negatives (must stay silent) and a set of genuine
+        # correction-shaped prompts (must open the ledger).
+        _cases_path = HERE.parent.parent.parent / "eval" / "skills_effectiveness" / "cases.py"
+        _cases_spec = importlib.util.spec_from_file_location("cc_test_cases", _cases_path)
+        _cases_mod = importlib.util.module_from_spec(_cases_spec)
+        _cases_spec.loader.exec_module(_cases_mod)
+
+        for _skill_name in ("task-retrospective", "wiki-memory"):
+            _src = HERE.parent.parent / _skill_name / "drift_probes.json"
+            _dst_dir = root / "skills" / _skill_name
+            _dst_dir.mkdir(parents=True, exist_ok=True)
+            (_dst_dir / "drift_probes.json").write_text(
+                _src.read_text(encoding="utf-8"), encoding="utf-8")
+
+        armed_ctx_env = {"COMPLIANCE_CANARY_CORRECTION_LEDGER": "1"}
+        HARD_NEGATIVE_KINDS = ("bare_again", "quoted_article", "code_fence")
+        armed_fp = 0
+        armed_neg_total = 0
+        for kind in HARD_NEGATIVE_KINDS:
+            for i in range(5):
+                prompt = _cases_mod._NEG[kind].format(i=i)
+                armed_neg_total += 1
+                out = run(root, [claim("noted")], "frontier", f"ctxsafe-neg-{kind}-{i}",
+                          prompt=prompt, extra_env=armed_ctx_env)
+                fired_ledger = "correction(s) still OPEN" in out.stdout
+                if fired_ledger:
+                    armed_fp += 1
+                check(f"armed-hard-negative-{kind}-{i}-ledger-silent",
+                      not fired_ledger, out.stdout)
+        print(f"INFO armed-hard-negative-false-positive-count={armed_fp}/{armed_neg_total}")
+
+        genuine_corrections = [
+            "No, use tabs instead of spaces.",
+            "That's wrong, the port should be 8443.",
+            "You were wrong about that.",
+            "You didn't actually run the tests.",
+            "You just assumed the config was fine.",
+            "This is the second time you've made this mistake.",
+            "You keep making this mistake.",
+            "Every time I ask, you skip the check.",
+            "I told you to use spaces, not tabs.",
+            "Stop doing that.",
+            "Nope, that's not right.",
+            "Don't use tabs here.",
+        ]
+        armed_tp = 0
+        for i, prompt in enumerate(genuine_corrections):
+            out = run(root, [claim("ok, noted")], "frontier", f"ctxsafe-pos-{i}",
+                      prompt=prompt, extra_env=armed_ctx_env)
+            fired_ledger = "correction(s) still OPEN" in out.stdout and "§2" in out.stdout
+            if fired_ledger:
+                armed_tp += 1
+            check(f"armed-genuine-correction-{i}-ledger-opens", fired_ledger, out.stdout)
+        check("armed-genuine-corrections-at-least-ten", len(genuine_corrections) >= 10,
+              len(genuine_corrections))
+        print(f"INFO armed-genuine-correction-true-positive-count={armed_tp}/{len(genuine_corrections)}")
+
+        # "run it again" must NOT match armed; the tightened pattern dropped
+        # the bare `again` alternative entirely (2026-07-20).
+        again_out = run(root, [claim("ok, noted")], "frontier", "ctxsafe-run-again",
+                        prompt="run it again", extra_env=armed_ctx_env)
+        check("armed-run-it-again-stays-silent",
+              "correction(s) still OPEN" not in again_out.stdout, again_out.stdout)
+
         # --- notification evidence boundary (2026-07-18) -------------------
         timer_prompt = notification('Timer "focus-25m" completed (exit code 0)')
         out = run(root, [claim("Your focus timer is ready — I will report back when it fires.")],

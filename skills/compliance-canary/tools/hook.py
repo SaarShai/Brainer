@@ -131,6 +131,32 @@ def strip_code(text: str) -> str:
     return text
 
 
+# Context-safe matching for the `user_correction` probe KIND only (2026-07-20
+# reviewer fix): the raw regex matched inside quoted/fenced text the user was
+# merely POINTING AT, not a live correction directed at the agent — the
+# 2026-07-17 adversarial review measured this exact false-injection class at
+# 250/400 on the frozen corpus's quoted-article/code-fence hard negatives.
+# Strip fenced code blocks, inline backtick spans, double-quoted spans, and
+# markdown `>` blockquote lines from the CURRENT USER PROMPT before matching —
+# applied only inside detect_user_correction for the `user_correction` kind
+# (never `prompt_intent`, which shares the same detector function but keeps
+# its own frozen corpus behavior; never any other detector/kind, all of which
+# are frozen/gated). Unlike strip_code() above (built for ASSISTANT text,
+# where a whitespace backtick span may be a done-claim styled in backticks
+# worth preserving), this runs on the raw user prompt: there is no such case
+# to preserve here, so every span is fully removed, not unwrapped.
+_DQUOTE_SPAN_RE = re.compile(r'"[^"\n]*"')
+_BLOCKQUOTE_LINE_RE = re.compile(r"(?m)^[ \t]*>.*$")
+
+
+def strip_quoted_and_code(text: str) -> str:
+    text = _CODE_BLOCK_RE.sub(" ", text)
+    text = _INLINE_CODE_RE.sub(" ", text)
+    text = _DQUOTE_SPAN_RE.sub(" ", text)
+    text = _BLOCKQUOTE_LINE_RE.sub(" ", text)
+    return text
+
+
 def _as_int(value, default: int = 0) -> int:
     """Coerce a persisted/state value to int without ever raising — a corrupted
     or null field must NOT crash the hook (the always-exit-0 contract)."""
@@ -1020,10 +1046,14 @@ def detect_user_correction(probe: dict, _messages, _tool_uses, _tool_errors=None
     except re.error as e:
         log_err(f"bad-regex probe={probe.get('_probe_id')} err={e!r}")
         return None
-    m = pat.search(user_prompt)
+    # Context-safe matching: only the `user_correction` kind (not
+    # `prompt_intent`, which shares this function) strips quoted/fenced spans
+    # before matching — see strip_quoted_and_code() above.
+    haystack = strip_quoted_and_code(user_prompt) if probe.get("kind") == "user_correction" else user_prompt
+    m = pat.search(haystack)
     if m:
         return {"matched": m.group(0),
-                "snippet": user_prompt[max(0, m.start() - 10): m.end() + 50].replace("\n", " ")}
+                "snippet": haystack[max(0, m.start() - 10): m.end() + 50].replace("\n", " ")}
     return None
 
 
