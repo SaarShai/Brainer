@@ -64,6 +64,21 @@ domain lanes to this table (e.g. screenery-lean routes `.ai` edits to its
 `bracket` planner/executor/judge) — domain tables extend this one, they don't
 replace the protocol.
 
+**Interrupt-immune dispatch (hard).** Any lane that mutates external app state
+(Illustrator, a live browser tab, a running service) or runs longer than ~2
+minutes MUST launch through `skills/_shared/detached_lane.sh` instead of a
+harness-managed `Agent` call or Bash `run_in_background` job — verified
+2026-07-20: the Claude desktop harness cascades a main-loop interrupt to ALL
+running background subagents, killing them mid-work under a "stopped by the
+user" mislabel. `detached_lane.sh launch --dir <lane-dir> --name <name> --
+<command...>` detaches the lane into its own OS session (macOS: Python
+`start_new_session=True`, i.e. `setsid(2)`) so no harness signal reaches it;
+`detached_lane.sh status --dir <lane-dir> --name <name>` polls
+running/done/dead-no-marker. Applies together with the
+checkpoint-each-verified-lane-before-the-next-wave rule in
+[`ORCHESTRATION.md §6`](../_shared/ORCHESTRATION.md) — harness-immune dispatch
+and checkpoint discipline are complementary, not substitutes for each other.
+
 **Backend canary preflight.** Before recording lane routing for a multi-lane
 run, canary each backend with one trivial task proving TOOLS actually work
 (shell present, files readable) — reply `CANARY: OK` or `CANARY: DEGRADED`; a
