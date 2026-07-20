@@ -868,4 +868,5 @@ Sol's audit dissent (2026-07-20 evening) is on record: prefers armed-only
 demotion absent causal proof. Revisit trigger: if fire volume or IGNORED
 rate rises materially on a future corpus, or a model upgrade re-test (2e
 ritual) flags this probe, reopen via the preserved v2 protocol + auth-path
-decision.
+decision. Tracked evidence manifest (clone-reproducible numbers, methods,
+replay commands): eval/skills_effectiveness/DECISIONS-2026-07-20.md.
