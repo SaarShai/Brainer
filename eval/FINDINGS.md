@@ -15,6 +15,8 @@ gate pass and owner sign-off, and the DEMOTE verdict stands until then.
 
 ## 2026-07-18 post-DEMOTE Lane 2: long-horizon scoring wiring covers 6/6 scenarios
 
+*Measured-on: deterministic (no live model call; local pytest), corpus long-horizon scenario scoring unit tests + scope-walled trigger-gate corpus, code @5075eda, stamped retroactively 2026-07-20.*
+
 `eval/skills_effectiveness/longhorizon_score_counted.py` now has
 `SESSION_CONFIGS` + `SNAPSHOT_BUILDERS` entries for scenarios 01, 03, 04, 05
 alongside 02/06, with predicates transcribed from each scenario's answer key
@@ -31,6 +33,8 @@ pre-existing failure at HEAD in the scope-walled trigger-gate corpus test
 cases.py yields 862 — belongs to the concurrent Lane 1/3 run, not this lane).
 
 ## 2026-07-18 post-DEMOTE Lane 1: seven FRONTIER false interruptions fixed offline
+
+*Measured-on: deterministic corpus replay (no live model call), corpus expanded Frontier hard-negative/positive corpus (862 cases, sha256 `812e2857c0…`), code @deb2db8, stamped retroactively 2026-07-20.*
 
 All seven false interruptions in the counted scenario-02/06 FRONTIER
 transcripts reproduced against the pre-fix hook. They split into two concrete
@@ -67,6 +71,8 @@ sessions were run.
 
 ## 2026-07-18 long-horizon counted probe: SCORED — verdict DEMOTE to shadow
 
+*Measured-on: generator codex/gpt-5.6-sol xhigh (FRONTIER-vs-OFF arms), grader 4× glm-5.2, corpus longhorizon-main scenario-02/06, code @0a5c927, stamped retroactively 2026-07-20.*
+
 Scoring resumed same day via a codex/gpt-5.6-sol xhigh handoff
 (`eval/skills_effectiveness/CODEX_HANDOFF_PACKET.md`; codex session
 019f7612-2dbc-7413-b0ca-d6504a07f460). Binding verdict: **DEMOTE**
@@ -87,6 +93,8 @@ pass. Step B (8 remaining paid sessions) NOT run — DEMOTE is binding, not
 ambiguous; extension requires fresh owner authorization.
 
 ## 2026-07-18 long-horizon counted probe: data complete, scoring paused (superseded by entry above)
+
+*Measured-on: GPT/codex stratum (4 sessions, off/frontier arms), corpus longhorizon-main scenario-02/06, code @d3b79fb, stamped retroactively 2026-07-20.*
 
 Gate passed (kappa=1.0 after the RemoteDisconnected fix, commit b6fa8ae);
 binding freeze recorded at f1479f4 (bundle hashes at commit b6fa8ae). Owner
@@ -113,6 +121,8 @@ rehearsal gates before any further counted sessions.
 
 ## 2026-07-18 long-horizon rehearsal gate (FRONTIER-vs-OFF prereg)
 
+*Measured-on: GPT/codex stratum (rehearsal-A FRONTIER, rehearsal-B OFF), grader 4× glm-5.2, corpus longhorizon-rehearsal (committed at 448f2cc), code @466ef94, stamped retroactively 2026-07-20.*
+
 Both authorized paid rehearsal sessions ran to completion on the GPT/codex
 stratum (rehearsal-A FRONTIER 34 turns, rehearsal-B OFF 35 turns; 2 forced
 compactions each; artifacts committed at 448f2cc under
@@ -133,6 +143,8 @@ only after `grader_kappa` passes; the freeze hash will be recorded here per
 the preregistration (`eval/skills_effectiveness/longhorizon_preregistration_draft.md`).
 
 ## 2026-07-16 skill-effectiveness verification campaign
+
+*Measured-on: mixed — deterministic frontier/legacy/shadow canary-profile corpus replay (sha256 `a6ad8958…`, no live model) for the Wave-1 verdict; codex + claude hosts for the native-delivery smoke and focused-pilot-v2 (19 frozen coding cases per host); sibling raw transcripts (`screenery-design-master`) for the observational reminder counts, code @499bd9e, stamped retroactively 2026-07-20.*
 
 **Wave 1 deterministic verdict:** the new default `frontier` compliance-canary
 profile clears the frozen trigger gate; the rollback `legacy` profile fails it
@@ -348,6 +360,8 @@ alone. Read as direction, not magnitude.
 
 ## Catalog cuts (v1.12 — 31 → 24 skills, 2026-07-19 contraction)
 
+*Measured-on: codex + claude hosts, corpus focused-pilot-v2 (19 frozen coding cases per host, pass-rate figure cited from the 2026-07-16 campaign above), code @43738eb, stamped retroactively 2026-07-20.*
+
 Executed the contraction the 2026-07 evidence had already converged on:
 FRONTIER-vs-OFF pilot showed **zero pass-rate lift** from compact static
 doctrine bodies (76 valid outcomes, both arms 19/19); the 2026-07-17
@@ -421,6 +435,8 @@ Trimmed the unproven-gain tail. Principle: a skill stays only if it's either **m
 Effect: always-on tax 1642 → **998 (−39.2%)**; `eval/exp8_trigger/` top-1 fidelity was measured at the 19-skill snapshot (corpus since trimmed to the live set). Installer (`install.sh`) now prunes broken symlinks + orphan cursor rules on re-install, so cuts self-heal instead of stranding dangling links.
 
 ## Gap-closure & long-run tests (2026-06-07)
+
+*Measured-on: mixed — M3 host (Apple M3 Max) deterministic no-model runs for the semantic-diff/output-filter/wiki-refresh/prompt-triage/cache-lint scale tests; M3 host with `llama3.1:8b` (5 reps) for the cross-model long-run; 3 judge families (qwen3.6/gemma2:9b/llama3.1:8b) re-judging the existing verify-before-completion 250×2 candidate set, code @9975162, stamped retroactively 2026-07-20.*
 
 Closing the "what's NOT tested" column from the catalog table, plus multi-hour cross-model runs on networked Apple-silicon nodes.
 
