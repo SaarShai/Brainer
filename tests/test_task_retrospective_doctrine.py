@@ -100,7 +100,7 @@ def test_correction_drift_probes_respect_armed_boundary():
     messages = "\n".join(probe.get("message", "") for probe in task_probes + wiki_probes)
 
     assert "If task-retrospective is armed" in messages
-    assert "do not launch a full retrospective automatically" in messages
+    assert "do not launch a full retrospective or durable banking automatically" in messages
     assert "run the task-retrospective reflex NOW" not in messages
     assert "harvest the corrected rule" not in messages
 

@@ -373,6 +373,35 @@ default frontier profile — see `FRONTIER_VERIFY_PROBE_IDS` in
 
 Bodies live in git history (`git show f9740a4^:skills/<name>/SKILL.md`).
 
+## compliance-canary: legacy/shadow profile retirement (2026-07-19)
+
+Retired the `legacy` and `shadow` canary profiles; `PROFILES` is now
+`{frontier, off}`. Both profiles cost machinery with no default-on path
+(legacy: periodic re-anchor, allowlist-scoped probe selection, probe
+escalation; shadow: byte-identical-output equivalence checking plus a
+suppressed-legacy-surface telemetry mirror) — the same "rehomed probes are
+live only in the non-default legacy/shadow profiles" gap the v1.12 contraction
+above had already flagged for the *skill* catalog, now applied to canary's own
+internal profile matrix. Net: `hook.py` −256 lines (445 removed / 189 added),
+`tools/test.sh` −91 lines net (194 removed / 103 added, default profile
+switched from `legacy` to `frontier`, auto probe-id selection added so the
+existing detector-kind corpus runs under frontier instead of the retired
+implicit "select every discovered probe"), `SKILL.md` −21 lines net (Mechanism
+2 periodic-re-anchor section deleted, profile table collapsed to
+frontier/off). A stale `COMPLIANCE_CANARY_PROFILE=legacy`/`shadow` value now
+fails safe (normalizes to `frontier`, logs a warning) rather than being a
+live-but-undocumented deployment mode.
+
+One capability was rehomed rather than deleted: Mechanism 4 (the correction
+ledger, LEARNING_CONTRACT §2 enforcement) moved from legacy-only into
+`frontier` — a fired `user_correction` probe still opens a closeout-blocking
+ledger item regardless of frontier's compact display scope, and it still
+resolves only on a banked `write_gate.py`/`wiki.py new` call with paired
+execution evidence or an explicit user close. Mechanism 5 (probe escalation,
+LEARNING_CONTRACT §8) was deleted outright, not rehomed — no design contract
+called for preserving it, and it had no rehome path independent of the
+periodic-re-anchor cadence it escalated against.
+
 ## Catalog cuts (v1.6.0–1.6.1 — 19 → 15 skills)
 
 Trimmed the unproven-gain tail. Principle: a skill stays only if it's either **measured-positive** or **cheap + load-bearing-by-design** (operational utility, no gain claim). A skill that is *both* ❌/🟡 on measured benefit *and* redundant with a kept skill is dead weight — cut it.

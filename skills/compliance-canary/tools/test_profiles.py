@@ -267,23 +267,63 @@ def main() -> int:
         check("genuine-wrap-up-surfaces-pending-intent",
               second.stdout.count("request(s) are still OPEN") == 1, second.stdout)
 
+        # legacy/shadow are retired (2026-07-19): PROFILES = {frontier, off}.
+        # A stale COMPLIANCE_CANARY_PROFILE=legacy/shadow must fail-safe
+        # normalize to frontier (never crash, never silently no-op) — assert
+        # byte-identical output to a genuine frontier run, plus the stderr
+        # warning active_profile() logs on the fallback.
         mixed = [claim("Certainly. The tests pass; this is ready.")]
-        frontier = run(root, mixed, "frontier", "frontier-equivalence")
-        shadow = run(root, mixed, "shadow", "shadow-equivalence")
-        check("shadow-frontier-output-equivalence", shadow.stdout == frontier.stdout,
-              f"frontier={frontier.stdout!r} shadow={shadow.stdout!r}")
-        frontier_repeat = run(root, mixed, "frontier", "frontier-equivalence")
-        shadow_repeat = run(root, mixed, "shadow", "shadow-equivalence")
-        check("shadow-repeat-keeps-task-output-equivalent", shadow_repeat.stdout == frontier_repeat.stdout,
-              shadow_repeat.stdout)
+        legacy_value = run(root, mixed, "legacy", "legacy-normalizes")
+        frontier_again = run(root, mixed, "frontier", "frontier-normalizes")
+        check("legacy-profile-value-normalizes-to-frontier-output",
+              legacy_value.stdout == frontier_again.stdout,
+              f"legacy={legacy_value.stdout!r} frontier={frontier_again.stdout!r}")
+        check("legacy-profile-value-logs-unknown-profile-fallback-warning",
+              "unknown-profile value='legacy'" in legacy_value.stderr
+              and "using frontier" in legacy_value.stderr,
+              legacy_value.stderr)
+        shadow_value = run(root, mixed, "shadow", "shadow-normalizes")
+        check("shadow-profile-value-normalizes-to-frontier-output",
+              shadow_value.stdout == frontier_again.stdout,
+              f"shadow={shadow_value.stdout!r} frontier={frontier_again.stdout!r}")
+
         records = [json.loads(line) for line in (root / "telemetry.jsonl").read_text().splitlines()]
-        suppressed = [r for r in records if r["session_hash"] and r["probe_id"] == "noisy:filler"]
-        check("shadow-logs-every-suppressed-repeat", len(suppressed) == 2 and
-              all(not row["emitted"] for row in suppressed))
         check("telemetry-schema-redacted", all(set(r) == {
             "session_hash", "turn", "mechanism", "probe_id", "emitted",
             "injected_bytes", "content_hash"
-        } for r in records))
+        } for r in records), repr(records[:3]))
+
+        # --- Mechanism 4: correction ledger rehomed into frontier (2026-07-19,
+        # LEARNING_CONTRACT §2) — minimal rehome from the retired legacy
+        # profile: a correction-shaped prompt fires user_correction and opens
+        # a closeout-blocking OPEN item; a banked write_gate.py call (command
+        # position + a PASSED execution-evidence tool_result) resolves it and
+        # stops surfacing.
+        correction_skill = root / "skills" / "corrections"
+        correction_skill.mkdir(parents=True)
+        (correction_skill / "drift_probes.json").write_text(json.dumps([{
+            "id": "uc", "kind": "user_correction",
+            "pattern": r"(?i)(?:^\s*no[,. ]|i said\b)",
+            "message": "harvest the correction",
+        }]), encoding="utf-8")
+        opened = run(root, [claim("ok, using tabs")], "frontier", "correction-rehome",
+                    prompt="no, I said use spaces not tabs")
+        check("frontier-correction-ledger-opens-on-fired-user-correction",
+              "correction(s) still OPEN" in opened.stdout and "§2" in opened.stdout,
+              opened.stdout)
+        bank_tx = [
+            tool_use("bank1", "Bash", {
+                "command": "python3 skills/write-gate/tools/write_gate.py score --json --text x"}),
+            tool_result("bank1", '{"verdict": "PASSED: ok"}'),
+            claim("banked the lesson"),
+        ]
+        banked = run(root, bank_tx, "frontier", "correction-rehome", prompt="go ahead")
+        check("frontier-correction-ledger-resolves-on-banked-write-gate-call",
+              "resolved 1 correction" in banked.stdout and "still OPEN" not in banked.stdout,
+              banked.stdout)
+        quiet = run(root, [claim("continuing")], "frontier", "correction-rehome", prompt="next")
+        check("frontier-correction-ledger-stays-quiet-once-resolved",
+              "correction ledger" not in quiet.stdout, quiet.stdout)
 
         # --- notification evidence boundary (2026-07-18) -------------------
         timer_prompt = notification('Timer "focus-25m" completed (exit code 0)')

@@ -1,12 +1,18 @@
 # compliance-canary — eval status
 
-**Current deployment (2026-07-16):** default profile is `frontier`. Known-noise
-legacy mechanisms remain available for rollback and paired evaluation but no
-longer emit to frontier leads. `tools/test_profiles.py` deterministically proves
-mutation-free `off`, frontier/shadow output equivalence, suppressed-event
-telemetry, and successful/fresh/class-matched verification. The older findings
-below describe historical `legacy` behavior and are not evidence that those
-mechanisms improve current frontier-model outcomes.
+**Current deployment (2026-07-19):** two profiles only — `frontier` (default)
+and `off` (a mutation-free experimental control). The `legacy` and `shadow`
+profiles (periodic re-anchor, allowlist-scoped probe selection, probe
+escalation, and shadow's suppressed-surface telemetry) were retired
+2026-07-19: they cost ~450 hook.py lines and served no default-on path. One
+capability — the correction ledger (LEARNING_CONTRACT §2) — was rehomed into
+`frontier` rather than deleted; the rest was deleted outright, not preserved
+for rollback. `tools/test_profiles.py` deterministically proves mutation-free
+`off`, a stale `legacy`/`shadow` env value fail-safe normalizing to
+`frontier`, and successful/fresh/class-matched verification. The older
+findings below describe historical `legacy`/`shadow` behavior from before the
+2026-07-19 retirement and are not evidence that those mechanisms improve
+current frontier-model outcomes.
 
 **Status:** v1.10.0 — **skill-pulse folded in** (2026-06-16): one `UserPromptSubmit` hook now runs both mechanisms — symptomatic per-skill probes *and* the periodic skill-rule re-anchor. Hook correctness verified by [tools/test.sh](tools/test.sh) (56 cases — probes + re-anchor cadence/yield/floor/alias/BOM/allowlist + adversarial hardening: malformed payload, non-str session_id, ReDoS time-budget, reminder cap); offline probe baselining via [tools/measure.py](tools/measure.py); canary p99 latency 41 ms on a 400-line synthetic transcript.
 

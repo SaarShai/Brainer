@@ -1,6 +1,6 @@
 ---
 name: compliance-canary
-description: "Use when a long session may drift or needs verification-compliance monitoring. Frontier defaults to silent intent state plus one compact, compliance-aware verification probe; shadow measures suppressed legacy probes; legacy preserves rollback behavior; off is a mutation-free control."
+description: "Use when a long session may drift or needs verification-compliance monitoring. Frontier defaults to silent intent state plus one compact, compliance-aware verification probe and a closeout-blocking correction ledger; off is a mutation-free control."
 model: haiku
 effort: low
 tools: [Bash, Read, Write]
@@ -13,21 +13,23 @@ auto-install: true
 
 ## Profiles
 
-Set `COMPLIANCE_CANARY_PROFILE=frontier|shadow|legacy|off` (default:
-`frontier`):
+Set `COMPLIANCE_CANARY_PROFILE=frontier|off` (default: `frontier`). The
+`legacy` and `shadow` profiles (periodic re-anchor, allowlist-scoped probe
+selection, probe escalation, shadow's suppressed-surface telemetry) were
+retired 2026-07-19 — ~450 hook.py lines served no default-on path. A stale
+`COMPLIANCE_CANARY_PROFILE=legacy`/`shadow` value fails safe: it normalizes
+to `frontier` (never crashes, never silently no-ops).
 
-- `frontier` silently records pending intent and emits only
-  `compliance-canary:claim-without-evidence`, plus pending intent at a
-  genuine wrap-up. There is no pulse, generic style probe, correction nag, or
-  escalation wrapper.
-- `shadow` makes the same task-facing decisions and emits byte-identical output
-  while evaluating suppressed legacy probes into redacted telemetry.
-- `legacy` preserves the complete pre-profile behavior below for rollback.
+- `frontier` silently records pending intent and emits
+  `compliance-canary:claim-without-evidence`, pending intent at a genuine
+  wrap-up, and the correction ledger (Mechanism 4, rehomed from legacy
+  2026-07-19 — the one capability preserved rather than deleted). There is
+  no periodic re-anchor, generic style probe, or escalation wrapper.
 - `off` exits before state, lock, ledger, telemetry, transcript, or activation
   mutation and is the clean experimental control.
 
 `COMPLIANCE_CANARY_PROBE_IDS=skill:id,...` selects exact probes (not entire
-skills). In frontier/shadow it overrides the compact default. Telemetry defaults
+skills), overriding the compact frontier default. Telemetry defaults
 to `.brainer/compliance-canary/telemetry.jsonl` and contains only session hash,
 turn, mechanism, probe ID, emitted flag, injected UTF-8 byte count, and content
 hash—never prompt or transcript text.
@@ -44,8 +46,8 @@ installs, and — broadened 2026-07-18 per the adversarial audit —
 interpreter-mediated file writes such as `python3 -c "open('f','w')…"`,
 `perl -e`, and `node -e` fs writers).
 
-Notification evidence boundary (frontier/shadow only, 2026-07-18; hardened
-2026-07-19): when the current `UserPromptSubmit` payload is a
+Notification evidence boundary (2026-07-18; hardened 2026-07-19): when the
+current `UserPromptSubmit` payload is a
 substrate-authored `<task-notification>` reporting terminal SUCCESS
 (completed status / exit code 0) for a self-contained job kind — timer
 wakeup, background command, or advisor consult — and the notification
@@ -107,36 +109,30 @@ audit — all fail-open):
   INDEPENDENT of whether the request ledger has open items.
 
 Every suppression is logged to telemetry as a `suppressed_notification`
-event (emitted=false) so the counterfactual stays measurable. `legacy`
-deliberately keeps the pre-fix behavior for rollback.
-
-The remainder of this document describes `legacy` rollback behavior.
+event (emitted=false) so the counterfactual stays measurable.
 
 The single, non-optional drift defense for long sessions. One `UserPromptSubmit`
-hook runs **four orthogonal mechanisms** in one process — plus a fifth,
-legacy-profile-only probe-escalation mechanism (§ escalation below) that
-frontier/shadow never run (skill-pulse was folded
-in here 2026-06-16 — the leaner "one reactive hook instead of two" the eval
-notes had flagged; the request ledger was added 2026-06-17; the correction
-ledger closes the LEARNING_CONTRACT §2 gap — a user correction must become a
-durable artifact before the task closes):
+hook runs **three orthogonal mechanisms** in one process (numbered 1/3/4 —
+skipping 2 and 5, the retired periodic re-anchor and probe-escalation
+mechanisms, to match `hook.py`'s in-code numbering rather than renumbering):
+skill-pulse was folded in here 2026-06-16 — the leaner "one reactive hook
+instead of two" the eval notes had flagged; the request ledger was added
+2026-06-17; the correction ledger closes the LEARNING_CONTRACT §2 gap — a
+user correction must become a durable artifact before the task closes:
 
 | # | Mechanism | When it speaks | Covers |
 |---|---|---|---|
 | 1 | **Symptomatic probes** | only when a drift symptom appears | filler, verbosity creep, unverified done-claims, self-closing without asking, looping tool errors, error-rate spikes |
-| 2 | **Periodic re-anchor** | every Nth turn, unconditionally | rules that *fade* before any symptom shows — incl. rules with no probe |
-| 3 | **Request ledger** | at wrap-up turns (+ on cadence) | a user request silently dropped before it was completed or the user closed it |
+| 3 | **Request ledger** | at wrap-up turns | a user request silently dropped before it was completed or the user closed it |
 | 4 | **Correction ledger** | every turn it is non-empty | a user correction closed out without being banked as a durable rule + gate + exemplar (LEARNING_CONTRACT §2) |
 
-All four emit into **one** `<system-reminder>` with a shared budget. On a turn
-where a probe fires, the periodic re-anchor **yields** (symptom correction is
-higher-signal and itself re-anchors attention) — so the two never stack into
-consecutive nags. The request ledger does NOT yield at a wrap-up turn: surfacing
-still-open requests precisely as the agent moves to close is the whole point.
-The correction ledger likewise does not yield — it is closeout-blocking, so it
+All three emit into **one** `<system-reminder>` with a shared budget. The
+request ledger does NOT yield at a wrap-up turn: surfacing still-open
+requests precisely as the agent moves to close is the whole point. The
+correction ledger likewise does not yield — it is closeout-blocking, so it
 surfaces every turn it holds an open item.
 
-Legacy emergency switch: `COMPLIANCE_CANARY_DISABLED=1`. For experiments use
+Emergency switch: `COMPLIANCE_CANARY_DISABLED=1`. For experiments use
 `COMPLIANCE_CANARY_PROFILE=off`, whose no-mutation contract is tested.
 
 Deep-dive reference: [REFERENCE.md](REFERENCE.md) — the offline `measure.py` analyzer, host compatibility notes, and known gaps.
@@ -170,25 +166,10 @@ At a wrap-up turn — the agent's last message reads as a completion claim, past
 
 Both are suggestions inside a `<system-reminder>` — the canary NEVER auto-runs `/learn` or `/retro`. They share the one wrap-up detector (one suppression/budget path) so the two never double-nag.
 
-## Mechanism 2 — periodic re-anchor
-
-Every `COMPLIANCE_CANARY_PULSE_EVERY` turns (default **4**, paper-calibrated — arXiv [2510.07777](https://arxiv.org/html/2510.07777) tests injections at turns 4 + 7 of 10-turn convos), the hook unconditionally re-states the active skills' rules so they stay in effective attention. This is the *prevention* half: it catches rules that fade **before** any symptom shows, and rules that have no symptom probe at all.
-
-A skill participates iff its `SKILL.md` frontmatter declares a `pulse_reminder:` line — curated, not noisy:
-
-```yaml
----
-name: caveman-ultra
-description: Terse output style ...
-pulse_reminder: terse output — drop filler, hedging, pleasantries, and soft closings.
----
-```
-
-Skills without `pulse_reminder` are silent in the re-anchor (force-include via `COMPLIANCE_CANARY_PULSE_SKILLS=a,b`, which falls back to each skill's `description` first sentence). Capped at `MAX_SKILLS_IN_PULSE=8`.
-
-**The re-anchor yields to a fired probe.** On a turn that both hits the cadence *and* trips a probe, only the targeted corrective is emitted — the generic re-anchor is skipped that turn (it returns next cadence). One injection, never two. This is what folding skill-pulse in bought: a single global anti-nag budget that two separate hooks could not coordinate.
-
-Why one re-anchor payload and not a re-read of the bodies: the one-line reminders cost ~97% fewer tokens per 1000 turns (~76k) than re-injecting the 8 pulse skills' full `SKILL.md` bodies at the same cadence (~2.59M).
+Mechanism 2 (periodic re-anchor, paper-calibrated cadence from arXiv
+[2510.07777](https://arxiv.org/html/2510.07777)) was retired 2026-07-19 with
+the legacy profile that was its sole gate — no rehome (unlike Mechanism 4
+below).
 
 ## Mechanism 3 — request ledger
 
@@ -291,7 +272,7 @@ other mechanism (2026-07-18 audit — the request LEDGER is the sole record
 that stays ahead of the valve; the intent log is its verbatim mirror and
 follows the operator valve).
 
-## Mechanism 4 — correction ledger (legacy profile only)
+## Mechanism 4 — correction ledger
 
 [`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §2: a user correction is
 **closeout-blocking** — it must become a durable artifact (rule + gate +
@@ -301,22 +282,25 @@ already detects the correction at the turn it lands; the correction ledger is
 the stateful guard that keeps it from being forgotten — mirroring the request
 ledger's shape exactly, one mechanism level up.
 
-This mechanism is live only in the `legacy` rollback profile. Frontier and
-shadow do not open, surface, or resolve correction-ledger items.
+Rehomed into `frontier` 2026-07-19 — this was the one capability worth
+preserving from the retired `legacy` profile (minimal rehome: same
+surfacing cadence, no new nagging, no probe-escalation wrapper — Mechanism 5
+was deleted, not rehomed).
 
 Lifecycle (per-session state under `COMPLIANCE_CANARY_STATE_DIR`, key
 `correction_ledger`):
 
 - **Open.** Every fired `user_correction` probe (any skill's) opens an OPEN
   item `{id, turn, text}` — unconditional capture, the same no-opt-out posture
-  as Mechanism 3. This is unconditional even when `COMPLIANCE_CANARY_PROBE_SKILLS`
-  scopes DISPLAY to a different allowlist: the allowlist filters which fired
-  probes are shown in the drift-signal block, but every discovered
+  as Mechanism 3. This is unconditional even when frontier's compact
+  `COMPLIANCE_CANARY_PROBE_IDS` scope excludes a skill's `user_correction`
+  probe from the DISPLAY (symptomatic) surface: every discovered
   `user_correction` probe is still evaluated for ledger OPENING regardless of
-  that filter — an allowlist that happens to exclude a skill's `user_correction`
-  probe must never silently prevent its corrections from ever entering the
-  ledger (this was a confirmed hole; fixed by evaluating `user_correction`
-  probes on a path the allowlist doesn't reach, see `hook.py`'s `ledger_probes`).
+  that scope — a display scope that happens to exclude a skill's
+  `user_correction` probe must never silently prevent its corrections from
+  ever entering the ledger (this was a confirmed hole; fixed by evaluating
+  `user_correction` probes on a path the display scope doesn't reach, see
+  `hook.py`'s `ledger_probes`).
 - **Surface.** Unlike the request ledger (which waits for a wrap-up turn or
   drift coupling), an open correction is surfaced **every turn** it is
   non-empty — "closeout-blocking" means it does not wait for the agent to
@@ -383,14 +367,13 @@ Claude Code (project-local):
 bash skills/compliance-canary/tools/install.sh --project
 ```
 
-Wires `tools/hook.sh` into `.claude/settings.json` under `UserPromptSubmit` — a single hook running all four mechanisms. (`prompt-triage` may also wire `UserPromptSubmit`; the hooks fire in sequence, each independent.)
+Wires `tools/hook.sh` into `.claude/settings.json` under `UserPromptSubmit` — a single hook running all three mechanisms. (`prompt-triage` may also wire `UserPromptSubmit`; the hooks fire in sequence, each independent.)
 
 ## How a skill opts in
 
 - **A symptom probe** → drop a `drift_probes.json` next to the skill's `SKILL.md`.
-- **The periodic re-anchor** → add a `pulse_reminder:` line to the skill's frontmatter (see Mechanism 2).
 
-A skill can do both. `drift_probes.json` example for caveman-ultra:
+`drift_probes.json` example for caveman-ultra:
 
 ```json
 [
@@ -414,20 +397,17 @@ additional skills opt in by adding the same file beside their `SKILL.md`.
 
 ## Tuning
 
-Env vars (all optional). `SKILL_PULSE_*` names are honored as back-compat aliases from the pre-merge skill-pulse.
+Env vars (all optional).
 
 | Var | Default | Effect |
 |---|---|---|
-| `COMPLIANCE_CANARY_PROFILE` | `frontier` | `frontier`, `shadow`, `legacy`, or mutation-free `off` |
+| `COMPLIANCE_CANARY_PROFILE` | `frontier` | `frontier` or mutation-free `off`; an unrecognized value (incl. the retired `legacy`/`shadow`) fails safe to `frontier` |
 | `COMPLIANCE_CANARY_PROBE_IDS` | frontier verification probe | exact comma-separated `skill:id` selection; replaces skill-level selection |
 | `COMPLIANCE_CANARY_TELEMETRY_PATH` | state dir `telemetry.jsonl` | redacted append-only telemetry path |
-| `COMPLIANCE_CANARY_DISABLED=1` | — | legacy break-glass: silences drift detection, all reminders, and intent-log capture, but the turn is still counted and the prompt still recorded to the request ledger first (ledger state mutation happens BEFORE the valve by standing user directive); only profile `off` is fully mutation-free |
+| `COMPLIANCE_CANARY_DISABLED=1` | — | break-glass: silences drift detection, all reminders, and intent-log capture, but the turn is still counted and the prompt still recorded to the request ledger first (ledger state mutation happens BEFORE the valve by standing user directive); only profile `off` is fully mutation-free |
 | `COMPLIANCE_CANARY_COOLDOWN` | 3 | turns to suppress the same probe after it fires |
-| `COMPLIANCE_CANARY_PULSE_EVERY` | 4 | re-anchor cadence (floored to 2); `0` disables **just** the re-anchor. Alias: `SKILL_PULSE_EVERY` |
-| `COMPLIANCE_CANARY_PULSE_DISABLED=1` | — | disable just the re-anchor (probes still run). Alias: `SKILL_PULSE_DISABLED` |
-| `COMPLIANCE_CANARY_PULSE_SKILLS=a,b` | — | force-include skills in the re-anchor. Alias: `SKILL_PULSE_SKILLS` |
 | `COMPLIANCE_CANARY_STATE_DIR` | `.brainer/compliance-canary` | override state location |
-| `COMPLIANCE_CANARY_SKILLS_ROOT` | `.claude/skills` | override skills lookup root. Alias: `SKILL_PULSE_SKILLS_ROOT` |
+| `COMPLIANCE_CANARY_SKILLS_ROOT` | `.claude/skills` | override skills lookup root |
 
 ## Rules
 
@@ -438,8 +418,7 @@ Env vars (all optional). `SKILL_PULSE_*` names are honored as back-compat aliase
   output read reconciliation (F9). Legitimate provenance or a successful paired
   read older than the tail must still count without materializing the full file.
 - Anti-spam: each probe is suppressed for `COMPLIANCE_CANARY_COOLDOWN` turns after it fires.
-- Cap symptomatic output at `MAX_PROBES_TRIGGERED=4` and the re-anchor at `MAX_SKILLS_IN_PULSE=8`. On a shared turn the re-anchor yields, so output never exceeds one block.
-- The re-anchor reads no transcript and the probes need no frontmatter — one dir-walk feeds both.
+- Cap symptomatic output at `MAX_PROBES_TRIGGERED=4`.
 - The probe phase runs under a `PROBE_TIMEOUT_SECONDS=1.5` SIGALRM budget: a catastrophic-backtracking regex in some skill's `drift_probes.json` degrades to "no probes this turn" rather than wedging the prompt. (Author regexes are trusted-ish but this is the single mandatory hook — never let it hang.)
 - Hardened against malformed hook input: a non-object JSON payload or a non-string `session_id` is handled, not crashed. State updates flock-guarded. **Always exit 0** — a non-zero `UserPromptSubmit` exit would block the user's prompt.
 
@@ -455,9 +434,9 @@ tools/
 ├── install.sh               # wires UserPromptSubmit into project-local .claude/
 ├── measure.py               # standalone offline probe analyzer
 ├── PROBES.md                # probe schema and detector semantics
-├── test.sh                  # regression suite: probes + re-anchor + ledgers + hardening
+├── test.sh                  # regression suite: probes + ledgers + hardening (frontier)
 ├── test_hook_safety.py      # hook fail-open and safety regression tests
-└── test_profiles.py         # frontier/shadow/off + evidence freshness/class gates
+└── test_profiles.py         # frontier/off + profile normalization + evidence freshness/class gates
 ```
 
 REFERENCE.md — deep-dive: offline `measure.py` usage, host compatibility, known gaps.
