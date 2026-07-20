@@ -78,15 +78,13 @@ class, and any equal-or-better future model. Spend its context on deep
 reasoning, diagnosis, architecture, decomposition, planning, synthesis, and
 final judgment. Route bounded research, summarization, extraction,
 classification, bulk reads, mechanical edits, boilerplate, and spec'd
-execution to the cheapest reachable capable tier. Do not delegate when the
-task is inseparable from live context, no suitable lane is reachable, or the
-brief/review overhead would cost at least as much as direct execution; the
-small judgment-dense-fix exception below also remains. These exceptions are
-anti-ceremony safeguards, not permission for a frontier agent to retain routine
-work. Delegate only when the expected end-to-end cost — including briefing,
-supervision, verification, and likely rework — is lower without reducing
-reliability; otherwise do it directly. Never delegate unresolved diagnosis or
-semantic invention to a weaker lane merely to save tokens.
+execution to the cheapest reachable capable tier. Do not delegate when the task
+is inseparable from live context or no suitable lane is reachable. Outside a
+mandatory route below, compare end-to-end delegation cost with direct execution.
+The sole cost/size exception to SPEC'D+GATED delegation is the ~<30-line
+judgment-dense fix below; an expected diff of 30+ lines closes it regardless of
+dispatch cost. Never delegate unresolved diagnosis or semantic invention to a
+weaker lane merely to save tokens.
 
 **End-to-end ownership invariant (hard).** For non-trivial decomposable work,
 create one measurable goal covering architecture, implementation, tests,

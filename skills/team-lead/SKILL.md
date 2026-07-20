@@ -177,13 +177,9 @@ Catching yourself doing bulk mechanical edits — stop, brief a builder.
 - Unattended/scheduled regeneration loop → `loop-engineering` first.
 - Conversational / analysis-only turns → no fleet, just answer.
 
-**Proportionality (the anti-ceremony gate).** Delegation has a fixed cost
-(brief + spawn + cold-verify round-trip). If that cost exceeds doing the task
-and self-evidencing it, the protocol is net-negative — a "critical" *label* on
-a tiny task does not change its size. The leader may type a change small enough
-that a brief+verify would cost more than the fix, PROVIDED it still produces
-fresh evidence (run the test/lint, quote it) — cold-verify guards the leader's
-*judgment*, not its keystrokes. `prompt-triage` (per-prompt model routing) and
-team-lead (per-task lane decomposition) can both fire; **triage wins for a
-single-shot task, team-lead for genuinely decomposable multi-lane work** —
-don't run both on one small ask.
+**Proportionality (the anti-ceremony gate).** Apply it only when
+[`ORCHESTRATION.md §6`](../_shared/ORCHESTRATION.md#6-architect-cost-discipline-frontier-tier-orchestrator)
+does not mandate a route. It never overrides SPEC'D+GATED delegation: an
+expected diff of 30+ lines closes the direct-execution exception regardless of
+dispatch cost. Direct work is limited to a one-sentence change or the explicit
+~<30-line judgment-dense exception in the canonical contract.

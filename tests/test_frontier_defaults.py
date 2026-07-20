@@ -153,9 +153,9 @@ def test_frontier_economy_policy_is_canonical_and_future_proof() -> None:
         "any equal-or-better future model",
         "cheapest reachable capable tier",
         "inseparable from live context",
-        "brief/review overhead",
-        "likely rework",
-        "lower without reducing\nreliability; otherwise do it directly",
+        "Outside a\nmandatory route below",
+        "sole cost/size exception to SPEC'D+GATED delegation",
+        "expected diff of 30+ lines closes it regardless of\ndispatch cost",
         "Never delegate unresolved diagnosis",
     )
     assert not missing_phrases(doctrine, required)
@@ -207,7 +207,7 @@ def test_frontier_ownership_policy_is_resident_in_every_carrier() -> None:
         "end-to-end goal and hard\n  judgment",
         "independent, gated work concurrently",
         "cheapest reliable",
-        "delegation's total cost or reliability is worse",
+        "explicit ~<30-line judgment-dense exception applies",
         "verify until done",
         "stop only for missing\n  authority or a real blocker",
         "`skills/_shared/ORCHESTRATION.md`\n  §6",
@@ -216,6 +216,11 @@ def test_frontier_ownership_policy_is_resident_in_every_carrier() -> None:
     for path in sources:
         text = path.read_text(encoding="utf-8")
         assert not missing_phrases(text, required), path.name
+
+    doctrine = (ROOT / "skills/_shared/ORCHESTRATION.md").read_text(encoding="utf-8")
+    team_lead = (ROOT / "skills/team-lead/SKILL.md").read_text(encoding="utf-8")
+    assert "expected diff of 30+ lines closes it regardless of\ndispatch cost" in doctrine
+    assert "expected diff of 30+ lines closes the direct-execution exception" in team_lead
 
 
 def test_routing_receipt_and_speed_semantics_are_resident_in_every_carrier() -> None:

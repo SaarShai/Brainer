@@ -266,7 +266,8 @@ a skill happens to trigger:
   and why it fails; otherwise the brief is malformed. Deep: `/think`.
 - **Frontier ownership.** Top-tier agents own the end-to-end goal and hard
   judgment. Run independent, gated work concurrently on the cheapest reliable
-  lanes; keep work when delegation's total cost or reliability is worse.
+  lanes; retain direct work only when no suitable lane is reachable or the
+  explicit ~<30-line judgment-dense exception applies.
   Continue, correct, synthesize, and verify until done; stop only for missing
   authority or a real blocker. Full contract: `skills/_shared/ORCHESTRATION.md`
   §6.
