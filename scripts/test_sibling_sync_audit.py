@@ -33,6 +33,10 @@ LOCAL_LINE = "LOCAL SIBLING TWEAK: keep me\n"
 INDENT_CANON = "---\nname: indent-demo\n---\n## Steps\n  - preserve indentation\n"
 INDENT_LOCAL = "---\nname: indent-demo\n---\n## Steps\n    - preserve indentation\n"
 RETIRED_TOOL = "def retired(): pass  # v1 canonical, deleted in v2\n"
+LESSON_V1 = "---\nname: lesson-demo\n---\n## Lesson: gotcha\nfor-brainer: yes\nbody v1\n"
+LESSON_V2 = "---\nname: lesson-demo\n---\nbody v2 (lesson harvested & removed)\n"
+SYMLINK_V1 = "---\nname: symlink-demo\n---\nbody v1\n"
+SYMLINK_V2 = "---\nname: symlink-demo\n---\nbody v2\n"
 APPLY_FLAGS = ("--apply-stale", "--apply-absent", "--adopt-new-skills", "--adopt-agents")
 
 FAILS: list[str] = []
@@ -68,6 +72,8 @@ def build_canon(canon: Path):
     write(canon / "skills" / "dummy" / "SKILL.md", "---\nname: dummy\n---\nbody\n")
     write(canon / "skills" / "dummy" / "tools" / "retired_tool.py", RETIRED_TOOL)
     write(canon / "skills" / "indent-demo" / "SKILL.md", INDENT_CANON)
+    write(canon / "skills" / "lesson-demo" / "SKILL.md", LESSON_V1)
+    write(canon / "skills" / "symlink-demo" / "SKILL.md", SYMLINK_V1)
     write(canon / "install.sh", "#!/usr/bin/env bash\n")
     # Mirror the real carve-out: agents are tracked, rest of .claude is not.
     # ".brainer/" mirrors the real repo's runtime-state carve-out (a canary's
@@ -84,6 +90,8 @@ def build_canon(canon: Path):
     git(canon, "commit", "-qm", "v1")
     write(canon / AGENTS / "builder.md", BUILDER_V2)   # v2 supersedes v1
     (canon / "skills" / "dummy" / "tools" / "retired_tool.py").unlink()  # v2 retires it
+    write(canon / "skills" / "lesson-demo" / "SKILL.md", LESSON_V2)   # lesson harvested upstream
+    write(canon / "skills" / "symlink-demo" / "SKILL.md", SYMLINK_V2)
     git(canon, "add", "-A")
     git(canon, "commit", "-qm", "v2")
 
@@ -155,6 +163,11 @@ def main() -> int:
               "def sibling_local(): pass  # never canonical\n")
         write(sib / "skills" / "dummy" / "tools" / ".brainer" / "dummy"
               / "state.json", '{"fires": 1}\n')
+        write(sib / "skills" / "lesson-demo" / "SKILL.md", LESSON_V1)  # STALE + unharvested lesson
+        symlink_target = docs / "symlink-target.md"
+        write(symlink_target, SYMLINK_V1)
+        (sib / "skills" / "symlink-demo").mkdir(parents=True, exist_ok=True)
+        (sib / "skills" / "symlink-demo" / "SKILL.md").symlink_to(symlink_target)
 
         # --- sib2: opt-out case (declines an agent AND a skill via one file) ---
         sib2 = docs / "screenery-lean"
@@ -184,7 +197,11 @@ def main() -> int:
         check("local-only is sibling_only_agent", s["sibling_only_agents"] == ["local-only"])
         check("skills track isolates the indentation-only difference",
               s["identical"] == 1
-              and s["differs"] == ["skills/indent-demo/SKILL.md"]
+              and sorted(s["differs"]) == sorted([
+                  "skills/indent-demo/SKILL.md",
+                  "skills/lesson-demo/SKILL.md",
+                  "skills/symlink-demo/SKILL.md",
+              ])
               and s["absent_count"] == 0)
         check("canon_deleted lists retired_tool.py and local_only_tool.py only "
               "(gitignored runtime state is never a deletion candidate)",
@@ -224,7 +241,7 @@ def main() -> int:
 
         # 3. apply: STALE fast-forwards, absent adopts, CUSTOMIZED + sibling-only
         #    are left exactly as-is.
-        run("--repo", "PROMPTER", "--apply-stale", "--adopt-agents")
+        r3 = run("--repo", "PROMPTER", "--apply-stale", "--adopt-agents")
         check("STALE builder fast-forwarded to v2",
               (sib / AGENTS / "builder.md").read_text() == BUILDER_V2)
         check("absent reviewer adopted verbatim",
@@ -249,6 +266,24 @@ def main() -> int:
               and conflict_path.read_text() == "def sibling_local(): pass  # never canonical\n")
         check("apply-deletions never mentions deleting the CONFLICT file",
               "deleted     skills/dummy/tools/local_only_tool.py" not in applied)
+
+        # 3c. harvest-before-overwrite guard: STALE file with an unharvested
+        #     lesson artifact is refused without --force-stale-lessons.
+        check("LESSON-HAZARD reported for lesson-demo", "LESSON-HAZARD" in r3.stdout
+              and "lesson-demo/SKILL.md" in r3.stdout)
+        check("STALE-but-lesson file NOT overwritten without force flag",
+              (sib / "skills" / "lesson-demo" / "SKILL.md").read_text() == LESSON_V1)
+        run("--repo", "PROMPTER", "--apply-stale", "--force-stale-lessons")
+        check("--force-stale-lessons overwrites once explicitly forced",
+              (sib / "skills" / "lesson-demo" / "SKILL.md").read_text() == LESSON_V2)
+
+        # 3d. symlink hazard: applying through a symlinked sibling path is
+        #     detected and skipped, never written through.
+        check("SYMLINK-HAZARD reported for symlink-demo", "SYMLINK-HAZARD" in r3.stdout
+              and "symlink-demo/SKILL.md" in r3.stdout)
+        check("symlinked sibling path left untouched",
+              (sib / "skills" / "symlink-demo" / "SKILL.md").is_symlink()
+              and symlink_target.read_text() == SYMLINK_V1)
 
         # 4. opt-out: `agent:reviewer` declines the roster def; `dummy` still
         #    parses as a skill opt-out (shared file, both prefixes coexist).

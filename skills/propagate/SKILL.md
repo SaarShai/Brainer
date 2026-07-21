@@ -196,6 +196,17 @@ Premortem ([`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §8):
   `docs/HOST_CAPABILITY_MATRIX.md`; the real exposure is that nothing on ANY host schedules
   or reminds a builder to propagate — it fires only when a human/agent remembers to invoke
   `/propagate` or this skill's trigger phrase.
+- **Harvest-before-overwrite (STALE fast-forward can eat an unharvested lesson)** — a STALE
+  verdict only proves the outgoing sibling file's bytes exist SOMEWHERE in canonical git
+  history; it says nothing about whether a consumer-local lesson embedded in that same file
+  (or written through a symlinked sibling path that resolves back into the vendored copy)
+  was ever harvested to Brainer. `--apply-stale` now scans each STALE file for lesson-artifact
+  markers (a `harvested:` line, a `for-brainer` tag, a lesson-block heading) before copying;
+  a hit is flagged and refused (`LESSON-HAZARD`, flagged lines printed) unless
+  `--force-stale-lessons` is passed — harvest first, then re-run with the flag. A sibling
+  destination that is itself a symlink is a separate hazard (`SYMLINK-HAZARD`): applying
+  would write through it, often straight back into canonical, so it is detected and skipped
+  rather than written through.
 
 ## Report (per sibling)
 

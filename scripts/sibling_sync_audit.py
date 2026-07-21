@@ -71,6 +71,7 @@ import argparse
 import filecmp
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -204,6 +205,74 @@ def classify_differs(sib: Path, differs: list[str]) -> dict:
         else:
             stale.append(rel)
     return {"stale": stale, "customized": customized, "local_lines": local_lines}
+
+
+_LESSON_MARKER_RE = re.compile(
+    r'^\s*harvested:\s|for-brainer|^#{1,6}\s.*\blesson\b',
+    re.IGNORECASE,
+)
+
+
+def lesson_artifact_lines(path: Path) -> list[str]:
+    """Lines in `path` that look like an unharvested lesson artifact — a
+    `harvested:` marker line, a `for-brainer` tag, or a markdown lesson-block
+    heading. A STALE verdict only proves every outgoing line exists SOMEWHERE
+    in canonical git history; it says nothing about whether a consumer-local
+    lesson embedded in that same file (or written through a symlinked path
+    that resolves into the vendored copy) was ever harvested back to
+    canonical. Guards --apply-stale from silently overwriting such a file."""
+    if not path.is_file():
+        return []
+    return [ln for ln in path.read_text(errors="replace").splitlines()
+            if _LESSON_MARKER_RE.search(ln)]
+
+
+def is_symlink_hazard(path: Path) -> bool:
+    """True if a sibling destination `path` is itself a symlink — applying
+    would write THROUGH it (often straight back into the canonical repo it
+    points at), which is a no-op-or-worse rather than an actual sibling-local
+    fast-forward. Detect and report instead of writing through it."""
+    return path.is_symlink()
+
+
+def apply_stale_guarded(rel_files: list[str], sib_root: Path, canon_root: Path,
+                         ignored: set[str], force_stale_lessons: bool,
+                         label: str = "applied") -> int:
+    """Fast-forward each STALE `rel_files` path from `canon_root` over
+    `sib_root`, unless it trips one of two guards:
+
+    - **symlink hazard** — the sibling destination is itself a symlink
+      (applying would write through it, often back into canonical); detected
+      and reported, never written through.
+    - **unharvested lesson artifact** — the outgoing sibling file contains a
+      `harvested:` marker, a `for-brainer` tag, or a lesson-block heading;
+      the STALE verdict proves the bytes exist somewhere in canonical
+      history, not that any embedded lesson was ever harvested back. Refused
+      unless `force_stale_lessons`, with the flagged lines printed so they
+      can be harvested first.
+
+    Returns the count actually applied."""
+    applied = 0
+    for f in rel_files:
+        if f in ignored:
+            continue  # gitignored = runtime state, never canonical source
+        dst = sib_root / f
+        if is_symlink_hazard(dst):
+            print(f"      SYMLINK-HAZARD  {f}  (sibling path is a symlink — "
+                  f"apply would write through it; skipped, resolve manually)")
+            continue
+        markers = lesson_artifact_lines(dst)
+        if markers and not force_stale_lessons:
+            print(f"      LESSON-HAZARD  {f}  (STALE, but contains an "
+                  f"unharvested lesson artifact — refused; pass "
+                  f"--force-stale-lessons after harvesting to overwrite)")
+            for ln in markers[:6]:
+                print(f"          lesson: {ln[:100]}")
+            continue
+        shutil.copy2(canon_root / f, dst)
+        print(f"      {label}     {f}")
+        applied += 1
+    return applied
 
 
 def _canon_gitignored(rels: list[str]) -> set[str]:
@@ -477,6 +546,13 @@ def main() -> int:
                     help="copy canonical HEAD over each STALE file (requires "
                          "--repo; CUSTOMIZED files are never touched; re-run the "
                          "sibling's install.sh + --repo verify afterwards)")
+    ap.add_argument("--force-stale-lessons", action="store_true",
+                    help="allow --apply-stale to overwrite a STALE file that "
+                         "contains an unharvested lesson artifact (a "
+                         "`harvested:` marker, a `for-brainer` tag, or a "
+                         "lesson-block heading); without it such files are "
+                         "flagged and refused so the lesson can be harvested "
+                         "first")
     ap.add_argument("--apply-absent", action="store_true",
                     help="copy canonical files the sibling lacks, ONLY inside "
                          "skills the sibling already adopted (a wholly-absent "
@@ -636,13 +712,11 @@ def main() -> int:
                     print(f"          local: {ln[:100]}")
             if args.apply_stale:
                 ignored = _canon_gitignored(cl["stale"])
-                for f in cl["stale"]:
-                    if f in ignored:
-                        continue  # gitignored = runtime state, never canonical source
-                    shutil.copy2(BRAINER / f, DOCS / s["repo"] / f)
-                    print(f"      applied     {f}")
-                if cl["stale"]:
-                    print(f"\n  {len(cl['stale'])} stale file(s) fast-forwarded in "
+                n_applied = apply_stale_guarded(
+                    cl["stale"], DOCS / s["repo"], BRAINER, ignored,
+                    args.force_stale_lessons)
+                if n_applied:
+                    print(f"\n  {n_applied} stale file(s) fast-forwarded in "
                           f"{s['repo']}. NOW: re-run {s['repo']}/install.sh, then "
                           f"verify with --repo {s['repo']} (topology hard-rule "
                           f"steps 3-4).")
@@ -656,13 +730,11 @@ def main() -> int:
                     print(f"          local: {ln[:100]}")
             if args.apply_stale:
                 ignored = _canon_gitignored(acl["stale"])
-                for f in acl["stale"]:
-                    if f in ignored:
-                        continue  # gitignored = runtime state, never canonical source
-                    shutil.copy2(BRAINER / f, DOCS / s["repo"] / f)
-                    print(f"      applied           {f}")
-                if acl["stale"]:
-                    print(f"\n  {len(acl['stale'])} stale agent-def(s) "
+                n_applied = apply_stale_guarded(
+                    acl["stale"], DOCS / s["repo"], BRAINER, ignored,
+                    args.force_stale_lessons, label="applied          ")
+                if n_applied:
+                    print(f"\n  {n_applied} stale agent-def(s) "
                           f"fast-forwarded in {s['repo']} (live immediately — "
                           f".claude/agents/ is the loader path, no install step).")
         if (args.classify or args.apply_deletions) and s["canon_deleted"]:
