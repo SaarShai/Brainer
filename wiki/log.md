@@ -442,3 +442,8 @@ Created `concepts/when-to-extract-a-skill-md-section-into-tools.md` from `page` 
   SKILL.md deep trim. Six project goals registered in the resident boot block
   of all three host files, see [[concepts/brainer-goals]]. Full record:
   eval/FINDINGS.md "Catalog cuts (v1.12)".
+## [2026-07-20] update | Graph-engineering assessment 2026-07
+
+Created `queries/graph-engineering-assessment-2026-07.md` from `decision` template.
+
+- 2026-07-20 · queries/graph-engineering-assessment-2026-07 · created (decision, trust: verified) — viral graph-engineering posts assessed; fabricated Stanford-Anthropic paper; verdict no new machinery; timeline governance-edge fix; E0-E2 test design

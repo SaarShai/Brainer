@@ -1498,7 +1498,27 @@ class WikiStore:
             for line in stream:
                 if target_id in line or target_title in line:
                     log_hits.append(line[:240])
-        return {"id": target_id, "backlinks": backlinks[:20], "outbound": outbound[:20], "neighbors": neighbors[:20], "log": log_hits[-10:]}
+        # Typed governance edges (supersedes / superseded-by / contradicts):
+        # the retrieval protocol says "follow typed edges", but these live in
+        # frontmatter, which body-[[link]] extraction never sees — without this
+        # block the epistemic layer is invisible to the traversal command.
+        # Danglers are skipped, matching outbound.
+        governance: dict[str, list[dict[str, str]]] = {}
+        if target_page:
+            for fm_key, out_key in (("supersedes", "supersedes"),
+                                    ("superseded-by", "superseded_by"),
+                                    ("contradicts", "contradicts")):
+                edges = []
+                # [^\[\]] (not [^\]]) so a wikilink nested in YAML list brackets
+                # ([[[a]], [[b]]]) captures the innermost `a`, not `[a`.
+                for raw in re.findall(r"\[\[([^\[\]]+)\]\]", str(target_page.frontmatter.get(fm_key, ""))):
+                    resolved = resolve(raw)
+                    if resolved and resolved != target_id:
+                        rp = page_by_id[resolved]
+                        edges.append({"id": rp.id, "title": rp.title, "path": rp.path.relative_to(self.root).as_posix()})
+                if edges:
+                    governance[out_key] = edges
+        return {"id": target_id, "backlinks": backlinks[:20], "outbound": outbound[:20], "neighbors": neighbors[:20], "governance": governance, "log": log_hits[-10:]}
 
     def lint(self) -> dict[str, Any]:
         return self.lint_pages(strict=False)

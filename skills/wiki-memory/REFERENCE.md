@@ -81,6 +81,18 @@ Once a page is in the wiki, two companions maintain it:
 - [`wiki-refresh`](../wiki-refresh/SKILL.md) reconciles pages against the *current codebase* (the Keep/Update/Consolidate/Replace/Delete decision is wiki-refresh's — not restated here) and emits typed `contradicts:` edges. Drift signal: `python skills/wiki-memory/tools/wiki.py audit-refs [--code-root PATH]` lists pages whose cited code paths no longer exist. Run decay weekly (cheap), refresh monthly or after a refactor/rename (costs reads).
 - **Belief-update propagation:** `python3 skills/wiki-memory/tools/wiki.py stale-citers` surfaces pages whose **body** cites a `superseded-by`/`contradicts:`-marked page — a supersession does NOT auto-ripple to its citers, so they keep pointing at outdated knowledge. Run it in [`wiki-refresh`](../wiki-refresh/SKILL.md) right after wiring any supersession/contradiction edge, then repoint each citer at the newer page (or note the dispute). Report-only: it never rewrites another page's body (invalidate-don't-delete; surface, don't silently mutate).
 
+**Temporal semantics — what this store does and does not model.** The wiki
+implements **epistemic time** only: `supersedes`/`superseded-by`/`contradicts`
+edges + trust tiers say *"this belief replaced or disputes that belief"* — which
+is where graph memory measurably earns its keep (temporal/supersession reasoning
+is the one axis where graph variants beat flat memory in the published evals;
+plain lookup ties or loses). It does **not** model **valid time** ("this fact
+held from T1 to T2") à la Graphiti/Zep bi-temporal intervals — a deliberate
+non-adoption (see `wiki/concepts/framework-hardening-adoption.md` rows 7/12): no
+measured need at this scale, and a bi-temporal engine is infra we reject. If a
+future eval shows event-time failures, the smallest next step is one optional
+`occurred:` field on event/observation pages, not an engine.
+
 ## Boundary with graphify
 
 If the project has `graphify-out/graph.json` (auto-extracted code graph), do not duplicate its content here. Split:

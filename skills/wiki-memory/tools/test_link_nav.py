@@ -296,6 +296,43 @@ def test_l1_truncation_is_surfaced_and_small_tiers_survive():
         shutil.rmtree(tmp)
 
 
+def test_timeline_exposes_typed_governance_edges():
+    """supersedes/superseded-by/contradicts live in FRONTMATTER, which body-link
+    extraction never sees — timeline must surface them or the retrieval
+    protocol's "follow typed edges" step has nothing to follow."""
+    store, tmp = make_store()
+    try:
+        _write(store, "concepts/newrule.md", _v2("Newrule", "concept", "current doctrine",
+            extra=""))
+        _write(store, "concepts/oldrule.md", _v2("Oldrule", "concept", "old doctrine"))
+        _write(store, "concepts/rival.md", _v2("Rival", "concept", "disputed claim"))
+        # rewrite newrule with populated governance keys (+ a dangler that must be skipped)
+        text = _v2("Newrule", "concept", "current doctrine")
+        text = text.replace("supersedes: []", "supersedes: [[[concepts/oldrule]], [[concepts/gone]]]")
+        text = text.replace("superseded-by:\n", "superseded-by:\n")
+        text = text.replace("tags: [t]", "contradicts: [[[concepts/rival]]]\ntags: [t]")
+        _write(store, "concepts/newrule.md", text)
+        store.index()
+
+        tl = store.timeline("concepts/newrule")
+        gov = tl.get("governance")
+        assert gov, tl
+        sup_ids = {e["id"] for e in gov.get("supersedes", [])}
+        assert sup_ids == {"concepts/oldrule"}, gov          # dangler skipped
+        con_ids = {e["id"] for e in gov.get("contradicts", [])}
+        assert con_ids == {"concepts/rival"}, gov
+        assert "superseded_by" not in gov, gov               # empty key omitted
+        for edges in gov.values():
+            for e in edges:
+                assert set(e) >= {"id", "title", "path"}, e
+
+        # a page with no live governance edges returns an empty dict, not noise
+        tl2 = store.timeline("concepts/oldrule")
+        assert tl2.get("governance") == {}, tl2
+    finally:
+        shutil.rmtree(tmp)
+
+
 def main() -> None:
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in fns:

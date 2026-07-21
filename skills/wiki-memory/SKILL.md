@@ -45,8 +45,12 @@ Use when the task references past work, decisions, docs, memory, project facts, 
 2. Run `python skills/wiki-memory/tools/wiki.py search "<query>"`.
 3. For relevant hits, `python ... timeline "<id>"`. Timeline returns the page's
    **link graph**: `backlinks` (pages that cite this one), `outbound` (pages this
-   one points to), and `neighbors` (same-dir). This graph *is* the retrieval
-   index — read it, don't ignore it.
+   one points to), `neighbors` (same-dir), and `governance` (typed frontmatter
+   edges — `supersedes`/`superseded_by`/`contradicts`; empty `{}` when none).
+   This graph *is* the retrieval index — read it, don't ignore it. A non-empty
+   `superseded_by` means you are looking at a replaced belief: fetch the
+   superseding page instead; a non-empty `contradicts` means the claim is
+   disputed — surface both sides, don't serve one as truth.
 4. Fetch ≤3 pages first with `python ... fetch "<id>"`.
 5. If insufficient, **follow the link graph before re-searching**: pick the next
    ≤2 pages from the prior page's edges (a typed edge to a related page beats a
