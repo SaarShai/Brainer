@@ -672,14 +672,18 @@ def _read_prompt_from_stdin() -> str:
     return prompt if isinstance(prompt, str) else str(prompt)
 
 
-# Escalate-UP mode (BRAINER_TRIAGE_ESCALATE_UP=1): today, a hard/agent-none
-# verdict emits silence — correct when the SESSION model is already frontier
-# (it handles hard prompts itself; team-lead only fires from a frontier main
-# loop). Wrong when the session model is cheap: the hard prompt gets a cheap
-# answer with no escalation path. Under this env flag, hard/agent-none instead
-# emits a directive telling the (cheap) main model to spawn a frontier
-# subagent. Default (env unset) stays byte-identical to today — proven by
-# test_classify.py.
+# Escalate-UP mode (BRAINER_TRIAGE_ESCALATE_UP, opt-OUT via =0): a
+# hard/agent-none verdict used to emit silence unconditionally — correct only
+# when the SESSION model is already frontier (it handles hard prompts itself;
+# team-lead only fires from a frontier main loop). Wrong when the session
+# model is cheap: the hard prompt gets a cheap answer with no escalation path.
+# ON by default (owner decision 2026-07-21, converging with the consumer
+# repos, which have run default-ON since 2026-07-06) — emits a directive
+# telling the (cheap) main model to spawn a frontier subagent. Set
+# BRAINER_TRIAGE_ESCALATE_UP=0 to opt out and restore the old silent
+# behavior. The _agent_def_installed guard still applies regardless: if the
+# frontier-advisor/frontier-verifier agent defs aren't installed, this
+# degrades to silence either way — proven by test_classify.py.
 _VERIFY_INTENT_RE = re.compile(
     r"\b(?:verify|verifier|review|judge|audit|critique|grade|assess|evaluate|vet|"
     r"double[-\s]?check|sanity[-\s]?check|sign[-\s]?off|pass\/fail|"
@@ -803,11 +807,20 @@ def emit_context(prompt: str, use_ollama_fallback: bool = True) -> str:
     # If main-model required (tier=hard or agent=none), emit nothing — preserves
     # the prior hook.sh behavior of early-exiting on these classifications.
     if result.get("tier") == "hard" or result.get("agent") == "none":
-        if (os.environ.get("BRAINER_TRIAGE_ESCALATE_UP") == "1"
+        if (os.environ.get("BRAINER_TRIAGE_ESCALATE_UP") != "0"
+                and result.get("source") not in ("context-guard", "short-unmatched")
                 and not _is_harness_payload(prompt)):
+            # context-guard/short-unmatched verdicts are exempt: they fire
+            # specifically because the prompt references current session
+            # context a fresh subagent cannot see, or is a short
+            # no-rule-match conversational reply with no self-contained task
+            # to hand off (e.g. "continue", "do PROMPTER") — escalating to a
+            # frontier subagent is exactly as wrong as cheap-routing it, so
+            # this stays silent regardless of the escalate-up default
+            # (test_continuation_prompts_stay_silent regression lock).
             # Harness payloads (task-notification / system-reminder / SYSTEM
-            # NOTIFICATION blocks) are exempt: they're the harness talking to
-            # the agent, not a user ask, so there is no "task" to escalate
+            # NOTIFICATION blocks) are exempt too: they're the harness talking
+            # to the agent, not a user ask, so there is no "task" to escalate
             # (live misfire, 2026-07-06).
             agent = _escalate_up_agent(prompt)
             # Guard (cross-vendor review): the consuming project may not have

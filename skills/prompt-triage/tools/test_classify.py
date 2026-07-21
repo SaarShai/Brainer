@@ -78,8 +78,18 @@ def test_incident_prompt_fails_closed_without_llm():
     # "we built" in the prompt now trips the (earlier) context-guard; both
     # sources are the same safe verdict — hard/none, zero directive.
     assert r["source"] in ("fail-closed", "context-guard", "brief-gate"), r
-    # And the hook must emit NOTHING for it.
-    assert emit_context(INCIDENT_PROMPT_MID, use_ollama_fallback=False) == ""
+    # owner-decided default flip (2026-07-21): escalate-up is now ON by
+    # default, so a fail-closed/brief-gate verdict emits a
+    # frontier-escalation directive (not a cheap-route directive); a
+    # context-guard verdict stays silent (subagents can't see session context
+    # either) — either way, never cheap-routed, which is the invariant this
+    # test locks.
+    out = emit_context(INCIDENT_PROMPT_MID, use_ollama_fallback=False)
+    if r["source"] == "context-guard":
+        assert out == "", out
+    else:
+        assert "frontier-advisor" in out or "frontier-verifier" in out, out
+    assert "quick-fix" not in out and "glm-executor" not in out, out
 
 
 def test_complex_hints_alone_fail_closed_without_llm():
@@ -87,7 +97,9 @@ def test_complex_hints_alone_fail_closed_without_llm():
     p = "research and audit the production deployment pipeline"
     r = classify(p, use_ollama_fallback=False)
     assert r["source"] == "fail-closed", r
-    assert emit_context(p, use_ollama_fallback=False) == ""
+    out = emit_context(p, use_ollama_fallback=False)
+    assert "frontier-advisor" in out or "frontier-verifier" in out, out
+    assert "quick-fix" not in out and "glm-executor" not in out, out
 
 
 def test_low_confidence_never_emits_directive():
@@ -100,9 +112,11 @@ def test_low_confidence_never_emits_directive():
     assert r["tier"] == "simple" and r["agent"] == "quick-fix", r
     assert r["confidence"] < 0.7, r
     assert emit_context(p, use_ollama_fallback=False) == ""
-    # legacy fixture (tier-hard path) still silent too
-    assert emit_context("we need the 70b long-context variant for this",
-                        use_ollama_fallback=False) == ""
+    # legacy fixture (tier-hard path): owner-decided default flip means this
+    # now emits a frontier-escalation directive rather than staying silent.
+    out = emit_context("we need the 70b long-context variant for this",
+                        use_ollama_fallback=False)
+    assert "frontier-advisor" in out or "frontier-verifier" in out, out
 
 
 def test_high_confidence_simple_emits_directive():
@@ -148,7 +162,10 @@ def test_length_gate_blocks_cheap_route_even_with_llm():
     r = classify(NEUTRAL_LONG_PROMPT, use_ollama_fallback=True)
     assert r["source"] == "length-gate", r
     assert r["tier"] == "hard" and r["agent"] == "none", r
-    assert emit_context(NEUTRAL_LONG_PROMPT, use_ollama_fallback=True) == ""
+    # owner-decided default flip (2026-07-21): hard/none now escalates up by
+    # default rather than staying silent — the invariant is "never cheap-routed".
+    out = emit_context(NEUTRAL_LONG_PROMPT, use_ollama_fallback=True)
+    assert "frontier-advisor" in out or "frontier-verifier" in out, out
 
 
 def test_env_pin_wins_model_resolution():
@@ -313,8 +330,11 @@ def test_llm_medium_haiku_verdict_vetoed_on_complex_hints():
         r = classify(p, use_ollama_fallback=True)
         assert r["source"] == "hint-veto", r
         assert r["tier"] == "hard" and r["agent"] == "none", r
-        assert "haiku" not in emit_context(p, use_ollama_fallback=True)
-        assert emit_context(p, use_ollama_fallback=True) == ""
+        out = emit_context(p, use_ollama_fallback=True)
+        assert "haiku" not in out, out
+        # owner-decided default flip (2026-07-21): hint-veto now escalates up
+        # (frontier), not silence — the invariant is "never cheap (haiku)-routed".
+        assert "frontier-advisor" in out or "frontier-verifier" in out, out
         # ...but a medium/SONNET verdict on the same prompt is still respected
         # (only the cheapest model is vetoed, not all of medium).
         mod.ollama_classify = lambda *a, **k: {
@@ -375,7 +395,14 @@ def test_multi_objective_prompt_never_routes_cheap():
     assert _multi_objective(p), p
     r = classify(p, use_ollama_fallback=False)
     assert r["source"] in ("fail-closed", "context-guard", "brief-gate"), r
-    assert emit_context(p, use_ollama_fallback=False) == ""
+    # owner-decided default flip (2026-07-21): fail-closed/brief-gate now
+    # escalates up (frontier), not silence; context-guard stays silent
+    # (subagents can't see session context) — either way, never cheap-routed.
+    out = emit_context(p, use_ollama_fallback=False)
+    if r["source"] == "context-guard":
+        assert out == "", out
+    else:
+        assert "frontier-advisor" in out or "frontier-verifier" in out, out
     # single-objective research still routes
     r2 = classify("research the history of the QWERTY layout", use_ollama_fallback=False)
     assert r2["agent"] == "research-lite" and r2["source"] == "regex", r2
@@ -417,7 +444,11 @@ def test_llm_cannot_reopen_downgraded_git_route():
              "let them finish if needed and then close.")
         r = classify(p, use_ollama_fallback=True)
         assert r["source"] == "hint-veto", r
-        assert emit_context(p, use_ollama_fallback=True) == ""
+        # owner-decided default flip (2026-07-21): hint-veto now escalates up
+        # (frontier), not silence — the invariant is "never cheap-routed".
+        out = emit_context(p, use_ollama_fallback=True)
+        assert "frontier-advisor" in out or "frontier-verifier" in out, out
+        assert "quick-fix" not in out, out
     finally:
         mod.ollama_classify = orig
 
@@ -433,7 +464,14 @@ def test_multiline_brief_never_routes_cheap():
     assert len(p) < 800
     r = classify(p, use_ollama_fallback=False)
     assert r["source"] in ("fail-closed", "context-guard", "brief-gate"), r
-    assert emit_context(p, use_ollama_fallback=False) == ""
+    # owner-decided default flip (2026-07-21): fail-closed/brief-gate now
+    # escalates up (frontier), not silence; context-guard stays silent
+    # (subagents can't see session context) — either way, never cheap-routed.
+    out = emit_context(p, use_ollama_fallback=False)
+    if r["source"] == "context-guard":
+        assert out == "", out
+    else:
+        assert "frontier-advisor" in out or "frontier-verifier" in out, out
     # one-line summarize with a single trailing newline still routes
     r2 = classify("summarize this paragraph for me\n", use_ollama_fallback=False)
     assert r2["source"] == "regex" and r2["model"] == "haiku", r2
@@ -566,15 +604,31 @@ def test_router_eval_gate_no_misroute_down():
     assert report["cost_proxy"]["vs_opus_pct"] < 100, report["cost_proxy"]
 
 
-def test_escalate_up_env_unset_is_byte_identical():
-    # Default (env unset) must match today's silent behavior exactly on a
-    # hard/agent-none prompt — no directive, regardless of escalate-up code
-    # existing in the module.
+def test_escalate_up_env_unset_defaults_on():
+    # Default (env unset) is ON (owner decision 2026-07-21, converging with
+    # the consumer repos, default-ON since 2026-07-06): a plan-shaped
+    # hard/agent-none prompt escalates without needing BRAINER_TRIAGE_ESCALATE_UP
+    # set at all.
     os.environ.pop("BRAINER_TRIAGE_ESCALATE_UP", None)
-    p = "refactor the auth system across multiple files"
+    p = "design the architecture for a new multi-file payments module"
     r = classify(p, use_ollama_fallback=False)
     assert r["tier"] == "hard" and r["agent"] == "none", r
-    assert emit_context(p, use_ollama_fallback=False) == ""
+    out = emit_context(p, use_ollama_fallback=False)
+    assert out != "", out
+    assert "frontier-advisor" in out, out
+
+
+def test_escalate_up_env_zero_opts_out():
+    # BRAINER_TRIAGE_ESCALATE_UP=0 restores the pre-2026-07-21 silent
+    # behavior — the opt-out escape hatch.
+    os.environ["BRAINER_TRIAGE_ESCALATE_UP"] = "0"
+    try:
+        p = "refactor the auth system across multiple files"
+        r = classify(p, use_ollama_fallback=False)
+        assert r["tier"] == "hard" and r["agent"] == "none", r
+        assert emit_context(p, use_ollama_fallback=False) == ""
+    finally:
+        os.environ.pop("BRAINER_TRIAGE_ESCALATE_UP", None)
 
 
 def test_escalate_up_emits_advisor_directive_for_plan_prompt():
@@ -911,9 +965,9 @@ TASK_NOTIFICATION_PAYLOAD = (
 
 
 def test_harness_task_notification_payload_never_escalates():
-    # Canonical's escalate-up is opt-in (BRAINER_TRIAGE_ESCALATE_UP=1); set it
-    # explicitly so the harness-payload guard is actually exercised here
-    # rather than trivially passing because escalate-up is off by default.
+    # Escalate-up is ON by default; set the env var explicitly anyway so the
+    # harness-payload guard is exercised deterministically regardless of the
+    # ambient default (belt-and-suspenders against test-order env leakage).
     os.environ["BRAINER_TRIAGE_ESCALATE_UP"] = "1"
     try:
         assert len(TASK_NOTIFICATION_PAYLOAD) > 1500, len(TASK_NOTIFICATION_PAYLOAD)
