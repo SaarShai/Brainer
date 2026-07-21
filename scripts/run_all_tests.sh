@@ -79,10 +79,12 @@ S|core|python3|skills/brainer-audit/tools/test_detector_precision.py|-|-
 S|core|python3|skills/brainer/eval/test_reference.py|-|-
 S|core|python3|skills/loop-engineering/tools/test_loop_lint.py|-|-
 S|core|python3|skills/context-keeper/tools/tests/test_extract.py|-|-
+S|core|python3|skills/context-keeper/tools/tests/test_sweep.py|-|-
 S|core|python3|skills/context-keeper/tools/test_retention.py|-|-
 S|core|python3|skills/output-filter/tools/test_output_filter.py|-|-
 S|core|python3|skills/prompt-triage/tools/test_classify.py|-|-
 S|core|python3|skills/write-gate/tools/test_write_gate.py|-|-
+S|core|python3|skills/baton/tools/test_lint_baton.py|-|-
 S|core|python3|skills/task-retrospective/tools/test_task_audit.py|-|-
 S|core|python3|skills/wiki-memory/tools/test_consolidate.py|-|-
 S|core|python3|skills/wiki-memory/tools/test_decay.py|-|-

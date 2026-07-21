@@ -21,6 +21,7 @@ CODEX_HOOKS="$REPO/.codex/hooks.json"
 # Run-time-expanded project root, not cwd-relative './' (which breaks on cwd drift).
 HOOK_CMD='bash "${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/context-keeper/tools/hook.sh"'
 ARCHIVE_CMD='bash "${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/context-keeper/tools/archive.sh"'
+SESSION_START_CMD='bash "${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/context-keeper/tools/session_start.sh"'
 # Same portable run-time-expanded form (.codex/hooks.json is committed). Codex resolves
 # its own skills dir (.codex/skills/<name> symlink), not .claude's — cross-host paths
 # dangle on a codex-only install (harness H3a).
@@ -34,7 +35,7 @@ CODEX_ARCHIVE_CMD='bash "${CLAUDE_PROJECT_DIR:-$PWD}/.codex/skills/context-keepe
 host_enabled() { [ -z "${BRAINER_HOSTS:-}" ] && return 0; case ",$BRAINER_HOSTS," in *",$1,"*) return 0;; esac; return 1; }
 
 merge_settings() {
-  python3 - "$SETTINGS" "$HOOK_CMD" "$ARCHIVE_CMD" <<'PY'
+  python3 - "$SETTINGS" "$HOOK_CMD" "$ARCHIVE_CMD" "$SESSION_START_CMD" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -42,6 +43,7 @@ from pathlib import Path
 settings_path = Path(sys.argv[1])
 hook_cmd = sys.argv[2]
 archive_cmd = sys.argv[3]
+session_start_cmd = sys.argv[4]
 settings_path.parent.mkdir(parents=True, exist_ok=True)
 if settings_path.exists():
     try:
@@ -72,8 +74,9 @@ def ensure(event, cmd):
     rules.append({"matcher": "*", "hooks": [{"type": "command", "command": cmd}]})
 
 
-ensure("PreCompact", hook_cmd)     # structured state before compaction
-ensure("SessionEnd", archive_cmd)  # raw full-session copy into the project
+ensure("PreCompact", hook_cmd)             # structured state before compaction
+ensure("SessionEnd", archive_cmd)          # raw full-session copy into the project
+ensure("SessionStart", session_start_cmd)  # staleness sweep: catches sessions SessionEnd never fired for
 
 settings_path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 PY
@@ -117,13 +120,14 @@ if [ "$DRY_RUN" = "1" ]; then
   if host_enabled claude-code; then
     echo "dry-run: would update $SETTINGS with PreCompact -> $HOOK_CMD"
     echo "dry-run: would update $SETTINGS with SessionEnd -> $ARCHIVE_CMD"
+    echo "dry-run: would update $SETTINGS with SessionStart -> $SESSION_START_CMD"
   fi
   host_enabled codex && echo "dry-run: would update $CODEX_HOOKS with Stop -> $CODEX_ARCHIVE_CMD"
   exit 0
 fi
 
 mkdir -p "$SKILL_DIR"
-chmod +x "$TOOLS_DIR/hook.sh" "$TOOLS_DIR/archive.sh" "$TOOLS_DIR/codex_archive.sh"
+chmod +x "$TOOLS_DIR/hook.sh" "$TOOLS_DIR/archive.sh" "$TOOLS_DIR/codex_archive.sh" "$TOOLS_DIR/session_start.sh"
 REL_SRC=$(python3 -c "import os,sys;print(os.path.relpath(sys.argv[1],sys.argv[2]))" "$SKILL_SRC" "$SKILL_DIR" 2>/dev/null || echo "$SKILL_SRC")
 ln -sfn "$REL_SRC" "$SKILL_DIR/context-keeper"
 DID_CLAUDE=0; DID_CODEX=0

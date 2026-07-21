@@ -106,6 +106,26 @@ def main() -> int:
         log_err(f"extract-timeout sid={sid} trigger={trigger}")
     except Exception as e:  # never crash the host
         log_err(f"extract-error: {e!r}")
+
+    # Second piggyback point for the staleness sweep (see sweep.py): PreCompact
+    # fires reliably on hosts where SessionEnd never does. Bounded, not
+    # detached — hook-safety requires every subprocess to own a timeout, and
+    # compaction already tolerates the extract call's 30s bound above.
+    sweep_py = Path(__file__).parent / "sweep.py"
+    if sweep_py.is_file():
+        try:
+            subprocess.run(
+                [sys.executable, str(sweep_py), str(project_root), sid],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=20,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            log_err(f"sweep-timeout sid={sid}")
+        except Exception as e:  # never crash the host
+            log_err(f"sweep-launch-error: {e!r}")
     return 0
 
 
