@@ -46,7 +46,7 @@ FAIL_WORD_RE = re.compile(r"didn't work|doesn't work|not work|broke|broken|bug|w
 # launder into "intended design" — the next session must not build on them
 # as if deliberate.
 COMPROMISE_WORD_RE = re.compile(
-    r"workaround|stopgap|for now\b"
+    r"workaround|stopgap|for now\b(?!\s+on\b)"
     # bare "temporary/temporarily" false-positives on operational text
     # ("temporary file", "temporarily unavailable") — require a fix-shaped
     # noun or a settled-for verb nearby (cross-vendor review 2026-07-05).
@@ -55,7 +55,12 @@ COMPROMISE_WORD_RE = re.compile(
     r"|temporar(?:y|ily)[ -](?:fix|workaround|hack|solution|patch|measure|shim|stub|kludge"
     r"|disabl\w*|remov\w*|comment\w*|skip\w*|bypass\w*|hardcod\w*|ignor\w*|suppress\w*|disable\w*)"
     r"|(?:went with|using|keep(?:ing)?|accept(?:ed|ing)?) (?:a |the )?temporar(?:y|ily)"
-    r"|\bhacky?\b|settled? for|good enough for now|revisit (?:this |it )?later|quick fix|band-aid|kludge", re.I)
+    # bare "hack(y)" false-positives on non-compromise collocations — "growth
+    # hack(ing)", "hack week", "life hack(s)" name a technique/event/tip, not a
+    # settled-for shortcut. Excluded via negative look-around; "hacky" and
+    # other "hack" uses (e.g. "hacky stopgap", bare "a hack for this") still match.
+    r"|(?<!growth )(?<!life )\bhacky?\b(?!\s+week\b)"
+    r"|settled? for|good enough for now|revisit (?:this |it )?later|quick fix|band-aid|kludge", re.I)
 LOOP_PASS_RE = re.compile(r"\b(?:loop\s+)?(?:pass|iteration|round)\s*(?:#|:|=)?\s*\d+\b", re.I)
 LOOP_ANCHOR_RE = re.compile(r"\b(?:anchor_files|anchor files?|VISION\.md|PROMPT\.md|AGENTS\.md|SKILL\.md)\b[^\n]{0,180}", re.I)
 LOOP_STATE_RE = re.compile(r"\b(?:state_store|state store|state path|loop state|LOOP-STATE(?:\.json)?|STATE\.md)\b[^\n]{0,180}", re.I)

@@ -484,6 +484,26 @@ except ValueError:  # bad env value must degrade to the default, never crash the
     LENGTH_GATE_CHARS = 1500
 
 
+# Harness-payload guard (live misfire, 2026-07-06): a `<task-notification>`
+# harness payload (long, >1500 chars) hit the length-gate and got tier=hard,
+# then — under escalate-up — the main model was told to dispatch a
+# frontier-verifier subagent on it. These payloads are not user asks; they're
+# the harness talking to the agent (task-notification / system-reminder /
+# bracketed SYSTEM NOTIFICATION blocks). No verdict on one should ever carry
+# an escalate-up directive. Matched on a short PREFIX scan (not a full-body
+# regex) — these markers appear at or near the very start of the payload when
+# the harness is the author; a user prompt that merely *mentions*
+# "task-notification" deep in prose does not match.
+_HARNESS_PAYLOAD_RE = re.compile(
+    r"^\s*(?:<task-notification|<system-reminder|\[SYSTEM NOTIFICATION)",
+    re.I,
+)
+
+
+def _is_harness_payload(prompt: str) -> bool:
+    return bool(_HARNESS_PAYLOAD_RE.match(prompt))
+
+
 def classify(prompt: str, use_ollama_fallback: bool = True) -> dict:
     # Sensitive egress outranks every routing route, including the otherwise
     # first session-context guard: a prompt can carry both, and context-shaped
@@ -669,17 +689,34 @@ _VERIFY_INTENT_RE = re.compile(
 )
 
 
-# Creation intent takes precedence over verify intent only when the grammar is
-# unambiguous. The noun/verb-ambiguous forms design/propose/architect require a
-# determiner-led object; bare "Design constraints ..." therefore cannot
-# override an explicit audit. Create/draft/build/write/plan are imperative-only
-# enough at a clause boundary to remain direct creation signals.
-_PLAN_CREATION_RE = re.compile(
-    r"(?:^|[.!?;]\s*|,\s*(?:then\s+)?|\b(?:and|then)\s+)"
-    r"(?:(?:please)\s+|(?:(?:can|could|would|will)\s+you\s+))*"
-    r"(?:(?:design|propose|architect)\s+(?:a|an|the)\b|"
-    r"(?:create|draft|build|write|plan)\b)",
-    re.I | re.M,
+# _AMBIGUOUS_VERIFY_RE — the subset of _VERIFY_INTENT_RE that is genuinely
+# ambiguous between "judge existing work" and "plan/design something new":
+# "evaluate"/"assess" show up both in genuine review asks ("evaluate whether
+# this is safe to ship") and in planning asks ("evaluate two architecture
+# options and design the migration plan"). Every OTHER verify word (review,
+# audit, judge, double-check, sanity-check, find bugs, red-team, ...) is a
+# strong, unambiguous verify signal — it does not also mean "plan this".
+_AMBIGUOUS_VERIFY_RE = re.compile(r"\b(?:assess|evaluate)\b", re.I)
+
+
+# Precedence between plan-intent and verify-intent (cross-vendor review P2 fix
+# 2026-07-05, refined 2026-07-06 for verify-dominant+plan-tail misroute): a
+# bare "plan verb present" test used to win unconditionally, which misrouted
+# "I need you to double-check the auth flow and propose fixes" to the advisor
+# even though the dominant ask is verification (double-check) and the trailing
+# plan verb (propose fixes) just names the fix that verification should
+# propose, not a separate planning ask. Plan-intent now only outranks
+# verify-intent when the verify hit is one of the AMBIGUOUS words
+# (evaluate/assess) — those genuinely go either way, so a co-occurring plan
+# verb resolves the ambiguity toward "plan this" ("evaluate two architecture
+# options and design the migration plan"). A STRONG, unambiguous verify verb
+# (review/audit/judge/double-check/sanity-check/find bugs/red-team/...) always
+# wins the verifier seat regardless of a trailing plan verb. Verify-only
+# prompts (no plan verb at all) are unaffected; they still fall through to the
+# verify-intent check below.
+_PLAN_INTENT_RE = re.compile(
+    r"\b(?:design|propose|architect)\b",
+    re.I,
 )
 
 
@@ -721,15 +758,26 @@ def _escalate_up_agent(prompt: str) -> str:
     """Pick which frontier seat the escalate-up directive targets. Reuses the
     existing intent vocabulary (COMPLEX_HINTS' review/audit/critique overlap
     is deliberate — those already signal 'judge this', not 'plan this').
-    Plan/design-shaped prompts get the advisor seat even if an ambiguous
-    verify-ish word ("evaluate"/"assess") is also present (see _PLAN_CREATION_RE
-    docstring). Otherwise: verify/review/judge-shaped prompts get the cold
-    verifier seat; plan/architecture/decision prompts (the default) get the
-    advisor seat."""
+
+    A STRONG (unambiguous) verify verb always wins the verifier seat, even
+    with a trailing plan verb present ("double-check the auth flow and
+    propose fixes" -> verifier: the propose-tail names the fix the check
+    should surface, not a separate planning ask). Plan/design-shaped prompts
+    only get the advisor seat over verify-intent when the sole verify hit is
+    one of the genuinely AMBIGUOUS words (evaluate/assess) — see
+    _PLAN_INTENT_RE / _AMBIGUOUS_VERIFY_RE docstrings. Otherwise:
+    verify/review/judge-shaped prompts get the cold verifier seat;
+    plan/architecture/decision prompts (the default) get the advisor seat."""
     folded = prompt.translate(_UNICODE_FOLD)
-    if _PLAN_CREATION_RE.search(folded):
+    has_plan = bool(_PLAN_INTENT_RE.search(folded))
+    verify_hit = _VERIFY_INTENT_RE.search(folded)
+    if has_plan:
+        if verify_hit and not _AMBIGUOUS_VERIFY_RE.fullmatch(verify_hit.group(0)):
+            # A strong verify verb (not evaluate/assess) is present alongside
+            # a plan verb -> verify-dominant+plan-tail: verifier wins.
+            return "frontier-verifier"
         return "frontier-advisor"
-    if _VERIFY_INTENT_RE.search(folded):
+    if verify_hit:
         return "frontier-verifier"
     return "frontier-advisor"
 
@@ -755,7 +803,12 @@ def emit_context(prompt: str, use_ollama_fallback: bool = True) -> str:
     # If main-model required (tier=hard or agent=none), emit nothing — preserves
     # the prior hook.sh behavior of early-exiting on these classifications.
     if result.get("tier") == "hard" or result.get("agent") == "none":
-        if os.environ.get("BRAINER_TRIAGE_ESCALATE_UP") == "1":
+        if (os.environ.get("BRAINER_TRIAGE_ESCALATE_UP") == "1"
+                and not _is_harness_payload(prompt)):
+            # Harness payloads (task-notification / system-reminder / SYSTEM
+            # NOTIFICATION blocks) are exempt: they're the harness talking to
+            # the agent, not a user ask, so there is no "task" to escalate
+            # (live misfire, 2026-07-06).
             agent = _escalate_up_agent(prompt)
             # Guard (cross-vendor review): the consuming project may not have
             # adopted the frontier-advisor/frontier-verifier agent roster.
@@ -771,7 +824,8 @@ def emit_context(prompt: str, use_ollama_fallback: bool = True) -> str:
                 "subagent (its agent def pins model: opus as a frontier floor) "
                 "with a self-contained brief. Accept its report; do not answer "
                 "this yourself at cheap tier. Wrong call? User can resend with "
-                "\"NO TRIAGE\"."
+                "\"NO TRIAGE\". If the session model is already frontier-tier, "
+                "handle it yourself; this directive is for cheap-tier sessions."
             )
         return ""
     # A "Strong recommendation" below 0.7 confidence is miscalibrated language;

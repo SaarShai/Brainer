@@ -33,6 +33,22 @@ def test_compromise_regex_balances_fp_and_fn():
     assert not miss, f"false negatives: {miss}"
     assert not false_pos, f"false positives: {false_pos}"
 
+
+def test_compromise_regex_hack_collocations_and_for_now_on_no_false_positive():
+    # 2026-07-06 fix: bare \bhacky?\b false-positived on "growth hack"/"hack
+    # week"/"life hack" (technique/event names, not a settled-for shortcut),
+    # and bare `for now\b` matched inside "for now on" (not the compromise
+    # idiom "for now"). Both must NOT match; genuine "hack"/"for now" uses
+    # elsewhere must still match (covered by test_compromise_regex_balances_fp_and_fn).
+    should_not = [
+        "growth hack", "a growth hack for signups",
+        "hack week", "this week is hack week",
+        "life hack", "a life hack for productivity",
+        "we will get to it for now on Monday",
+    ]
+    false_pos = [s for s in should_not if COMPROMISE_WORD_RE.search(s)]
+    assert not false_pos, f"false positives: {false_pos}"
+
 _EXTRACT_PY = Path(__file__).parent.parent / "extract.py"
 _HOOK_WORKERS = [
     Path(__file__).parent.parent / "hook.py",

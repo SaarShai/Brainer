@@ -667,12 +667,18 @@ def test_escalate_up_plan_intent_outranks_ambiguous_verify_words():
 
 
 def test_escalate_up_literal_plan_outranks_review_words():
+    # 2026-07-06 upstream fix (screenery-lean): _PLAN_INTENT_RE (design/
+    # propose/architect) replaced the old _PLAN_CREATION_RE, which also
+    # recognized bare "plan"/"write" as plan-intent verbs. Under the new,
+    # narrower vocabulary neither prompt below carries a plan-intent word, so
+    # the strong verify verb ("review"/"audit") wins the verifier seat --
+    # these no longer route to the advisor.
     from classify import _escalate_up_agent
     for prompt in (
         "Review the options and plan the migration across the repo.",
         "Audit the risks, then write a rollout plan for the refactor.",
     ):
-        assert _escalate_up_agent(prompt) == "frontier-advisor", prompt
+        assert _escalate_up_agent(prompt) == "frontier-verifier", prompt
 
 
 def test_escalate_up_existing_plan_review_routes_verifier():
@@ -689,6 +695,10 @@ def test_escalate_up_existing_plan_review_routes_verifier():
         # Conservative fallback: bare `Design constraints for ...` is
         # ambiguous, so explicit audit intent remains authoritative.
         "Audit the proposal. Design constraints for the migration follow below.",
+        # 2026-07-06 upstream fix: a strong verify verb ("review") now wins
+        # the verifier seat even with a trailing "design ..." plan tail --
+        # moved here from the advisor list (see _escalate_up_agent docstring).
+        "Review the options and then design the migration plan.",
     ):
         assert _escalate_up_agent(prompt) == "frontier-verifier", prompt
     for prompt in (
@@ -696,7 +706,6 @@ def test_escalate_up_existing_plan_review_routes_verifier():
         "Design a migration plan that can change safely.",
         "Propose an architecture.",
         "Architect the rollout.",
-        "Review the options and then design the migration plan.",
     ):
         assert _escalate_up_agent(prompt) == "frontier-advisor", prompt
 
@@ -830,6 +839,136 @@ def test_agent_def_check_never_raises_on_missing_project_dir():
         assert _agent_def_installed("frontier-verifier") is False
     finally:
         os.environ.pop("CLAUDE_PROJECT_DIR", None)
+
+
+def test_escalate_up_verify_dominant_plan_tail_routes_verifier():
+    # 2026-07-06 fix: a STRONG (unambiguous) verify verb with a trailing plan
+    # verb must route to the verifier, not the advisor — the plan verb tail
+    # ("propose fixes") names the fix the check should surface, it isn't a
+    # separate planning ask. Regression for the reported misroute of "I need
+    # you to double-check the auth flow and propose fixes".
+    os.environ["BRAINER_TRIAGE_ESCALATE_UP"] = "1"
+    try:
+        for p in (
+            "I need you to double-check the auth flow across the "
+            "multi-file refactor and propose fixes.",
+            "Review this multi-file change end to end and design a fix "
+            "for whatever you find.",
+        ):
+            r = classify(p, use_ollama_fallback=False)
+            assert r["tier"] == "hard" and r["agent"] == "none", (p, r)
+            out = emit_context(p, use_ollama_fallback=False)
+            assert out != "", (p, out)
+            assert "frontier-verifier" in out, (p, out)
+            assert "frontier-advisor" not in out, (p, out)
+    finally:
+        os.environ.pop("BRAINER_TRIAGE_ESCALATE_UP", None)
+
+
+def test_escalate_up_plan_dominant_verify_tail_stays_advisor():
+    # Counterpart: plan-dominant prompt with a trailing ambiguous verify word
+    # (evaluate/assess) must still route to the advisor — unchanged from the
+    # existing precedence (only a STRONG verify verb overrides plan-intent).
+    os.environ["BRAINER_TRIAGE_ESCALATE_UP"] = "1"
+    try:
+        p = ("design the new payments architecture across the multi-file "
+             "refactor and evaluate it")
+        r = classify(p, use_ollama_fallback=False)
+        assert r["tier"] == "hard" and r["agent"] == "none", r
+        out = emit_context(p, use_ollama_fallback=False)
+        assert out != "", out
+        assert "frontier-advisor" in out, out
+        assert "frontier-verifier" not in out, out
+    finally:
+        os.environ.pop("BRAINER_TRIAGE_ESCALATE_UP", None)
+
+
+# Realistic truncated harness payload, modeled on the live misfire
+# (2026-07-06): a `<task-notification>` block from the agent harness, well
+# past the 800-char complex threshold, long enough to also cross the
+# 1500-char length gate. It is NOT a user ask, so it must never carry an
+# escalate-up directive even though the underlying verdict is hard/none.
+TASK_NOTIFICATION_PAYLOAD = (
+    "<task-notification>\n"
+    "  <task_id>bg-7f3a1c9d</task_id>\n"
+    "  <status>completed</status>\n"
+    "  <summary>Background task \"run full regression suite across the "
+    "monorepo\" completed after 342s. 118 tests passed, 3 failed "
+    "(test_auth_flow, test_session_migrate, test_billing_retry). See "
+    "attached logs for full stack traces of the 3 failures. The failures "
+    "appear related to a shared fixture teardown ordering issue introduced "
+    "in the last commit touching conftest.py -- review before merging. "
+    "Full stdout/stderr below (truncated to last 4000 chars): ...[truncated "
+    "harness output omitted for brevity, but in production this section is "
+    "long enough on its own to push the whole payload past a fifteen "
+    "hundred character length gate, which is exactly the shape that "
+    "misfired live]... "
+    + ("Additional truncated log context repeated to reach realistic size. "
+       * 12)
+    + "</summary>\n"
+    "</task-notification>\n"
+)
+
+
+def test_harness_task_notification_payload_never_escalates():
+    # Canonical's escalate-up is opt-in (BRAINER_TRIAGE_ESCALATE_UP=1); set it
+    # explicitly so the harness-payload guard is actually exercised here
+    # rather than trivially passing because escalate-up is off by default.
+    os.environ["BRAINER_TRIAGE_ESCALATE_UP"] = "1"
+    try:
+        assert len(TASK_NOTIFICATION_PAYLOAD) > 1500, len(TASK_NOTIFICATION_PAYLOAD)
+        r = classify(TASK_NOTIFICATION_PAYLOAD, use_ollama_fallback=False)
+        assert r["tier"] == "hard" and r["agent"] == "none", r
+        out = emit_context(TASK_NOTIFICATION_PAYLOAD, use_ollama_fallback=False)
+        assert out == "", out
+        assert "frontier-advisor" not in out and "frontier-verifier" not in out, out
+    finally:
+        os.environ.pop("BRAINER_TRIAGE_ESCALATE_UP", None)
+
+
+def test_harness_system_reminder_and_bracket_notification_never_escalate():
+    # Other harness-markup prefixes must be caught by the same guard.
+    os.environ["BRAINER_TRIAGE_ESCALATE_UP"] = "1"
+    try:
+        system_reminder = (
+            "<system-reminder>\n" + ("The user's context has been updated. " * 60)
+        )
+        bracket_notification = (
+            "[SYSTEM NOTIFICATION] " + ("Background job finished. " * 60)
+        )
+        for p in (system_reminder, bracket_notification):
+            assert len(p) > 800, len(p)
+            out = emit_context(p, use_ollama_fallback=False)
+            assert out == "", (p[:60], out)
+    finally:
+        os.environ.pop("BRAINER_TRIAGE_ESCALATE_UP", None)
+
+
+def test_harness_payload_guard_does_not_suppress_real_user_prompts():
+    # Sanity check: a normal long/hard user prompt (no harness-markup prefix)
+    # is unaffected by the new guard and still escalates as before.
+    os.environ["BRAINER_TRIAGE_ESCALATE_UP"] = "1"
+    try:
+        p = "design the architecture for a new multi-file payments module"
+        out = emit_context(p, use_ollama_fallback=False)
+        assert out != "", out
+        assert "frontier-advisor" in out, out
+    finally:
+        os.environ.pop("BRAINER_TRIAGE_ESCALATE_UP", None)
+
+
+def test_escalate_up_directive_carries_self_exemption():
+    # The emitted directive must tell a frontier session it can ignore this
+    # routing and just handle the task itself, so a frontier main loop isn't
+    # misdirected into dispatching a subagent for work it can already do.
+    os.environ["BRAINER_TRIAGE_ESCALATE_UP"] = "1"
+    try:
+        p = "design the architecture for a new multi-file payments module"
+        out = emit_context(p, use_ollama_fallback=False)
+        assert out != "", out
+        assert "already frontier-tier, handle it yourself" in out, out
+    finally:
+        os.environ.pop("BRAINER_TRIAGE_ESCALATE_UP", None)
 
 
 def main():

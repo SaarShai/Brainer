@@ -39,15 +39,6 @@ import validate_case as vc  # noqa: E402
 
 # repo root = .../skills/eval-gate/tools -> up 3
 REPO_ROOT = HERE.parent.parent.parent
-fails: list[str] = []
-
-
-def check(cond: bool, label: str) -> None:
-    if cond:
-        print(f"  ok: {label}")
-    else:
-        print(f"  FAIL: {label}")
-        fails.append(label)
 
 
 def head_sha() -> str:
@@ -58,177 +49,199 @@ def head_sha() -> str:
     return r.stdout.strip()
 
 
-print("[validate_case self-test]")
+def _run_self_test() -> int:
+    """The script-style body (module-scope in the original file) moved into a
+    function guarded by `if __name__ == "__main__":` below — pytest imports
+    this file as `test_validate_case.py` (its default `test_*.py` pattern)
+    and a module-scope `sys.exit(0)` at import time killed collection for the
+    WHOLE directory (INTERNALERROR), masking test_panel.py. Importing the
+    module now only defines functions; nothing runs (and no sys.exit fires)
+    until this is invoked from `__main__`. Standalone
+    `python3 test_validate_case.py` behavior (prints + exit 0/1) is unchanged."""
+    fails: list[str] = []
 
-# --- 1. valid: real file target + valid dim -> case passes ---
-good = {
-    "id": "good-01", "skill": "eval-gate",
-    "text": "Where is the pre-authoring gate defined?",
-    "targets": [{
-        "fact": "validate_case.py is the gate",
-        "source": "file",
-        "source_path": "skills/eval-gate/tools/validate_case.py",
-    }],
-    "sillito_dim": "D1",
-}
-ok, reasons = vc.validate_case(good, REPO_ROOT)
-check(ok and not reasons, "valid case (existing file + D1) passes")
+    def check(cond: bool, label: str) -> None:
+        if cond:
+            print(f"  ok: {label}")
+        else:
+            print(f"  FAIL: {label}")
+            fails.append(label)
 
-# --- 2. missing file target -> fail with a reason ---
-missing = {
-    "id": "missing-01", "skill": "eval-gate", "text": "q",
-    "targets": [{
-        "fact": "f", "source": "file",
-        "source_path": "skills/eval-gate/tools/does_not_exist.py",
-    }],
-    "sillito_dim": "D2",
-}
-ok, reasons = vc.validate_case(missing, REPO_ROOT)
-check(not ok and any("does not exist" in r for r in reasons),
-      "missing file target fails with 'does not exist' reason")
+    print("[validate_case self-test]")
 
-# --- 3. bad source enum -> fail ---
-bad_enum = {
-    "id": "badenum-01", "skill": "eval-gate", "text": "q",
-    "targets": [{
-        "fact": "f", "source": "stackoverflow",
-        "source_path": "skills/eval-gate/tools/validate_case.py",
-    }],
-    "sillito_dim": "D3",
-}
-ok, reasons = vc.validate_case(bad_enum, REPO_ROOT)
-check(not ok and any("not in" in r for r in reasons),
-      "bad source enum fails")
+    # --- 1. valid: real file target + valid dim -> case passes ---
+    good = {
+        "id": "good-01", "skill": "eval-gate",
+        "text": "Where is the pre-authoring gate defined?",
+        "targets": [{
+            "fact": "validate_case.py is the gate",
+            "source": "file",
+            "source_path": "skills/eval-gate/tools/validate_case.py",
+        }],
+        "sillito_dim": "D1",
+    }
+    ok, reasons = vc.validate_case(good, REPO_ROOT)
+    check(ok and not reasons, "valid case (existing file + D1) passes")
 
-# --- 4. missing / bad Sillito dim -> fail (even when the target is fine) ---
-no_dim = {
-    "id": "nodim-01", "skill": "eval-gate", "text": "q",
-    "targets": [{
-        "fact": "f", "source": "file",
-        "source_path": "skills/eval-gate/tools/validate_case.py",
-    }],
-    "sillito_dim": "D9",
-}
-ok, reasons = vc.validate_case(no_dim, REPO_ROOT)
-check(not ok and any("sillito_dim" in r for r in reasons),
-      "invalid sillito_dim fails")
+    # --- 2. missing file target -> fail with a reason ---
+    missing = {
+        "id": "missing-01", "skill": "eval-gate", "text": "q",
+        "targets": [{
+            "fact": "f", "source": "file",
+            "source_path": "skills/eval-gate/tools/does_not_exist.py",
+        }],
+        "sillito_dim": "D2",
+    }
+    ok, reasons = vc.validate_case(missing, REPO_ROOT)
+    check(not ok and any("does not exist" in r for r in reasons),
+          "missing file target fails with 'does not exist' reason")
 
-missing_dim = dict(no_dim, id="nodim-02")
-missing_dim.pop("sillito_dim")
-ok, reasons = vc.validate_case(missing_dim, REPO_ROOT)
-check(not ok and any("sillito_dim" in r for r in reasons),
-      "absent sillito_dim fails")
+    # --- 3. bad source enum -> fail ---
+    bad_enum = {
+        "id": "badenum-01", "skill": "eval-gate", "text": "q",
+        "targets": [{
+            "fact": "f", "source": "stackoverflow",
+            "source_path": "skills/eval-gate/tools/validate_case.py",
+        }],
+        "sillito_dim": "D3",
+    }
+    ok, reasons = vc.validate_case(bad_enum, REPO_ROOT)
+    check(not ok and any("not in" in r for r in reasons),
+          "bad source enum fails")
 
-# --- 5. case authored from a model answer (no verifiable source) -> fail ---
-# 5a: target literally has no source/source_path
-model_authored = {
-    "id": "model-01", "skill": "eval-gate",
-    "text": "What is the right answer?",
-    "targets": [{"fact": "the model said the answer is 42"}],
-    "sillito_dim": "D1",
-}
-ok, reasons = vc.validate_case(model_authored, REPO_ROOT)
-check(not ok and any("circularity" in r for r in reasons),
-      "model-authored target (no source) fails on circularity")
+    # --- 4. missing / bad Sillito dim -> fail (even when the target is fine) ---
+    no_dim = {
+        "id": "nodim-01", "skill": "eval-gate", "text": "q",
+        "targets": [{
+            "fact": "f", "source": "file",
+            "source_path": "skills/eval-gate/tools/validate_case.py",
+        }],
+        "sillito_dim": "D9",
+    }
+    ok, reasons = vc.validate_case(no_dim, REPO_ROOT)
+    check(not ok and any("sillito_dim" in r for r in reasons),
+          "invalid sillito_dim fails")
 
-# 5b: source enum is valid but the path/fact betrays a model origin
-model_marker = {
-    "id": "model-02", "skill": "eval-gate", "text": "q",
-    "targets": [{
-        "fact": "ground truth taken from the model completion",
-        "source": "file",
-        "source_path": "eval/results/model_answer_key.json",
-    }],
-    "sillito_dim": "D1",
-}
-ok, reasons = vc.validate_case(model_marker, REPO_ROOT)
-check(not ok and any("model-" in r or "model" in r.lower() for r in reasons),
-      "model-marker target rejected even with a valid enum")
+    missing_dim = dict(no_dim, id="nodim-02")
+    missing_dim.pop("sillito_dim")
+    ok, reasons = vc.validate_case(missing_dim, REPO_ROOT)
+    check(not ok and any("sillito_dim" in r for r in reasons),
+          "absent sillito_dim fails")
 
-# --- git target resolves ---
-sha = head_sha()
-git_case = {
-    "id": "git-01", "skill": "eval-gate", "text": "q",
-    "targets": [{"fact": "f", "source": "git", "source_path": sha}],
-    "sillito_dim": "D3",
-}
-ok, _ = vc.validate_case(git_case, REPO_ROOT)
-check(ok, "real HEAD git sha resolves -> passes")
+    # --- 5. case authored from a model answer (no verifiable source) -> fail ---
+    # 5a: target literally has no source/source_path
+    model_authored = {
+        "id": "model-01", "skill": "eval-gate",
+        "text": "What is the right answer?",
+        "targets": [{"fact": "the model said the answer is 42"}],
+        "sillito_dim": "D1",
+    }
+    ok, reasons = vc.validate_case(model_authored, REPO_ROOT)
+    check(not ok and any("circularity" in r for r in reasons),
+          "model-authored target (no source) fails on circularity")
 
-bad_git = dict(git_case, id="git-02",
-               targets=[{"fact": "f", "source": "git",
-                         "source_path": "deadbeefdeadbeef"}])
-ok, reasons = vc.validate_case(bad_git, REPO_ROOT)
-check(not ok and any("does not resolve" in r for r in reasons),
-      "bogus git sha fails")
+    # 5b: source enum is valid but the path/fact betrays a model origin
+    model_marker = {
+        "id": "model-02", "skill": "eval-gate", "text": "q",
+        "targets": [{
+            "fact": "ground truth taken from the model completion",
+            "source": "file",
+            "source_path": "eval/results/model_answer_key.json",
+        }],
+        "sillito_dim": "D1",
+    }
+    ok, reasons = vc.validate_case(model_marker, REPO_ROOT)
+    check(not ok and any("model-" in r or "model" in r.lower() for r in reasons),
+          "model-marker target rejected even with a valid enum")
 
-# --- lsp_symbol target (validate_case itself defines validate_target) ---
-sym_case = {
-    "id": "sym-01", "skill": "eval-gate", "text": "q",
-    "targets": [{"fact": "f", "source": "lsp_symbol",
-                 "source_path": "validate_target"}],
-    "sillito_dim": "D1",
-}
-ok, _ = vc.validate_case(sym_case, REPO_ROOT)
-check(ok, "real symbol (validate_target) found by static def-grep")
+    # --- git target resolves ---
+    sha = head_sha()
+    git_case = {
+        "id": "git-01", "skill": "eval-gate", "text": "q",
+        "targets": [{"fact": "f", "source": "git", "source_path": sha}],
+        "sillito_dim": "D3",
+    }
+    ok, _ = vc.validate_case(git_case, REPO_ROOT)
+    check(ok, "real HEAD git sha resolves -> passes")
 
-bad_sym = dict(sym_case, id="sym-02",
-               targets=[{"fact": "f", "source": "lsp_symbol",
-                         "source_path": "zzz_no_such_symbol_zzz"}])
-ok, reasons = vc.validate_case(bad_sym, REPO_ROOT)
-check(not ok and any("not found" in r for r in reasons),
-      "nonexistent symbol fails")
+    bad_git = dict(git_case, id="git-02",
+                   targets=[{"fact": "f", "source": "git",
+                             "source_path": "deadbeefdeadbeef"}])
+    ok, reasons = vc.validate_case(bad_git, REPO_ROOT)
+    check(not ok and any("does not resolve" in r for r in reasons),
+          "bogus git sha fails")
 
-# --- config target with #key ---
-cfg_ok = {
-    "id": "cfg-01", "skill": "eval-gate", "text": "q",
-    "targets": [{"fact": "f", "source": "config",
-                 "source_path": "skills/eval-gate/SKILL.md#name: eval-gate"}],
-    "sillito_dim": "D1",
-}
-ok, _ = vc.validate_case(cfg_ok, REPO_ROOT)
-check(ok, "config path#key with a present key passes")
+    # --- lsp_symbol target (validate_case itself defines validate_target) ---
+    sym_case = {
+        "id": "sym-01", "skill": "eval-gate", "text": "q",
+        "targets": [{"fact": "f", "source": "lsp_symbol",
+                     "source_path": "validate_target"}],
+        "sillito_dim": "D1",
+    }
+    ok, _ = vc.validate_case(sym_case, REPO_ROOT)
+    check(ok, "real symbol (validate_target) found by static def-grep")
 
-cfg_bad = dict(cfg_ok, id="cfg-02",
-               targets=[{"fact": "f", "source": "config",
-                         "source_path": "skills/eval-gate/SKILL.md#NONEXISTENT_KEY_XYZ"}])
-ok, reasons = vc.validate_case(cfg_bad, REPO_ROOT)
-check(not ok and any("not present" in r for r in reasons),
-      "config with an absent key fails")
+    bad_sym = dict(sym_case, id="sym-02",
+                   targets=[{"fact": "f", "source": "lsp_symbol",
+                             "source_path": "zzz_no_such_symbol_zzz"}])
+    ok, reasons = vc.validate_case(bad_sym, REPO_ROOT)
+    check(not ok and any("not found" in r for r in reasons),
+          "nonexistent symbol fails")
 
-# --- loader rejects malformed JSONL ---
-with tempfile.TemporaryDirectory() as td:
-    bad = Path(td) / "bad.jsonl"
-    bad.write_text("{not valid json}\n")
-    raised = False
-    try:
-        vc.load_cases(bad)
-    except ValueError:
-        raised = True
-    check(raised, "loader raises ValueError on malformed JSONL")
+    # --- config target with #key ---
+    cfg_ok = {
+        "id": "cfg-01", "skill": "eval-gate", "text": "q",
+        "targets": [{"fact": "f", "source": "config",
+                     "source_path": "skills/eval-gate/SKILL.md#name: eval-gate"}],
+        "sillito_dim": "D1",
+    }
+    ok, _ = vc.validate_case(cfg_ok, REPO_ROOT)
+    check(ok, "config path#key with a present key passes")
 
-# --- CLI end-to-end: exit 0 on a good file, 1 on a bad file, 2 on missing input ---
-with tempfile.TemporaryDirectory() as td:
-    good_f = Path(td) / "good.jsonl"
-    good_f.write_text(json.dumps(good) + "\n")
-    with _muted():
-        rc = vc.main(["--questions", str(good_f), "--repo-root", str(REPO_ROOT)])
-    check(rc == 0, "CLI exit 0 on an all-valid questions file")
+    cfg_bad = dict(cfg_ok, id="cfg-02",
+                   targets=[{"fact": "f", "source": "config",
+                             "source_path": "skills/eval-gate/SKILL.md#NONEXISTENT_KEY_XYZ"}])
+    ok, reasons = vc.validate_case(cfg_bad, REPO_ROOT)
+    check(not ok and any("not present" in r for r in reasons),
+          "config with an absent key fails")
 
-    bad_f = Path(td) / "bad.jsonl"
-    bad_f.write_text(json.dumps(missing) + "\n" + json.dumps(model_authored) + "\n")
-    with _muted():
-        rc = vc.main(["--questions", str(bad_f), "--repo-root", str(REPO_ROOT)])
-    check(rc == 1, "CLI exit 1 when a case fails validation")
+    # --- loader rejects malformed JSONL ---
+    with tempfile.TemporaryDirectory() as td:
+        bad = Path(td) / "bad.jsonl"
+        bad.write_text("{not valid json}\n")
+        raised = False
+        try:
+            vc.load_cases(bad)
+        except ValueError:
+            raised = True
+        check(raised, "loader raises ValueError on malformed JSONL")
 
-    with _muted():
-        rc = vc.main(["--questions", str(Path(td) / "nope.jsonl"),
-                      "--repo-root", str(REPO_ROOT)])
-    check(rc == 2, "CLI exit 2 on a missing questions file")
+    # --- CLI end-to-end: exit 0 on a good file, 1 on a bad file, 2 on missing input ---
+    with tempfile.TemporaryDirectory() as td:
+        good_f = Path(td) / "good.jsonl"
+        good_f.write_text(json.dumps(good) + "\n")
+        with _muted():
+            rc = vc.main(["--questions", str(good_f), "--repo-root", str(REPO_ROOT)])
+        check(rc == 0, "CLI exit 0 on an all-valid questions file")
 
-print()
-if fails:
-    print(f"FAILURES ({len(fails)}): " + "; ".join(fails))
-    sys.exit(1)
-print("ALL PASS")
-sys.exit(0)
+        bad_f = Path(td) / "bad.jsonl"
+        bad_f.write_text(json.dumps(missing) + "\n" + json.dumps(model_authored) + "\n")
+        with _muted():
+            rc = vc.main(["--questions", str(bad_f), "--repo-root", str(REPO_ROOT)])
+        check(rc == 1, "CLI exit 1 when a case fails validation")
+
+        with _muted():
+            rc = vc.main(["--questions", str(Path(td) / "nope.jsonl"),
+                          "--repo-root", str(REPO_ROOT)])
+        check(rc == 2, "CLI exit 2 on a missing questions file")
+
+    print()
+    if fails:
+        print(f"FAILURES ({len(fails)}): " + "; ".join(fails))
+        return 1
+    print("ALL PASS")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(_run_self_test())

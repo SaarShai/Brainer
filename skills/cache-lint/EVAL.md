@@ -59,6 +59,13 @@ For external eval:
 - Fingerprint baseline is per-project; can't compare two projects.
 - 4-chars-per-token estimate (Rule 5) is rough — fine for "tiny vs huge" but not for precise sizing decisions.
 
+## Changelog
+
+- **2026-07-06:** `PREFIX_FILES` dropped `.cursorrules` as part of the repo-wide
+  Cursor host-support removal (Cursor was dropped as a project host; that
+  removal had left `.cursorrules` out of this list undocumented — noting it
+  here now).
+
 ## Moved from SKILL.md (2026-06-12 SkillReducer-criteria audit)
 
 _Provenance/rationale below is maintainer context, not runtime instruction — relocated so the lazy-loaded body stays actionable._
