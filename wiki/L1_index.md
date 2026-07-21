@@ -23,6 +23,7 @@ Compact pointers. Fetch details on demand.
 - queries/graph-engineering-assessment-2026-07 (decision tags=decision,graph,memory,retrieval,adoption,verification,fabricated-source) -> `queries/graph-engineering-assessment-2026-07.md`
 - queries/llm-wiki-compile-on-ingest-adoptions (decision tags=decision,wiki-memory,ingest,provenance,quorum,paper) -> `queries/llm-wiki-compile-on-ingest-adoptions.md`
 - queries/memory-as-a-tool-validation (decision tags=decision,eval,memory,negative-result) -> `queries/memory-as-a-tool-validation.md`
+- queries/skillopt-review-2026-07 (decision tags=decision,skillopt,skill-optimization,adoption,learning-loop,eval,covered) -> `queries/skillopt-review-2026-07.md`
 - queries/understand-anything-adoption-kept-2-3-4-dropped-1-5 (decision tags=decision,adoption,understand-anything,framework-hardening) -> `queries/understand-anything-adoption-kept-2-3-4-dropped-1-5.md`
 - patterns/blind-validation-for-classifiers (pattern tags=validation,eval,classifier,claim-grade,methodology,falsification) -> `patterns/blind-validation-for-classifiers.md`
 - patterns/compound-compression-pipeline (pattern tags=compression,comcom,pattern) -> `patterns/compound-compression-pipeline.md`

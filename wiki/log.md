@@ -447,3 +447,8 @@ Created `concepts/when-to-extract-a-skill-md-section-into-tools.md` from `page` 
 Created `queries/graph-engineering-assessment-2026-07.md` from `decision` template.
 
 - 2026-07-20 · queries/graph-engineering-assessment-2026-07 · created (decision, trust: verified) — viral graph-engineering posts assessed; fabricated Stanford-Anthropic paper; verdict no new machinery; timeline governance-edge fix; E0-E2 test design
+## [2026-07-20] update | SkillOpt review 2026-07
+
+Created `queries/skillopt-review-2026-07.md` from `decision` template.
+
+- 2026-07-21 · queries/skillopt-review-2026-07 · created (decision, trust: verified) — SkillOpt: 1 conditional adoption (acceptance gate, ratification pending), rest covered/rejected; codila article covered 5/5; graph page mechanism-level corrections
