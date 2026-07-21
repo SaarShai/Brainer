@@ -367,6 +367,35 @@ def main() -> int:
               (sib_b / "UNRELATED_NOTES.md").read_text() == "in-flight unrelated work\n")
         check("dirty non-overlapping file: no refusal printed",
               "REFUSED" not in proceeded.stderr)
+
+        # 7c. Cache-class dirt (bytecode caches, .DS_Store) under an apply
+        #     target must NOT trip the gate — regenerable noise, not in-flight
+        #     work (live false-refusal class: sibling __pycache__, 2026-07-20).
+        #     The overlap shape is a DIRECTORY target: adopting a new skill
+        #     whose dir already holds untracked cache dirt in the sibling.
+        #     Negative control first: content-bearing dirt under the same
+        #     target dir must still refuse, so the pass isn't vacuous.
+        sib_c = docs / "product images repo"
+        write(sib_c / "skills" / "dummy" / "SKILL.md", "---\nname: dummy\n---\nbody\n")
+        write(sib_c / "install.sh", "#!/usr/bin/env bash\n")
+        git(sib_c, "init", "-q")
+        git(sib_c, "config", "user.email", "t@t")
+        git(sib_c, "config", "user.name", "t")
+        git(sib_c, "add", "-A")
+        git(sib_c, "commit", "-qm", "baseline")
+        write(sib_c / "skills" / "indent-demo" / "notes.md", "content-bearing dirt\n")
+        refused_c = run("--repo", "product images repo", "--adopt-new-skills", expect=1)
+        check("cache-dirt control: content-bearing dirt under adopt target refuses",
+              "REFUSED" in refused_c.stderr and "skills/indent-demo" in refused_c.stderr)
+        (sib_c / "skills" / "indent-demo" / "notes.md").unlink()
+        write(sib_c / "skills" / "indent-demo" / "__pycache__" / "x.cpython-314.pyc",
+              "bytecode\n")
+        write(sib_c / "skills" / "indent-demo" / ".DS_Store", "finder noise\n")
+        proceeded_c = run("--repo", "product images repo", "--adopt-new-skills")
+        check("cache-class dirt under adopt target: adoption proceeds",
+              (sib_c / "skills" / "indent-demo" / "SKILL.md").read_text() == INDENT_CANON)
+        check("cache-class dirt under adopt target: no refusal printed",
+              "REFUSED" not in proceeded_c.stderr)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

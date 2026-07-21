@@ -386,13 +386,14 @@ def classify_deleted(sib: Path, rels: list[str]) -> dict:
 
 
 def sibling_dirty_status(sib: Path) -> tuple[set[str], set[str]] | None:
-    """(dirty_files, dirty_dirs) from `git -C sib status --porcelain` — both
-    tracked modifications AND untracked paths (git collapses a wholly-untracked
-    directory into one `?? dir/` entry rather than listing every file inside
-    it, hence the separate dirty_dirs set for prefix matching). Returns None
+    """(dirty_files, dirty_dirs) from `git -C sib status --porcelain -uall` —
+    tracked modifications AND untracked paths. `-uall` lists untracked files
+    individually (instead of collapsing a wholly-untracked dir to `?? dir/`)
+    so the cache-dirt exemption below can judge each file; dirty_dirs is kept
+    for any residual dir-shaped entries. Returns None
     if `sib` is not itself a git repo (git status fails): the dirty-worktree
     gate then has nothing to check and is a no-op, never a false block."""
-    r = subprocess.run(["git", "-C", str(sib), "status", "--porcelain"],
+    r = subprocess.run(["git", "-C", str(sib), "status", "--porcelain", "-uall"],
                         capture_output=True, text=True)
     if r.returncode != 0:
         return None
@@ -403,11 +404,27 @@ def sibling_dirty_status(sib: Path) -> tuple[set[str], set[str]] | None:
         path = line[3:].strip('"')
         if " -> " in path:  # rename/copy: "XY old -> new" — new is the live path
             path = path.split(" -> ", 1)[1]
+        if _is_cache_dirt(path):
+            continue  # derived caches are not in-flight work; never block on them
         if path.endswith("/"):
             dirs.add(path.rstrip("/"))
         else:
             files.add(path)
     return files, dirs
+
+
+# Untracked derived-cache dirt (bytecode, OS metadata) is regenerable noise,
+# not in-flight sibling work — it must never trip the dirty-worktree gate
+# (false refusal observed live 2026-07-20: PROMPTER __pycache__ blocked a
+# clean apply). Anything content-bearing stays blocking.
+_CACHE_DIRT = ("__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache")
+
+
+def _is_cache_dirt(path: str) -> bool:
+    parts = path.rstrip("/").split("/")
+    return (any(p in _CACHE_DIRT for p in parts)
+            or parts[-1] in (".DS_Store",)
+            or parts[-1].endswith((".pyc", ".pyo")))
 
 
 def dirty_overlap(targets: set[str], dirty_files: set[str], dirty_dirs: set[str]) -> list[str]:
