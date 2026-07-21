@@ -1,11 +1,9 @@
 ---
 name: team-lead
-description: >-
-  Frontier-as-leader orchestration protocol — when the session model is ANY
-  top-tier frontier model (Fable 5, Opus, GPT-5.6/Codex, or peer) and the user
-  marks a task important/challenging or says "lead", "orchestrate", "use your
-  team", "use builders": the leader PLANS, DELEGATES to cheap builder agents (one
-  worker one lane), and REVIEWS — it does not type the keystrokes itself.
+description: "Experimental/manual orchestration protocol retained for paired evaluation. Invoke explicitly when the user asks for team-led execution; frontier leads do not auto-load it merely because work is challenging."
+status: experimental
+disable-model-invocation: true
+auto-install: false
 pulse_reminder: "Team-lead: leader plans+reviews only; builders do keystrokes; every claim cold-verified; one worker one lane; briefs self-contained (hooks don't fire in subagents)."
 ---
 

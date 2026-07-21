@@ -199,10 +199,24 @@ directive is for cheap-tier sessions."`) — not one of the two named fixes, but
    — the exact 2026-07-06 incident class. prompt-triage tools then fully
    fast-forwarded into the sibling (**empty diff vs canonical**), so the sibling
    finally gains `sensitive-egress-veto` and the two-way drift is closed.
-2. **team-lead demotion reverted** in canonical: model-invokable frontmatter
-   restored (minus the sibling-local bracket routing) and the `SKILLS_INDEX.md`
-   row re-promoted. A canonical default that no consumer follows is dead policy
-   — both consumers run it always-on.
+2. **team-lead demotion STANDS in canonical** — my first call here was wrong
+   and the test suite caught it. I re-promoted it to model-invokable on the
+   reasoning that "a canonical default no consumer follows is dead policy", and
+   `run_all_tests --group core` went 104/104 → 101/3-FAILED:
+   `lint:team-lead`, `carrier-sync`, and
+   `tests/test_frontier_defaults.py::test_generic_skills_are_manual_experiments`
+   (which asserts every skill in `MANUAL_SKILLS` carries
+   `status: experimental`). The demotion is not drift — it is a codified,
+   triple-gated architecture stance from the D31 catalog contraction, backed by
+   the null FRONTIER-vs-OFF pilot and `docs/TARGET_ARCHITECTURE.md`. Reverted;
+   canonical keeps `status: experimental` + `disable-model-invocation: true`.
+   The consumers keep their own always-on frontmatter as ordinary Class-2 local
+   install policy, which is exactly what this reconcile already preserved. The
+   two layers are *supposed* to differ here.
+
+   Lesson, generalized: a divergence defended by a passing test suite is a
+   decision, not drift — check whether canonical's stance is gated before
+   overriding it from consumer-side usage evidence.
 3. **Plan-intent narrowing accepted.** Production-proven in screenery-lean since
    2026-07-06 with no reported misroute, and the verifier seat is the safer
    failure mode for "review and plan" prompts. Canonical stands as ported.
