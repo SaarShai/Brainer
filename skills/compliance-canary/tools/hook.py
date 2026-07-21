@@ -915,6 +915,15 @@ def _claim_evidence_class(text: str, probe: dict) -> str:
     return "filesystem/diff"
 
 
+_ATTRIBUTED_CLAIM_RE = re.compile(
+    r"(?i:\b(?:the\s+)?(?:verifier|reviewer|sub-?agent|subagent|lane\s*[a-z0-9]+|"
+    r"the\s+report|another\s+agent|the\s+other\s+agent|the\s+builder)\b"
+    r"[^.?!\n]{0,40}\b(?:reported?|reports|claims?|claimed|said|says|stated|"
+    r"states?|found|noted|indicated|wrote|writes)\b"
+    r"|\baccording\s+to\b|\b(?:reportedly|allegedly)\b)"
+)
+
+
 def detect_claim_without_evidence(probe: dict, messages: list[dict], tool_uses: list[dict], _tool_errors=None, user_prompt: str = "", traj_stats: dict | None = None) -> dict | None:
     if not messages:
         return None
@@ -933,6 +942,19 @@ def detect_claim_without_evidence(probe: dict, messages: list[dict], tool_uses: 
     # above.
     if _SELF_QUOTED_EVIDENCE_RE.search(last_text) or _PENDING_DELEGATION_RE.search(last_text):
         return None
+    # OB-3 GRADUATES mechanism 3 (attributed relay): a claim syntactically
+    # attributed to another agent/lane/verifier/report ("the verifier
+    # reported X", "lane 5 claims Y", "according to the report") is a RELAY,
+    # not an assertion of first-hand completion — exempt it. Scoped to the
+    # sentence carrying the claim so an unattributed claim elsewhere in the
+    # same reply is unaffected.
+    claim_sentence = last_text
+    for sent in re.split(r"(?<=[.!?\n])", last_text):
+        if claim_match.group(0) in sent:
+            claim_sentence = sent
+            break
+    if _ATTRIBUTED_CLAIM_RE.search(claim_sentence):
+        return None
     try:
         lookback = int(probe.get("lookback_tool_uses", 5))
     except (TypeError, ValueError):
@@ -942,7 +964,29 @@ def detect_claim_without_evidence(probe: dict, messages: list[dict], tool_uses: 
     timeline = (traj_stats or {}).get("execution_timeline", {})
     last_mutation = _as_int(timeline.get("last_mutation_index"), -1)
     claim_index = _as_int(messages[-1].get("event_index"), 1 << 30)
-    candidates = timeline.get("evidence", [])[-lookback:]
+    # OB-3 GRADUATES mechanism 2 (compaction boundary): a fixed evidence
+    # window cannot see across a compaction — everything verified
+    # pre-compaction becomes invisible, so the FIRST post-compaction claim
+    # would otherwise fire on phantom missing evidence. Suppressed only for
+    # that first post-compaction assistant turn (any later turn evaluates
+    # normally against the post-compaction evidence window).
+    boundary_index = _as_int((traj_stats or {}).get("last_compact_boundary_index"), -1)
+    if boundary_index >= 0 and boundary_index < claim_index:
+        earlier_post_boundary = any(
+            _as_int(m.get("event_index"), -1) > boundary_index
+            for m in messages[:-1]
+        )
+        if not earlier_post_boundary:
+            return None
+    # OB-3 GRADUATES mechanism 1 (turn-scoped evidence window): a fixed
+    # `[-lookback:]` slice on the evidence LIST (not the tool-call count) went
+    # blind when later, non-evidence tool-uses in the SAME turn (a commit,
+    # a push) pushed earlier evidence-class results out of the trailing
+    # window. Evidence is instead bounded only by the existing
+    # (last_mutation, claim_index) turn window below — every evidence-class
+    # result within that span counts, regardless of how many other tool-uses
+    # followed it.
+    candidates = timeline.get("evidence", [])
     for evidence in candidates:
         result_index = _as_int(evidence.get("result_index"), -1)
         if result_index <= last_mutation or result_index >= claim_index:
@@ -982,6 +1026,27 @@ def detect_repeated_tool_error(probe: dict, _messages, _tool_uses, tool_errors=N
             "example": hits[-1][:120].replace("\n", " "),
         }
     return None
+
+
+def last_compact_boundary_index(events: list[dict]) -> int:
+    """Return the event index of the most recent compaction boundary, or -1
+    if none is present in this transcript tail (OB-3 GRADUATES mechanism 2:
+    a fixed evidence window is blind ACROSS a compaction — everything the
+    model verified pre-compaction becomes invisible post-compaction, so
+    claim_without_evidence must not fire on the first post-compaction
+    claim). Two marker shapes are recognized (host-portable, best-effort):
+    a standalone transcript line of `{"type": "summary", ...}` (Claude
+    Code's own compaction-resume marker) and any event carrying
+    `isCompactSummary: true` (a compact summary attached to a message).
+    Either shape anywhere in the tail is treated as a boundary; an absent
+    marker degrades to -1 (no suppression) rather than raising."""
+    boundary = -1
+    for event_index, e in enumerate(events):
+        if not isinstance(e, dict):
+            continue
+        if e.get("type") == "summary" or e.get("isCompactSummary") is True:
+            boundary = event_index
+    return boundary
 
 
 def trajectory_stats(events: list[dict]) -> dict:
@@ -2776,7 +2841,13 @@ def detect_unbanked_commitment(probe: dict, messages: list[dict], tool_uses: lis
                                 traj_stats: dict | None = None) -> dict | None:
     if not messages:
         return None
-    last_text = messages[-1]["text"]
+    # Quoted/mention-vs-use FP fix (OB-3 GRADUATES, unbanked_commitment fire
+    # #1): a sentence the assistant is only QUOTING — inside double quotes or
+    # a markdown blockquote line — must not read as the assistant's OWN
+    # commitment. Fenced/inline code is already stripped upstream by
+    # strip_code() (recent_assistant_messages); strip_quoted_and_code() adds
+    # the double-quote-span and blockquote-line removal this detector needs.
+    last_text = strip_quoted_and_code(messages[-1]["text"])
     sentence = None
     for sent in re.split(r"[.!?\n]", last_text):
         if _UNBANKED_NOTE_VERB_RE.search(sent) and _UNBANKED_DEFERRAL_RE.search(sent):
@@ -3296,6 +3367,7 @@ def main() -> int:
 
             traj = trajectory_stats(events)
             traj["execution_timeline"] = execution_timeline(events)
+            traj["last_compact_boundary_index"] = last_compact_boundary_index(events)
             traj["final_assistant_has_tool_use"] = final_assistant_has_tool_use(events)
             # Feed the ledger cross-check (ledger_not_materialized).
             # open_ledger_count counts only items from PRIOR turns (this turn's
