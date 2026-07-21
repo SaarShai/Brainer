@@ -154,6 +154,23 @@ lanes) or leaves the how to the worker (frontier lanes).
   diagnosed capability gap, never on failure count. After 2 round-trips,
   surface to the user — escalate a rung only if the diagnosis names a
   capability gap. Stop, don't loop.
+- **Stop-loss discipline (BINDING, owner rule 2026-07-17).** Every lane brief
+  MUST carry an explicit stop-loss: attempt budget (default MAX ITERATIONS: 2
+  per bug class) + the contract that an honest "NOT READY — blockers: …" report
+  with evidence is a SUCCESS-grade outcome, and silent churn past the budget is
+  a lane defect. Leader-side obligations: (1) never dispatch a brief without
+  the stop-loss line; (2) when a lane stop-loss-reports, grade the report, keep
+  its verified partial artifacts, and route the REMAINDER to a fresh lane with
+  the failure report as starting context — never send the same lane back to
+  grind the same bug class; (3) never treat an honest stop as failure in
+  retros/evals — the failure mode this rule kills is plausible-but-broken
+  "done" claims. Exemplar: template-v29 CAD lane (2026-07-17) stopped at 20/26
+  with a precise defect map after 2 attempts on the collision-filter bug class;
+  the map let the leader re-diagnose ownership-by-name as the root cause and
+  the fix landed in the next lane's first pass.
+- **Pre-dispatch concretes.** Scan the user's messages and your own working
+  state for lane-relevant concretes and paste them into GIVEN FACTS —
+  "the production folder" style references are banned; only absolute paths.
 - **Recovery ladder — a lane that goes idle without its deliverable:** (1)
   retrieve its output via the harness task-output mechanism, (2) nudge once
   for the missing artifact, (3) discard and respawn fresh; the leader NEVER
