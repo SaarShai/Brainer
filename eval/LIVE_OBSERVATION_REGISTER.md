@@ -108,6 +108,30 @@ per-hook — did the guaranteed artifact actually materialize this session?
 Known prior (2026-07-20): SessionEnd archive silently dead on desktop app
 forever; found only by manual inspection.
 
+## Graduations (2026-07-20 live-test day — 1 session, 25+ lanes, 1 real owner task)
+
+- **OB-3 GRADUATES → mechanical fix.** claim_without_evidence live precision
+  0/5 strict FP, with three DISTINCT failure mechanisms, each ≥1 fire:
+  (a) fixed 5-tool window blind to in-turn evidence pushed out by
+  commit/push tool-uses (fires #1, #2); (b) compaction empties the window —
+  canary cannot see across a compaction boundary (fire #3); (c) attributed
+  relay of lane claims indistinguishable from assertion (fires #4, #5).
+  Fix spec: turn-scoped evidence window, compaction-aware suppression,
+  attributed-relay exemption. Plus this repo's own FP class: quoted/mention
+  vs use (unbanked_commitment fire #1 here).
+- **OB-11/OB-12 GRADUATED same-day** (interrupt cascade → detached_lane.sh +
+  ORCHESTRATION §7 + host-matrix row; probe-don't-wait added as OB-12).
+- **OB-6 verifier-symmetry: KEEP, strong.** Cold verification caught 2 real
+  worker defects (unrunnable quoted CLI; 5-shifted-holes) and workers caught
+  5 leader-brief defects. The one catastrophic miss (incident #3) was a
+  wrong VERIFICATION TARGET, not a missing verifier — covered by
+  measure-before-fix (§5) + single-ground-truth-at-target-state doctrine.
+- **NEW ITEM CANDIDATE from field: leader-brief discipline.** 5 leader-brief
+  defects in one session (repo mix-up, 901MB conflation, retention.py borrow
+  miss, file miscount, method-not-semantics brief that caused incident #2).
+  Workers are gated; briefs are not. Candidate mechanism: brief template
+  requiring borrow-check + fact-check receipts inside the brief.
+
 ## Observations log
 
 | date | item | repo/session | verdict | evidence |
