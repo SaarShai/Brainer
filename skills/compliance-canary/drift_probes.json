@@ -1,128 +1,135 @@
 [
-  {
-    "id": "traj-error-rate",
-    "kind": "trajectory_drift",
-    "min_tool_calls": 8,
-    "max_error_rate": 0.25,
-    "message": "tool-error rate over the recent window crossed 25% — stop retrying variations; re-read the failing tool's contract (params, required prior calls like Read-before-Edit, cwd state) before the next attempt"
-  },
-  {
-    "id": "claim-without-evidence",
-    "kind": "claim_without_evidence",
-    "claim_pattern": "(?i)\\b(done|fixed|completed|passes|passing|verified|shipped|all set|working(?!\\s+(?:dir|directory|tree|copy|set|group))|ready(?!\\s+(?:queue|state|set|list)))\\b",
-    "lookback_tool_uses": 5,
-    "message": "recent reply claims work is done/fixed/passing, but no verification evidence matching the claim appears in the last 5 tool uses (no fresh, successful, post-edit check of the right class) — run a fresh check (test, build, lint, curl, etc.) and quote its output",
-    "severity": "warn",
-    "_note": "Rehomed 2026-07-19 from verify-before-completion (skill remains; probes now canary-owned like all default-on enforcement)."
-  },
-  {
-    "id": "edit-without-read",
-    "kind": "repeated_tool_error",
-    "pattern": "File has not been read yet",
-    "min_count": 2,
-    "message": "2+ Edit/Write attempts failed with 'File has not been read yet' — Read the target file with the Read tool before editing; bash cat/sed output does not register as a read",
-    "severity": "warn",
-    "_note": "Rehomed 2026-07-19 from verify-before-completion (skill remains; probes now canary-owned like all default-on enforcement)."
-  },
-  {
-    "id": "visual-claim-without-vision",
-    "kind": "claim_without_evidence",
-    "claim_pattern": "(?i)\\b(chart|diagram|graph|figure|render(?:ed|s|ing)?|screenshot|layout|mockup|plot|svg|png|jpe?g|pdf|visuali[sz]ation|the ui|web ?page|slide)\\b[^.?!\\n]{0,45}\\b(?:looks?|renders?|displays?|correct|good|right|fine|aligned|positioned|legible|readable)\\b",
-    "lookback_tool_uses": 6,
-    "message": "claimed a VISUAL / rendered output (chart, diagram, UI, PDF, image) looks correct without LOOKING at it — text-only checks miss occlusion, flattening, overlap, and scale. Open or screenshot the rendered artifact with a vision-capable tool (preview / screenshot, or Read the saved image) and verify it visually, or say it is unverified.",
-    "severity": "warn",
-    "_note": "Rehomed 2026-07-19 from verify-before-completion. Context gate + frontier_emit adopted 2026-07-20 from screenery-lean's fork (the gate was born from 3 measured false fires in a meta-work session, 2026-07-01): the probe arms only when the session actually shows .ai/Illustrator activity, which keeps its false-fire surface small enough for the frontier emit set.",
-    "requires_context_regex": "(?i)\\.ai\\b|illustrator|dump-paths|screenery-design|render\\.py|\\bjsx\\b|artboard",
-    "frontier_emit": true
-  },
-  {
-    "id": "early-stop-on-promise",
-    "kind": "early_stop",
-    "message": "your last turn ended on a PLAN or a PROMISE ('I'll…/let me…/next I'll…') with no completion and no tool call — anti-early-stop: if your final paragraph is a plan or a promise, do that work NOW instead of yielding. Pause only for a genuine blocker — a destructive/irreversible action, a real scope change, or input only the user can give.",
-    "severity": "warn",
-    "_note": "Rehomed 2026-07-19 from verify-before-completion (skill remains; probes now canary-owned like all default-on enforcement)."
-  },
-  {
-    "id": "completion-without-closure",
-    "kind": "completion_without_closure",
-    "message": "you claimed the task is finished but did not ASK the user to confirm closure — do not self-close. Enumerate every distinct thing the user requested — INCLUDING every QUESTION they asked (state the answer, or why it is unanswered — not just adjacent work you did) — map each item to what you did (with verification evidence) or note why it is deferred, then explicitly ask the user whether the task can be closed.",
-    "severity": "warn",
-    "_note": "Rehomed 2026-07-19 from verify-before-completion (skill remains; probes now canary-owned like all default-on enforcement)."
-  },
-  {
-    "id": "hook-output-anomaly",
-    "kind": "forbidden_regex",
-    "pattern": "(?:hook[^\\n]{0,40}(?:exit(?:ed|ing)?\\s+(?:code\\s+)?[1-9]|non-?zero\\s+exit|traceback)|(?:PreToolUse|UserPromptSubmit|PreCompact|SessionEnd)\\s+hook[^\\n]{0,60}(?:fail|error|block|denied))",
-    "severity": "warn",
-    "message": "a hook appears to have exited non-zero, blocked a call, or leaked a traceback — hooks MUST exit 0 on every path and emit their stdout payload exactly once at the end. Run `python3 skills/compliance-canary/tools/hook_validate.py` to find the offending entrypoint; wrap slow work in skills/compliance-canary/tools/deadline.py (hard_deadline / run_or_exit0)."
-  },
-  {
-    "id": "new-machinery-no-borrow-checkpoint",
-    "kind": "new_machinery_no_borrow_checkpoint",
-    "message": "new build machinery (solver/cache/gate/orchestrator/pipeline) was written without a borrow-checkpoint line — state in one line which existing framework/library/tool was checked and why it doesn't fit before commissioning bespoke infrastructure. Building bespoke after a real check is a legitimate pass; skipping the check is the Reinvented Wheel failure mode."
-  },
-  {
-    "id": "delegated-diagnosis",
-    "kind": "delegated_diagnosis",
-    "message": "a sub-frontier lane was briefed to diagnose ('investigate why / figure out the cause') — diagnosis is frontier-tier work. Reproduce the defect at the artifact layer yourself, name the root cause, prescribe the fix, then delegate the spec'd execution (ORCHESTRATION.md §6 SPEC'D×GATED routing). Mechanical evidence-gathering sweeps remain delegable."
-  },
-  {
-    "id": "repeated-failure-stall",
-    "kind": "repeated_tool_error",
-    "pattern": "(?i)(?:\\berror\\b|\\bfailed\\b|\\bfailure\\b|\\bexception\\b|traceback|assert(?:ion)?\\b|not\\s+found|no\\s+such|cannot\\b|could\\s+not|non-?zero\\s+exit|exit(?:ed)?\\s+(?:with\\s+)?code\\s+[1-9]|command\\s+not\\s+found|segmentation\\s+fault|core\\s+dumped|\\btimed?\\s*out\\b|permission\\s+denied|connection\\s+refused|\\bexpected\\b[^\\n]{0,60}\\bgot\\b)",
-    "min_count": 3,
-    "message": ">=3 failing tool results accumulated in the recent window — whether one failure is recurring or several distinct things are breaking, the task is stalling. Before the next attempt: (1) restate the goal/scope, (2) re-gather evidence about WHY each failure happens (the tool's contract, the actual state, the exact error text — don't lump distinct failures together), (3) adversarially falsify your current theory — if two attempts at the same fix failed, the diagnosis is wrong, (4) verify the fix fresh, (5) report calibrated.",
-    "severity": "warn",
-    "_note": "Rehomed from retired fable-mode (2026-07-19 catalog contraction); detector semantics and locked lesson unchanged. MECHANISM, stated honestly: detect_repeated_tool_error COUNTS is_error tool_results matching the pattern (>=min_count in the recent window); it does NOT group by signature and cannot tell 'same failure 3x' from '3 unrelated failures' — so the message claims only 'the task is stalling', true in both cases. Locked lesson: a probe's message must not assert semantics its detector cannot observe. COMPLEMENTARY to the always-on trajectory_drift (rate errs/calls>=0.25 over >=8 calls): this fires on absolute COUNT >=3 at any rate. Blind to keyword-free failures (bare 'Killed', non-English, exit-0-wrong-output) — accepted scope (LEARNING_CONTRACT §3). MEASURED (2026-07-07, product-images repo, 32 sessions / 783 is_error results): 87.7% of error texts match; severity=warn nudge, consumer repos may raise min_count in their fork."
-  },
-  {
-    "kind": "tool_path_touch",
-    "id": "dependency-manifest-changed",
-    "tools": [
-      "Edit",
-      "Write",
-      "NotebookEdit",
-      "Bash"
-    ],
-    "path_pattern": "(?i)(?:^|/)(?:package\\.json|package-lock\\.json|yarn\\.lock|pnpm-lock\\.yaml|requirements\\.txt|pyproject\\.toml|poetry\\.lock|Pipfile(?:\\.lock)?|go\\.mod|go\\.sum|Cargo\\.(?:toml|lock)|Gemfile(?:\\.lock)?|pom\\.xml|build\\.gradle(?:\\.kts)?|composer\\.(?:json|lock))$",
-    "message": "dependency manifest/lockfile changed — every dependency is permanent code you don't control. Confirm stdlib/existing can't do it, and state WHY the new dep is needed.",
-    "severity": "warn",
-    "_note": "Rehomed from retired lean-execution (2026-07-19 catalog contraction); cited by the resident code-craft directives (surgical diffs)."
-  },
-  {
-    "kind": "whitespace_only_edit",
-    "id": "reformat-only-hunk",
-    "min_chars": 12,
-    "message": "an Edit changed only whitespace/formatting — don't reformat code you didn't change; a formatter pass buries the real lines. Keep the diff to the task.",
-    "severity": "warn",
-    "_note": "Rehomed from retired lean-execution (2026-07-19 catalog contraction); cited by the resident code-craft directives (surgical diffs)."
-  },
-  {
-    "id": "ledger-not-materialized",
-    "kind": "ledger_not_materialized",
-    "min_open": 2,
-    "grace_turns": 3,
-    "substantive_turns": 2,
-    "maintenance_path_pattern": "(?i)(?:(?:^|/)\\.brainer/ledger/[^/\\n]+\\.md$|(?:^|/)(?:requirements[ _-]?)?ledger[^/\\n]*\\.md$)",
-    "message": "you have open user requests this session but no sign of maintaining a visible ledger (no Edit/Write/NotebookEdit to .brainer/ledger/<sid>.md and no TaskCreate/TaskUpdate) in the recent window — materialize or refresh .brainer/ledger/<sid>.md so an item the user raised is not silently dropped. Keep one row per user request/question/sub-item (decompose each user message into atomic rows). NEVER DELETE A ROW — only re-status it (open/doing/done/blocked); a row that vanishes between edits is the same silent-drop failure this probe exists to catch.",
-    "severity": "warn",
-    "_note": "Rehomed from retired requirements-ledger (2026-07-19 catalog contraction). SKILL.md's 'never delete a row — only re-status' rule has no dedicated drift probe: none of hook.py's implemented DETECTORS kinds can diff ledger content ACROSS turns to notice a row disappearing (forbidden_regex/claim_without_evidence etc. only see current-window text, not a structural diff of a markdown table over time). Rather than invent an unimplemented kind (the canary hook would silently skip it — an alive-looking-dead gate), the rule is folded into this probe's message so at least the maintenance-absence case still surfaces it. Honest degradation, not full mechanical coverage."
-  },
-  {
-    "id": "unbanked-commitment",
-    "kind": "unbanked_commitment",
-    "lookback_tool_uses": 5,
-    "message": "recent reply makes a note-for-later commitment but no durable capture (wiki/memory/task/report write) appears in the last 5 tool uses — bank it now or explicitly discharge it. Self-commitments are ledger items, not vibes.",
-    "severity": "warn",
-    "_note": "Added 2026-07-20 to close a proven no-drop gap: materialize_visible_ledger only captures USER-authored requests; an ASSISTANT self-commitment ('worth noting for later', 'I'll bank that lesson afterwards') had no capture path and silently evaporated (live incident that day — the user caught it, not the machinery). Two-cue conjunction (note-verb + deferral cue, SAME sentence) is the precision guard; a fire also appends a source=self-commitment row to the visible ledger so the existing wrap-up machinery owns it."
-  },
-  {
-    "id": "assumption-self-close",
-    "kind": "forbidden_regex",
-    "pattern": "(?i)\\b(?:done|complete|finished|closed)\\b[^\\n]{0,110}?(?:user\\s+will\\b|user\\s+(?!agrees\\b|confirms\\b|approves\\b|accepts\\b|acknowledges\\b|signs\\b)\\w+s\\b|you.?ll\\b|you\\s+will\\b|you\\s+(?!agrees\\b|confirms\\b|approves\\b|accepts\\b|acknowledges\\b|signs\\b)\\w+s\\b|saar\\s+will\\b|saar\\s+(?!agrees\\b|confirms\\b|approves\\b|accepts\\b|acknowledges\\b|signs\\b)\\w+s\\b|\\bassuming\\b|\\blater\\b|\\bafterwards\\b|\\bsubsequently\\b)",
-    "unless_pattern": "(?i)\\b(?:done|complete|finished|closed)\\b(?![^\\n]*\\b(?:tomorrow|next)\\b)[^\\n]{0,110}?\\b(?:verified|\\d+\\s*/\\s*\\d+|render(?:ed)?|tests?\\b|matched|manifest)\\b[^\\n]{0,110}?(?:user\\s+will\\b|user\\s+\\w+s\\b|you.?ll\\b|you\\s+will\\b|you\\s+\\w+s\\b|saar\\s+will\\b|saar\\s+\\w+s\\b|\\bassuming\\b|\\blater\\b|\\bafterwards\\b|\\bsubsequently\\b)",
-    "message": "this done-status line names something the USER will do (or a deferred/third-person action) — that is a self-close on an interpretation you never got confirmed, not a verified done. Live incident: 'done — byte-identical copy (scaffold; Saar sorts out art)' shipped a scaffold as done while quietly assuming the user would separately do the art pass. Covers done/complete/finished/closed claims, no-parens phrasing, one sentence-boundary crossing, and any third-person verb ('handles', 'sorts') or 'will'/'later'/'afterwards' deferral — but not when a strong evidence token (verified/N-of-N/render/test/manifest/matched) appears BETWEEN the done-word and the assumption phrase (position-bound: trailing evidence AFTER the assumption clause does not suppress). A future/deferral marker ('tomorrow', 'next') anywhere in the same done-line OVERRIDES the evidence-token suppression outright — evidence of past work never excuses a still-deferred user action, so 'done — tests pass; Saar sorts out art tomorrow' fires even though 'tests' is a strong evidence token. Present-confirmation verbs (agrees, confirms, approves, accepts, acknowledges, signs off) are excluded from the third-person-verb generalization — those describe a completed confirmation, not a deferred/future user action, so 'user agrees this is complete' and 'Saar confirms receipt' stay silent. _note: threat model is unintentional drift; a deliberately fabricated evidence token is verify-before-completion's domain, not this regex. Re-status as doing/deferred until the assumption is confirmed, or state the assumption OUTSIDE the done-claim and ask before closing.",
-    "severity": "warn",
-    "_note": "Rehomed from retired requirements-ledger (2026-07-19 catalog contraction). ADVISORY heuristic over unbounded natural language — observed-incident phrasings + common variants are covered and regression-tested (3 adversarial rounds); paraphrase false-negatives and topic-collision false-positives remain possible by design and are accepted (LEARNING_CONTRACT §3: heuristic banked with scope of validity). Residual (accepted, not fixed here): 'will'/'later'/'afterwards' are NOT added to the deferral-override lookahead alongside 'tomorrow'/'next' — a locked regression case ('done — verified 31/31 via manifest (literal phrase user will was covered by the negative test)') requires a quoted/attributive mention of 'will' to stay silent when evidence is present, and a bare-word override for 'will'/'later'/'afterwards' would collide with that quoted-mention case (both are indistinguishable to a regex). A genuine deferred close using 'later'/'afterwards'/'will' phrasing WITH intervening evidence text will therefore still be silenced — an accepted false-negative narrower than the 'tomorrow'/'next' fix."
-  }
+ {
+  "id": "traj-error-rate",
+  "kind": "trajectory_drift",
+  "min_tool_calls": 8,
+  "max_error_rate": 0.25,
+  "message": "tool-error rate over the recent window crossed 25% — stop retrying variations; re-read the failing tool's contract (params, required prior calls like Read-before-Edit, cwd state) before the next attempt"
+ },
+ {
+  "id": "claim-without-evidence",
+  "kind": "claim_without_evidence",
+  "claim_pattern": "(?i)\\b(done|fixed|completed|passes|passing|verified|shipped|all set|working(?!\\s+(?:dir|directory|tree|copy|set|group))|ready(?!\\s+(?:queue|state|set|list)))\\b",
+  "lookback_tool_uses": 5,
+  "message": "recent reply claims work is done/fixed/passing, but no verification evidence matching the claim appears in the last 5 tool uses (no fresh, successful, post-edit check of the right class) — run a fresh check (test, build, lint, curl, etc.) and quote its output",
+  "severity": "warn",
+  "_note": "Rehomed 2026-07-19 from verify-before-completion (skill remains; probes now canary-owned like all default-on enforcement)."
+ },
+ {
+  "id": "edit-without-read",
+  "kind": "repeated_tool_error",
+  "pattern": "File has not been read yet",
+  "min_count": 2,
+  "message": "2+ Edit/Write attempts failed with 'File has not been read yet' — Read the target file with the Read tool before editing; bash cat/sed output does not register as a read",
+  "severity": "warn",
+  "_note": "Rehomed 2026-07-19 from verify-before-completion (skill remains; probes now canary-owned like all default-on enforcement)."
+ },
+ {
+  "id": "visual-claim-without-vision",
+  "kind": "claim_without_evidence",
+  "claim_pattern": "(?i)\\b(chart|diagram|graph|figure|render(?:ed|s|ing)?|screenshot|layout|mockup|plot|svg|png|jpe?g|pdf|visuali[sz]ation|the ui|web ?page|slide)\\b[^.?!\\n]{0,45}\\b(?:looks?|renders?|displays?|correct|good|right|fine|aligned|positioned|legible|readable)\\b",
+  "lookback_tool_uses": 6,
+  "message": "claimed a VISUAL / rendered output (chart, diagram, UI, PDF, image) looks correct without LOOKING at it — text-only checks miss occlusion, flattening, overlap, and scale. Open or screenshot the rendered artifact with a vision-capable tool (preview / screenshot, or Read the saved image) and verify it visually, or say it is unverified.",
+  "severity": "warn",
+  "_note": "Rehomed 2026-07-19 from verify-before-completion. Context gate + frontier_emit adopted 2026-07-20 from screenery-lean's fork (the gate was born from 3 measured false fires in a meta-work session, 2026-07-01): the probe arms only when the session actually shows .ai/Illustrator activity, which keeps its false-fire surface small enough for the frontier emit set.",
+  "requires_context_regex": "(?i)\\.ai\\b|illustrator|dump-paths|screenery-design|render\\.py|\\bjsx\\b|artboard",
+  "frontier_emit": true
+ },
+ {
+  "id": "early-stop-on-promise",
+  "kind": "early_stop",
+  "message": "your last turn ended on a PLAN or a PROMISE ('I'll…/let me…/next I'll…') with no completion and no tool call — anti-early-stop: if your final paragraph is a plan or a promise, do that work NOW instead of yielding. Pause only for a genuine blocker — a destructive/irreversible action, a real scope change, or input only the user can give.",
+  "severity": "warn",
+  "_note": "Rehomed 2026-07-19 from verify-before-completion (skill remains; probes now canary-owned like all default-on enforcement)."
+ },
+ {
+  "id": "completion-without-closure",
+  "kind": "completion_without_closure",
+  "message": "you claimed the task is finished but did not ASK the user to confirm closure — do not self-close. Enumerate every distinct thing the user requested — INCLUDING every QUESTION they asked (state the answer, or why it is unanswered — not just adjacent work you did) — map each item to what you did (with verification evidence) or note why it is deferred, then explicitly ask the user whether the task can be closed.",
+  "severity": "warn",
+  "_note": "Rehomed 2026-07-19 from verify-before-completion (skill remains; probes now canary-owned like all default-on enforcement)."
+ },
+ {
+  "id": "hook-output-anomaly",
+  "kind": "forbidden_regex",
+  "pattern": "(?:hook[^\\n]{0,40}(?:exit(?:ed|ing)?\\s+(?:code\\s+)?[1-9]|non-?zero\\s+exit|traceback)|(?:PreToolUse|UserPromptSubmit|PreCompact|SessionEnd)\\s+hook[^\\n]{0,60}(?:fail|error|block|denied))",
+  "severity": "warn",
+  "message": "a hook appears to have exited non-zero, blocked a call, or leaked a traceback — hooks MUST exit 0 on every path and emit their stdout payload exactly once at the end. Run `python3 skills/compliance-canary/tools/hook_validate.py` to find the offending entrypoint; wrap slow work in skills/compliance-canary/tools/deadline.py (hard_deadline / run_or_exit0)."
+ },
+ {
+  "id": "new-machinery-no-borrow-checkpoint",
+  "kind": "new_machinery_no_borrow_checkpoint",
+  "message": "new build machinery (solver/cache/gate/orchestrator/pipeline) was written without a borrow-checkpoint line — state in one line which existing framework/library/tool was checked and why it doesn't fit before commissioning bespoke infrastructure. Building bespoke after a real check is a legitimate pass; skipping the check is the Reinvented Wheel failure mode."
+ },
+ {
+  "id": "delegated-diagnosis",
+  "kind": "delegated_diagnosis",
+  "message": "a sub-frontier lane was briefed to diagnose ('investigate why / figure out the cause') — diagnosis is frontier-tier work. Reproduce the defect at the artifact layer yourself, name the root cause, prescribe the fix, then delegate the spec'd execution (ORCHESTRATION.md §6 SPEC'D×GATED routing). Mechanical evidence-gathering sweeps remain delegable."
+ },
+ {
+  "id": "repeated-failure-stall",
+  "kind": "repeated_tool_error",
+  "pattern": "(?i)(?:\\berror\\b|\\bfailed\\b|\\bfailure\\b|\\bexception\\b|traceback|assert(?:ion)?\\b|not\\s+found|no\\s+such|cannot\\b|could\\s+not|non-?zero\\s+exit|exit(?:ed)?\\s+(?:with\\s+)?code\\s+[1-9]|command\\s+not\\s+found|segmentation\\s+fault|core\\s+dumped|\\btimed?\\s*out\\b|permission\\s+denied|connection\\s+refused|\\bexpected\\b[^\\n]{0,60}\\bgot\\b)",
+  "min_count": 3,
+  "message": ">=3 failing tool results accumulated in the recent window — whether one failure is recurring or several distinct things are breaking, the task is stalling. Before the next attempt: (1) restate the goal/scope, (2) re-gather evidence about WHY each failure happens (the tool's contract, the actual state, the exact error text — don't lump distinct failures together), (3) adversarially falsify your current theory — if two attempts at the same fix failed, the diagnosis is wrong, (4) verify the fix fresh, (5) report calibrated.",
+  "severity": "warn",
+  "_note": "Rehomed from retired fable-mode (2026-07-19 catalog contraction); detector semantics and locked lesson unchanged. MECHANISM, stated honestly: detect_repeated_tool_error COUNTS is_error tool_results matching the pattern (>=min_count in the recent window); it does NOT group by signature and cannot tell 'same failure 3x' from '3 unrelated failures' — so the message claims only 'the task is stalling', true in both cases. Locked lesson: a probe's message must not assert semantics its detector cannot observe. COMPLEMENTARY to the always-on trajectory_drift (rate errs/calls>=0.25 over >=8 calls): this fires on absolute COUNT >=3 at any rate. Blind to keyword-free failures (bare 'Killed', non-English, exit-0-wrong-output) — accepted scope (LEARNING_CONTRACT §3). MEASURED (2026-07-07, product-images repo, 32 sessions / 783 is_error results): 87.7% of error texts match; severity=warn nudge, consumer repos may raise min_count in their fork."
+ },
+ {
+  "kind": "tool_path_touch",
+  "id": "dependency-manifest-changed",
+  "tools": [
+   "Edit",
+   "Write",
+   "NotebookEdit",
+   "Bash"
+  ],
+  "path_pattern": "(?i)(?:^|/)(?:package\\.json|package-lock\\.json|yarn\\.lock|pnpm-lock\\.yaml|requirements\\.txt|pyproject\\.toml|poetry\\.lock|Pipfile(?:\\.lock)?|go\\.mod|go\\.sum|Cargo\\.(?:toml|lock)|Gemfile(?:\\.lock)?|pom\\.xml|build\\.gradle(?:\\.kts)?|composer\\.(?:json|lock))$",
+  "message": "dependency manifest/lockfile changed — every dependency is permanent code you don't control. Confirm stdlib/existing can't do it, and state WHY the new dep is needed.",
+  "severity": "warn",
+  "_note": "Rehomed from retired lean-execution (2026-07-19 catalog contraction); cited by the resident code-craft directives (surgical diffs)."
+ },
+ {
+  "kind": "whitespace_only_edit",
+  "id": "reformat-only-hunk",
+  "min_chars": 12,
+  "message": "an Edit changed only whitespace/formatting — don't reformat code you didn't change; a formatter pass buries the real lines. Keep the diff to the task.",
+  "severity": "warn",
+  "_note": "Rehomed from retired lean-execution (2026-07-19 catalog contraction); cited by the resident code-craft directives (surgical diffs)."
+ },
+ {
+  "id": "ledger-not-materialized",
+  "kind": "ledger_not_materialized",
+  "min_open": 2,
+  "grace_turns": 3,
+  "substantive_turns": 2,
+  "maintenance_path_pattern": "(?i)(?:(?:^|/)\\.brainer/ledger/[^/\\n]+\\.md$|(?:^|/)(?:requirements[ _-]?)?ledger[^/\\n]*\\.md$)",
+  "message": "you have open user requests this session but no sign of maintaining a visible ledger (no Edit/Write/NotebookEdit to .brainer/ledger/<sid>.md and no TaskCreate/TaskUpdate) in the recent window — materialize or refresh .brainer/ledger/<sid>.md so an item the user raised is not silently dropped. Keep one row per user request/question/sub-item (decompose each user message into atomic rows). NEVER DELETE A ROW — only re-status it (open/doing/done/blocked); a row that vanishes between edits is the same silent-drop failure this probe exists to catch.",
+  "severity": "warn",
+  "_note": "Rehomed from retired requirements-ledger (2026-07-19 catalog contraction). SKILL.md's 'never delete a row — only re-status' rule has no dedicated drift probe: none of hook.py's implemented DETECTORS kinds can diff ledger content ACROSS turns to notice a row disappearing (forbidden_regex/claim_without_evidence etc. only see current-window text, not a structural diff of a markdown table over time). Rather than invent an unimplemented kind (the canary hook would silently skip it — an alive-looking-dead gate), the rule is folded into this probe's message so at least the maintenance-absence case still surfaces it. Honest degradation, not full mechanical coverage."
+ },
+ {
+  "id": "unbanked-commitment",
+  "kind": "unbanked_commitment",
+  "lookback_tool_uses": 5,
+  "message": "recent reply makes a note-for-later commitment but no durable capture (wiki/memory/task/report write) appears in the last 5 tool uses — bank it now or explicitly discharge it. Self-commitments are ledger items, not vibes.",
+  "severity": "warn",
+  "_note": "Added 2026-07-20 to close a proven no-drop gap: materialize_visible_ledger only captures USER-authored requests; an ASSISTANT self-commitment ('worth noting for later', 'I'll bank that lesson afterwards') had no capture path and silently evaporated (live incident that day — the user caught it, not the machinery). Two-cue conjunction (note-verb + deferral cue, SAME sentence) is the precision guard; a fire also appends a source=self-commitment row to the visible ledger so the existing wrap-up machinery owns it."
+ },
+ {
+  "id": "assumption-self-close",
+  "kind": "forbidden_regex",
+  "pattern": "(?i)\\b(?:done|complete|finished|closed)\\b[^\\n]{0,110}?(?:user\\s+will\\b|user\\s+(?!agrees\\b|confirms\\b|approves\\b|accepts\\b|acknowledges\\b|signs\\b)\\w+s\\b|you.?ll\\b|you\\s+will\\b|you\\s+(?!agrees\\b|confirms\\b|approves\\b|accepts\\b|acknowledges\\b|signs\\b)\\w+s\\b|saar\\s+will\\b|saar\\s+(?!agrees\\b|confirms\\b|approves\\b|accepts\\b|acknowledges\\b|signs\\b)\\w+s\\b|\\bassuming\\b|\\blater\\b|\\bafterwards\\b|\\bsubsequently\\b)",
+  "unless_pattern": "(?i)\\b(?:done|complete|finished|closed)\\b(?![^\\n]*\\b(?:tomorrow|next)\\b)[^\\n]{0,110}?\\b(?:verified|\\d+\\s*/\\s*\\d+|render(?:ed)?|tests?\\b|matched|manifest)\\b[^\\n]{0,110}?(?:user\\s+will\\b|user\\s+\\w+s\\b|you.?ll\\b|you\\s+will\\b|you\\s+\\w+s\\b|saar\\s+will\\b|saar\\s+\\w+s\\b|\\bassuming\\b|\\blater\\b|\\bafterwards\\b|\\bsubsequently\\b)",
+  "message": "this done-status line names something the USER will do (or a deferred/third-person action) — that is a self-close on an interpretation you never got confirmed, not a verified done. Live incident: 'done — byte-identical copy (scaffold; Saar sorts out art)' shipped a scaffold as done while quietly assuming the user would separately do the art pass. Covers done/complete/finished/closed claims, no-parens phrasing, one sentence-boundary crossing, and any third-person verb ('handles', 'sorts') or 'will'/'later'/'afterwards' deferral — but not when a strong evidence token (verified/N-of-N/render/test/manifest/matched) appears BETWEEN the done-word and the assumption phrase (position-bound: trailing evidence AFTER the assumption clause does not suppress). A future/deferral marker ('tomorrow', 'next') anywhere in the same done-line OVERRIDES the evidence-token suppression outright — evidence of past work never excuses a still-deferred user action, so 'done — tests pass; Saar sorts out art tomorrow' fires even though 'tests' is a strong evidence token. Present-confirmation verbs (agrees, confirms, approves, accepts, acknowledges, signs off) are excluded from the third-person-verb generalization — those describe a completed confirmation, not a deferred/future user action, so 'user agrees this is complete' and 'Saar confirms receipt' stay silent. _note: threat model is unintentional drift; a deliberately fabricated evidence token is verify-before-completion's domain, not this regex. Re-status as doing/deferred until the assumption is confirmed, or state the assumption OUTSIDE the done-claim and ask before closing.",
+  "severity": "warn",
+  "_note": "Rehomed from retired requirements-ledger (2026-07-19 catalog contraction). ADVISORY heuristic over unbounded natural language — observed-incident phrasings + common variants are covered and regression-tested (3 adversarial rounds); paraphrase false-negatives and topic-collision false-positives remain possible by design and are accepted (LEARNING_CONTRACT §3: heuristic banked with scope of validity). Residual (accepted, not fixed here): 'will'/'later'/'afterwards' are NOT added to the deferral-override lookahead alongside 'tomorrow'/'next' — a locked regression case ('done — verified 31/31 via manifest (literal phrase user will was covered by the negative test)') requires a quoted/attributive mention of 'will' to stay silent when evidence is present, and a bare-word override for 'will'/'later'/'afterwards' would collide with that quoted-mention case (both are indistinguishable to a regex). A genuine deferred close using 'later'/'afterwards'/'will' phrasing WITH intervening evidence text will therefore still be silenced — an accepted false-negative narrower than the 'tomorrow'/'next' fix."
+ },
+ {
+  "id": "caveat-omitted-in-relay",
+  "kind": "caveat_omitted_in_relay",
+  "message": "reply relays a scorecard/digest/verdict as healthy, but a tool result read this turn contains explicit caveat language (‘caveat’ / ‘known issue’) the reply never surfaces — a written caveat is a FAIL cell even in a relay; quote it to the owner before the healthy verdict",
+  "severity": "warn",
+  "_note": "Added 2026-07-20 after the OB-6 relay failure class hit its 3rd occurrence (monitor relayed a FULL/STRONG repair scorecard while the digest held an honest tolerance caveat on flap fit; owner found the broken flaps himself). Source-side match kept narrow (caveat/known issue) to avoid compiler-warning FPs; any caveat-ish language in the reply itself suppresses."
+ }
 ]

@@ -27,6 +27,7 @@ KNOWN_KINDS = {
     "new_machinery_no_borrow_checkpoint",
     "delegated_diagnosis",
     "unbanked_commitment",
+    "caveat_omitted_in_relay",
 }
 
 REQUIRED_BY_KIND = {
@@ -46,6 +47,7 @@ REQUIRED_BY_KIND = {
     "new_machinery_no_borrow_checkpoint": [],
     "delegated_diagnosis": [],
     "unbanked_commitment": [],
+    "caveat_omitted_in_relay": [],
 }
 
 REGEX_FIELDS = [
