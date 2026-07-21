@@ -41,6 +41,23 @@ Not every skill needs every layer:
   run, finds class-of-bug issues fresh eyes catch and authors don't.
 - **Skills that audit external projects** (cache-lint): need layer 7.
 
+## Acceptance gate for behavior-affecting body edits (ratified 2026-07-21, owner-delegated)
+
+When a skill already has a **frozen, trustworthy behavioral corpus, scorer, and
+baseline**, a behavior-affecting body edit must rerun that exact gate before
+shipping. Reject the edit on any attributable safety/scope regression or on
+failure of its preregistered threshold. A neutral (no-lift) result may ship
+only for a named mechanical or declaration-level benefit. **If no trustworthy
+evaluator already exists, this rule creates no obligation to invent one** — a
+universal non-regression rule would certify evaluator noise (measured: our own
+E2 history contains prompt-echo scoring and grader bugs that moved apparent
+lift 0.667→0.0; see `wiki/concepts/e2-prose-rules-measured-2026-07.md`).
+A skill claiming this gate names its command, frozen corpus, baseline, primary
+metric, and threshold in its `EVAL.md`. Origin: SkillOpt review
+(`wiki/queries/skillopt-review-2026-07.md`) — the lean form of its held-out
+acceptance rule; `learn-skill`'s `refine`/`patch` held-in/held-out contract is
+the reference implementation.
+
 ## The one-command happy path
 
 ```bash
