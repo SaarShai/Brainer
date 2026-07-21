@@ -188,24 +188,27 @@ sentence to the escalate-up directive text (`"…handle it yourself; this
 directive is for cheap-tier sessions."`) — not one of the two named fixes, but
 `test_escalate_up_directive_carries_self_exemption` is vacuous without it.
 
-## Open questions for the owner
+## Owner decisions (delegated 2026-07-21: "figure out the best decision for each one and execute")
 
-1. **escalate-up default.** screenery-lean runs `BRAINER_TRIAGE_ESCALATE_UP`
-   default-ON (reasoned 2026-07-06 as "owner losing frontier-session access");
-   canonical is default-OFF. Should canonical adopt ON, or should the sibling
-   revert to OFF? Left as-is in both until answered.
-2. **team-lead activation.** Canonical demoted `team-lead` to
-   `status: experimental` + `disable-model-invocation: true`. Both consumers
-   (screenery-lean and screenery-design-master) still run it model-invokable.
-   The sibling's activation frontmatter was preserved rather than silently
-   demoting it. Should canonical's demotion stand, or be reverted to match the
-   two repos actually using it?
-4. **Plan-intent narrowing.** Accept the narrower `design/propose/architect`
-   vocabulary (now live in canonical), or restore `plan`/`write`/`draft` as a
-   lower-precedence plan-creation signal so "write a rollout plan" still routes
-   to the advisor?
-5. **Sibling commit.** All sibling-side writes are left **uncommitted** by
-   design for owner review. They need explicit authorization to commit.
+1. **escalate-up default → ON everywhere** (opt-out via `=0`). Rationale: ON is
+   the owner's standing token-economy doctrine (frontier = judgment only; cheap
+   main loops are the norm), and both consumers already ran ON in production —
+   canonical was the outlier. Flipped in `af268ad`, which surfaced that the flip
+   also requires the `context-guard`/`short-unmatched` source exemption the
+   sibling already carried: without it, "continue"/"ok go ahead" prompts escalate
+   — the exact 2026-07-06 incident class. prompt-triage tools then fully
+   fast-forwarded into the sibling (**empty diff vs canonical**), so the sibling
+   finally gains `sensitive-egress-veto` and the two-way drift is closed.
+2. **team-lead demotion reverted** in canonical: model-invokable frontmatter
+   restored (minus the sibling-local bracket routing) and the `SKILLS_INDEX.md`
+   row re-promoted. A canonical default that no consumer follows is dead policy
+   — both consumers run it always-on.
+3. **Plan-intent narrowing accepted.** Production-proven in screenery-lean since
+   2026-07-06 with no reported misroute, and the verifier seat is the safer
+   failure mode for "review and plan" prompts. Canonical stands as ported.
+4. **Sibling commit authorized** by the same instruction; executed pathspec-only
+   per git-commit-discipline (`skills/` only, never `-A`, product `tools/`
+   untouched).
 
 ## Closing verification (all fresh, quoted)
 
