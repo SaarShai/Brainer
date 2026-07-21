@@ -120,11 +120,40 @@ Unresolved decisions + your current lean (so they can proceed if no one answers)
 After dropping, state the exact path written and a one-line summary of what's
 in it.
 
+### Drop-time mutable-value lint
+
+A baton is prose wrapped around **volatile facts** (git HEADs, shas, file
+counts, dirty-path lists) — see the wiki pattern page
+`wiki/patterns/handoffs-rot-at-mutable-values.md`.
+A copied-at-drop-time value rots the moment the repo moves. Before treating a
+drop as done, run the lint:
+
+```bash
+python3 skills/baton/tools/lint_baton.py .brainer/baton/<file>.md
+```
+
+It scans for untagged mutable-value patterns — 40-hex/7-hex shas, "N files"
+counts, branch/HEAD claims — and fails (exit 1, violations printed) if any is
+found bare. Fix each violation one of two ways:
+1. **Prefer:** replace the literal with the live re-derivation command (e.g.
+   `` `cat canon/canon.sha256` `` instead of the digest) inside a fenced code
+   block — fenced commands are exempt, they're already re-derivation, not a
+   copied value.
+2. **If a literal genuinely helps a reader:** keep it, but tag the line with
+   `VERIFY-AT-GRAB` so the grab-side checklist below picks it up.
+
 ### Grab — resuming
 
 1. **Find it:** `ls -t .brainer/baton/` — read the newest.
 2. **Trust but verify:** re-check "State of Play" against real `git status`
    before acting; the repo may have moved since the baton was dropped.
+   **Mechanical grab-side checklist:** re-run
+   `python3 skills/baton/tools/lint_baton.py .brainer/baton/<file>.md` — every
+   reported line names a `VERIFY-AT-GRAB`-tagged mutable value the drop author
+   flagged as needing fresh confirmation. Cold-verify each one against the
+   live repo before trusting it (this is the control that actually catches
+   rot — see wiki pattern page: a stale canon hash survived a refresh in 2 of
+   4 places until a successor cold-verified instead of trusting the doc).
 3. **Continue** from Next Steps.
 4. **Retire it** when the work lands: delete it if it was only scratch, or
    promote durable learnings through [`write-gate`](../write-gate/SKILL.md)
@@ -141,14 +170,18 @@ in it.
 | Dead ends omitted | Naming what *didn't* work is the highest-value content — it saves a full re-derivation. |
 | Scattered handoff location | Always `.brainer/baton/` at repo root — never elsewhere, or the next agent can't find it. |
 | Stale batons pile up | Retire on land: delete, or promote learnings via write-gate → wiki, then delete. |
+| Mutable value copied bare (sha, file count, HEAD claim) | Run `lint_baton.py` before calling drop done — replace with a live command or tag `VERIFY-AT-GRAB`. |
 
 ## Verification
 
 - Drop side: the written baton's "State of Play" matches a fresh `git status` /
   `git branch --show-current` run (Iron Rule), every template section is
-  present (or "none"), and the reply states the exact file path.
+  present (or "none"), the reply states the exact file path, and
+  `python3 skills/baton/tools/lint_baton.py <file>` reports zero violations
+  (mutable-value lint).
 - Grab side: before acting, re-run `git status` and confirm or flag drift from
-  the baton's State of Play.
+  the baton's State of Play, and cold-verify every `VERIFY-AT-GRAB`-tagged
+  field the lint would surface.
 
 ## Failure modes
 
@@ -163,6 +196,13 @@ Premortem ([`LEARNING_CONTRACT`](../_shared/LEARNING_CONTRACT.md) §8):
   baton without checking its date against current `git log` can act on dead-ends or
   a State of Play that no longer matches the repo, because the retirement step is a
   convention in this file, not a check any tool runs.
+- **Lint isn't a hook, so it's skippable** — `lint_baton.py` catches copied-value
+  patterns (shas, file counts, HEAD claims) but only if the drop author remembers
+  to run it; nothing forces the CLI invocation before "Done" is declared. It also
+  only catches the *pattern classes* it's written to look for — a mutable fact
+  the lint has no regex for (e.g. a prose claim like "the API returns 200" that
+  later becomes false) rots exactly as before. `VERIFY-AT-GRAB` tags are equally
+  skippable at grab time if the successor doesn't re-run the checklist.
 - **No-hooks host** — this skill is pure markdown-file convention with no hook and
   `auto-install: false`; an advisory recovery probe may discover and read an
   existing baton without `/baton`, but no hook creates, updates, retires, or
