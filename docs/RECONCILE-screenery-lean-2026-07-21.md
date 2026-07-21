@@ -83,6 +83,7 @@ ships them. Fast-forwarding would re-reference tooling that is gone there.
 | `skills/prompt-triage/SKILL.md` | KEEP + **owner flag** | Documents escalate-up **default-ON** (2026-07-06). Canonical defaults OFF. Policy divergence — see Open questions. |
 | `skills/write-gate/SKILL.md` | KEEP | SCOPE-classification step whose exemplar cites screenery-lean-only `concepts/product-model.md` §7. |
 | `.claude/agents/builder.md` | KEEP | routes `.ai` edits to screenery-lean's own `bracket` planner/executor/judge. |
+| `.claude/agents/verifier.md` | KEEP | local description framing it as the non-`.ai` sibling of that repo's `judge` agent. |
 | `skills/propagate/SKILL.md` | KEEP | notes a topology reference page removed there and not restored. |
 | `skills/think/tools/test_think_contract.py` | KEEP | local `sys.path.insert` so the test runs standalone in that layout; low value to port. |
 | `skills/semantic-diff/tools/semdiff-cli` | KEEP | one local host-agnostic usage comment; harmless. |
@@ -205,6 +206,32 @@ directive is for cheap-tier sessions."`) — not one of the two named fixes, but
    to the advisor?
 5. **Sibling commit.** All sibling-side writes are left **uncommitted** by
    design for owner review. They need explicit authorization to commit.
+
+## Closing verification (all fresh, quoted)
+
+```
+sibling_sync_audit --repo screenery-lean --classify   →  49  →  40   (0 new entries)
+sibling_sync_audit --repo screenery-lean --post-check →  post-check OK: 160 .py files byte-compile clean
+scripts/run_all_tests.sh --group core --quiet         →  run_all_tests: 104/104 PASS; harness_acceptance 16/16 PASS
+in-sibling  compliance-canary/tools/test.sh           →  208/208 PASS
+in-sibling  wiki-memory/tools/test_link_nav.py        →  OK (14 tests)
+in-sibling  context-keeper/tools/tests/test_extract.py→  OK (14 tests)
+canonical   prompt-triage/tools/test_classify.py      →  OK (55 tests), incl. 3 sensitive-egress
+canonical   pytest skills/eval-gate/tools/            →  6 passed (was INTERNALERROR)
+```
+
+**9 files resolved:** the 4 `compliance-canary` docs, both frontier agent defs,
+`eval-gate/tools/test_validate_case.py`, and both `context-keeper` extract
+files. The remaining **40 are all explained** by the classes above — 2
+generated + 31 KEEP + `team-lead` / `ORCHESTRATION` (intended local layer) +
+`cache-lint/EVAL.md` (archive trap) + `prompt-triage/{classify,test_classify}.py`
+(held pending owner question 1). **0 unexplained entries.**
+
+`prompt-triage` is deliberately *not* converged: fast-forwarding it would flip
+screenery-lean from escalate-up default-ON to default-OFF, which is the
+unresolved policy question — not a reconcile decision. Once answered, that
+same fast-forward also closes the two-way drift by giving the sibling
+canonical's `sensitive-egress-veto`.
 
 ## Rules honoured
 

@@ -452,3 +452,13 @@ Created `queries/graph-engineering-assessment-2026-07.md` from `decision` templa
 Created `queries/skillopt-review-2026-07.md` from `decision` template.
 
 - 2026-07-21 · queries/skillopt-review-2026-07 · created (decision, trust: verified) — SkillOpt: 1 conditional adoption (acceptance gate, ratification pending), rest covered/rejected; codila article covered 5/5; graph page mechanism-level corrections
+
+## 2026-07-21 — screenery-lean vendored-skill reconcile (task #26, CLOSED)
+
+Reconciled all 49 CUSTOMIZED vendored files in the most-drifted sibling. 807 truly-novel lines (extracted by calling `classify_differs()` directly, past the 6-line display cap) collapsed into 6 classes: 2 GENERATED, 31 KEEP (8 local install policy, 7 deleted-eval-archive notes, 16 D31 demotion annotations / local-only refs), 6 FAST-FORWARD, 8 UPSTREAM. Every file has a recorded disposition + reason in [`docs/RECONCILE-screenery-lean-2026-07-21.md`](../docs/RECONCILE-screenery-lean-2026-07-21.md). Result 49→40, 0 new entries, 0 unexplained.
+
+**The sibling was ahead on real bugs, and canonical had been running blind.** `eval-gate/tools/test_validate_case.py` carried a module-scope `sys.exit(0)` that fires at *import*; because the file is named `test_*.py`, pytest collection for that whole directory died with INTERNALERROR, silently masking `test_panel.py`. Also upstreamed two prompt-triage routing fixes (harness payloads like `<task-notification>` were escalating as if they were user asks; "double-check X and propose fixes" misrouted to advisor) and a context-keeper regex fix ("growth hack"/"hack week"/"for now on" false-positives). Commit `1f9ed2c`.
+
+**Near-miss worth remembering:** the fast-forward of `team-lead/SKILL.md` DELETED a BINDING owner rule (stop-loss discipline, 2026-07-17) that lived in screenery-lean and screenery-design-master but had never reached canonical — my brief wrongly asserted canonical held it. Caught only because the write lane reported the discrepancy instead of silently reconciling it. Upstreamed + restored (`e65ec07`). Generalizes: **before fast-forwarding a file, grep canonical for the specific rule you believe it contains — "the sibling is behind" is an assumption, and consumer repos accumulate owner rulings that never flow back.** Same pass also reverted an accidental demotion (canonical's `status: experimental` + `disable-model-invocation: true` frontmatter would have silently disabled team-lead in the most active product repo).
+
+Left for the owner: escalate-up default ON (both consumers) vs OFF (canonical); team-lead activation; the plan-intent vocabulary narrowing that rode along with the prompt-triage port. All sibling writes left uncommitted by design.
