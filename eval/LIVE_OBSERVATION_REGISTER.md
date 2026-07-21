@@ -79,10 +79,13 @@ invocation preceding the answer, and whether the retrieved page was actually
 used. Also the reverse: retrieved-but-stale page trusted without checking the
 code (wiki-refresh gap).
 
-### OB-9 · Borrow-first before building machinery
-Before new tooling appears, was an existing-tool check named (the borrow
-checkpoint)? Signal: borrow-checkpoint line present in the transcript before
-any new tools/*.py; Reinvented Wheel incidents.
+### OB-9 · Borrow-first before building machinery (BUILDING TASKS ONLY)
+SCOPE (owner-ruled 2026-07-20): this applies ONLY when new machinery/tooling
+is being created. It is NOT a general gate — imposing a borrow-check ceremony
+on non-building work (analysis, repair, retrieval, verification lanes) is
+itself harmful noise; absence of a borrow checkpoint on a non-building task
+is NOT an observation. Signal: borrow-checkpoint line present in the
+transcript before any new tools/*.py; Reinvented Wheel incidents.
 Known prior: five orphan tools shipped in one screenery session with no
 caller and no borrow check — wire-or-delete debt now.
 
