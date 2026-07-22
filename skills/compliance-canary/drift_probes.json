@@ -141,6 +141,14 @@
     "_note": "Added 2026-07-22 (Great Pruning #5b) after a lead declared '~10 calls + 45-min stop-loss' then blew through it silently. Borrows the widened-window + earlier-cue/later-cue detector shape already established by caveat_omitted_in_relay rather than inventing new transcript plumbing."
   },
   {
+    "id": "serial-feedback-elicitation",
+    "kind": "serial_feedback_elicitation",
+    "window": 20,
+    "message": "2+ assistant turns in this window each end in a feedback-elicitation question ('anything else?', 'what else should', 'next item?', 'should I also') — that shape is the expedient-agent-planning protocol violation: collecting owner feedback items one at a time instead of gathering the whole round in a single batched ask. LIMIT (stated, not overclaimed): this counts the ASSISTANT'S OWN elicitation-ending turns only — recent_assistant_messages() (the shared text-window primitive every detector in this file uses) does not expose the owner's free-text turns in between, so a true assistant-drove-it vs owner-voluntarily-drip-fed-it distinction is not reliably recoverable from the hook's window; a verbose assistant that happens to sign off with an elicitation phrase twice while the owner was actually driving the round would still fire. Treat a fire as 'go re-read the transcript', not a mechanically certain verdict.",
+    "severity": "warn",
+    "_note": "Added 2026-07-22 (Great Pruning #5c). Borrow-check: reuses the widened-window opt-in budget_expired_without_checkpoint established (probe-declared window beyond MSG_WINDOW_DEFAULT) and the phrase-across-turns shape caveat_omitted_in_relay established, rather than inventing new transcript plumbing."
+  },
+  {
     "id": "cad-done-claim-without-artifacts",
     "kind": "claim_without_evidence",
     "claim_pattern": "(?i)\\b(CAD|STEP|assembly|viewer)\\b.{0,120}\\b(published|complete[d]?|done|passed all gates|success)\\b|\\b(published|complete[d]?)\\b.{0,120}\\b(CAD|STEP|assembly)\\b",

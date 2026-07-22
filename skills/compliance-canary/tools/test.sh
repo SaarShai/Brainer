@@ -2533,6 +2533,55 @@ for i in 1 2 3 4 5; do
 done
 if [ "$fire_count" -eq 3 ]; then ok "budget probe capped at 3 fires across 5 turns (shared rate cap)"; else no "budget probe capped at 3 fires across 5 turns" "fire_count=$fire_count"; fi
 
+# ======================================================================
+# [122] serial_feedback_elicitation (Great Pruning #5c, 2026-07-22): the
+# lead runs a feedback round by asking the owner "anything else?" one item
+# at a time instead of collecting the whole round in a single batched ask.
+# LIMIT (see hook.py docstring): this counts the assistant's OWN
+# elicitation-ending turns only — it cannot see whether the owner's reply
+# was an answer to the question or an unprompted drip-fed item, so the
+# no-fire "owner drip-feed" case below is approximated as a round where the
+# assistant does not repeatedly ask "anything else?" after each item.
+# ======================================================================
+SFE_PROBES='[{"id":"serial-feedback-elicitation","kind":"serial_feedback_elicitation","window":20}]'
+make_skill_with_probes sk122 compliance-canary "$SFE_PROBES"
+
+echo "[122a] TP: assistant asks 'anything else?' after each of 2 items → must fire"
+TX="$TRANSCRIPT_DIR/t122a.jsonl"
+write_transcript "$TX" \
+  "$(assistant_text 'Fixed item 1 (hinge groove depth). Anything else you want me to look at?' u122a1)" \
+  "$(assistant_text 'Fixed item 2 (flap clearance). Any other feedback before I close this round?' u122a2)"
+out=$(call cc122a sk122 "$TX" s122a)
+if emitted "$out" && echo "$out" | grep -q 'serial_feedback_elicitation'; then ok "serial elicitation across 2 turns fires"; else no "serial elicitation across 2 turns must fire" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[122b] control: single batched ask up front, no repeated elicitation → must stay silent"
+TX="$TRANSCRIPT_DIR/t122b.jsonl"
+write_transcript "$TX" \
+  "$(assistant_text 'Before I start — please give me the full list of feedback items for this round.' u122b1)" \
+  "$(assistant_text 'Got all 4 items, fixing hinge groove depth, flap clearance, sheet margin, and the label placement now.' u122b2)"
+out=$(call cc122b sk122 "$TX" s122b)
+if ! echo "$out" | grep -q 'serial_feedback_elicitation'; then ok "single batched ask stays silent"; else no "single batched ask must stay silent" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[122c] control (approximated owner-driven drip): assistant never asks 'anything else' — owner volunteers items unprompted → must stay silent"
+TX="$TRANSCRIPT_DIR/t122c.jsonl"
+write_transcript "$TX" \
+  "$(assistant_text 'Fixed item 1 (hinge groove depth).' u122c1)" \
+  "$(assistant_text 'Fixed item 2 (flap clearance), which you flagged separately.' u122c2)"
+out=$(call cc122c sk122 "$TX" s122c)
+if ! echo "$out" | grep -q 'serial_feedback_elicitation'; then ok "owner-driven drip (no repeated assistant elicitation) stays silent"; else no "owner-driven drip must stay silent" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[122d] rate cap: repeated fires across turns are capped at 3 per session (shared rate-cap machinery)"
+TX="$TRANSCRIPT_DIR/t122d.jsonl"
+write_transcript "$TX" \
+  "$(assistant_text 'Fixed item 1. Anything else?' u122d1)" \
+  "$(assistant_text 'Fixed item 2. Anything else?' u122d2)"
+fire_count=0
+for i in 1 2 3 4 5; do
+  out=$(call cc122d sk122 "$TX" s122d COMPLIANCE_CANARY_COOLDOWN=0)
+  if emitted "$out" && echo "$out" | grep -q 'serial_feedback_elicitation'; then fire_count=$((fire_count+1)); fi
+done
+if [ "$fire_count" -eq 3 ]; then ok "serial-feedback-elicitation probe capped at 3 fires across 5 turns (shared rate cap)"; else no "serial-feedback-elicitation probe capped at 3 fires across 5 turns" "fire_count=$fire_count"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then

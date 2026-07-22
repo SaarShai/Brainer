@@ -29,6 +29,7 @@ KNOWN_KINDS = {
     "unbanked_commitment",
     "caveat_omitted_in_relay",
     "budget_expired_without_checkpoint",
+    "serial_feedback_elicitation",
 }
 
 REQUIRED_BY_KIND = {
@@ -50,6 +51,7 @@ REQUIRED_BY_KIND = {
     "unbanked_commitment": [],
     "caveat_omitted_in_relay": [],
     "budget_expired_without_checkpoint": [],
+    "serial_feedback_elicitation": [],
 }
 
 REGEX_FIELDS = [

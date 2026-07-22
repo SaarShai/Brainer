@@ -3006,6 +3006,78 @@ def detect_budget_expired_without_checkpoint(probe: dict, messages: list[dict], 
 DETECTORS["budget_expired_without_checkpoint"] = detect_budget_expired_without_checkpoint
 
 
+# serial_feedback_elicitation (Great Pruning #5c, 2026-07-22): a lead runs a
+# multi-item feedback round by asking the owner "anything else?" one item at a
+# time instead of collecting the whole round in a single batched ask (the
+# expedient-agent-planning protocol). Detection: >=2 SEPARATE assistant text
+# turns in the window each END in an elicitation-question pattern ("any other
+# feedback", "what else should", "anything else to fix", "next item?",
+# "should I also...").
+#
+# Borrow-check: reuses the widened-window, phrase-pair-across-turns machinery
+# already established by detect_caveat_omitted_in_relay (source cue read
+# earlier, omission/repeat cue read later in the SAME message list) and
+# detect_budget_expired_without_checkpoint (opts into a probe-declared window
+# wider than the MSG_WINDOW_DEFAULT lookback) rather than inventing new
+# transcript plumbing. No new event-parsing primitive was added.
+#
+# HONEST LIMIT (state, do not overclaim — F6): the spec asks this probe to
+# fire only when the ASSISTANT drives the one-at-a-time loop, and suppress
+# when the owner is voluntarily drip-feeding items on their own initiative.
+# recent_assistant_messages() (the only message-window primitive every other
+# text detector in this file uses) returns assistant TEXT turns only — it
+# does not expose the owner's free-text turns in between, and no detector in
+# this file currently does (user_prompt carries only the CURRENT turn's
+# prompt, not a history of past owner turns). That "who spoke first" fact is
+# therefore NOT reliably recoverable from the hook's existing window. This
+# probe implements the closest detectable approximation instead: it counts
+# how many of the assistant's OWN turns end in an elicitation question. An
+# owner who drip-feeds unprompted items does not need to be asked "anything
+# else?" repeatedly to keep producing them, so genuine owner-driven rounds
+# will typically show at most one such assistant turn; a lead running the
+# serial ask-after-each-item loop will show two or more. This is a proxy, not
+# a true speaker-attribution check — a verbose assistant that happens to sign
+# off with an elicitation phrase twice while the owner was actually the one
+# driving the round would still fire. Treat this probe's fire as "go re-read
+# the transcript", not as a mechanically certain verdict.
+_SERIAL_ELICITATION_RE = re.compile(
+    r"(?i)(?:"
+    r"\bany\s+other\s+feedback\b"
+    r"|\bwhat\s+else\s+should\b"
+    r"|\banything\s+else\s+(?:to\s+fix|you(?:'d| would)?\s+like|you\s+want)?\b"
+    r"|\bnext\s+item\??\s*$"
+    r"|\bshould\s+i\s+also\b"
+    r"|\banything\s+else\b\s*\??\s*$"
+    r")[^.\n]{0,30}[?]?\s*$"
+)
+
+
+def detect_serial_feedback_elicitation(probe: dict, messages: list[dict], _tool_uses,
+                                        _tool_errors=None, user_prompt: str = "",
+                                        traj_stats: dict | None = None) -> dict | None:
+    if not messages:
+        return None
+    hits = []
+    for m in messages:
+        text = m["text"].rstrip()
+        match = _SERIAL_ELICITATION_RE.search(text)
+        if match:
+            hits.append((m, match))
+    min_hits = max(2, _as_int(probe.get("min_turns"), 2))
+    if len(hits) < min_hits:
+        return None
+    first_m, first_match = hits[0]
+    last_m, last_match = hits[-1]
+    return {
+        "count": len(hits),
+        "first": first_m["text"][max(0, first_match.start() - 30):][:120].replace("\n", " "),
+        "last": last_m["text"][max(0, last_match.start() - 30):][:120].replace("\n", " "),
+    }
+
+
+DETECTORS["serial_feedback_elicitation"] = detect_serial_feedback_elicitation
+
+
 class _ProbeBudgetExceeded(BaseException):
     """Raised by the SIGALRM handler to abort a runaway probe phase. Derives
     from BaseException (not Exception) on purpose: run_probes' per-detector
@@ -3555,6 +3627,16 @@ def main() -> int:
                     min(int(p.get("window", BUDGET_WINDOW_DEFAULT)), WORD_COUNT_WINDOW_CAP)
                     for p in probes
                     if p.get("kind") == "budget_expired_without_checkpoint"
+                    and str(p.get("window", BUDGET_WINDOW_DEFAULT)).lstrip("-").isdigit()
+                ]
+                + [
+                    # serial_feedback_elicitation needs to see multiple
+                    # elicitation turns that are typically further back than
+                    # the default 3-message lookback — same widened-window
+                    # opt-in as budget_expired_without_checkpoint.
+                    min(int(p.get("window", BUDGET_WINDOW_DEFAULT)), WORD_COUNT_WINDOW_CAP)
+                    for p in probes
+                    if p.get("kind") == "serial_feedback_elicitation"
                     and str(p.get("window", BUDGET_WINDOW_DEFAULT)).lstrip("-").isdigit()
                 ]
             )
