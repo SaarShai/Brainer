@@ -25,7 +25,7 @@ FAIL verdict + finding categories. Mirrors test_security_scan.py's harness.
                                           CRITICAL/HIGH finding is test-only;
                                           documented suite counts stay honest
 
-Run: python3 skills/security-oversight/tools/test_skill_audit.py
+Run: python3 skills/_shared/tools/security-oversight/test_skill_audit.py
 """
 from __future__ import annotations
 

@@ -15,7 +15,7 @@ assert the triage. Mirrors test_impact.py's harness.
   S9  sensitive   — a HANDOFF.md / .env file in the diff -> HIGH secret
   S10 test-path   — a sink in a test file is downgraded (precision)
 
-Run: python3 skills/security-oversight/tools/test_security_scan.py
+Run: python3 skills/_shared/tools/security-oversight/test_security_scan.py
 """
 from __future__ import annotations
 
