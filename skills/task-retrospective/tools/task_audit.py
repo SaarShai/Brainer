@@ -222,6 +222,13 @@ def make_event(kind: str, **fields: Any) -> Dict[str, Any]:
 def command_start(args: argparse.Namespace) -> int:
     root = repo_root_from_args(args)
     ensure_write_allowed(root)
+    missing = []
+    if not args.goal or not args.goal.strip():
+        missing.append('--goal "<task goal>"')
+    if not args.definition_of_done or not args.definition_of_done.strip():
+        missing.append('--definition-of-done "<checkable finish condition>"')
+    if missing:
+        raise AuditError("start requires " + " and ".join(missing) + "; pass both")
     cur = current_path(root)
     if cur.exists() and not args.force:
         raise AuditError(f"task-retrospective already armed at {cur}; finish it or pass --force")
@@ -269,9 +276,29 @@ def command_note(args: argparse.Namespace) -> int:
         text=args.text,
         implication=args.implication,
         evidence_ref=args.evidence_ref,
+        enforcement=args.enforcement,
     )
     append_jsonl(confined(root, session["events_path"], "events_path"), event)
     # Redact the echoed event the same way it was written to disk.
+    print(json.dumps({"ok": True, "event": redact_obj(event)}, indent=2, sort_keys=True))
+    return 0
+
+
+def command_record_verification(args: argparse.Namespace) -> int:
+    root = repo_root_from_args(args)
+    ensure_write_allowed(root)
+    if not args.command_or_path.strip():
+        raise AuditError("record-verification requires a non-empty <cmd-or-path>")
+    if not args.result.strip() or "\n" in args.result or "\r" in args.result:
+        raise AuditError("record-verification requires a non-empty one-line <result>")
+    session = load_current(root)
+    event = make_event(
+        "evidence",
+        task_id=session.get("task_id"),
+        text=args.result,
+        evidence_ref=args.command_or_path,
+    )
+    append_jsonl(confined(root, session["events_path"], "events_path"), event)
     print(json.dumps({"ok": True, "event": redact_obj(event)}, indent=2, sort_keys=True))
     return 0
 
@@ -295,7 +322,19 @@ def bullet_events(events: Iterable[Dict[str, Any]], kind: str) -> List[str]:
             continue
         text = event.get("text") or event.get("task") or ""
         if text:
-            out.append(f"- {text}")
+            evidence_ref = event.get("evidence_ref") if kind == "evidence" else ""
+            out.append(f"- {evidence_ref}: {text}" if evidence_ref else f"- {text}")
+    return out
+
+
+def reusable_learnings(events: Iterable[Dict[str, Any]]) -> List[str]:
+    out = []
+    for event in events:
+        if event.get("type") != "candidate_lesson":
+            continue
+        text = event.get("text") or ""
+        if text:
+            out.append(f"- {text}\n  - Enforcement: {event.get('enforcement') or '(missing)'}")
     return out
 
 
@@ -316,7 +355,7 @@ def render_report(session: Dict[str, Any], events: List[Dict[str, Any]], evidenc
     failures = bullet_events(events, "failure") or ["- None recorded."]
     successes = bullet_events(events, "success") or ["- None recorded."]
     evidence = bullet_events(events, "evidence") or ["- No verification evidence recorded by the tool."]
-    candidates = bullet_events(events, "candidate_lesson") or ["- No durable project lesson nominated by the tool."]
+    candidates = reusable_learnings(events) or ["- No durable project lesson nominated by the tool."]
     decisions = bullet_events(events, "decision") or ["- None recorded."]
 
     missing = []
@@ -379,18 +418,112 @@ def render_report(session: Dict[str, Any], events: List[Dict[str, Any]], evidenc
 """
 
 
+# --------------------------------------------------------------------------- #
+# guard-probe — the mechanism-over-prose counterweight.
+#
+# A lesson whose violation is both normative and observable belongs on the
+# executable-guard route (destination 5), unless the report records a concrete
+# reason that a guard does not fit. This probe only identifies that route; it
+# never creates a guard itself.
+# --------------------------------------------------------------------------- #
+
+_NORMATIVE_RE = re.compile(r"\b(?:must|never|always|forbidden|required)\b", re.IGNORECASE)
+_OBSERVABLE_RE = re.compile(
+    r"\.(?:ai|csv|dxf|json|md|pdf|py|sh|step|stp|svg|toml|ts|ya?ml)\b|"
+    r"\b(?:illustrator|cad|dxf|git|lint|pdf|python|pytest|save|step|svg|test|tool)\b|"
+    r"\b(?:brief|claim|done|save|commit|publish)\b|"
+    r"\b\d+(?:\.\d+)?\s*mm\b|"
+    r"(?:^|[\s`])(?:\.{1,2}/|/)[\w./-]+",
+    re.IGNORECASE | re.MULTILINE,
+)
+_GUARD_LABEL_RE = re.compile(r"^GUARD\(([^():\r\n]+):\s*([^\r\n]+)\)$")
+_PAPER_LABEL_RE = re.compile(r"^PAPER\(([^\r\n]+)\)$")
+
+
+def _read_probe_text(args: argparse.Namespace, probe_name: str) -> Optional[str]:
+    parts: List[str] = []
+    if getattr(args, "text", ""):
+        parts.append(args.text)
+    if getattr(args, "body_file", ""):
+        bf = Path(args.body_file)
+        if not bf.is_file():
+            print(f"{probe_name}: --body-file not found: {bf}", file=sys.stderr)
+            return None
+        parts.append(bf.read_text(encoding="utf-8", errors="replace"))
+    text = "\n".join(parts).strip()
+    if not text:
+        print(f"{probe_name}: provide --text and/or --body-file", file=sys.stderr)
+        return None
+    return text
+
+
+def _guard_signals(text: str) -> Dict[str, Any]:
+    return {
+        "normative_markers": sorted({match.group(0).upper() for match in _NORMATIVE_RE.finditer(text)}),
+        "observable_surfaces": sorted({match.group(0).strip() for match in _OBSERVABLE_RE.finditer(text)}),
+    }
+
+
+def _is_guard_candidate(sig: Dict[str, Any]) -> bool:
+    return bool(sig["normative_markers"]) and bool(sig["observable_surfaces"])
+
+
+def _enforcement_error(text: str, enforcement: str) -> Optional[str]:
+    """Return the report-blocking enforcement-label error, if any."""
+    label = enforcement.strip()
+    sig = _guard_signals(text)
+    if _GUARD_LABEL_RE.match(label):
+        return None
+    paper = _PAPER_LABEL_RE.match(label)
+    if paper and paper.group(1).strip():
+        return None
+    if _is_guard_candidate(sig):
+        return "GUARD-CANDIDATE requires GUARD(<surface>: <artifact path or ticket>) or PAPER(<why guard does not fit>)"
+    return "requires GUARD(<surface>: <artifact path or ticket>) or PAPER(<why guard does not fit>)"
+
+
+def report_enforcement_errors(events: Iterable[Dict[str, Any]]) -> List[str]:
+    errors = []
+    for index, event in enumerate((event for event in events if event.get("type") == "candidate_lesson"), 1):
+        text = str(event.get("text") or "")
+        error = _enforcement_error(text, str(event.get("enforcement") or ""))
+        if error:
+            errors.append(f"reusable learning {index}: {error}")
+    return errors
+
+
+def command_guard_probe(args: argparse.Namespace) -> int:
+    text = _read_probe_text(args, "guard-probe")
+    if text is None:
+        return 2
+    sig = _guard_signals(text)
+    candidate = _is_guard_candidate(sig)
+    if args.json:
+        print(json.dumps({"verdict": "GUARD" if candidate else "PAPER", **sig}))
+    if candidate:
+        if not args.json:
+            print("GUARD-CANDIDATE — route to destination 5 (executable guard) before wiki.")
+            print(f"  normative markers: {', '.join(sig['normative_markers'])}")
+            print(f"  observable surfaces: {', '.join(sig['observable_surfaces'])}")
+        return 3
+    if not args.json:
+        print("PAPER-shaped — no executable-guard signal found.")
+    return 0
+
+
 def command_finish(args: argparse.Namespace) -> int:
     root = repo_root_from_args(args)
     ensure_write_allowed(root)
     session = load_current(root)
     events_p = confined(root, session["events_path"], "events_path")
-    finish_event = make_event("finish", task_id=session.get("task_id"))
-    append_jsonl(events_p, finish_event)
     events = read_events(events_p)
     evidence_quality = infer_evidence_quality(events, args.evidence_quality or "")
 
     wrote_report = False
     if args.report:
+        errors = report_enforcement_errors(events)
+        if errors:
+            raise AuditError("cannot mark reusable learnings bank-complete: " + "; ".join(errors))
         # session came from a redacted marker, but redact the rendered report
         # again so no secret can leak via interpolated metadata.
         text = redact(render_report(session, events, evidence_quality))
@@ -399,6 +532,8 @@ def command_finish(args: argparse.Namespace) -> int:
         path.write_text(text, encoding="utf-8")
         wrote_report = True
 
+    append_jsonl(events_p, make_event("finish", task_id=session.get("task_id")))
+    events = read_events(events_p)
     current_path(root).unlink(missing_ok=True)
     result = session_summary(session, False, len(events))
     result.update({"finished": True, "report_written": wrote_report, "evidence_quality": evidence_quality})
@@ -477,18 +612,8 @@ def _is_procedure(sig: Dict[str, Any]) -> bool:
 
 
 def command_route_probe(args: argparse.Namespace) -> int:
-    parts: List[str] = []
-    if getattr(args, "text", ""):
-        parts.append(args.text)
-    if getattr(args, "body_file", ""):
-        bf = Path(args.body_file)
-        if not bf.is_file():
-            print(f"route-probe: --body-file not found: {bf}", file=sys.stderr)
-            return 2
-        parts.append(bf.read_text(encoding="utf-8", errors="replace"))
-    text = "\n".join(parts).strip()
-    if not text:
-        print("route-probe: provide --text and/or --body-file", file=sys.stderr)
+    text = _read_probe_text(args, "route-probe")
+    if text is None:
         return 2
     sig = _procedure_signals(text)
     if args.json:
@@ -535,7 +660,16 @@ def build_parser() -> argparse.ArgumentParser:
     note.add_argument("--text", required=True)
     note.add_argument("--implication", default="")
     note.add_argument("--evidence-ref", default="")
+    note.add_argument("--enforcement", default="", help="GUARD(<surface>: <artifact path or ticket>) or PAPER(<why guard does not fit>) for candidate lessons")
     note.set_defaults(func=command_note)
+
+    verification = sub.add_parser(
+        "record-verification",
+        help="Append command/path verification evidence to the armed session",
+    )
+    verification.add_argument("command_or_path", metavar="cmd-or-path")
+    verification.add_argument("result", metavar="one-line-result")
+    verification.set_defaults(func=command_record_verification)
 
     status = sub.add_parser("status", help="Show current armed/unarmed state")
     status.set_defaults(func=command_status)
@@ -550,6 +684,12 @@ def build_parser() -> argparse.ArgumentParser:
     probe.add_argument("--body-file", default="", help="Optional drafted lesson body file")
     probe.add_argument("--json", action="store_true", help="Emit machine-readable verdict + signals")
     probe.set_defaults(func=command_route_probe)
+
+    guard = sub.add_parser("guard-probe", help="Refuse to silently route a normative, observable lesson to prose")
+    guard.add_argument("--text", default="", help="The candidate lesson one-liner")
+    guard.add_argument("--body-file", default="", help="Optional drafted lesson body file")
+    guard.add_argument("--json", action="store_true", help="Emit machine-readable verdict + signals")
+    guard.set_defaults(func=command_guard_probe)
     return ap
 
 

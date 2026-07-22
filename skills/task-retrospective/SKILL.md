@@ -118,8 +118,9 @@ Before writing any durable lesson later, retrieve existing memory/SOP/project-sp
 When a shell is available, use the lightweight recorder to capture the armed task state:
 
 ```bash
-python3 skills/task-retrospective/tools/task_audit.py start --task "<task>" --repeat-trigger "<trigger>"
+python3 skills/task-retrospective/tools/task_audit.py start --task "<task>" --repeat-trigger "<trigger>" --goal "<goal>" --definition-of-done "<checkable finish condition>"
 python3 skills/task-retrospective/tools/task_audit.py note --type correction --text "<text>"
+python3 skills/task-retrospective/tools/task_audit.py record-verification "<cmd-or-path>" "<one-line result>"
 python3 skills/task-retrospective/tools/task_audit.py status
 python3 skills/task-retrospective/tools/task_audit.py finish --report
 ```
@@ -177,8 +178,9 @@ For after-the-fact mode, reconstruct from the visible transcript, git diff, chan
 
 ## Durable write target ladder
 
-Use the narrowest durable target. There are **four destinations**, each a distinct
-backend — prefer the lightest that fits: **drop > wiki page > skill > always-on rule.**
+Use the narrowest durable target. There are **five destinations**, each a distinct
+backend — prefer the lightest that fits: **drop > wiki page > skill > always-on rule**,
+except that an executable guard outranks a wiki page when its contract-promotion gate holds.
 
 1. **drop** — no durable write (most lessons end here).
 2. **wiki page** → [`wiki-memory`](../wiki-memory/SKILL.md) — a durable fact, lesson, SOP,
@@ -189,6 +191,12 @@ backend — prefer the lightest that fits: **drop > wiki page > skill > always-o
    Create-vs-update is `/learn`'s dedup decision (PATCH vs CREATE), not a separate target.
 4. **always-on rule** — project `AGENTS.md` / `CLAUDE.md` / `GEMINI.md`, only for broad
    repo-wide behavior that must always be in context.
+5. **executable guard** — a consumer-repo brief-lint rule, [`compliance-canary`](../compliance-canary/drift_probes.json)
+   probe, test, or tool default. This destination **OUTRANKS wiki** for a lesson whose
+   violation is observable in artifacts, briefs, or claims and meets LEARNING_CONTRACT §3's
+   contract-promotion gate (cross-task, material failure, objective low-false-positive signal).
+   Ship the guard with its known-bad fixture first; a wiki page may accompany it as rationale,
+   never replace it.
 
 A fact or gotcha is a **wiki page**, not a skill; a repo-wide rule is an **always-on rule**,
 not a skill. Most retrospective lessons are facts/gotchas → destination 2 or drop.
@@ -197,6 +205,13 @@ not a skill. Most retrospective lessons are facts/gotchas → destination 2 or d
 > biases *downward* ("prefer the lightest", "most lessons are facts") — which silently
 > files genuine *procedures* as facts, so `/learn` is never reached (the connector-consistency
 > miss). Before writing any lesson to a wiki page, run the mechanical probe:
+> ```bash
+> python3 skills/task-retrospective/tools/task_audit.py guard-probe \
+>   --text "<lesson one-liner>" [--body-file <draft>]
+> ```
+> Exit 3 = **GUARD-CANDIDATE**: the lesson has both a normative marker and an observable
+> artifact/brief/claim surface. Route it to destination 5; a `PAPER(<why guard does not fit>)`
+> enforcement label is required if no guard is appropriate. Then run:
 > ```bash
 > python3 skills/task-retrospective/tools/task_audit.py route-probe \
 >   --text "<lesson one-liner>" [--body-file <draft>]
@@ -238,9 +253,9 @@ governance — dedup-before-write (patch, don't duplicate), the same `write-gate
 check this ladder already runs, birth as `status: proposed` (slash-only, can't auto-fire),
 and the telemetry-gated `proposed → trusted` lifecycle. A hand-written skill skips all that.
 
-This handoff is **conditional, not automatic** — destinations 1, 2, and 4 (drop, wiki,
-always-on rule) are NOT skills and stay on their own backends. task-retrospective remains
-the router that decides *whether* a lesson is durable and *which* of the four destinations
+This handoff is **conditional, not automatic** — destinations 1, 2, 4, and 5 (drop, wiki,
+always-on rule, executable guard) are NOT skills and stay on their own backends. task-retrospective remains
+the router that decides *whether* a lesson is durable and *which* of the five destinations
 it belongs to; `/learn` only owns the skill destination.
 
 ## Write pipeline
@@ -250,6 +265,7 @@ candidate lesson
 → task-retrospective relevance check
 → search existing memory/SOP/project-specific skills
 → choose narrowest project-owned target
+→ guard-probe: if normative and artifact/brief/claim-observable, route to destination 5 before wiki
 → route-probe: if procedure-shaped, test the skill (dest-3) gate before allowing a wiki page
 → run write-gate as content-quality filter
 → dedup/overlap check
@@ -291,6 +307,7 @@ Task-retrospective owns:
    Trigger/symptom:   # the OBSERVABLE signal a future task pattern-matches on (the symptom, not the topic), e.g. "off-by-hours in date tests" -> timezone/UTC fix
    Evidence:
    Target:
+   Enforcement: GUARD(<surface>: <artifact path or ticket>) or PAPER(<why guard doesn't fit, one line>)
    Write-gate:
    Action:
 

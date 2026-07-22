@@ -78,6 +78,7 @@ prose-only gotcha recurred). Two subrules:
   is objective and low-false-positive. The check is cheap on the decision's read path,
   and a known-bad fixture proves it trips. Otherwise keep the instruction
   trigger-local; do not create a generic detector or another source of truth.
+  The task-retrospective ladder's destination 5 and `guard-probe` enforce this routing.
 
 ## §4 Gates must be alive
 

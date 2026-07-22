@@ -61,9 +61,8 @@ def test_lifecycle_start_note_status_finish_report():
             "--implication", "Overlay template before moving artwork.",
         ], root=root)
         run_cli([
-            "note", "--type", "evidence",
-            "--text", "Overlay screenshot shows alignment is now correct.",
-            "--evidence-ref", "screenshot:alignment.png",
+            "record-verification", "tests/test_alignment.py",
+            "alignment test passed",
         ], root=root)
 
         status = load_json(run_cli(["status"], root=root).stdout)
@@ -81,12 +80,28 @@ def test_lifecycle_start_note_status_finish_report():
         text = report.read_text(encoding="utf-8")
         assert "# Task-retrospective report" in text
         assert "Fit artwork to dieline" in text
+        assert "- Goal: align art to cut lines" in text
+        assert "- Definition of done: all cut lines visible" in text
+        assert "(not recorded)" not in text
         assert "User said the cut line was still misaligned." in text
-        assert "Overlay screenshot shows alignment is now correct." in text
+        assert "tests/test_alignment.py: alignment test passed" in text
         assert "None written by `task_audit.py`" in text
 
         events = read_jsonl(root / ".brainer" / "task-retrospective" / "sessions" / "demo-task" / "events.jsonl")
         assert [event["type"] for event in events] == ["start", "correction", "evidence", "finish"]
+        assert events[2]["evidence_ref"] == "tests/test_alignment.py"
+
+
+def test_start_requires_goal_and_definition_of_done():
+    with tempfile.TemporaryDirectory() as tmp:
+        proc = run_cli([
+            "start", "--task", "Missing contract", "--repeat-trigger", "fixture",
+        ], root=tmp, expect=2)
+        assert proc.stderr.strip() == (
+            'task_audit.py: start requires --goal "<task goal>" and '
+            '--definition-of-done "<checkable finish condition>"; pass both'
+        )
+        assert not (Path(tmp) / ".brainer" / "task-retrospective" / "current.json").exists()
 
 
 def test_note_without_armed_session_fails_cleanly():
@@ -118,7 +133,9 @@ def test_no_write_refuses_canonical_repo_root():
 def test_no_write_allows_isolated_temp_fixture():
     with tempfile.TemporaryDirectory() as tmp:
         proc = run_cli([
-            "start", "--task", "Temp fixture", "--repeat-trigger", "fixture", "--task-id", "fixture"
+            "start", "--task", "Temp fixture", "--repeat-trigger", "fixture",
+            "--goal", "exercise recorder", "--definition-of-done", "fixture is armed",
+            "--task-id", "fixture"
         ], root=tmp, env={"BRAINER_CHECK_NO_WRITE": "1"})
         data = load_json(proc.stdout)
         assert data["active"] is True
@@ -129,7 +146,9 @@ def test_secret_like_values_are_redacted():
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         run_cli([
-            "start", "--task", "Redact", "--repeat-trigger", "secret-shaped text", "--task-id", "redact"
+            "start", "--task", "Redact", "--repeat-trigger", "secret-shaped text",
+            "--goal", "capture safely", "--definition-of-done", "no secrets persisted",
+            "--task-id", "redact"
         ], root=root)
         proc = run_cli([
             "note", "--type", "evidence", "--text", "token=abc123 password: hunter2 Authorization: Bearer xyz"
@@ -153,6 +172,8 @@ def test_after_the_fact_report_marks_reconstruction():
             "start",
             "--task", "Reconstruct previous work",
             "--repeat-trigger", "when the user forgot to arm task audit",
+            "--goal", "reconstruct the task contract",
+            "--definition-of-done", "the report names what happened and what is missing",
             "--after-the-fact",
             "--task-id", "reconstruct",
         ], root=root)
@@ -191,6 +212,31 @@ def test_route_probe_json_and_usage():
     assert obj["verdict"] == "PROCEDURE" and obj["verb_count"] >= 2, obj
     # no input is a usage error, not a crash.
     run_cli(["route-probe"], expect=2)
+
+
+def test_guard_probe_flags_normative_observable_lessons():
+    p = run_cli([
+        "guard-probe", "--text", "flaps must never be mirrored; verify vs baseline STEP",
+    ], expect=3)
+    assert "GUARD-CANDIDATE" in p.stdout, p.stdout
+    p = run_cli(["guard-probe", "--text", "the team felt communication was good"], expect=0)
+    assert "PAPER-shaped" in p.stdout, p.stdout
+
+
+def test_report_refuses_unjustified_paper_for_guard_candidate():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        run_cli([
+            "start", "--task", "Guard report", "--repeat-trigger", "when banking a lesson", "--task-id", "guard-report",
+        ], root=root)
+        run_cli([
+            "note", "--type", "candidate_lesson",
+            "--text", "flaps must never be mirrored; verify vs baseline STEP",
+            "--enforcement", "PAPER()",
+        ], root=root)
+        proc = run_cli(["finish", "--report"], root=root, expect=2)
+        assert "cannot mark reusable learnings bank-complete" in proc.stderr
+        assert (root / ".brainer" / "task-retrospective" / "current.json").exists()
 
 
 def test_loop_lint_lesson_pattern_stops_at_rule_boundary():
