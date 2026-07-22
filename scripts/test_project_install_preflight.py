@@ -49,14 +49,14 @@ def main() -> int:
         project.mkdir()
         brainer = project / ".brainer"
         brainer.mkdir()
-        target = brainer / "skills" / "verify-before-completion"
+        target = brainer / "skills" / "index-first"
         target.mkdir(parents=True)
         git_init(brainer)
 
         rc, report = run(project, brainer)
         check("clean project is installable", rc == 0 and report["verdict"] == "INSTALL")
 
-        skill_link = project / ".codex" / "skills" / "verify-before-completion"
+        skill_link = project / ".codex" / "skills" / "index-first"
         skill_link.parent.mkdir(parents=True)
         skill_link.symlink_to(target)
         rc, report = run(project, brainer)

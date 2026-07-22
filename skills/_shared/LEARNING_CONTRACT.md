@@ -10,7 +10,7 @@ Consumers: [`write-gate`](../write-gate/SKILL.md) (enforces §1–§3 at banking
 time) · [`task-retrospective`](../task-retrospective/SKILL.md) +
 [`compliance-canary`](../compliance-canary/SKILL.md) (enforce §2) ·
 [`eval-gate`](../eval-gate/SKILL.md) +
-[`verify-before-completion`](../verify-before-completion/SKILL.md) (enforce
+[`verify-before-completion`](../_shared/briefs/verify-before-completion.md) (enforce
 §5) · [`propagate`](../propagate/SKILL.md) (enforces §1 cross-repo lane) ·
 `skills/_shared/knowledge_liveness.py` (enforces §4 mechanically).
 

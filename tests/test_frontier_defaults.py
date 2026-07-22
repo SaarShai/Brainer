@@ -23,7 +23,6 @@ MANUAL_SKILLS = (
     "task-retrospective",
     "team-lead",
     "think",
-    "verify-before-completion",
 )
 ROLE_FILES = (
     ROOT / ".claude/agents/builder.md",
@@ -35,7 +34,6 @@ FRONTIER_ECONOMY_SKILLS = (
     "prompt-triage",
     "team-lead",
     "think",
-    "verify-before-completion",
 )
 CARRIERS = ("AGENTS.md", "CLAUDE.md", "GEMINI.md")
 

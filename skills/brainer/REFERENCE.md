@@ -26,7 +26,7 @@ skills remain authoritative.
 | Need or observable signal | Source | Mode | What may be selected | Avoid when |
 |---|---|---|---|---|
 | A premise may be wrong; a build should be borrowed, constrained, or cheaply falsified; a causal or risky decision needs deliberate reasoning | [`think`](../think/SKILL.md#exported-methods-for-brainer) | `method` | Choose only matching IDs from **Think method exports** below | Clear mechanical work with no consequential uncertainty |
-| A meaningful completion claim needs evidence beyond the compact default check | [`verify-before-completion`](../verify-before-completion/SKILL.md#verify-before-completion) | `whole` | Complete claim-layer verification workflow | No changed artifact or externally checkable claim |
+| A meaningful completion claim needs evidence beyond the compact default check | [`verify-before-completion`](../_shared/briefs/verify-before-completion.md#verify-before-completion) | `whole` | Complete claim-layer verification workflow | No changed artifact or externally checkable claim |
 | Repeated generation/checking needs a machine gate, budget, and stop rule | [`loop-engineering`](../loop-engineering/SKILL.md#do-you-even-need-a-loop) | `whole` | Complete loop design and lint contract | One pass or a normal test command is sufficient |
 
 ### Think method exports
@@ -56,9 +56,8 @@ Use the exact `think:<id>` form in the final selection:
 | Need or observable signal | Source | Mode | What it does | Avoid when |
 |---|---|---|---|---|
 | A code change needs forward blast-radius analysis | [`impact-of-change`](../impact-of-change/SKILL.md#when-to-use) | `whole` | Maps changed symbols to static dependents and risk | Documentation-only work or no change under review |
-| A diff or untrusted skill needs introduced-risk triage | [`security-oversight`](../security-oversight/SKILL.md#when-to-use) | `whole` | Runs the complete lexical security or pre-install audit contract | No diff/untrusted package is in scope; never claim a clean scan proves safety |
+| A diff or untrusted skill needs introduced-risk triage | [`security-oversight`](../_shared/briefs/security-oversight.md#when-to-use) | `whole` | Runs the complete lexical security or pre-install audit contract | No diff/untrusted package is in scope; never claim a clean scan proves safety |
 | An AI-produced artifact needs judgment against a written rubric | [`eval-gate`](../eval-gate/SKILL.md#protocol) | `whole` | Scores output and preserves failed cases | Deterministic verification can fully decide correctness |
-| Prompt-cache ordering, mutation, model switching, or unused tool surface is the subject | [`cache-lint`](../cache-lint/SKILL.md#when-to-run) | `whole` | Runs the six cache rules plus tool-surface audit | Ordinary application performance work unrelated to prompt caching |
 
 ## Routes requiring additional authority
 

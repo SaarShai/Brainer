@@ -31,7 +31,7 @@ deliberately, promote after it has earned trust on real diffs.
   user verifies the high-risk zones (this skill never runs tests).
 - Composed with **loop-engineering**: gate the "is the change safe enough to
   integrate?" decision in a generate→verify loop.
-- Composed with **[security-oversight](../security-oversight/SKILL.md)**: its
+- Composed with **[security-oversight](../_shared/briefs/security-oversight.md)**: its
   security sibling — impact says *what breaks*, security-oversight says *what's
   exploitable*; run both on the same pre-commit diff.
 

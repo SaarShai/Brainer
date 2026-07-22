@@ -152,13 +152,13 @@ Each kind is the JSON shape an author writes in their skill's `drift_probes.json
 
 - **`forbidden_regex`** — regex on recent assistant text → style drift (pleasantries, fluff, "as an AI" hedges, emoji creep).
 - **`word_count_per_message`** — avg words/msg over a window → terseness drift (caveman-ultra creep, explanation bloat).
-- **`claim_without_evidence`** — a claim word with no verify-style tool call in recent history → [verify-before-completion](../verify-before-completion/SKILL.md) drift.
+- **`claim_without_evidence`** — a claim word with no verify-style tool call in recent history → [verify-before-completion](../_shared/briefs/verify-before-completion.md) drift.
 - **`repeated_tool_error`** *(v1.7)* — a recurring `is_error` signature → a tool error the agent keeps re-triggering.
 - **`user_correction`** *(v1.7)* — current prompt matches a correction pattern → surface it so it isn't ignored (route the lesson through [write-gate](../write-gate/SKILL.md)); when task-audit mode is armed (or the user asks), also opens a closeout-blocking correction-ledger item (Mechanism 4, LEARNING_CONTRACT §2) until it is banked or user-closed — unarmed, the correction is acted on and acknowledged but the ledger stays inert (armed-only, 2026-07-20 policy fix).
 - **`trajectory_drift`** *(v1.8)* — session tool-error RATE over the tail → thrashing (retry loops, schema-mismatch storms).
 - **`prompt_intent`** *(v1.11)* — current prompt matches a governed situation → a PRE-TASK skill nudge (spontaneous Skill invocation is unreliable, so fire mechanically).
-- **`early_stop`** *(v1.11)* — last turn is a forward-looking promise with no tool/claim/question → the anti-early-stop reflex ([verify-before-completion](../verify-before-completion/SKILL.md)).
-- **`completion_without_closure`** *(v1.11)* — a terminal done-claim without asking the user to confirm closure → the self-close gate ([verify-before-completion](../verify-before-completion/SKILL.md)).
+- **`early_stop`** *(v1.11)* — last turn is a forward-looking promise with no tool/claim/question → the anti-early-stop reflex ([verify-before-completion](../_shared/briefs/verify-before-completion.md)).
+- **`completion_without_closure`** *(v1.11)* — a terminal done-claim without asking the user to confirm closure → the self-close gate ([verify-before-completion](../_shared/briefs/verify-before-completion.md)).
 
 ### Wrap-up learning nudges (`workflow_nomination`)
 

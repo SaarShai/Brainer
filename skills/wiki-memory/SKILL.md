@@ -94,7 +94,7 @@ Potential sources:
 
 Protocol:
 1. Search existing pages first.
-2. Prefer updating an existing page over creating a new one; fewer rich pages beat many thin one-off pages. **Dedup-at-write:** `python skills/wiki-memory/tools/wiki.py overlap --title "<title>" --tags "a,b" [--body-file <draft>]`. `high` → update the reported `best_match` instead of creating (two pages on one subject inevitably drift apart). `moderate` → create, but it's a Consolidate candidate for [`wiki-refresh`](../wiki-refresh/SKILL.md). `low` → create.
+2. Prefer updating an existing page over creating a new one; fewer rich pages beat many thin one-off pages. **Dedup-at-write:** `python skills/wiki-memory/tools/wiki.py overlap --title "<title>" --tags "a,b" [--body-file <draft>]`. `high` → update the reported `best_match` instead of creating (two pages on one subject inevitably drift apart). `moderate` → create, but it's a Consolidate candidate for [`wiki-refresh`](../_shared/briefs/wiki-refresh.md). `low` → create.
 3. **Pre-check the candidate with [`write-gate`](../write-gate/SKILL.md)** — `python skills/write-gate/tools/write_gate.py gate --kind <kind> --file <candidate>`. If it rejects, revise or drop; do not bypass.
 4. If no page, run `python skills/wiki-memory/tools/wiki.py new --template page --title "<title>" --domain "<domain>"`.
 5. Name new pages at domain/category level, not task-specific bug names.
@@ -109,13 +109,13 @@ Protocol:
 9. Add ≥2 useful wikilinks when possible.
 10. Append `wiki/log.md`.
 11. Run `python ... index`; for new v2 pages run `python ... lint --strict`.
-12. **Selective refresh on write (compounding loop):** if this write *contradicts* or *supersedes* an existing page, or a refactor/rename invalidated refs a related page cites, invoke [`wiki-refresh`](../wiki-refresh/SKILL.md) with the **narrowest** scope hint (the affected page id / tag / dir) — don't wait for the periodic sweep. A new fact that invalidates an old one is exactly when reconcile pays off. Fire only on contradiction/supersession/refactor signals, not on every write. (Port of EveryInc ce-compound Phase 2.5 selective-refresh-check.)
+12. **Selective refresh on write (compounding loop):** if this write *contradicts* or *supersedes* an existing page, or a refactor/rename invalidated refs a related page cites, invoke [`wiki-refresh`](../_shared/briefs/wiki-refresh.md) with the **narrowest** scope hint (the affected page id / tag / dir) — don't wait for the periodic sweep. A new fact that invalidates an old one is exactly when reconcile pays off. Fire only on contradiction/supersession/refactor signals, not on every write. (Port of EveryInc ce-compound Phase 2.5 selective-refresh-check.)
 
 **Conflict & trust — the poison defense (`write-gate` is NOT a truth filter).** The gate scores *signal/quality*, not *truth*: a confident, well-formed but WRONG lesson passes it (measured — 8/8 adversarial lessons passed at mean score 4.88; `eval/exp5_adversarial/`). So before writing a fact that may **contradict** an existing same-subject page, run the trust-gated check:
 ```bash
 python3 skills/wiki-memory/tools/wiki.py resolve --title "<t>" --body-file <draft> --tags "a,b" --trust <tier>
 ```
-Tiers: `asserted` (default) < `corroborated` (independently re-seen) < `verified` (checked against code/test/fs, cf. `audit-refs`) < `user_confirmed`. Stamp each page's tier at creation with `new --trust <tier>`. `resolve` returns an action: **create** (no same-subject page) · **replace** (your higher-trust correction supersedes — wire `supersedes`/`superseded-by`) · **reject** (a higher-trust page exists; do NOT overwrite — raise trust by verifying, or record `contradicts:[[…]]`) · **dispute** (equal trust — mark `contradicts:` both ways so retrieval surfaces the conflict instead of serving one as truth). This recovers the truth+poison coexistence case (measured — dependent accuracy 0.5→1.0). **Honest limit:** with no competing truth and no verifier, a lie can only be *flagged unverified*, not corrected — that hand-off is [`verify-before-completion`](../verify-before-completion/SKILL.md) + code-grounded checks. (Pure logic in [`provenance.py`](tools/provenance.py).)
+Tiers: `asserted` (default) < `corroborated` (independently re-seen) < `verified` (checked against code/test/fs, cf. `audit-refs`) < `user_confirmed`. Stamp each page's tier at creation with `new --trust <tier>`. `resolve` returns an action: **create** (no same-subject page) · **replace** (your higher-trust correction supersedes — wire `supersedes`/`superseded-by`) · **reject** (a higher-trust page exists; do NOT overwrite — raise trust by verifying, or record `contradicts:[[…]]`) · **dispute** (equal trust — mark `contradicts:` both ways so retrieval surfaces the conflict instead of serving one as truth). This recovers the truth+poison coexistence case (measured — dependent accuracy 0.5→1.0). **Honest limit:** with no competing truth and no verifier, a lie can only be *flagged unverified*, not corrected — that hand-off is [`verify-before-completion`](../_shared/briefs/verify-before-completion.md) + code-grounded checks. (Pure logic in [`provenance.py`](tools/provenance.py).)
 
 ## Lint
 
@@ -127,7 +127,7 @@ Always-on findings: broken `[[wikilinks]]`, orphans (0 inbound), duplicate title
 
 Write-gate (two layers). The **execution gate** is agent discipline — a procedure step in the write protocol above, not code auto-invoked by `wiki.py`. The **content gate** IS code auto-invoked: `wiki.py`'s `new_page()` calls `gate_candidate()` (write-gate's signal scorer plus a near-dup check) before committing a page and raises `WikiWriteRejected` on a low-signal/reasonless or near-duplicate candidate (`--force`/`force=True` is the explicit bypass) — see [`write-gate`](../write-gate/SKILL.md) for the mechanism. `wiki.py` also enforces the structural guard (a duplicate filename raises `FileExistsError`). What remains agent discipline plus `lint`/`lint --strict` flagging after the fact is the execution gate below.
 
-**Execution gate** (agent discipline — see [`verify-before-completion`](../verify-before-completion/SKILL.md)):
+**Execution gate** (agent discipline — see [`verify-before-completion`](../_shared/briefs/verify-before-completion.md)):
 - No durable memory from unexecuted plans.
 - No trivial lookups inflated into fake procedures.
 - `wiki/raw/` is immutable after creation (convention; not enforced by the write path).

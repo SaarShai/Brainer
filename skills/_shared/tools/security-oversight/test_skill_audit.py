@@ -224,7 +224,11 @@ def a17_realistic_benign():
 
 
 def a18_dogfood():
-    skill_dir = HERE.parent
+    # security-oversight was demoted to a delegate brief (Great Pruning A2,
+    # 2026-07-22): its tools now live in skills/_shared/tools/security-oversight/
+    # (no longer a self-contained skill dir with SKILL.md/EVAL.md), so this
+    # self-audits the tools dir itself and reads prose claims from the brief.
+    skill_dir = HERE
     rep = sa.audit_skill(skill_dir)
     severe_non_test = [
         f for f in rep["findings"]
@@ -236,11 +240,10 @@ def a18_dogfood():
     _check(not severe_non_test,
            f"A18 CRITICAL/HIGH self-findings must be test-only: {severe_non_test}")
 
-    skill_text = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
-    eval_text = (skill_dir / "EVAL.md").read_text(encoding="utf-8")
-    claims = skill_text + "\n" + eval_text
-    _check("A1–A18" in skill_text, "A18 SKILL.md must state the actual skill-audit range")
-    _check("S1–S14" in skill_text, "A18 SKILL.md must state the actual scanner range")
+    brief_path = HERE.parents[2] / "_shared" / "briefs" / "security-oversight.md"
+    claims = brief_path.read_text(encoding="utf-8")
+    _check("A1–A18" in claims, "A18 brief must state the actual skill-audit range")
+    _check("S1–S14" in claims, "A18 brief must state the actual scanner range")
     _check("10/10" not in claims, "A18 stale 10/10 scanner count must be removed")
     _check("23/24" not in claims, "A18 stale repo-wide self-PASS count must be removed")
 

@@ -28,8 +28,6 @@ from _lib import Report, import_skill_module, print_report, write_report  # noqa
 
 os.environ.setdefault("AGENTS_TRIAGE_NO_OLLAMA", "1")  # keep triage deterministic
 
-DOLLAR = chr(36)  # avoid shell/heredoc capture of $(...) in any wrapper
-
 
 def _best_of_3(fn) -> tuple[float, object]:
     """Return (min_seconds, last_result) over 3 runs."""
@@ -76,26 +74,8 @@ def build_cases(report: Report) -> None:
     _case(report, "context-keeper:regex_extract:40kb-slash-block", 3000.0,
           lambda: extract.regex_extract(iter([ev])))
 
-    # 2. cache-lint dynamic-content — typography-before-cap was O(n^2) (7s/5k).
-    cache_lint = import_skill_module("cache-lint", "cache_lint")
-    import tempfile
-    d = Path(tempfile.mkdtemp(prefix="hotpath_cl_"))
-    (d / "CLAUDE.md").write_text((DOLLAR + "(date) ") * 5000)
-    _case(report, "cache-lint:audit-rule2:5k-substitutions", 2000.0,
-          lambda: cache_lint.audit(d, rule_filter=2))
-    # 2b. many backticked typography matches (exercises the inline-code span path).
-    d2 = Path(tempfile.mkdtemp(prefix="hotpath_cl2_"))
-    (d2 / "CLAUDE.md").write_text(("`" + DOLLAR + "(date)`\n") * 5000)
-    _case(report, "cache-lint:audit-rule2:5k-typography", 2000.0,
-          lambda: cache_lint.audit(d2, rule_filter=2))
-
-    # 3. output-filter — ANSI strip + dedupe on a hostile 10k-line stream.
-    of = import_skill_module("output-filter", "output_filter")
-    rules = of.load_rules(None)
-    ESC = chr(27)
-    hostile = "".join(f"{ESC}[?25l{ESC}[32mline {i % 7}{ESC}[0m\n" for i in range(10000))
-    _case(report, "output-filter:filter_text:10k-ansi-lines", 2000.0,
-          lambda: of.filter_text(hostile, rules=rules))
+    # 2. cache-lint and output-filter cases removed (Great Pruning A2,
+    #    2026-07-22): both skills deleted, zero clean-signal usage.
 
     # 4. write-gate — WHY word-boundary regex + scorer on a long adversarial text.
     wg = import_skill_module("write-gate", "write_gate")

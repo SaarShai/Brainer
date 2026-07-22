@@ -6,7 +6,6 @@ Verifies cross-skill composition:
   2. write-gate ACCEPTS reasoned decisions (page is written).
   3. After 365 simulated days, unprotected pages have decayed.
   4. Protected pages (errors, high-evidence) survive intact.
-  5. cache-lint passes on the resulting wiki (no smells introduced).
 """
 from __future__ import annotations
 
@@ -22,14 +21,12 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "skills/write-gate/tools"))
 sys.path.insert(0, str(REPO / "skills/wiki-memory/tools"))
-sys.path.insert(0, str(REPO / "skills/cache-lint/tools"))
 
 from write_gate import DEFAULT_THRESHOLD, decide, score_text  # noqa: E402
 from decay import (  # noqa: E402
     DEFAULT_HALFLIFE_DAYS, EVIDENCE_PROTECT_THRESHOLD, PROTECTED_DIRS,
     PROTECTED_TYPES, decay_all,
 )
-from cache_lint import audit  # noqa: E402
 
 
 @dataclass
@@ -106,7 +103,7 @@ def gate_decision(c: Candidate) -> bool:
 
 
 def run() -> dict:
-    results = {"candidates": [], "decay_trajectory": {}, "cache_lint": {}}
+    results = {"candidates": [], "decay_trajectory": {}}
 
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
@@ -170,26 +167,16 @@ def run() -> dict:
                     else (after[c.title] < before[c.title] * 0.7),
             }
 
-        # Phase 5: cache-lint on the project root (CLAUDE.md was set up)
-        lint_report = audit(root)
-        results["cache_lint"] = {
-            "n_targets": len(lint_report.targets),
-            "FAIL": lint_report.summary["FAIL"],
-            "WARN": lint_report.summary["WARN"],
-        }
-
     # Verdicts
     gate_correct = sum(1 for r in results["candidates"] if r["correct"])
     trajectory_correct = sum(1 for v in results["decay_trajectory"].values() if v["behavior_correct"])
     results["summary"] = {
         "gate_correct": f"{gate_correct}/{len(results['candidates'])}",
         "trajectory_correct": f"{trajectory_correct}/{len(results['decay_trajectory'])}",
-        "cache_lint_fails": results["cache_lint"]["FAIL"],
     }
     results["passed"] = (
         gate_correct == len(results["candidates"])
         and trajectory_correct == len(results["decay_trajectory"])
-        and results["cache_lint"]["FAIL"] == 0
     )
     return results
 
@@ -201,7 +188,7 @@ def main() -> int:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(json.dumps(out, indent=2))
 
-    print("=== end-to-end integration: write-gate → wiki → memory-decay → cache-lint ===\n")
+    print("=== end-to-end integration: write-gate → wiki → memory-decay ===\n")
     print("PHASE 1 — gate decisions:")
     for r in out["candidates"]:
         mark = "ok" if r["correct"] else "FAIL"
@@ -214,10 +201,6 @@ def main() -> int:
         mark = "ok" if v["behavior_correct"] else "FAIL"
         prot = "protected" if v["protected"] else "unprotected"
         print(f"  [{mark}] {title:<35} {v['before']:.2f} → {v['after_52w']:.2f}  ({prot})")
-
-    print(f"\nPHASE 5 — cache-lint on resulting project:")
-    cl = out["cache_lint"]
-    print(f"  targets={cl['n_targets']}  FAIL={cl['FAIL']}  WARN={cl['WARN']}")
 
     print(f"\nSUMMARY: {out['summary']}")
     print(f"OVERALL: {'PASSED' if out['passed'] else 'FAILED'}")

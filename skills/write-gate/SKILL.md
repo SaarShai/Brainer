@@ -15,7 +15,7 @@ Two-layer policy:
 1. **Execution gate** (existing) — fact came from an action that *executed* and *succeeded*. Plans don't earn pages.
 2. **Content gate** (this skill) — fact has signal AND, if it's a decision/convention, gives a reason.
 
-The execution gate is the job of [`verify-before-completion`](../verify-before-completion/SKILL.md) (evidence-first: a fact only earns a page once the action that produced it ran and passed). This skill adds the **content gate**. It is enforced two ways: as a procedure gate (`wiki-memory`'s `SKILL.md` step 3 instructs running `write_gate.py gate` before hand-authored writes like `CLAUDE.md`/`AGENTS.md`), AND mechanically inside `wiki.py`'s own write path — `new_page()` calls `gate_candidate()` (which runs the write-gate signal scorer plus an overlap near-dup check) before committing a page, and raises `WikiWriteRejected` on a low-signal/reasonless or near-duplicate candidate; the CLI's `new` command catches that exception and exits 1, surfacing the refusal reason. `--force`/`force=True` is the explicit bypass for deliberate scaffold-then-fill writes. So a low-signal `wiki.py new` call is refused by code, not just by convention — but the gate still scores signal-shape, not truth: it passed 8/8 confident-wrong lessons in the adversarial poison eval (mean gate score 4.88, identical to their correct twins), so it is not a truth filter.
+The execution gate is the job of [`verify-before-completion`](../_shared/briefs/verify-before-completion.md) (evidence-first: a fact only earns a page once the action that produced it ran and passed). This skill adds the **content gate**. It is enforced two ways: as a procedure gate (`wiki-memory`'s `SKILL.md` step 3 instructs running `write_gate.py gate` before hand-authored writes like `CLAUDE.md`/`AGENTS.md`), AND mechanically inside `wiki.py`'s own write path — `new_page()` calls `gate_candidate()` (which runs the write-gate signal scorer plus an overlap near-dup check) before committing a page, and raises `WikiWriteRejected` on a low-signal/reasonless or near-duplicate candidate; the CLI's `new` command catches that exception and exits 1, surfacing the refusal reason. `--force`/`force=True` is the explicit bypass for deliberate scaffold-then-fill writes. So a low-signal `wiki.py new` call is refused by code, not just by convention — but the gate still scores signal-shape, not truth: it passed 8/8 confident-wrong lessons in the adversarial poison eval (mean gate score 4.88, identical to their correct twins), so it is not a truth filter.
 
 ## When to call
 
@@ -30,7 +30,7 @@ Trigger phrases: "remember that …", "log this …", "add to memory", "record �
 
 ## What earns a memory (and which store)
 
-The gate is about *quality*; the *contract* is about shape. Record **corrections AND confirmed approaches alike**, each with the **why** it mattered. Don't store what the repo, the code graph, or chat history already records. **Dedup-at-write** (update rather than duplicate) is [`wiki-memory`](../wiki-memory/SKILL.md)'s write-path job (`wiki.py overlap`), not restated here. **Delete a note that turns out wrong** — git is the archive; a falsified non-protected page is removed via [`wiki-refresh`](../wiki-refresh/SKILL.md)'s Delete outcome.
+The gate is about *quality*; the *contract* is about shape. Record **corrections AND confirmed approaches alike**, each with the **why** it mattered. Don't store what the repo, the code graph, or chat history already records. **Dedup-at-write** (update rather than duplicate) is [`wiki-memory`](../wiki-memory/SKILL.md)'s write-path job (`wiki.py overlap`), not restated here. **Delete a note that turns out wrong** — git is the archive; a falsified non-protected page is removed via [`wiki-refresh`](../_shared/briefs/wiki-refresh.md)'s Delete outcome.
 
 Two stores, two shapes — don't conflate them:
 - **The cross-session memory dir** (`~/.claude/projects/<proj>/memory/`, harness-owned): **one fact per file**, with a **one-line summary at the top** (the frontmatter `description:`). Atomic by contract.
@@ -121,8 +121,8 @@ There is no agent-only override.
 ## Related skills
 
 - [`wiki-memory`](../wiki-memory/SKILL.md) — owns the actual write path; this skill is its precheck.
-- [`verify-before-completion`](../verify-before-completion/SKILL.md) — execution-gate sibling; together they enforce "no execution, no memory; no reason, no decision."
-- [`wiki-refresh`](../wiki-refresh/SKILL.md) — reconciles stored memories against the codebase after they pass this gate.
+- [`verify-before-completion`](../_shared/briefs/verify-before-completion.md) — execution-gate sibling; together they enforce "no execution, no memory; no reason, no decision."
+- [`wiki-refresh`](../_shared/briefs/wiki-refresh.md) — reconciles stored memories against the codebase after they pass this gate.
 
 ## Configuration
 

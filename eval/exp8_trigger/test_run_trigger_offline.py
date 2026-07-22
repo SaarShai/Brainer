@@ -18,7 +18,7 @@ class TriggerCasesTest(unittest.TestCase):
         self.assertEqual(len(targets), len(set(targets)))
         self.assertEqual(set(targets), trigger.live_skill_names())
         self.assertEqual(trigger.live_skill_names(), {name for name, _ in trigger.load_catalog()})
-        self.assertEqual(24, len(targets))
+        self.assertEqual(18, len(targets))
 
     def test_old_14_case_fixture_fails_current_coverage_assertion(self) -> None:
         errors = trigger.validate_cases(target_cases=trigger.TARGET_CASES[:14])
@@ -92,7 +92,7 @@ class TriggerCasesTest(unittest.TestCase):
             cwd=HERE, capture_output=True, text=True, timeout=10,
         )
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertIn("PASS targets=24 compositions=2 live=24", result.stdout)
+        self.assertIn("PASS targets=18 compositions=1 live=18", result.stdout)
 
 
 if __name__ == "__main__":

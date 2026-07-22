@@ -143,56 +143,10 @@ def ablate_prompt_triage() -> dict:
             "rules": rows}
 
 
-def ablate_cache_lint() -> dict:
-    """Rule-2 mechanism attribution: disable each of the 4 gating mechanisms
-    (typography-skip, fence-parity downgrade, per-pattern cap) one at a time on a
-    crafted fixture and count how many findings change (presence or severity).
-    acc has no gold here, so flips are the signal (acc_reliable=False)."""
-    import tempfile
-    cl = import_skill_module("cache-lint", "cache_lint")
-    d = Path(tempfile.mkdtemp(prefix="abl_cl_"))
-    sub = "$(date)"
-    # Order matters: the fenced case must land WITHIN the per-pattern cap (5) to be
-    # emitted at all, else the cap suppresses it before fence-parity can act on it.
-    body = ("# rules\n"
-            + "```\n" + sub + "\n```\n"             # fenced -> WARN, emitted first (exercises fence-parity)
-            + (sub + "\n") * 1                       # 1 bare FAIL
-            + ("`" + sub + "`\n") * 3                # 3 backticked typography (skip path)
-            + (sub + "\n") * 8)                      # 8 bare -> fills cap, suppresses rest (exercises cap)
-    (d / "CLAUDE.md").write_text(body)
+# ablate_cache_lint removed: cache-lint deleted (Great Pruning A2, 2026-07-22,
+# zero clean-signal usage) — see skills/SKILLS_INDEX.md "Removed after measurement".
 
-    def fingerprint():
-        rep = cl.audit(d, rule_filter=2)
-        return sorted((f.severity, f.line, f.title) for f in rep.findings)
-
-    base = fingerprint()
-    rows = []
-    mechanisms = {
-        "typography-skip(_pos_in_spans)": ("_pos_in_spans", lambda *a, **k: False),
-        "fence-parity(_inside_fence_fast)": ("_inside_fence_fast", lambda *a, **k: False),
-    }
-    for name, (attr, stub) in mechanisms.items():
-        if not hasattr(cl, attr):
-            continue
-        orig = getattr(cl, attr); setattr(cl, attr, stub)
-        try:
-            mut = fingerprint()
-        finally:
-            setattr(cl, attr, orig)
-        rows.append({"rule": name, "flips": len(set(base) ^ set(mut)), "acc_delta": 0.0})
-    # per-pattern cap via the constant
-    orig = cl.MAX_FINDINGS_PER_RULE_PER_FILE; cl.MAX_FINDINGS_PER_RULE_PER_FILE = 10 ** 6
-    try:
-        mut = fingerprint()
-    finally:
-        cl.MAX_FINDINGS_PER_RULE_PER_FILE = orig
-    rows.append({"rule": "per-pattern-cap(MAX_FINDINGS)", "flips": len(set(base) ^ set(mut)), "acc_delta": 0.0})
-    return {"skill": "cache-lint", "n": len(base), "acc_reliable": False,
-            "baseline_acc": 0.0, "baseline_note": "rule-2 finding-set; flips = findings changed when a mechanism is ablated",
-            "rules": rows}
-
-
-SKILLS = [ablate_write_gate, ablate_prompt_triage, ablate_cache_lint]
+SKILLS = [ablate_write_gate, ablate_prompt_triage]
 
 
 def main() -> int:

@@ -34,14 +34,9 @@ RESULTS_DIR = HERE / "results"
 TARGET_CASES = [
     ("/brainer use whichever optional Brainer skills or individual methods are relevant to this task", "brainer"),
     ("make your answers really terse and compact, drop the fluff", "caveman-ultra"),
-    ("I think the tests pass now — confirm the work is actually done", "verify-before-completion"),
     ("where is the function parse_config used across the whole codebase?", "index-first"),
-    ("the wiki facts are stale after the big rename — reconcile them against the code", "wiki-refresh"),
     ("should this note be persisted to memory or is it too low-signal?", "write-gate"),
     ("record this architecture decision in our project memory for next time", "wiki-memory"),
-    ("the terminal output is full of ANSI codes and progress bars — clean it up", "output-filter"),
-    ("I'm re-reading a file I already opened; just show me what changed", "semantic-diff"),
-    ("audit this project's prompt-cache hygiene before we ship the new hooks", "cache-lint"),
     ("classify this incoming prompt and route it to the cheapest capable model", "prompt-triage"),
     ("extract the key state from this transcript before it gets compacted", "context-keeper"),
     ("/think reason through this open-ended problem from first principles and challenge the assumptions before proposing any solution", "think"),
@@ -53,7 +48,6 @@ TARGET_CASES = [
     ("turn this repeated local workflow into a reusable Brainer skill", "learn-skill"),
     ("design this generator-verifier retry loop with a concrete gate, stop condition, and budget cap", "loop-engineering"),
     ("sync these canonical Brainer skill changes to sibling repos without overwriting customizations", "propagate"),
-    ("scan this patch for introduced secrets, dangerous sinks, risky auth logic, and untrusted dependencies", "security-oversight"),
     ("this task will repeat; run an after-the-fact retrospective and capture reusable project lessons", "task-retrospective"),
     ("lead this challenging task by delegating bounded builder lanes and reviewing their work", "team-lead"),
 ]
@@ -62,8 +56,6 @@ TARGET_CASES = [
 COMPOSITION_CASES = [
     ("Record this durable architecture decision in project memory, but first decide whether it is high-signal enough to persist.",
      ("write-gate", "wiki-memory")),
-    ("Keep every request open during this drifting long session and watch for unverified completion claims.",
-     ("compliance-canary", "verify-before-completion")),
 ]
 
 # Backward-compatible import for existing ad-hoc consumers.

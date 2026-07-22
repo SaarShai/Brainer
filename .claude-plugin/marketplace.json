@@ -2,7 +2,7 @@
   "$schema": "https://claude.com/schemas/plugin-marketplace.json",
   "name": "brainer",
   "version": "1.14.1",
-  "description": "Token/context-efficient skills for AI coding agents. 24 skills span verification, continuity, wiki trust, retrieval, output filtering, loop gates, evaluation, and explicit/manual process workflows. The default frontier prompt surface is intentionally small; historical per-skill savings and current limitations are documented in eval/FINDINGS.md.",
+  "description": "Token/context-efficient skills for AI coding agents. 18 skills span verification, continuity, wiki trust, retrieval, output filtering, loop gates, evaluation, and explicit/manual process workflows. The default frontier prompt surface is intentionally small; historical per-skill savings and current limitations are documented in eval/FINDINGS.md.",
   "owner": {
     "name": "Saar Shai"
   },
@@ -10,7 +10,7 @@
     {
       "name": "brainer",
       "version": "1.14.1",
-      "description": "All 24 skills bundled. compliance-canary auto-wires its quiet frontier profile: silent pending-intent state, compact compliance-aware verification, and an armed-only correction ledger. Legacy broad probes and periodic re-anchor were retired, not disabled. Experimental process bodies and Brainer-audit hooks remain opt-in; deterministic tools stay callable.",
+      "description": "All 18 skills bundled. compliance-canary auto-wires its quiet frontier profile: silent pending-intent state, compact compliance-aware verification, and an armed-only correction ledger. Legacy broad probes and periodic re-anchor were retired, not disabled. Experimental process bodies and Brainer-audit hooks remain opt-in; deterministic tools stay callable.",
       "source": "./plugin"
     }
   ]

@@ -12,24 +12,6 @@
     },
     {
       "skills": [
-        "task-retrospective",
-        "verify-before-completion"
-      ],
-      "status": "accepted",
-      "risk": "A task retrospective can start before evidence exists, or verification can imply an automatic learning write.",
-      "resolution": "Run fresh verification first; only armed task-retrospective or explicit persistence requests may route durable project lessons through write-gate."
-    },
-    {
-      "skills": [
-        "prompt-triage",
-        "cache-lint"
-      ],
-      "status": "accepted",
-      "risk": "Model-routing hooks can save tokens while also changing hot-path cache behavior.",
-      "resolution": "Keep prompt-triage routing explicit in hook config and run cache-lint before relying on prompt-cache measurements."
-    },
-    {
-      "skills": [
         "brainer-audit",
         "task-retrospective"
       ],

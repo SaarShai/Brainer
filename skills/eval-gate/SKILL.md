@@ -39,7 +39,7 @@ that can't silently come back. The floor rises on its own.
 3. **Threshold** — the line below which nothing ships. Default `0.7`. The gate
    only works if you never wave a 0.6 through because you liked it. Don't weaken
    the gate to pass — the general rule + the human-sign-off requirement live in
-   [`verify-before-completion`](../verify-before-completion/SKILL.md); here that
+   [`verify-before-completion`](../_shared/briefs/verify-before-completion.md); here that
    means never lowering the threshold mid-run to flip a FAIL→PASS, and the ratchet
    only ever *raises* the floor.
 
@@ -149,7 +149,7 @@ fails *safe* — it never reports a pass it couldn't compute).
    (asked for a boat, shipped a painting of a boat).
 2. `score` at the point of shipping. Exit 1 → rework or kill; do not ship.
    **When a maker hands you a result, run the two-pass refute check** — see
-   [`verify-before-completion`](../verify-before-completion/SKILL.md): a criterion
+   [`verify-before-completion`](../_shared/briefs/verify-before-completion.md): a criterion
    that drops when re-scored from the artifact alone is a refuted claim, below the
    line (the cold-context catch a self-grade structurally misses).
 3. On any prompt / model / pipeline change, run `suite` against the baseline.
@@ -191,7 +191,7 @@ instead of bloating. For heavier signal-scoring of the reason, pipe it through
 
 ## Where this sits
 
-- [`verify-before-completion`](../verify-before-completion/SKILL.md) checks *did
+- [`verify-before-completion`](../_shared/briefs/verify-before-completion.md) checks *did
   it run* (binary, deterministic). eval-gate checks *is the output good*
   (graded, rubric). Use both: no signal, no "done"; below the line, no ship.
 - [`compliance-canary`](../compliance-canary/SKILL.md) is the **runtime** drift

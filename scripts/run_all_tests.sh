@@ -69,7 +69,6 @@ S|core|python3|skills/_shared/test_orchestration_trace.py|-|-
 S|core|python3|skills/_shared/test_activation_trace.py|-|-
 S|core|python3|skills/team-lead/tools/test_team_lead_eval.py|-|-
 S|core|python3|skills/think/tools/test_think_contract.py|-|-
-S|core|python3|skills/cache-lint/tools/test_cache_lint.py|-|-
 S|core|python3|skills/brainer-audit/tools/test_brainer_audit.py|-|-
 S|core|python3|skills/brainer-audit/tools/test_antigravity_sidecar.py|-|-
 S|core|python3|skills/brainer-audit/tools/test_hooks.py|-|-
@@ -81,7 +80,6 @@ S|core|python3|skills/loop-engineering/tools/test_loop_lint.py|-|-
 S|core|python3|skills/context-keeper/tools/tests/test_extract.py|-|-
 S|core|python3|skills/context-keeper/tools/tests/test_sweep.py|-|-
 S|core|python3|skills/context-keeper/tools/test_retention.py|-|-
-S|core|python3|skills/output-filter/tools/test_output_filter.py|-|-
 S|core|python3|skills/prompt-triage/tools/test_classify.py|-|-
 S|core|python3|skills/write-gate/tools/test_write_gate.py|-|-
 S|core|python3|skills/baton/tools/test_lint_baton.py|-|-
@@ -100,8 +98,6 @@ S|core|python3|skills/wiki-memory/tools/test_okf.py|-|-
 S|core|python3|skills/wiki-memory/tools/test_claim_grade.py|-|-
 S|core|python3|skills/wiki-memory/tools/test_sim_eval.py|-|-
 S|core|python3|skills/wiki-memory/tools/test_config.py|-|-
-S|core|python3|skills/wiki-refresh/tools/test_staleness.py|-|-
-S|core|python3|skills/wiki-refresh/tools/test_disuse.py|-|-
 S|core|python3|skills/wiki-memory/tools/test_wiki_adoption.py|-|-
 S|core|python3|skills/index-first/tools/test_augment.py|-|-
 S|core|python3|skills/compliance-canary/tools/test_hook_safety.py|-|-
@@ -109,8 +105,8 @@ S|core|python3|skills/_shared/test_adversarial_regression.py|-|-
 S|core|python3|skills/eval-gate/tools/test_panel.py|-|-
 S|core|python3|skills/eval-gate/tools/test_validate_case.py|-|-
 S|core|python3|skills/impact-of-change/tools/test_impact.py|-|-
-S|core|python3|skills/security-oversight/tools/test_security_scan.py|-|-
-S|core|python3|skills/security-oversight/tools/test_skill_audit.py|-|-
+S|core|python3|skills/_shared/tools/security-oversight/test_security_scan.py|-|-
+S|core|python3|skills/_shared/tools/security-oversight/test_skill_audit.py|-|-
 S|core|python3|skills/compliance-canary/tools/test_coherence_drift_meter.py|-|-
 S|core|python3|skills/learn-skill/tools/test_learn.py|-|-
 S|core|python3|skills/learn-skill/tools/test_telemetry.py|-|-
@@ -128,17 +124,9 @@ S|core|python3|scripts/test_project_install_preflight.py|-|-
 S|core|python3|skills/_shared/test_lane_guard.py|-|-
 S|core|python3|eval/harness_acceptance/test_run.py|-|-
 S|core|python3|eval/exp8_trigger/test_run_trigger_offline.py|-|-
-S|core|python3|skills/semantic-diff/tools/tests/test_basic.py|tree_sitter|-
-S|core|python3|skills/semantic-diff/tools/tests/test_multilang.py|tree_sitter|-
-S|core|python3|skills/semantic-diff/tools/tests/test_rename.py|tree_sitter|-
-S|core|python3|skills/semantic-diff/tools/tests/test_syntax_error.py|tree_sitter|-
-S|core|python3|skills/semantic-diff/tools/tests/test_whitespace.py|tree_sitter|-
-S|core|python3|skills/semantic-diff/tools/tests/test_realistic.py|tree_sitter|-
-S|core|python3|skills/semantic-diff/tools/tests/test_classlevel.py|tree_sitter|-
 S|tail|bash|skills/_shared/test_detached_lane.sh|-|detached-lane:immunity
 S|tail|bash|skills/compliance-canary/tools/test.sh|-|hook:compliance-canary
 S|tail|bash|skills/eval-gate/tools/test.sh|-|tool:eval-gate
-S|tail|bash|skills/verify-before-completion/tools/test.sh|-|tool:verify-artifact
 S|e3|python3|scripts/e3_gauntlet.py|-|e3:gauntlet
 S|e3|python3|scripts/test_e3_gauntlet.py|-|e3:selftest
 X|-|-|scripts/test_skill.sh|-|parameterized helper requiring a skill name; registered suites are tracked directly

@@ -75,8 +75,10 @@ def test_task_retrospective_body_keeps_project_only_boundary_and_project_skill_t
 
 
 def test_wiki_and_verify_no_longer_teach_automatic_task_boundary_harvest():
+    # verify-before-completion was demoted to a delegate brief (Great Pruning
+    # A2, 2026-07-22); the doctrine now lives in _shared/briefs/.
     wiki = read(ROOT / "skills" / "wiki-memory" / "SKILL.md")
-    verify = read(ROOT / "skills" / "verify-before-completion" / "SKILL.md")
+    verify = read(ROOT / "skills" / "_shared" / "briefs" / "verify-before-completion.md")
 
     assert "No automatic task-boundary harvest" in wiki
     assert "do not run the write protocol merely because an ordinary task ended" in wiki
