@@ -70,6 +70,10 @@ from pathlib import Path
 
 
 COOLDOWN_TURNS_DEFAULT = 3
+MAX_FIRES_PER_SESSION_DEFAULT = 3  # per-probe per-session rate cap (Great
+                                    # Pruning fix — session 86a2d209 fired two
+                                    # probes 54x and 46x in one session, noise
+                                    # that trains the agent to ignore probes)
 MSG_WINDOW_DEFAULT = 3            # number of recent assistant messages to scan
 TRANSCRIPT_LINE_CAP = 400         # max trailing lines read from transcript
 MAX_PROBES_TRIGGERED = 4          # cap symptomatic payload
@@ -3075,8 +3079,60 @@ def _session_hash(session_id: str) -> str:
     return hashlib.sha256(session_id.encode("utf-8", errors="replace")).hexdigest()[:16]
 
 
+def _probe_max_fires(probe: dict) -> int:
+    """Per-probe, per-session fire cap (2026-07-22 fix — session 86a2d209
+    fired two probes 54x and 46x in ONE session, noise that trains the agent
+    to ignore the nag; the ruled fix is a cap, not probe deletion).
+    Configurable via the EXISTING drift_probes.json entry field
+    `max_fires_per_session` (no new config file), falling back to the
+    COMPLIANCE_CANARY_MAX_FIRES_PER_SESSION env var, falling back to
+    MAX_FIRES_PER_SESSION_DEFAULT (3)."""
+    val = probe.get("max_fires_per_session")
+    if val is not None:
+        try:
+            n = int(val)
+            if n > 0:
+                return n
+        except (TypeError, ValueError):
+            log_err(f"bad-max-fires-per-session probe={probe.get('_probe_id')} value={val!r}")
+    try:
+        n = int(os.environ.get("COMPLIANCE_CANARY_MAX_FIRES_PER_SESSION", MAX_FIRES_PER_SESSION_DEFAULT))
+        if n > 0:
+            return n
+    except ValueError:
+        pass
+    return MAX_FIRES_PER_SESSION_DEFAULT
+
+
+def apply_probe_fire_cap(state: dict, probes: list[dict]) -> list[dict]:
+    """Per-probe per-session rate cap. Mutates `state["probe_fire_counts"]`
+    in place (persisted by the caller under the same state_lock) and returns
+    the subset of `probes` still allowed to fire THIS turn — a probe already
+    at its cap from an earlier turn is dropped entirely (no display, no
+    telemetry). The one fire that REACHES the cap is stamped with
+    `_rate_limited: True` so the caller's telemetry write can mark the cap
+    engaging (observable, not silent) — order-preserving."""
+    counts = state.get("probe_fire_counts")
+    if not isinstance(counts, dict):
+        counts = {}
+    allowed: list[dict] = []
+    for probe in probes:
+        pid = probe.get("_probe_id", "")
+        cap = _probe_max_fires(probe)
+        current = _as_int(counts.get(pid), 0)
+        if current >= cap:
+            continue  # already capped earlier this session — fully suppressed
+        current += 1
+        counts[pid] = current
+        if current >= cap:
+            probe["_rate_limited"] = True
+        allowed.append(probe)
+    state["probe_fire_counts"] = counts
+    return allowed
+
+
 def append_telemetry(session_id: str, turn: int, mechanism: str, probe_id: str,
-                     emitted: bool, content: str) -> None:
+                     emitted: bool, content: str, rate_limited: bool = False) -> None:
     """Append content-free experiment telemetry; never expose transcript text."""
     record = {
         "session_hash": _session_hash(session_id),
@@ -3087,6 +3143,12 @@ def append_telemetry(session_id: str, turn: int, mechanism: str, probe_id: str,
         "injected_bytes": len(content.encode("utf-8")) if emitted else 0,
         "content_hash": hashlib.sha256(content.encode("utf-8")).hexdigest(),
     }
+    if rate_limited:
+        # Per-probe per-session cap engaged on THIS fire (2026-07-22). Key is
+        # added ONLY when true, so a normal fire's record stays byte-identical
+        # to the pre-existing schema — downstream aggregation scripts that
+        # read a fixed field set are unaffected.
+        record["rate_limited"] = True
     path = Path(os.environ.get("COMPLIANCE_CANARY_TELEMETRY_PATH") or
                 (state_dir() / "telemetry.jsonl"))
     try:
@@ -3493,6 +3555,7 @@ def main() -> int:
             if fired:
                 with state_lock(path):
                     state = load_state(path)
+                    fired = apply_probe_fire_cap(state, fired)
                     history = state.get("probe_history", [])
                     for probe in fired:
                         history.append({"probe_id": probe["_probe_id"], "fired_at_turn": turn})
@@ -3545,7 +3608,7 @@ def main() -> int:
             events = read_transcript_tail(transcript_path)
         by_id = {p.get("_probe_id"): p for p in all_probes}
         delivered = {p.get("_probe_id") for p in fired}
-        emitted_deferred: list[dict] = []
+        candidates_for_cap: list[dict] = []
         for marker in deferred_markers:
             pid = str(marker.get("probe_id") or "")
             if not pid or pid in delivered:
@@ -3561,11 +3624,12 @@ def main() -> int:
             }
             probe["_probe_id"] = pid
             probe["_result"] = marker.get("result") or {}
-            fired.append(probe)
-            emitted_deferred.append(probe)
-        if emitted_deferred:
+            candidates_for_cap.append(probe)
+        emitted_deferred: list[dict] = []
+        if candidates_for_cap:
             with state_lock(path):
                 state = load_state(path)
+                emitted_deferred = apply_probe_fire_cap(state, candidates_for_cap)
                 history = state.get("probe_history", [])
                 if not isinstance(history, list):
                     history = []
@@ -3573,6 +3637,7 @@ def main() -> int:
                     history.append({"probe_id": probe["_probe_id"], "fired_at_turn": turn})
                 state["probe_history"] = history[-50:]
                 save_state(path, state)
+            fired.extend(emitted_deferred)
             _record_trigger_matched_activations(emitted_deferred)
 
     # --- D4a notification pending-content reconciliation -------------------
@@ -3694,7 +3759,8 @@ def main() -> int:
     for probe in fired:
         append_telemetry(session_id, turn, "symptomatic_probe",
                          probe.get("_probe_id", "unknown"), True,
-                         format_one_probe(probe))
+                         format_one_probe(probe),
+                         rate_limited=bool(probe.get("_rate_limited")))
     if ledger_lines:
         append_telemetry(session_id, turn, "intent_wrap_up", "request-ledger:wrap-up",
                          True, "\n".join(ledger_lines))

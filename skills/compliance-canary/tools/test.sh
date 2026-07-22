@@ -2452,6 +2452,41 @@ write_transcript "$TX" \
 out=$(call cc119d sk119 "$TX" s119d)
 if ! echo "$out" | grep -q 'caveat_omitted_in_relay'; then ok "compiler warning noise stays silent"; else no "compiler warning noise must stay silent" "got: $(echo "$out" | head -c200)"; fi
 
+echo "[120a] rate cap: a probe that would fire every turn (cooldown=0) fires at most 3 times per session, then goes silent"
+PROBES='[{"id":"filler","kind":"forbidden_regex","pattern":"(?i)\\bcertainly\\b"}]'
+make_skill_with_probes sk120 cv "$PROBES"
+TX="$TRANSCRIPT_DIR/t120.jsonl"
+write_transcript "$TX" "$(assistant_text 'Certainly!' u1)"
+TELEM120="$STATE_ROOT/cc120-telemetry.jsonl"
+fire_count=0
+for i in 1 2 3 4 5; do
+  out=$(call cc120 sk120 "$TX" s120 COMPLIANCE_CANARY_COOLDOWN=0 COMPLIANCE_CANARY_TELEMETRY_PATH="$TELEM120")
+  if emitted "$out"; then fire_count=$((fire_count+1)); fi
+done
+if [ "$fire_count" -eq 3 ]; then ok "capped at 3 fires across 5 turns (default N=3)"; else no "capped at 3 fires across 5 turns" "fire_count=$fire_count"; fi
+
+echo "[120b] rate cap: the capping (3rd) fire is marked rate_limited:true in telemetry; earlier fires are not"
+rl_count=$(grep -c '"rate_limited": true' "$TELEM120" 2>/dev/null || echo 0)
+if [ "$rl_count" -eq 1 ]; then ok "exactly one rate_limited:true telemetry line"; else no "exactly one rate_limited:true telemetry line" "rl_count=$rl_count"; fi
+
+echo "[120c] rate cap: max_fires_per_session probe field overrides the default cap"
+PROBES_CAP1='[{"id":"filler","kind":"forbidden_regex","pattern":"(?i)\\bcertainly\\b","max_fires_per_session":1}]'
+make_skill_with_probes sk120c cv "$PROBES_CAP1"
+TX="$TRANSCRIPT_DIR/t120c.jsonl"
+write_transcript "$TX" "$(assistant_text 'Certainly!' u1)"
+fire_count=0
+for i in 1 2 3; do
+  out=$(call cc120c sk120c "$TX" s120c COMPLIANCE_CANARY_COOLDOWN=0)
+  if emitted "$out"; then fire_count=$((fire_count+1)); fi
+done
+if [ "$fire_count" -eq 1 ]; then ok "max_fires_per_session:1 caps at 1 fire"; else no "max_fires_per_session:1 caps at 1 fire" "fire_count=$fire_count"; fi
+
+echo "[120d] rate cap: a NEW session resets the per-probe fire count"
+TX="$TRANSCRIPT_DIR/t120d.jsonl"
+write_transcript "$TX" "$(assistant_text 'Certainly!' u1)"
+out=$(call cc120 sk120 "$TX" s120d COMPLIANCE_CANARY_COOLDOWN=0)
+if emitted "$out"; then ok "new session s120d fires again after s120 was capped"; else no "new session s120d fires again after s120 was capped"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then
