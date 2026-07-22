@@ -228,6 +228,7 @@ def test_report_refuses_unjustified_paper_for_guard_candidate():
         root = Path(tmp)
         run_cli([
             "start", "--task", "Guard report", "--repeat-trigger", "when banking a lesson", "--task-id", "guard-report",
+            "--goal", "bank a guard-shaped lesson", "--definition-of-done", "report renders enforcement labels",
         ], root=root)
         run_cli([
             "note", "--type", "candidate_lesson",
