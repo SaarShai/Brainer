@@ -866,6 +866,17 @@ for f in CLAUDE.md AGENTS.md GEMINI.md; do
 done
 
 echo
+if [ -f "$DEST_ROOT/tools/boot_doc_parity.py" ]; then
+  PARITY_TOOL="$DEST_ROOT/tools/boot_doc_parity.py"
+elif [ -f "$REPO_ROOT/tools/boot_doc_parity.py" ]; then
+  PARITY_TOOL="$REPO_ROOT/tools/boot_doc_parity.py"
+else
+  PARITY_TOOL=""
+fi
+if [ -n "$PARITY_TOOL" ] && ! python3 "$PARITY_TOOL"; then
+  echo "WARNING: resident boot docs diverge outside the generated catalog; reconcile the lagging file(s) named in the parity summary above." >&2
+fi
+
 # Gate-substrate liveness (LEARNING_CONTRACT.md §4): a dead gate (unparseable
 # drift_probes.json, dangling SKILL.md tool/link reference, broken hooks-map
 # entry) is worse than none. Checks the Brainer checkout itself (repo-wide,

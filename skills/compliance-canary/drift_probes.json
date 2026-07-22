@@ -131,5 +131,14 @@
   "message": "reply relays a scorecard/digest/verdict as healthy, but a tool result read this turn contains explicit caveat language (‘caveat’ / ‘known issue’) the reply never surfaces — a written caveat is a FAIL cell even in a relay; quote it to the owner before the healthy verdict",
   "severity": "warn",
   "_note": "Added 2026-07-20 after the OB-6 relay failure class hit its 3rd occurrence (monitor relayed a FULL/STRONG repair scorecard while the digest held an honest tolerance caveat on flap fit; owner found the broken flaps himself). Source-side match kept narrow (caveat/known issue) to avoid compiler-warning FPs; any caveat-ish language in the reply itself suppresses."
- }
+ },
+  {
+    "id": "cad-done-claim-without-artifacts",
+    "kind": "claim_without_evidence",
+    "claim_pattern": "(?i)\\b(CAD|STEP|assembly|viewer)\\b.{0,120}\\b(published|complete[d]?|done|passed all gates|success)\\b|\\b(published|complete[d]?)\\b.{0,120}\\b(CAD|STEP|assembly)\\b",
+    "lookback_tool_uses": 8,
+    "message": "a CAD build/publish done-claim was made without owner-anchored artifacts in the recent window — a done-claim for a Screenery CAD deliverable must cite the interactive viewer path plus acceptance-gate numbers (overlay deviation, reference congruence); builder-authored receipts alone do not count (wiki/lessons/cad-build-from-ai-contract.md)",
+    "severity": "warn",
+    "_note": "Added 2026-07-21 after Kitchen double-rejection (screenery); harvested from vendored copies."
+  }
 ]
