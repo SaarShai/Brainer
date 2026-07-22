@@ -2487,6 +2487,52 @@ write_transcript "$TX" "$(assistant_text 'Certainly!' u1)"
 out=$(call cc120 sk120 "$TX" s120d COMPLIANCE_CANARY_COOLDOWN=0)
 if emitted "$out"; then ok "new session s120d fires again after s120 was capped"; else no "new session s120d fires again after s120 was capped"; fi
 
+# ======================================================================
+# [121] budget_expired_without_checkpoint (Great Pruning #5b, 2026-07-22): a
+# budget/stop-loss declared earlier in the window, then a later turn shows
+# exceedance language with no owner-facing checkpoint report in between.
+# ======================================================================
+BUDGET_PROBES='[{"id":"budget-expired-without-checkpoint","kind":"budget_expired_without_checkpoint","window":20}]'
+make_skill_with_probes sk121 compliance-canary "$BUDGET_PROBES"
+
+echo "[121a] TP: budget declared, later turn shows exceedance with no checkpoint report → must fire"
+TX="$TRANSCRIPT_DIR/t121a.jsonl"
+write_transcript "$TX" \
+  "$(assistant_text 'Budget for this batch: ~10 orchestration calls plus a 45-min stop-loss.' u121a1)" \
+  "$(assistant_tool_use Bash '{"command":"echo working"}')" \
+  "$(assistant_text 'Continuing lane 3 work, almost there.' u121a2)" \
+  "$(assistant_text 'We blew through the budget on this batch — still finishing up lane 4.' u121a3)"
+out=$(call cc121a sk121 "$TX" s121a)
+if emitted "$out" && echo "$out" | grep -q 'budget_expired_without_checkpoint\|budget/stop-loss was declared'; then ok "budget exceedance without checkpoint fires"; else no "budget exceedance without checkpoint must fire" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[121b] FP guard: exceedance turn ALSO carries an owner-facing checkpoint report → must stay silent"
+TX="$TRANSCRIPT_DIR/t121b.jsonl"
+write_transcript "$TX" \
+  "$(assistant_text 'Budget for this batch: ~10 orchestration calls plus a 45-min stop-loss.' u121b1)" \
+  "$(assistant_tool_use Bash '{"command":"echo working"}')" \
+  "$(assistant_text 'Continuing lane 3 work, almost there.' u121b2)" \
+  "$(assistant_text 'Checkpoint: we blew through the budget on this batch (14 calls vs the 10-call cap) — flagging this to you before continuing.' u121b3)"
+out=$(call cc121b sk121 "$TX" s121b)
+if ! echo "$out" | grep -q 'budget_expired_without_checkpoint\|budget/stop-loss was declared'; then ok "exceedance WITH checkpoint report stays silent"; else no "exceedance WITH checkpoint report must stay silent" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[121c] control: no budget ever declared, exceedance-shaped language alone → must stay silent"
+TX="$TRANSCRIPT_DIR/t121c.jsonl"
+write_transcript "$TX" "$(assistant_text 'We blew through the budget on groceries this month.' u121c)"
+out=$(call cc121c sk121 "$TX" s121c)
+if ! echo "$out" | grep -q 'budget_expired_without_checkpoint\|budget/stop-loss was declared'; then ok "no prior declaration stays silent"; else no "no prior declaration must stay silent" "got: $(echo "$out" | head -c200)"; fi
+
+echo "[121d] rate cap: repeated fires across turns are capped at 3 per session (shared rate-cap machinery)"
+TX="$TRANSCRIPT_DIR/t121d.jsonl"
+write_transcript "$TX" \
+  "$(assistant_text 'Budget for this batch: ~10 orchestration calls plus a 45-min stop-loss.' u121d1)" \
+  "$(assistant_text 'We blew through the budget on this batch — still finishing up lane 4.' u121d2)"
+fire_count=0
+for i in 1 2 3 4 5; do
+  out=$(call cc121d sk121 "$TX" s121d COMPLIANCE_CANARY_COOLDOWN=0)
+  if emitted "$out" && echo "$out" | grep -q 'budget_expired_without_checkpoint\|budget/stop-loss was declared'; then fire_count=$((fire_count+1)); fi
+done
+if [ "$fire_count" -eq 3 ]; then ok "budget probe capped at 3 fires across 5 turns (shared rate cap)"; else no "budget probe capped at 3 fires across 5 turns" "fire_count=$fire_count"; fi
+
 # ----------------------------------------------------------------------
 echo
 if [ $FAIL -eq 0 ]; then

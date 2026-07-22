@@ -133,6 +133,14 @@
   "_note": "Added 2026-07-20 after the OB-6 relay failure class hit its 3rd occurrence (monitor relayed a FULL/STRONG repair scorecard while the digest held an honest tolerance caveat on flap fit; owner found the broken flaps himself). Source-side match kept narrow (caveat/known issue) to avoid compiler-warning FPs; any caveat-ish language in the reply itself suppresses."
  },
   {
+    "id": "budget-expired-without-checkpoint",
+    "kind": "budget_expired_without_checkpoint",
+    "window": 20,
+    "message": "a budget/stop-loss was declared earlier in this window (e.g. '~10 orchestration calls + 45-min stop-loss'), and a later turn shows exceedance language ('blew through', 'over budget', 'past the stop-loss') with no owner-facing checkpoint report anywhere in between — post the checkpoint now: state actual usage vs the declared cap and whether work continues. LIMITS (stated, not overclaimed): phrase-based only — it does NOT parse the declared numeric cap and compare it to an observed call/lane count, it only matches explicit exceedance wording; it only sees the last <window> assistant messages (default 20, hard cap 50), so a declaration further back or from a prior/compacted session is invisible.",
+    "severity": "warn",
+    "_note": "Added 2026-07-22 (Great Pruning #5b) after a lead declared '~10 calls + 45-min stop-loss' then blew through it silently. Borrows the widened-window + earlier-cue/later-cue detector shape already established by caveat_omitted_in_relay rather than inventing new transcript plumbing."
+  },
+  {
     "id": "cad-done-claim-without-artifacts",
     "kind": "claim_without_evidence",
     "claim_pattern": "(?i)\\b(CAD|STEP|assembly|viewer)\\b.{0,120}\\b(published|complete[d]?|done|passed all gates|success)\\b|\\b(published|complete[d]?)\\b.{0,120}\\b(CAD|STEP|assembly)\\b",
